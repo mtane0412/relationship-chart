@@ -4,6 +4,7 @@
  */
 
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
 import type { Person } from '@/types/person';
 import type { Relationship } from '@/types/relationship';
@@ -63,50 +64,58 @@ type GraphStore = GraphState & GraphActions;
 /**
  * グラフストア
  * 人物と関係を管理するグローバルストア
+ * persistミドルウェアでLocalStorageに自動保存
  */
-export const useGraphStore = create<GraphStore>((set) => ({
-  // 初期状態
-  persons: [],
-  relationships: [],
-  forceEnabled: true, // デフォルトでforce-directedレイアウトを有効
+export const useGraphStore = create<GraphStore>()(
+  persist(
+    (set) => ({
+      // 初期状態
+      persons: [],
+      relationships: [],
+      forceEnabled: true, // デフォルトでforce-directedレイアウトを有効
 
-  // アクション
-  addPerson: (person) =>
-    set((state) => ({
-      persons: [
-        ...state.persons,
-        {
-          ...person,
-          id: nanoid(),
-          createdAt: new Date().toISOString(),
-        },
-      ],
-    })),
+      // アクション
+      addPerson: (person) =>
+        set((state) => ({
+          persons: [
+            ...state.persons,
+            {
+              ...person,
+              id: nanoid(),
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        })),
 
-  removePerson: (personId) =>
-    set((state) => ({
-      persons: state.persons.filter((p) => p.id !== personId),
-    })),
+      removePerson: (personId) =>
+        set((state) => ({
+          persons: state.persons.filter((p) => p.id !== personId),
+        })),
 
-  addRelationship: (relationship) =>
-    set((state) => ({
-      relationships: [
-        ...state.relationships,
-        {
-          ...relationship,
-          id: nanoid(),
-          createdAt: new Date().toISOString(),
-        },
-      ],
-    })),
+      addRelationship: (relationship) =>
+        set((state) => ({
+          relationships: [
+            ...state.relationships,
+            {
+              ...relationship,
+              id: nanoid(),
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        })),
 
-  removeRelationship: (relationshipId) =>
-    set((state) => ({
-      relationships: state.relationships.filter((r) => r.id !== relationshipId),
-    })),
+      removeRelationship: (relationshipId) =>
+        set((state) => ({
+          relationships: state.relationships.filter((r) => r.id !== relationshipId),
+        })),
 
-  setForceEnabled: (enabled) =>
-    set(() => ({
-      forceEnabled: enabled,
-    })),
-}));
+      setForceEnabled: (enabled) =>
+        set(() => ({
+          forceEnabled: enabled,
+        })),
+    }),
+    {
+      name: 'relationship-chart-storage', // LocalStorageのキー名
+    }
+  )
+);

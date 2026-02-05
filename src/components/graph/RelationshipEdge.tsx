@@ -61,8 +61,8 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
         id={id}
         path={edgePath}
         style={{
-          stroke: '#94a3b8',
-          strokeWidth: 2,
+          stroke: '#64748b',
+          strokeWidth: 2.5,
         }}
         markerEnd={edgeData.isDirected ? 'url(#arrow)' : undefined}
       />
@@ -75,11 +75,11 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
             transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
             pointerEvents: 'all',
           }}
-          className="flex items-center gap-1"
+          className="flex items-center gap-1.5 group/edge"
         >
           {/* ラベルバッジ */}
-          <div className="px-2 py-1 bg-white rounded-md shadow-md border border-gray-200">
-            <div className="text-xs font-medium text-gray-700">
+          <div className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full shadow-lg border-2 border-blue-200 group-hover/edge:border-blue-400 group-hover/edge:shadow-xl transition-all duration-200">
+            <div className="text-xs font-semibold text-blue-800">
               {edgeData.label}
             </div>
           </div>
@@ -87,7 +87,7 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
           {/* 削除ボタン */}
           <button
             onClick={handleDelete}
-            className="w-5 h-5 flex items-center justify-center bg-red-500 text-white rounded-full shadow-md hover:bg-red-600 transition-colors"
+            className="w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 hover:scale-110 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300"
             aria-label="関係を削除"
             type="button"
           >
@@ -95,7 +95,7 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 20 20"
               fill="currentColor"
-              className="w-3 h-3"
+              className="w-3.5 h-3.5"
             >
               <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
             </svg>
@@ -114,7 +114,7 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
           markerHeight="6"
           orient="auto-start-reverse"
         >
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8" />
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b" />
         </marker>
       </defs>
     </>
