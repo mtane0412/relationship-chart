@@ -1,6 +1,6 @@
 /**
  * PersonNodeコンポーネント
- * 人物を表すカスタムノード（現在は名前テキストのみの仮実装）
+ * 人物を表すカスタムノード（丸い画像+名前表示）
  */
 
 import { memo } from 'react';
@@ -16,15 +16,44 @@ export const PersonNode = memo(({ data }: NodeProps) => {
   const personData = data as PersonNodeData;
 
   return (
-    <div className="px-4 py-2 bg-white border-2 border-gray-300 rounded-lg shadow-md">
+    <div className="flex flex-col items-center">
       {/* 接続ポイント（上下左右） */}
-      <Handle type="target" position={Position.Top} />
-      <Handle type="source" position={Position.Bottom} />
-      <Handle type="target" position={Position.Left} />
-      <Handle type="source" position={Position.Right} />
+      <Handle
+        type="target"
+        position={Position.Top}
+        className="!bg-blue-500 !w-3 !h-3"
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="!bg-blue-500 !w-3 !h-3"
+      />
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="!bg-blue-500 !w-3 !h-3"
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="!bg-blue-500 !w-3 !h-3"
+      />
+
+      {/* 丸い画像 */}
+      <div className="relative">
+        <img
+          src={personData.imageDataUrl}
+          alt={personData.name}
+          className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-lg"
+        />
+      </div>
 
       {/* 名前テキスト表示 */}
-      <div className="text-sm font-medium text-gray-900">{personData.name}</div>
+      <div className="mt-2 px-3 py-1 bg-white rounded-full shadow-md border border-gray-200">
+        <div className="text-sm font-medium text-gray-900 whitespace-nowrap">
+          {personData.name}
+        </div>
+      </div>
     </div>
   );
 });

@@ -4,11 +4,18 @@
  */
 
 import { RelationshipGraph } from '@/components/graph/RelationshipGraph';
+import { SidePanel } from '@/components/panel/SidePanel';
 
 export default function Home() {
   return (
-    <main className="w-full h-screen">
-      <RelationshipGraph />
+    <main className="flex w-full h-screen">
+      {/* サイドパネル */}
+      <SidePanel />
+
+      {/* グラフ表示エリア */}
+      <div className="flex-1">
+        <RelationshipGraph />
+      </div>
     </main>
   );
 }
