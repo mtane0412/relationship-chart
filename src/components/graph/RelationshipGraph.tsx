@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import {
   ReactFlow,
   Background,
@@ -13,6 +13,7 @@ import {
   MiniMap,
   useNodesState,
   useEdgesState,
+  useReactFlow,
   type NodeTypes,
   type EdgeTypes,
   type Node,
@@ -20,9 +21,11 @@ import {
 import '@xyflow/react/dist/style.css';
 import { PersonNode } from './PersonNode';
 import { RelationshipEdge as RelationshipEdgeComponent } from './RelationshipEdge';
+import { PersonRegistrationModal } from './PersonRegistrationModal';
 import { useForceLayout } from './useForceLayout';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { personsToNodes, relationshipsToEdges } from '@/lib/graph-utils';
+import { processImage } from '@/lib/image-utils';
 import type {
   PersonNode as PersonNodeType,
   RelationshipEdge,
@@ -39,6 +42,14 @@ const edgeTypes: EdgeTypes = {
 };
 
 /**
+ * 画像D&D/ペースト時の登録待ちデータ
+ */
+type PendingRegistration = {
+  imageDataUrl?: string;
+  position: { x: number; y: number };
+};
+
+/**
  * 相関図グラフコンポーネント
  */
 export function RelationshipGraph() {
@@ -46,10 +57,18 @@ export function RelationshipGraph() {
   const persons = useGraphStore((state) => state.persons);
   const relationships = useGraphStore((state) => state.relationships);
   const forceEnabled = useGraphStore((state) => state.forceEnabled);
+  const addPerson = useGraphStore((state) => state.addPerson);
+  const selectPerson = useGraphStore((state) => state.selectPerson);
 
   // React Flowのノードとエッジの状態
   const [nodes, setNodes, onNodesChange] = useNodesState<PersonNodeType>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<RelationshipEdge>([]);
+
+  // 登録モーダルの状態
+  const [pendingRegistration, setPendingRegistration] = useState<PendingRegistration | null>(null);
+
+  // React Flow APIを取得
+  const { screenToFlowPosition } = useReactFlow();
 
   // ノード位置更新のコールバック（useForceLayout用）
   const handleNodesUpdate = useCallback(
@@ -97,8 +116,112 @@ export function RelationshipGraph() {
     setEdges(newEdges);
   }, [persons, relationships, setNodes, setEdges]);
 
+  // キャンバスへの画像ドロップハンドラ
+  const handleDrop = useCallback(
+    async (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+
+      // ドロップされたファイルを取得
+      const files = Array.from(event.dataTransfer.files);
+      const imageFile = files.find((file) => file.type.startsWith('image/'));
+
+      if (!imageFile) return;
+
+      try {
+        // 画像をリサイズ
+        const imageDataUrl = await processImage(imageFile);
+
+        // ドロップ位置をReact Flowの座標系に変換
+        const position = screenToFlowPosition({
+          x: event.clientX,
+          y: event.clientY,
+        });
+
+        // モーダルを開く
+        setPendingRegistration({ imageDataUrl, position });
+      } catch (error) {
+        console.error('画像処理に失敗しました:', error);
+      }
+    },
+    [screenToFlowPosition]
+  );
+
+  // ドラッグオーバーハンドラ（ドロップを許可するために必要）
+  const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+  }, []);
+
+  // クリップボードからのペーストハンドラ
+  useEffect(() => {
+    const handlePaste = async (event: ClipboardEvent) => {
+      const items = event.clipboardData?.items;
+      if (!items) return;
+
+      // クリップボードから画像を検出
+      const imageItem = Array.from(items).find((item) =>
+        item.type.startsWith('image/')
+      );
+
+      if (!imageItem) return;
+
+      const file = imageItem.getAsFile();
+      if (!file) return;
+
+      try {
+        // 画像をリサイズ
+        const imageDataUrl = await processImage(file);
+
+        // キャンバス中央の座標を計算（screenToFlowPositionはここでは使えないので概算）
+        const position = { x: 400, y: 300 };
+
+        // モーダルを開く
+        setPendingRegistration({ imageDataUrl, position });
+      } catch (error) {
+        console.error('画像処理に失敗しました:', error);
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, []);
+
+  // ノードクリックハンドラ
+  const handleNodeClick = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      selectPerson(node.id);
+    },
+    [selectPerson]
+  );
+
+  // 背景クリックハンドラ
+  const handlePaneClick = useCallback(() => {
+    selectPerson(null);
+  }, [selectPerson]);
+
+  // モーダルからの登録ハンドラ
+  const handleRegisterPerson = useCallback(
+    (name: string) => {
+      if (!pendingRegistration) return;
+
+      // 人物を追加
+      addPerson({
+        name,
+        imageDataUrl: pendingRegistration.imageDataUrl,
+      });
+
+      // モーダルを閉じる
+      setPendingRegistration(null);
+    },
+    [pendingRegistration, addPerson]
+  );
+
+  // モーダルのキャンセルハンドラ
+  const handleCancelRegistration = useCallback(() => {
+    setPendingRegistration(null);
+  }, []);
+
   return (
-    <div className="w-full h-screen relative">
+    <div className="w-full h-screen relative" onDrop={handleDrop} onDragOver={handleDragOver}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -111,6 +234,8 @@ export function RelationshipGraph() {
           handleNodeDrag(node.id, node.position)
         }
         onNodeDragStop={(_, node) => handleNodeDragEnd(node.id)}
+        onNodeClick={handleNodeClick}
+        onPaneClick={handlePaneClick}
         fitView
       >
         <Background />
@@ -142,16 +267,24 @@ export function RelationshipGraph() {
               人物相関図を作成
             </h2>
             <p className="text-gray-600 mb-4">
-              左側のパネルから人物を追加して、相関図を作成しましょう
+              画像をキャンバスにドラッグ&ドロップまたはペーストして人物を追加しましょう
             </p>
             <div className="space-y-2 text-sm text-gray-500">
-              <p>📸 画像をドラッグ&ドロップして人物を追加</p>
+              <p>📸 画像をD&D/ペーストして人物を追加</p>
               <p>🔗 2人以上登録すると関係を追加できます</p>
               <p>✨ 自動配置で見やすいレイアウトに整理</p>
             </div>
           </div>
         </div>
       )}
+
+      {/* 人物登録モーダル */}
+      <PersonRegistrationModal
+        isOpen={pendingRegistration !== null}
+        imageDataUrl={pendingRegistration?.imageDataUrl}
+        onSubmit={handleRegisterPerson}
+        onCancel={handleCancelRegistration}
+      />
     </div>
   );
 }

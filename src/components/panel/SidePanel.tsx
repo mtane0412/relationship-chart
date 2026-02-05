@@ -5,9 +5,9 @@
 
 'use client';
 
-import { PersonForm } from './PersonForm';
 import { PersonList } from './PersonList';
 import { RelationshipForm } from './RelationshipForm';
+import { PersonEditForm } from './PersonEditForm';
 import { useGraphStore } from '@/stores/useGraphStore';
 
 /**
@@ -16,6 +16,14 @@ import { useGraphStore } from '@/stores/useGraphStore';
 export function SidePanel() {
   const forceEnabled = useGraphStore((state) => state.forceEnabled);
   const setForceEnabled = useGraphStore((state) => state.setForceEnabled);
+  const selectedPersonId = useGraphStore((state) => state.selectedPersonId);
+  const selectPerson = useGraphStore((state) => state.selectPerson);
+  const persons = useGraphStore((state) => state.persons);
+
+  // 選択中の人物を取得
+  const selectedPerson = selectedPersonId
+    ? persons.find((p) => p.id === selectedPersonId)
+    : undefined;
 
   return (
     <div className="w-80 h-screen bg-white border-r border-gray-200 flex flex-col">
@@ -54,29 +62,34 @@ export function SidePanel() {
 
       {/* コンテンツエリア */}
       <div className="flex-1 overflow-y-auto">
-        {/* 人物登録フォーム */}
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">
-            人物を追加
-          </h2>
-          <PersonForm />
-        </div>
+        {/* 人物編集フォーム（人物が選択されている場合） */}
+        {selectedPerson && (
+          <PersonEditForm
+            person={selectedPerson}
+            onClose={() => selectPerson(null)}
+          />
+        )}
 
-        {/* 関係登録フォーム */}
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">
-            関係を追加
-          </h2>
-          <RelationshipForm />
-        </div>
+        {/* 通常のフォーム（人物が選択されていない場合） */}
+        {!selectedPerson && (
+          <>
+            {/* 関係登録フォーム */}
+            <div className="p-4 border-b border-gray-200">
+              <h2 className="text-sm font-semibold text-gray-700 mb-3">
+                関係を追加
+              </h2>
+              <RelationshipForm />
+            </div>
 
-        {/* 人物一覧 */}
-        <div className="p-4">
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">
-            登録済みの人物
-          </h2>
-          <PersonList />
-        </div>
+            {/* 人物一覧 */}
+            <div className="p-4">
+              <h2 className="text-sm font-semibold text-gray-700 mb-3">
+                登録済みの人物
+              </h2>
+              <PersonList />
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

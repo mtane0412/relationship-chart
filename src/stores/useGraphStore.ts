@@ -19,6 +19,8 @@ type GraphState = {
   relationships: Relationship[];
   /** force-directedレイアウトが有効かどうか */
   forceEnabled: boolean;
+  /** 選択中の人物のID（未選択時はnull） */
+  selectedPersonId: string | null;
 };
 
 /**
@@ -32,10 +34,23 @@ type GraphActions = {
   addPerson: (person: Omit<Person, 'id' | 'createdAt'>) => void;
 
   /**
+   * 指定したIDの人物を更新する
+   * @param personId - 更新する人物のID
+   * @param updates - 更新する内容（idとcreatedAtは更新不可）
+   */
+  updatePerson: (personId: string, updates: Partial<Omit<Person, 'id' | 'createdAt'>>) => void;
+
+  /**
    * 指定したIDの人物を削除する
    * @param personId - 削除する人物のID
    */
   removePerson: (personId: string) => void;
+
+  /**
+   * 人物を選択または選択解除する
+   * @param personId - 選択する人物のID（nullで選択解除）
+   */
+  selectPerson: (personId: string | null) => void;
 
   /**
    * 新しい関係を追加する
@@ -73,6 +88,7 @@ export const useGraphStore = create<GraphStore>()(
       persons: [],
       relationships: [],
       forceEnabled: true, // デフォルトでforce-directedレイアウトを有効
+      selectedPersonId: null, // 初期状態では何も選択されていない
 
       // アクション
       addPerson: (person) =>
@@ -87,9 +103,21 @@ export const useGraphStore = create<GraphStore>()(
           ],
         })),
 
+      updatePerson: (personId, updates) =>
+        set((state) => ({
+          persons: state.persons.map((person) =>
+            person.id === personId ? { ...person, ...updates } : person
+          ),
+        })),
+
       removePerson: (personId) =>
         set((state) => ({
           persons: state.persons.filter((p) => p.id !== personId),
+        })),
+
+      selectPerson: (personId) =>
+        set(() => ({
+          selectedPersonId: personId,
         })),
 
       addRelationship: (relationship) =>

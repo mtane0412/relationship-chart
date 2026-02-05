@@ -64,6 +64,29 @@ describe('graph-utils', () => {
       expect(nodes[1].id).toBe('person-2');
       expect(nodes[1].data.name).toBe('佐藤花子');
     });
+
+    it('imageDataUrlが未設定のPersonをPersonNodeに変換できる', () => {
+      const persons: Person[] = [
+        {
+          id: 'person-1',
+          name: '山田太郎',
+          createdAt: '2026-02-05T00:00:00.000Z',
+        },
+      ];
+
+      const nodes = personsToNodes(persons);
+
+      expect(nodes).toHaveLength(1);
+      expect(nodes[0]).toEqual({
+        id: 'person-1',
+        type: 'person',
+        data: {
+          name: '山田太郎',
+          imageDataUrl: undefined,
+        },
+        position: { x: 0, y: 0 },
+      });
+    });
   });
 
   describe('relationshipsToEdges', () => {

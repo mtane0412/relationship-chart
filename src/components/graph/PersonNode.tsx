@@ -15,6 +15,9 @@ export const PersonNode = memo(({ data }: NodeProps) => {
   // PersonNodeDataとして型アサーションを使用
   const personData = data as PersonNodeData;
 
+  // 名前の最初の1文字をイニシャルとして取得
+  const initial = personData.name.charAt(0).toUpperCase();
+
   return (
     <div className="flex flex-col items-center group cursor-grab active:cursor-grabbing">
       {/* 接続ポイント（上下左右） */}
@@ -39,13 +42,19 @@ export const PersonNode = memo(({ data }: NodeProps) => {
         className="bg-blue-500! w-3! h-3! border-2! border-white!"
       />
 
-      {/* 丸い画像 */}
+      {/* 丸い画像またはデフォルトアバター */}
       <div className="relative transition-transform duration-200 group-hover:scale-110">
-        <img
-          src={personData.imageDataUrl}
-          alt={personData.name}
-          className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-xl ring-2 ring-gray-200 group-hover:ring-4 group-hover:ring-blue-300 transition-all duration-200"
-        />
+        {personData.imageDataUrl ? (
+          <img
+            src={personData.imageDataUrl}
+            alt={personData.name}
+            className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-xl ring-2 ring-gray-200 group-hover:ring-4 group-hover:ring-blue-300 transition-all duration-200"
+          />
+        ) : (
+          <div className="w-20 h-20 rounded-full bg-gray-400 border-4 border-white shadow-xl ring-2 ring-gray-200 group-hover:ring-4 group-hover:ring-blue-300 transition-all duration-200 flex items-center justify-center">
+            <span className="text-white text-2xl font-bold">{initial}</span>
+          </div>
+        )}
       </div>
 
       {/* 名前テキスト表示 */}

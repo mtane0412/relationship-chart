@@ -133,4 +133,167 @@ describe('useGraphStore', () => {
       expect(result.current.persons).toHaveLength(1);
     });
   });
+
+  describe('addPerson（imageDataUrlなし）', () => {
+    it('imageDataUrlなしで人物を追加できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      const newPerson: Omit<Person, 'id' | 'createdAt'> = {
+        name: '山田太郎',
+      };
+
+      act(() => {
+        result.current.addPerson(newPerson);
+      });
+
+      expect(result.current.persons).toHaveLength(1);
+      expect(result.current.persons[0]).toMatchObject({
+        name: '山田太郎',
+      });
+      expect(result.current.persons[0].imageDataUrl).toBeUndefined();
+      expect(result.current.persons[0].id).toBeTruthy();
+      expect(result.current.persons[0].createdAt).toBeTruthy();
+    });
+  });
+
+  describe('updatePerson', () => {
+    it('人物の名前を更新できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+      });
+
+      const personId = result.current.persons[0].id;
+
+      // 名前を更新
+      act(() => {
+        result.current.updatePerson(personId, { name: '山田次郎' });
+      });
+
+      expect(result.current.persons[0].name).toBe('山田次郎');
+      expect(result.current.persons[0].imageDataUrl).toBe('data:image/jpeg;base64,abc');
+    });
+
+    it('人物の画像を更新できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+      });
+
+      const personId = result.current.persons[0].id;
+
+      // 画像を更新
+      act(() => {
+        result.current.updatePerson(personId, { imageDataUrl: 'data:image/jpeg;base64,xyz' });
+      });
+
+      expect(result.current.persons[0].name).toBe('山田太郎');
+      expect(result.current.persons[0].imageDataUrl).toBe('data:image/jpeg;base64,xyz');
+    });
+
+    it('人物の画像を削除できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+      });
+
+      const personId = result.current.persons[0].id;
+
+      // 画像を削除（undefinedに設定）
+      act(() => {
+        result.current.updatePerson(personId, { imageDataUrl: undefined });
+      });
+
+      expect(result.current.persons[0].name).toBe('山田太郎');
+      expect(result.current.persons[0].imageDataUrl).toBeUndefined();
+    });
+
+    it('存在しないIDを指定しても他の人物に影響しない', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+      });
+
+      // 存在しないIDで更新を試みる
+      act(() => {
+        result.current.updatePerson('non-existent-id', { name: '更新後の名前' });
+      });
+
+      // 既存の人物は変更されていない
+      expect(result.current.persons[0].name).toBe('山田太郎');
+    });
+  });
+
+  describe('selectPerson', () => {
+    it('人物を選択できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 初期状態では何も選択されていない
+      expect(result.current.selectedPersonId).toBeNull();
+
+      // 人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+      });
+
+      const personId = result.current.persons[0].id;
+
+      // 人物を選択
+      act(() => {
+        result.current.selectPerson(personId);
+      });
+
+      expect(result.current.selectedPersonId).toBe(personId);
+    });
+
+    it('人物の選択を解除できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 人物を追加して選択
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+      });
+
+      const personId = result.current.persons[0].id;
+
+      act(() => {
+        result.current.selectPerson(personId);
+      });
+
+      expect(result.current.selectedPersonId).toBe(personId);
+
+      // 選択を解除
+      act(() => {
+        result.current.selectPerson(null);
+      });
+
+      expect(result.current.selectedPersonId).toBeNull();
+    });
+  });
 });

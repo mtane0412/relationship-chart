@@ -11,7 +11,7 @@ import type { Node as ReactFlowNode, Edge as ReactFlowEdge } from '@xyflow/react
  */
 export type PersonNodeData = {
   name: string;
-  imageDataUrl: string;
+  imageDataUrl?: string;
 };
 
 /**
