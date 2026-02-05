@@ -21,22 +21,22 @@ export const PersonNode = memo(({ data }: NodeProps) => {
       <Handle
         type="target"
         position={Position.Top}
-        className="!bg-blue-500 !w-3 !h-3 !border-2 !border-white"
+        className="bg-blue-500! w-3! h-3! border-2! border-white!"
       />
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!bg-blue-500 !w-3 !h-3 !border-2 !border-white"
+        className="bg-blue-500! w-3! h-3! border-2! border-white!"
       />
       <Handle
         type="target"
         position={Position.Left}
-        className="!bg-blue-500 !w-3 !h-3 !border-2 !border-white"
+        className="bg-blue-500! w-3! h-3! border-2! border-white!"
       />
       <Handle
         type="source"
         position={Position.Right}
-        className="!bg-blue-500 !w-3 !h-3 !border-2 !border-white"
+        className="bg-blue-500! w-3! h-3! border-2! border-white!"
       />
 
       {/* 丸い画像 */}
