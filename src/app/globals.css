@@ -3,9 +3,7 @@
  * Tailwind CSSのディレクティブとリセットスタイルを定義
  */
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 
 /* ボックスサイズをデフォルトでborder-boxに設定 */
 *,

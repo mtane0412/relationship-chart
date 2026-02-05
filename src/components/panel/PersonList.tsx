@@ -46,7 +46,7 @@ export function PersonList() {
           {/* 削除ボタン */}
           <button
             onClick={() => removePerson(person.id)}
-            className="flex-shrink-0 p-1 text-gray-400 hover:text-red-600 rounded-md hover:bg-red-50"
+            className="shrink-0 p-1 text-gray-400 hover:text-red-600 rounded-md hover:bg-red-50"
             aria-label={`${person.name}を削除`}
           >
             <svg
