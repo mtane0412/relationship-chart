@@ -14,9 +14,11 @@ import {
   useNodesState,
   useEdgesState,
   type NodeTypes,
+  type EdgeTypes,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { PersonNode } from './PersonNode';
+import { RelationshipEdge as RelationshipEdgeComponent } from './RelationshipEdge';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { personsToNodes, relationshipsToEdges } from '@/lib/graph-utils';
 import type {
@@ -27,6 +29,11 @@ import type {
 // カスタムノードタイプの定義
 const nodeTypes: NodeTypes = {
   person: PersonNode,
+};
+
+// カスタムエッジタイプの定義
+const edgeTypes: EdgeTypes = {
+  relationship: RelationshipEdgeComponent,
 };
 
 /**
@@ -78,6 +85,7 @@ export function RelationshipGraph() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         fitView
       >
         <Background />
