@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import {
   ReactFlow,
   Background,
@@ -15,10 +15,12 @@ import {
   useEdgesState,
   type NodeTypes,
   type EdgeTypes,
+  type Node,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { PersonNode } from './PersonNode';
 import { RelationshipEdge as RelationshipEdgeComponent } from './RelationshipEdge';
+import { useForceLayout } from './useForceLayout';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { personsToNodes, relationshipsToEdges } from '@/lib/graph-utils';
 import type {
@@ -43,10 +45,28 @@ export function RelationshipGraph() {
   // Zustandストアから人物と関係を取得
   const persons = useGraphStore((state) => state.persons);
   const relationships = useGraphStore((state) => state.relationships);
+  const forceEnabled = useGraphStore((state) => state.forceEnabled);
 
   // React Flowのノードとエッジの状態
   const [nodes, setNodes, onNodesChange] = useNodesState<PersonNodeType>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<RelationshipEdge>([]);
+
+  // ノード位置更新のコールバック（useForceLayout用）
+  const handleNodesUpdate = useCallback(
+    (updatedNodes: Node[]) => {
+      setNodes(updatedNodes as PersonNodeType[]);
+    },
+    [setNodes]
+  );
+
+  // force-directedレイアウトの適用
+  const { handleNodeDragStart, handleNodeDrag, handleNodeDragEnd } =
+    useForceLayout({
+      nodes,
+      edges,
+      enabled: forceEnabled,
+      onNodesChange: handleNodesUpdate,
+    });
 
   // ストアのデータが変更されたらノードとエッジを更新
   useEffect(() => {
@@ -86,6 +106,11 @@ export function RelationshipGraph() {
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        onNodeDragStart={(_, node) => handleNodeDragStart(node.id)}
+        onNodeDrag={(_, node) =>
+          handleNodeDrag(node.id, node.position)
+        }
+        onNodeDragStop={(_, node) => handleNodeDragEnd(node.id)}
         fitView
       >
         <Background />

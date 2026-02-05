@@ -16,6 +16,8 @@ type GraphState = {
   persons: Person[];
   /** 関係のリスト */
   relationships: Relationship[];
+  /** force-directedレイアウトが有効かどうか */
+  forceEnabled: boolean;
 };
 
 /**
@@ -45,6 +47,12 @@ type GraphActions = {
    * @param relationshipId - 削除する関係のID
    */
   removeRelationship: (relationshipId: string) => void;
+
+  /**
+   * force-directedレイアウトの有効/無効を設定する
+   * @param enabled - 有効にする場合はtrue、無効にする場合はfalse
+   */
+  setForceEnabled: (enabled: boolean) => void;
 };
 
 /**
@@ -60,6 +68,7 @@ export const useGraphStore = create<GraphStore>((set) => ({
   // 初期状態
   persons: [],
   relationships: [],
+  forceEnabled: true, // デフォルトでforce-directedレイアウトを有効
 
   // アクション
   addPerson: (person) =>
@@ -94,5 +103,10 @@ export const useGraphStore = create<GraphStore>((set) => ({
   removeRelationship: (relationshipId) =>
     set((state) => ({
       relationships: state.relationships.filter((r) => r.id !== relationshipId),
+    })),
+
+  setForceEnabled: (enabled) =>
+    set(() => ({
+      forceEnabled: enabled,
     })),
 }));
