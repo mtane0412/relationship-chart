@@ -7,6 +7,7 @@
 
 import { PersonForm } from './PersonForm';
 import { PersonList } from './PersonList';
+import { RelationshipForm } from './RelationshipForm';
 
 /**
  * サイドパネルコンポーネント
@@ -27,6 +28,14 @@ export function SidePanel() {
             人物を追加
           </h2>
           <PersonForm />
+        </div>
+
+        {/* 関係登録フォーム */}
+        <div className="p-4 border-b border-gray-200">
+          <h2 className="text-sm font-semibold text-gray-700 mb-3">
+            関係を追加
+          </h2>
+          <RelationshipForm />
         </div>
 
         {/* 人物一覧 */}
