@@ -17,11 +17,14 @@ import {
   type NodeTypes,
   type EdgeTypes,
   type Node,
+  type Connection,
+  type OnSelectionChangeParams,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { PersonNode } from './PersonNode';
 import { RelationshipEdge as RelationshipEdgeComponent } from './RelationshipEdge';
 import { PersonRegistrationModal } from './PersonRegistrationModal';
+import { RelationshipRegistrationModal } from './RelationshipRegistrationModal';
 import { useForceLayout } from './useForceLayout';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { personsToNodes, relationshipsToEdges } from '@/lib/graph-utils';
@@ -50,6 +53,14 @@ type PendingRegistration = {
 };
 
 /**
+ * エッジ接続時の登録待ちデータ
+ */
+type PendingConnection = {
+  sourcePersonId: string;
+  targetPersonId: string;
+};
+
+/**
  * 相関図グラフコンポーネント
  */
 export function RelationshipGraph() {
@@ -58,7 +69,9 @@ export function RelationshipGraph() {
   const relationships = useGraphStore((state) => state.relationships);
   const forceEnabled = useGraphStore((state) => state.forceEnabled);
   const addPerson = useGraphStore((state) => state.addPerson);
-  const selectPerson = useGraphStore((state) => state.selectPerson);
+  const addRelationship = useGraphStore((state) => state.addRelationship);
+  const setSelectedPersonIds = useGraphStore((state) => state.setSelectedPersonIds);
+  const clearSelection = useGraphStore((state) => state.clearSelection);
 
   // React Flowのノードとエッジの状態
   const [nodes, setNodes, onNodesChange] = useNodesState<PersonNodeType>([]);
@@ -66,6 +79,7 @@ export function RelationshipGraph() {
 
   // 登録モーダルの状態
   const [pendingRegistration, setPendingRegistration] = useState<PendingRegistration | null>(null);
+  const [pendingConnection, setPendingConnection] = useState<PendingConnection | null>(null);
 
   // React Flow APIを取得
   const { screenToFlowPosition } = useReactFlow();
@@ -185,18 +199,31 @@ export function RelationshipGraph() {
     return () => window.removeEventListener('paste', handlePaste);
   }, []);
 
-  // ノードクリックハンドラ
-  const handleNodeClick = useCallback(
-    (_: React.MouseEvent, node: Node) => {
-      selectPerson(node.id);
+  // 選択変更ハンドラ（React Flowの選択状態をストアに同期）
+  const handleSelectionChange = useCallback(
+    (params: OnSelectionChangeParams) => {
+      // 選択されたノードのIDを抽出
+      const selectedNodeIds = params.nodes.map((node) => node.id);
+      setSelectedPersonIds(selectedNodeIds);
     },
-    [selectPerson]
+    [setSelectedPersonIds]
   );
 
   // 背景クリックハンドラ
   const handlePaneClick = useCallback(() => {
-    selectPerson(null);
-  }, [selectPerson]);
+    clearSelection();
+  }, [clearSelection]);
+
+  // エッジ接続ハンドラ
+  const handleConnect = useCallback((connection: Connection) => {
+    // sourceとtargetが存在することを確認
+    if (connection.source && connection.target) {
+      setPendingConnection({
+        sourcePersonId: connection.source,
+        targetPersonId: connection.target,
+      });
+    }
+  }, []);
 
   // モーダルからの登録ハンドラ
   const handleRegisterPerson = useCallback(
@@ -215,9 +242,33 @@ export function RelationshipGraph() {
     [pendingRegistration, addPerson]
   );
 
-  // モーダルのキャンセルハンドラ
+  // モーダルのキャンセルハンドラ（人物登録）
   const handleCancelRegistration = useCallback(() => {
     setPendingRegistration(null);
+  }, []);
+
+  // 関係登録ハンドラ
+  const handleRegisterRelationship = useCallback(
+    (label: string, isDirected: boolean) => {
+      if (!pendingConnection) return;
+
+      // 関係を追加
+      addRelationship({
+        sourcePersonId: pendingConnection.sourcePersonId,
+        targetPersonId: pendingConnection.targetPersonId,
+        label,
+        isDirected,
+      });
+
+      // モーダルを閉じる
+      setPendingConnection(null);
+    },
+    [pendingConnection, addRelationship]
+  );
+
+  // 関係登録のキャンセルハンドラ
+  const handleCancelRelationship = useCallback(() => {
+    setPendingConnection(null);
   }, []);
 
   return (
@@ -234,8 +285,10 @@ export function RelationshipGraph() {
           handleNodeDrag(node.id, node.position)
         }
         onNodeDragStop={(_, node) => handleNodeDragEnd(node.id)}
-        onNodeClick={handleNodeClick}
+        onSelectionChange={handleSelectionChange}
         onPaneClick={handlePaneClick}
+        onConnect={handleConnect}
+        multiSelectionKeyCode="Shift"
         fitView
       >
         <Background />
@@ -285,6 +338,21 @@ export function RelationshipGraph() {
         onSubmit={handleRegisterPerson}
         onCancel={handleCancelRegistration}
       />
+
+      {/* 関係登録モーダル */}
+      {pendingConnection && (
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePersonName={
+            persons.find((p) => p.id === pendingConnection.sourcePersonId)?.name || ''
+          }
+          targetPersonName={
+            persons.find((p) => p.id === pendingConnection.targetPersonId)?.name || ''
+          }
+          onSubmit={handleRegisterRelationship}
+          onCancel={handleCancelRelationship}
+        />
+      )}
     </div>
   );
 }

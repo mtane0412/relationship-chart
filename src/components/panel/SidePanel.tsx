@@ -16,14 +16,15 @@ import { useGraphStore } from '@/stores/useGraphStore';
 export function SidePanel() {
   const forceEnabled = useGraphStore((state) => state.forceEnabled);
   const setForceEnabled = useGraphStore((state) => state.setForceEnabled);
-  const selectedPersonId = useGraphStore((state) => state.selectedPersonId);
+  const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
   const selectPerson = useGraphStore((state) => state.selectPerson);
   const persons = useGraphStore((state) => state.persons);
 
-  // 選択中の人物を取得
-  const selectedPerson = selectedPersonId
-    ? persons.find((p) => p.id === selectedPersonId)
-    : undefined;
+  // 選択中の人物を取得（単一選択のみサポート、Phase 4で複数選択対応）
+  const selectedPerson =
+    selectedPersonIds.length === 1
+      ? persons.find((p) => p.id === selectedPersonIds[0])
+      : undefined;
 
   return (
     <div className="w-80 h-screen bg-white border-r border-gray-200 flex flex-col">
