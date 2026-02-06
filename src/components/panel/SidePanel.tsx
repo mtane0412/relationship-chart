@@ -25,15 +25,15 @@ export function SidePanel() {
     .map((id) => persons.find((p) => p.id === id))
     .filter((p): p is NonNullable<typeof p> => p !== undefined);
 
-  // 選択数によってコンテンツを切り替え
+  // 選択数によってコンテンツを切り替え（selectedPersons.lengthを使用）
   let content;
-  if (selectedPersonIds.length === 0) {
+  if (selectedPersons.length === 0) {
     // 未選択時: デフォルトパネル
     content = <DefaultPanel />;
-  } else if (selectedPersonIds.length === 1) {
+  } else if (selectedPersons.length === 1) {
     // 単一選択時: 人物編集パネル
     content = <SingleSelectionPanel person={selectedPersons[0]} />;
-  } else if (selectedPersonIds.length === 2) {
+  } else if (selectedPersons.length === 2) {
     // 2人選択時: 関係登録パネル
     content = (
       <PairSelectionPanel
@@ -42,7 +42,7 @@ export function SidePanel() {
     );
   } else {
     // 3人以上選択時: 案内メッセージ
-    content = <MultipleSelectionInfo count={selectedPersonIds.length} />;
+    content = <MultipleSelectionInfo count={selectedPersons.length} />;
   }
 
   return (

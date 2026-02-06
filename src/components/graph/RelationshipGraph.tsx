@@ -216,8 +216,8 @@ export function RelationshipGraph() {
 
   // エッジ接続ハンドラ
   const handleConnect = useCallback((connection: Connection) => {
-    // sourceとtargetが存在することを確認
-    if (connection.source && connection.target) {
+    // sourceとtargetが存在し、異なることを確認（自己接続を防止）
+    if (connection.source && connection.target && connection.source !== connection.target) {
       setPendingConnection({
         sourcePersonId: connection.source,
         targetPersonId: connection.target,

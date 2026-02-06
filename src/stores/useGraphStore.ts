@@ -202,11 +202,12 @@ export const useGraphStore = create<GraphStore>()(
       migrate: (persistedState: unknown, version: number) => {
         if (version === 0) {
           const oldState = persistedState as GraphStateLegacy;
-          // selectedPersonId → selectedPersonIds への変換
+          // selectedPersonId を除外して selectedPersonIds に変換
+          const { selectedPersonId, ...rest } = oldState;
           return {
-            ...oldState,
-            selectedPersonIds: oldState.selectedPersonId ? [oldState.selectedPersonId] : [],
-          };
+            ...rest,
+            selectedPersonIds: selectedPersonId ? [selectedPersonId] : [],
+          } as GraphStore;
         }
         return persistedState as GraphStore;
       },
