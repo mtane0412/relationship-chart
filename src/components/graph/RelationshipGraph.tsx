@@ -109,27 +109,30 @@ export function RelationshipGraph() {
     const newNodes = personsToNodes(persons);
     const newEdges = relationshipsToEdges(relationships);
 
-    // 既存のノード位置を保持しながら更新
-    const updatedNodes = newNodes.map((newNode) => {
-      const existingNode = nodes.find((n) => n.id === newNode.id);
-      if (existingNode) {
-        // 既存ノードが存在する場合は位置を保持
+    setNodes((prevNodes) => {
+      // 既存のノード位置と選択状態を保持しながら更新
+      const updatedNodes = newNodes.map((newNode) => {
+        const existingNode = prevNodes.find((n) => n.id === newNode.id);
+        if (existingNode) {
+          // 既存ノードが存在する場合は位置と選択状態を保持
+          return {
+            ...newNode,
+            position: existingNode.position,
+            selected: existingNode.selected, // 選択状態を保持
+          };
+        }
+        // 新規ノードの場合はランダムな位置に配置
         return {
           ...newNode,
-          position: existingNode.position,
+          position: {
+            x: Math.random() * 500 + 100,
+            y: Math.random() * 500 + 100,
+          },
         };
-      }
-      // 新規ノードの場合はランダムな位置に配置
-      return {
-        ...newNode,
-        position: {
-          x: Math.random() * 500 + 100,
-          y: Math.random() * 500 + 100,
-        },
-      };
+      });
+      return updatedNodes;
     });
 
-    setNodes(updatedNodes);
     setEdges(newEdges);
   }, [persons, relationships, setNodes, setEdges]);
 
