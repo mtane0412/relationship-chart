@@ -75,6 +75,33 @@ describe('PersonEditForm', () => {
         expect(vi.mocked(processImage)).toHaveBeenCalledWith(file);
       });
     });
+
+    it('アイコン領域からドラッグが離れると、視覚的フィードバックが解除される', () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const iconArea = screen.getByTestId('person-icon-area');
+
+      // ドラッグオーバーイベントを発火
+      const dragOverEvent = new Event('dragover', { bubbles: true });
+      Object.defineProperty(dragOverEvent, 'dataTransfer', {
+        value: { files: [] },
+      });
+      fireEvent(iconArea, dragOverEvent);
+
+      // ドラッグ中のスタイルが適用されることを確認
+      expect(iconArea).toHaveClass('ring-4');
+
+      // ドラッグリーブイベントを発火
+      const dragLeaveEvent = new Event('dragleave', { bubbles: true });
+      Object.defineProperty(dragLeaveEvent, 'dataTransfer', {
+        value: { files: [] },
+      });
+      fireEvent(iconArea, dragLeaveEvent);
+
+      // ドラッグ中のスタイルが解除されることを確認
+      expect(iconArea).not.toHaveClass('ring-4');
+      expect(iconArea).toHaveClass('border-4');
+    });
   });
 
   describe('アイコンクリック時のメニュー表示', () => {
@@ -207,6 +234,133 @@ describe('PersonEditForm', () => {
       await waitFor(() => {
         expect(vi.mocked(processImage)).toHaveBeenCalledTimes(2);
       });
+    });
+  });
+
+  describe('エラーハンドリング', () => {
+    it('画像処理が失敗した時、エラーメッセージが表示される', async () => {
+      // processImageをエラーをスローするようにモック
+      vi.mocked(processImage).mockRejectedValueOnce(new Error('画像処理に失敗しました'));
+
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const iconArea = screen.getByTestId('person-icon-area');
+
+      // 画像ファイルを作成
+      const file = new File(['image content'], 'test.png', { type: 'image/png' });
+
+      // ドロップイベントを発火
+      const dropEvent = new Event('drop', { bubbles: true });
+      Object.defineProperty(dropEvent, 'dataTransfer', {
+        value: { files: [file] },
+      });
+      fireEvent(iconArea, dropEvent);
+
+      // エラーメッセージが表示されることを確認
+      await waitFor(() => {
+        expect(screen.getByText(/画像処理に失敗しました/)).toBeInTheDocument();
+      });
+    });
+
+    it('非画像ファイルをドロップした時、エラーメッセージが表示される', async () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const iconArea = screen.getByTestId('person-icon-area');
+
+      // 非画像ファイルを作成
+      const file = new File(['text content'], 'test.txt', { type: 'text/plain' });
+
+      // ドロップイベントを発火
+      const dropEvent = new Event('drop', { bubbles: true });
+      Object.defineProperty(dropEvent, 'dataTransfer', {
+        value: { files: [file] },
+      });
+      fireEvent(iconArea, dropEvent);
+
+      // エラーメッセージが表示されることを確認
+      await waitFor(() => {
+        expect(screen.getByText(/画像ファイルのみアップロード可能です/)).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('キーボードアクセシビリティ', () => {
+    it('Escキーを押すとメニューが閉じる', () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const iconArea = screen.getByTestId('person-icon-area');
+      fireEvent.click(iconArea);
+
+      // メニューが表示されることを確認
+      expect(screen.getByText('画像をアップロード')).toBeInTheDocument();
+
+      // Escキーを押す
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      // メニューが閉じることを確認
+      expect(screen.queryByText('画像をアップロード')).not.toBeInTheDocument();
+    });
+
+    it('Enterキーでアイコン領域をクリックできる', () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const iconArea = screen.getByTestId('person-icon-area');
+
+      // Enterキーを押す
+      fireEvent.keyDown(iconArea, { key: 'Enter' });
+
+      // メニューが表示されることを確認
+      expect(screen.getByText('画像をアップロード')).toBeInTheDocument();
+    });
+
+    it('Spaceキーでアイコン領域をクリックできる', () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const iconArea = screen.getByTestId('person-icon-area');
+
+      // Spaceキーを押す
+      fireEvent.keyDown(iconArea, { key: ' ' });
+
+      // メニューが表示されることを確認
+      expect(screen.getByText('画像をアップロード')).toBeInTheDocument();
+    });
+
+    it('ArrowDownキーでメニュー内を下に移動できる', () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const iconArea = screen.getByTestId('person-icon-area');
+      fireEvent.click(iconArea);
+
+      const uploadButton = screen.getByText('画像をアップロード');
+      const deleteButton = screen.getByText('画像を削除');
+
+      // 最初のボタンにフォーカス
+      uploadButton.focus();
+
+      // ArrowDownキーを押す
+      fireEvent.keyDown(uploadButton, { key: 'ArrowDown' });
+
+      // 次のボタンにフォーカスが移動することを確認
+      expect(document.activeElement).toBe(deleteButton);
+    });
+
+    it('ArrowUpキーでメニュー内を上に移動できる', () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const iconArea = screen.getByTestId('person-icon-area');
+      fireEvent.click(iconArea);
+
+      const uploadButton = screen.getByText('画像をアップロード');
+      const deleteButton = screen.getByText('画像を削除');
+
+      // 2番目のボタンにフォーカス
+      deleteButton.focus();
+
+      // ArrowUpキーを押す
+      fireEvent.keyDown(deleteButton, { key: 'ArrowUp' });
+
+      // 前のボタンにフォーカスが移動することを確認
+      expect(document.activeElement).toBe(uploadButton);
     });
   });
 });

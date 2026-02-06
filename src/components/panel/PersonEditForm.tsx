@@ -30,8 +30,11 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>(person.imageDataUrl);
   const [isDragging, setIsDragging] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const firstMenuItemRef = useRef<HTMLButtonElement>(null);
+  const secondMenuItemRef = useRef<HTMLButtonElement>(null);
 
   // 保存ハンドラ
   const handleSave = () => {
@@ -47,14 +50,16 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
 
   // 画像処理共通関数
   const handleImageFile = useCallback(async (file: File) => {
+    setError('');
     try {
       const dataUrl = await processImage(file);
       setImageDataUrl(dataUrl);
       setShowMenu(false);
-    } catch (error) {
-      // エラーログは開発環境でのみ表示（本番では適切なエラーハンドリングを実装）
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '画像処理に失敗しました';
+      setError(errorMessage);
       if (process.env.NODE_ENV === 'development') {
-        console.error('画像処理に失敗しました:', error);
+        console.error('画像処理に失敗しました:', err);
       }
     }
   }, []);
@@ -85,6 +90,9 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
 
       if (imageFile) {
         handleImageFile(imageFile);
+      } else if (files.length > 0) {
+        // 非画像ファイルがドロップされた場合
+        setError('画像ファイルのみアップロード可能です');
       }
     },
     [handleImageFile]
@@ -94,6 +102,40 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
   const handleIconClick = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
     setShowMenu(!showMenu);
+  };
+
+  // アイコンキーダウンハンドラ（Enter/Spaceキー対応）
+  const handleIconKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      e.stopPropagation();
+      setShowMenu(!showMenu);
+    }
+  };
+
+  // メニューアイテムのキーボードナビゲーションハンドラ
+  const handleMenuItemKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, isFirst: boolean) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (isFirst && secondMenuItemRef.current) {
+        secondMenuItemRef.current.focus();
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!isFirst && firstMenuItemRef.current) {
+        firstMenuItemRef.current.focus();
+      }
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      firstMenuItemRef.current?.focus();
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      if (secondMenuItemRef.current) {
+        secondMenuItemRef.current.focus();
+      } else {
+        firstMenuItemRef.current?.focus();
+      }
+    }
   };
 
   // ファイル選択ハンドラ
@@ -152,6 +194,30 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
     };
   }, [showMenu]);
 
+  // Escキーでメニューを閉じる
+  useEffect(() => {
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && showMenu) {
+        setShowMenu(false);
+      }
+    };
+
+    if (showMenu) {
+      document.addEventListener('keydown', handleEscKey);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [showMenu]);
+
+  // メニューが開いた時に最初のメニューアイテムにフォーカスを移動
+  useEffect(() => {
+    if (showMenu && firstMenuItemRef.current) {
+      firstMenuItemRef.current.focus();
+    }
+  }, [showMenu]);
+
   return (
     <div className="p-4 bg-white border-b border-gray-200">
       <div className="flex justify-between items-center mb-4">
@@ -200,10 +266,14 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
           {/* アイコン領域（D&D対応 + クリックメニュー） */}
           <div
             data-testid="person-icon-area"
+            role="button"
+            tabIndex={0}
+            aria-label="画像を変更"
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={handleIconClick}
+            onKeyDown={handleIconKeyDown}
             className={`
               w-32 h-32 rounded-full mx-auto cursor-pointer
               transition-all duration-200
@@ -234,17 +304,24 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
           {showMenu && (
             <div
               ref={menuRef}
+              role="menu"
               className="absolute left-1/2 transform -translate-x-1/2 mt-2 bg-white border border-gray-300 rounded-md shadow-lg z-10 min-w-[160px]"
             >
               <button
+                ref={firstMenuItemRef}
+                role="menuitem"
                 onClick={handleUploadClick}
+                onKeyDown={(e) => handleMenuItemKeyDown(e, true)}
                 className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 focus:outline-none focus:bg-gray-100"
               >
                 画像をアップロード
               </button>
               {imageDataUrl && (
                 <button
+                  ref={secondMenuItemRef}
+                  role="menuitem"
                   onClick={handleRemoveImage}
+                  onKeyDown={(e) => handleMenuItemKeyDown(e, false)}
                   className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 focus:outline-none focus:bg-red-50 border-t border-gray-200"
                 >
                   画像を削除
@@ -261,6 +338,9 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
             onChange={handleFileSelect}
             className="hidden"
           />
+
+          {/* エラーメッセージ */}
+          {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
         </div>
       </div>
 
