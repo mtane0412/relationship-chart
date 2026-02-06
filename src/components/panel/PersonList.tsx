@@ -15,6 +15,7 @@ export function PersonList() {
   const removePerson = useGraphStore((state) => state.removePerson);
   const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
   const selectPerson = useGraphStore((state) => state.selectPerson);
+  const togglePersonSelection = useGraphStore((state) => state.togglePersonSelection);
 
   if (persons.length === 0) {
     return (
@@ -36,13 +37,31 @@ export function PersonList() {
             key={person.id}
             role="button"
             tabIndex={0}
-            onClick={() => selectPerson(person.id)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
+            onClick={(e) => {
+              // Shiftキーが押されている場合は複数選択、そうでなければ単一選択
+              if (e.shiftKey) {
+                togglePersonSelection(person.id);
+              } else {
                 selectPerson(person.id);
               }
             }}
+            onKeyDown={(e) => {
+              // インタラクティブ要素からのイベントは無視
+              if (e.target instanceof HTMLElement && e.target.closest('button')) {
+                return;
+              }
+
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                // Shiftキーが押されている場合は複数選択、そうでなければ単一選択
+                if (e.shiftKey) {
+                  togglePersonSelection(person.id);
+                } else {
+                  selectPerson(person.id);
+                }
+              }
+            }}
+            aria-label={`${person.name}を選択`}
             className={`flex items-center gap-3 p-2 border rounded-lg cursor-pointer transition-colors ${
               isSelected
                 ? 'border-blue-500 bg-blue-50'

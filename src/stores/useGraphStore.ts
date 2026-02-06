@@ -200,6 +200,12 @@ export const useGraphStore = create<GraphStore>()(
       version: 1, // バージョン管理
       // v0からv1へのマイグレーション
       migrate: (persistedState: unknown, version: number) => {
+        // 初回ユーザー（versionがundefined）またはv1以降は変換不要
+        if (version === undefined || version >= 1) {
+          return persistedState as GraphStore;
+        }
+
+        // v0からv1への変換
         if (version === 0) {
           const oldState = persistedState as GraphStateLegacy;
           // selectedPersonId を除外して selectedPersonIds に変換
@@ -209,6 +215,7 @@ export const useGraphStore = create<GraphStore>()(
             selectedPersonIds: selectedPersonId ? [selectedPersonId] : [],
           } as GraphStore;
         }
+
         return persistedState as GraphStore;
       },
     }

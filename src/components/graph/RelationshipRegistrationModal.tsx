@@ -72,7 +72,13 @@ export function RelationshipRegistrationModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-      onClick={onCancel}
+      onClick={(event) => {
+        // キーボードトリガーや合成クリック（detail === 0）は無視
+        if (event.detail === 0) {
+          return;
+        }
+        onCancel();
+      }}
     >
       <div
         role="dialog"
