@@ -2,6 +2,7 @@
  * RelationshipEdgeコンポーネント
  * 人物間の関係を表示するカスタムエッジ
  * EdgeLabelRendererを使用してラベルと削除ボタンを表示
+ * ノードの境界との交点を計算して最短距離で接続します
  */
 
 'use client';
@@ -11,9 +12,11 @@ import {
   BaseEdge,
   EdgeLabelRenderer,
   EdgeProps,
-  getBezierPath,
+  getStraightPath,
+  useReactFlow,
 } from '@xyflow/react';
 import { useGraphStore } from '@/stores/useGraphStore';
+import { getEdgeIntersectionPoints } from '@/lib/node-intersection';
 import type { RelationshipEdgeData } from '@/types/graph';
 
 /**
@@ -21,28 +24,33 @@ import type { RelationshipEdgeData } from '@/types/graph';
  * @param props - エッジのプロパティ
  */
 export const RelationshipEdge = memo((props: EdgeProps) => {
-  const {
-    id,
-    sourceX,
-    sourceY,
-    targetX,
-    targetY,
-    sourcePosition,
-    targetPosition,
-    data,
-  } = props;
+  const { id, source, target, data } = props;
 
   const removeRelationship = useGraphStore((state) => state.removeRelationship);
   const edgeData = data as RelationshipEdgeData;
 
-  // ベジェ曲線のパスとラベル位置を計算
-  const [edgePath, labelX, labelY] = getBezierPath({
-    sourceX,
-    sourceY,
-    sourcePosition,
-    targetX,
-    targetY,
-    targetPosition,
+  // React Flowからノード情報を取得
+  const { getNode } = useReactFlow();
+  const sourceNode = getNode(source);
+  const targetNode = getNode(target);
+
+  // ノードが見つからない場合は何も描画しない
+  if (!sourceNode || !targetNode) {
+    return null;
+  }
+
+  // ノードの境界との交点を計算
+  const { sourcePoint, targetPoint } = getEdgeIntersectionPoints(
+    sourceNode,
+    targetNode
+  );
+
+  // 直線のパスとラベル位置を計算
+  const [edgePath, labelX, labelY] = getStraightPath({
+    sourceX: sourcePoint.x,
+    sourceY: sourcePoint.y,
+    targetX: targetPoint.x,
+    targetY: targetPoint.y,
   });
 
   /**
