@@ -109,29 +109,36 @@ export function RelationshipGraph() {
     const newNodes = personsToNodes(persons);
     const newEdges = relationshipsToEdges(relationships);
 
-    // 既存のノード位置を保持しながら更新
-    const updatedNodes = newNodes.map((newNode) => {
-      const existingNode = nodes.find((n) => n.id === newNode.id);
-      if (existingNode) {
-        // 既存ノードが存在する場合は位置を保持
+    setNodes((prevNodes) => {
+      // 既存ノードをid -> nodeのマップに変換して高速に参照する（O(n²) → O(n)）
+      const prevNodeMap = new Map(prevNodes.map((node) => [node.id, node]));
+
+      // 既存のノード位置を保持しながら更新（選択状態はストアから設定）
+      const updatedNodes = newNodes.map((newNode) => {
+        const existingNode = prevNodeMap.get(newNode.id);
+        if (existingNode) {
+          // 既存ノードが存在する場合は位置を保持し、選択状態はストアから設定
+          return {
+            ...newNode,
+            position: existingNode.position,
+            selected: selectedPersonIds.includes(newNode.id),
+          };
+        }
+        // 新規ノードの場合はランダムな位置に配置
         return {
           ...newNode,
-          position: existingNode.position,
+          position: {
+            x: Math.random() * 500 + 100,
+            y: Math.random() * 500 + 100,
+          },
+          selected: selectedPersonIds.includes(newNode.id),
         };
-      }
-      // 新規ノードの場合はランダムな位置に配置
-      return {
-        ...newNode,
-        position: {
-          x: Math.random() * 500 + 100,
-          y: Math.random() * 500 + 100,
-        },
-      };
+      });
+      return updatedNodes;
     });
 
-    setNodes(updatedNodes);
     setEdges(newEdges);
-  }, [persons, relationships, setNodes, setEdges]);
+  }, [persons, relationships, selectedPersonIds, setNodes, setEdges]);
 
   // キャンバスへの画像ドロップハンドラ
   const handleDrop = useCallback(
@@ -376,15 +383,6 @@ export function RelationshipGraph() {
     }
   }, [pendingConnection, persons]);
 
-  // ストアの選択状態をReact Flowノードのselectedプロパティに同期
-  useEffect(() => {
-    setNodes((prevNodes) =>
-      prevNodes.map((node) => ({
-        ...node,
-        selected: selectedPersonIds.includes(node.id),
-      }))
-    );
-  }, [selectedPersonIds, setNodes]);
 
   return (
     <div className="w-full h-screen relative" onDrop={handleDrop} onDragOver={handleDragOver}>
