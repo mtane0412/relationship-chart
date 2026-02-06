@@ -110,9 +110,12 @@ export function RelationshipGraph() {
     const newEdges = relationshipsToEdges(relationships);
 
     setNodes((prevNodes) => {
+      // 既存ノードをid -> nodeのマップに変換して高速に参照する（O(n²) → O(n)）
+      const prevNodeMap = new Map(prevNodes.map((node) => [node.id, node]));
+
       // 既存のノード位置を保持しながら更新（選択状態はストアから設定）
       const updatedNodes = newNodes.map((newNode) => {
-        const existingNode = prevNodes.find((n) => n.id === newNode.id);
+        const existingNode = prevNodeMap.get(newNode.id);
         if (existingNode) {
           // 既存ノードが存在する場合は位置を保持し、選択状態はストアから設定
           return {
