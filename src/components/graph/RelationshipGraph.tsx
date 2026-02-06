@@ -110,15 +110,15 @@ export function RelationshipGraph() {
     const newEdges = relationshipsToEdges(relationships);
 
     setNodes((prevNodes) => {
-      // 既存のノード位置と選択状態を保持しながら更新
+      // 既存のノード位置を保持しながら更新（選択状態はストアから設定）
       const updatedNodes = newNodes.map((newNode) => {
         const existingNode = prevNodes.find((n) => n.id === newNode.id);
         if (existingNode) {
-          // 既存ノードが存在する場合は位置と選択状態を保持
+          // 既存ノードが存在する場合は位置を保持し、選択状態はストアから設定
           return {
             ...newNode,
             position: existingNode.position,
-            selected: existingNode.selected, // 選択状態を保持
+            selected: selectedPersonIds.includes(newNode.id),
           };
         }
         // 新規ノードの場合はランダムな位置に配置
@@ -128,13 +128,14 @@ export function RelationshipGraph() {
             x: Math.random() * 500 + 100,
             y: Math.random() * 500 + 100,
           },
+          selected: selectedPersonIds.includes(newNode.id),
         };
       });
       return updatedNodes;
     });
 
     setEdges(newEdges);
-  }, [persons, relationships, setNodes, setEdges]);
+  }, [persons, relationships, selectedPersonIds, setNodes, setEdges]);
 
   // キャンバスへの画像ドロップハンドラ
   const handleDrop = useCallback(
@@ -379,15 +380,6 @@ export function RelationshipGraph() {
     }
   }, [pendingConnection, persons]);
 
-  // ストアの選択状態をReact Flowノードのselectedプロパティに同期
-  useEffect(() => {
-    setNodes((prevNodes) =>
-      prevNodes.map((node) => ({
-        ...node,
-        selected: selectedPersonIds.includes(node.id),
-      }))
-    );
-  }, [selectedPersonIds, setNodes]);
 
   return (
     <div className="w-full h-screen relative" onDrop={handleDrop} onDragOver={handleDragOver}>
