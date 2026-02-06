@@ -19,8 +19,8 @@ type GraphState = {
   relationships: Relationship[];
   /** force-directedレイアウトが有効かどうか */
   forceEnabled: boolean;
-  /** 選択中の人物のID（未選択時はnull） */
-  selectedPersonId: string | null;
+  /** 選択中の人物のIDリスト（複数選択対応） */
+  selectedPersonIds: string[];
 };
 
 /**
@@ -47,10 +47,27 @@ type GraphActions = {
   removePerson: (personId: string) => void;
 
   /**
-   * 人物を選択または選択解除する
+   * 人物を選択または選択解除する（単一選択モード互換用）
    * @param personId - 選択する人物のID（nullで選択解除）
    */
   selectPerson: (personId: string | null) => void;
+
+  /**
+   * 人物の選択をトグルする（複数選択対応）
+   * @param personId - トグルする人物のID
+   */
+  togglePersonSelection: (personId: string) => void;
+
+  /**
+   * すべての選択を解除する
+   */
+  clearSelection: () => void;
+
+  /**
+   * 選択状態を一括設定する（React Flow選択同期用）
+   * @param personIds - 選択する人物のIDリスト
+   */
+  setSelectedPersonIds: (personIds: string[]) => void;
 
   /**
    * 新しい関係を追加する
@@ -77,6 +94,16 @@ type GraphActions = {
 type GraphStore = GraphState & GraphActions;
 
 /**
+ * LocalStorageに保存される古い形式の状態（v0）
+ */
+type GraphStateLegacy = {
+  persons: Person[];
+  relationships: Relationship[];
+  forceEnabled: boolean;
+  selectedPersonId: string | null;
+};
+
+/**
  * グラフストア
  * 人物と関係を管理するグローバルストア
  * persistミドルウェアでLocalStorageに自動保存
@@ -88,7 +115,7 @@ export const useGraphStore = create<GraphStore>()(
       persons: [],
       relationships: [],
       forceEnabled: true, // デフォルトでforce-directedレイアウトを有効
-      selectedPersonId: null, // 初期状態では何も選択されていない
+      selectedPersonIds: [], // 初期状態では何も選択されていない
 
       // アクション
       addPerson: (person) =>
@@ -117,7 +144,33 @@ export const useGraphStore = create<GraphStore>()(
 
       selectPerson: (personId) =>
         set(() => ({
-          selectedPersonId: personId,
+          selectedPersonIds: personId ? [personId] : [],
+        })),
+
+      togglePersonSelection: (personId) =>
+        set((state) => {
+          const isSelected = state.selectedPersonIds.includes(personId);
+          if (isSelected) {
+            // 選択解除
+            return {
+              selectedPersonIds: state.selectedPersonIds.filter((id) => id !== personId),
+            };
+          } else {
+            // 選択追加
+            return {
+              selectedPersonIds: [...state.selectedPersonIds, personId],
+            };
+          }
+        }),
+
+      clearSelection: () =>
+        set(() => ({
+          selectedPersonIds: [],
+        })),
+
+      setSelectedPersonIds: (personIds) =>
+        set(() => ({
+          selectedPersonIds: personIds,
         })),
 
       addRelationship: (relationship) =>
@@ -144,6 +197,27 @@ export const useGraphStore = create<GraphStore>()(
     }),
     {
       name: 'relationship-chart-storage', // LocalStorageのキー名
+      version: 1, // バージョン管理
+      // v0からv1へのマイグレーション
+      migrate: (persistedState: unknown, version: number) => {
+        // 初回ユーザー（versionがundefined）またはv1以降は変換不要
+        if (version === undefined || version >= 1) {
+          return persistedState as GraphStore;
+        }
+
+        // v0からv1への変換
+        if (version === 0) {
+          const oldState = persistedState as GraphStateLegacy;
+          // selectedPersonId を除外して selectedPersonIds に変換
+          const { selectedPersonId, ...rest } = oldState;
+          return {
+            ...rest,
+            selectedPersonIds: selectedPersonId ? [selectedPersonId] : [],
+          } as GraphStore;
+        }
+
+        return persistedState as GraphStore;
+      },
     }
   )
 );

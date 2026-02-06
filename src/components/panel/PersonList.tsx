@@ -13,6 +13,9 @@ import { useGraphStore } from '@/stores/useGraphStore';
 export function PersonList() {
   const persons = useGraphStore((state) => state.persons);
   const removePerson = useGraphStore((state) => state.removePerson);
+  const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
+  const selectPerson = useGraphStore((state) => state.selectPerson);
+  const togglePersonSelection = useGraphStore((state) => state.togglePersonSelection);
 
   if (persons.length === 0) {
     return (
@@ -27,11 +30,43 @@ export function PersonList() {
       {persons.map((person) => {
         // 名前の最初の1文字をイニシャルとして取得
         const initial = person.name.charAt(0).toUpperCase();
+        const isSelected = selectedPersonIds.includes(person.id);
 
         return (
           <div
             key={person.id}
-            className="flex items-center gap-3 p-2 border border-gray-200 rounded-lg hover:bg-gray-50"
+            role="button"
+            tabIndex={0}
+            onClick={(e) => {
+              // Shiftキーが押されている場合は複数選択、そうでなければ単一選択
+              if (e.shiftKey) {
+                togglePersonSelection(person.id);
+              } else {
+                selectPerson(person.id);
+              }
+            }}
+            onKeyDown={(e) => {
+              // インタラクティブ要素からのイベントは無視
+              if (e.target instanceof HTMLElement && e.target.closest('button')) {
+                return;
+              }
+
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                // Shiftキーが押されている場合は複数選択、そうでなければ単一選択
+                if (e.shiftKey) {
+                  togglePersonSelection(person.id);
+                } else {
+                  selectPerson(person.id);
+                }
+              }
+            }}
+            aria-label={`${person.name}を選択`}
+            className={`flex items-center gap-3 p-2 border rounded-lg cursor-pointer transition-colors ${
+              isSelected
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-gray-200 hover:bg-gray-50'
+            }`}
           >
             {/* 人物の画像またはデフォルトアバター */}
             {person.imageDataUrl ? (
@@ -55,7 +90,10 @@ export function PersonList() {
 
             {/* 削除ボタン */}
             <button
-              onClick={() => removePerson(person.id)}
+              onClick={(e) => {
+                e.stopPropagation(); // 親のクリックイベントを防ぐ
+                removePerson(person.id);
+              }}
               className="shrink-0 p-1 text-gray-400 hover:text-red-600 rounded-md hover:bg-red-50"
               aria-label={`${person.name}を削除`}
             >

@@ -18,6 +18,8 @@ describe('useGraphStore', () => {
     store.relationships.forEach((relationship) => {
       store.removeRelationship(relationship.id);
     });
+    // 選択状態もクリア
+    store.clearSelection();
   });
 
   describe('初期状態', () => {
@@ -249,7 +251,7 @@ describe('useGraphStore', () => {
       const { result } = renderHook(() => useGraphStore());
 
       // 初期状態では何も選択されていない
-      expect(result.current.selectedPersonId).toBeNull();
+      expect(result.current.selectedPersonIds).toEqual([]);
 
       // 人物を追加
       act(() => {
@@ -266,7 +268,7 @@ describe('useGraphStore', () => {
         result.current.selectPerson(personId);
       });
 
-      expect(result.current.selectedPersonId).toBe(personId);
+      expect(result.current.selectedPersonIds).toEqual([personId]);
     });
 
     it('人物の選択を解除できる', () => {
@@ -286,14 +288,241 @@ describe('useGraphStore', () => {
         result.current.selectPerson(personId);
       });
 
-      expect(result.current.selectedPersonId).toBe(personId);
+      expect(result.current.selectedPersonIds).toEqual([personId]);
 
       // 選択を解除
       act(() => {
         result.current.selectPerson(null);
       });
 
-      expect(result.current.selectedPersonId).toBeNull();
+      expect(result.current.selectedPersonIds).toEqual([]);
+    });
+  });
+
+  describe('togglePersonSelection', () => {
+    it('選択されていない人物を選択できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+      });
+
+      const personId = result.current.persons[0].id;
+
+      // 初期状態では選択されていない
+      expect(result.current.selectedPersonIds).toEqual([]);
+
+      // トグルで選択
+      act(() => {
+        result.current.togglePersonSelection(personId);
+      });
+
+      expect(result.current.selectedPersonIds).toEqual([personId]);
+    });
+
+    it('選択されている人物を選択解除できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+      });
+
+      const personId = result.current.persons[0].id;
+
+      // 最初に選択
+      act(() => {
+        result.current.togglePersonSelection(personId);
+      });
+
+      expect(result.current.selectedPersonIds).toEqual([personId]);
+
+      // もう一度トグルで選択解除
+      act(() => {
+        result.current.togglePersonSelection(personId);
+      });
+
+      expect(result.current.selectedPersonIds).toEqual([]);
+    });
+
+    it('複数の人物を選択できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 2人の人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+        result.current.addPerson({
+          name: '佐藤花子',
+          imageDataUrl: 'data:image/jpeg;base64,def',
+        });
+      });
+
+      const personId1 = result.current.persons[0].id;
+      const personId2 = result.current.persons[1].id;
+
+      // 1人目を選択
+      act(() => {
+        result.current.togglePersonSelection(personId1);
+      });
+
+      expect(result.current.selectedPersonIds).toEqual([personId1]);
+
+      // 2人目も選択（1人目は保持）
+      act(() => {
+        result.current.togglePersonSelection(personId2);
+      });
+
+      expect(result.current.selectedPersonIds).toEqual([personId1, personId2]);
+    });
+
+    it('複数選択中に1人だけ選択解除できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 2人の人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+        result.current.addPerson({
+          name: '佐藤花子',
+          imageDataUrl: 'data:image/jpeg;base64,def',
+        });
+      });
+
+      const personId1 = result.current.persons[0].id;
+      const personId2 = result.current.persons[1].id;
+
+      // 2人とも選択
+      act(() => {
+        result.current.togglePersonSelection(personId1);
+        result.current.togglePersonSelection(personId2);
+      });
+
+      expect(result.current.selectedPersonIds).toEqual([personId1, personId2]);
+
+      // 1人目を選択解除
+      act(() => {
+        result.current.togglePersonSelection(personId1);
+      });
+
+      expect(result.current.selectedPersonIds).toEqual([personId2]);
+    });
+  });
+
+  describe('clearSelection', () => {
+    it('すべての選択を解除できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 2人の人物を追加して選択
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+        result.current.addPerson({
+          name: '佐藤花子',
+          imageDataUrl: 'data:image/jpeg;base64,def',
+        });
+      });
+
+      const personId1 = result.current.persons[0].id;
+      const personId2 = result.current.persons[1].id;
+
+      act(() => {
+        result.current.togglePersonSelection(personId1);
+        result.current.togglePersonSelection(personId2);
+      });
+
+      expect(result.current.selectedPersonIds).toEqual([personId1, personId2]);
+
+      // すべての選択を解除
+      act(() => {
+        result.current.clearSelection();
+      });
+
+      expect(result.current.selectedPersonIds).toEqual([]);
+    });
+
+    it('何も選択されていない状態でclearSelectionを呼んでもエラーにならない', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      expect(result.current.selectedPersonIds).toEqual([]);
+
+      act(() => {
+        result.current.clearSelection();
+      });
+
+      expect(result.current.selectedPersonIds).toEqual([]);
+    });
+  });
+
+  describe('setSelectedPersonIds', () => {
+    it('選択状態を一括設定できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 3人の人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+        result.current.addPerson({
+          name: '佐藤花子',
+          imageDataUrl: 'data:image/jpeg;base64,def',
+        });
+        result.current.addPerson({
+          name: '鈴木一郎',
+          imageDataUrl: 'data:image/jpeg;base64,ghi',
+        });
+      });
+
+      const personId1 = result.current.persons[0].id;
+      const personId2 = result.current.persons[1].id;
+
+      // 2人を一括選択
+      act(() => {
+        result.current.setSelectedPersonIds([personId1, personId2]);
+      });
+
+      expect(result.current.selectedPersonIds).toEqual([personId1, personId2]);
+    });
+
+    it('空配列を渡すとすべての選択が解除される', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 人物を追加して選択
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+      });
+
+      const personId = result.current.persons[0].id;
+
+      act(() => {
+        result.current.togglePersonSelection(personId);
+      });
+
+      expect(result.current.selectedPersonIds).toEqual([personId]);
+
+      // 空配列で選択解除
+      act(() => {
+        result.current.setSelectedPersonIds([]);
+      });
+
+      expect(result.current.selectedPersonIds).toEqual([]);
     });
   });
 });
