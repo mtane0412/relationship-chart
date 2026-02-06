@@ -3,9 +3,8 @@
  * 選択された人物の編集フォーム
  */
 
-import { useState } from 'react';
+import { useState, useRef, useCallback, useEffect, type DragEvent, type ChangeEvent } from 'react';
 import { useGraphStore } from '@/stores/useGraphStore';
-import { ImageDropZone } from '@/components/dnd/ImageDropZone';
 import { processImage } from '@/lib/image-utils';
 import type { Person } from '@/types/person';
 
@@ -29,6 +28,10 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
 
   const [name, setName] = useState(person.name);
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>(person.imageDataUrl);
+  const [isDragging, setIsDragging] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // 保存ハンドラ
   const handleSave = () => {
@@ -42,19 +45,80 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
     onClose();
   };
 
-  // 画像選択ハンドラ
-  const handleImageDrop = async (file: File) => {
+  // 画像処理共通関数
+  const handleImageFile = useCallback(async (file: File) => {
     try {
       const dataUrl = await processImage(file);
       setImageDataUrl(dataUrl);
+      setShowMenu(false);
     } catch (error) {
-      console.error('画像処理に失敗しました:', error);
+      // エラーログは開発環境でのみ表示（本番では適切なエラーハンドリングを実装）
+      if (process.env.NODE_ENV === 'development') {
+        console.error('画像処理に失敗しました:', error);
+      }
+    }
+  }, []);
+
+  // ドラッグオーバーハンドラ
+  const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  // ドラッグリーブハンドラ
+  const handleDragLeave = useCallback((e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  // ドロップハンドラ
+  const handleDrop = useCallback(
+    (e: DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+
+      const files = Array.from(e.dataTransfer.files);
+      const imageFile = files.find((file) => file.type.startsWith('image/'));
+
+      if (imageFile) {
+        handleImageFile(imageFile);
+      }
+    },
+    [handleImageFile]
+  );
+
+  // アイコンクリックハンドラ
+  const handleIconClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    setShowMenu(!showMenu);
+  };
+
+  // ファイル選択ハンドラ
+  const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (file.type.startsWith('image/')) {
+        handleImageFile(file);
+      }
     }
   };
 
+  // アップロードボタンクリックハンドラ
+  const handleUploadClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    fileInputRef.current?.click();
+    setShowMenu(false);
+  };
+
   // 画像削除ハンドラ
-  const handleRemoveImage = () => {
+  const handleRemoveImage = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
     setImageDataUrl(undefined);
+    setShowMenu(false);
   };
 
   // 人物削除ハンドラ
@@ -64,6 +128,27 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
       onClose();
     }
   };
+
+  // メニューの外側をクリックした時にメニューを閉じる
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        showMenu &&
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node)
+      ) {
+        setShowMenu(false);
+      }
+    };
+
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMenu]);
 
   return (
     <div className="p-4 bg-white border-b border-gray-200">
@@ -109,33 +194,72 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
       {/* 画像編集 */}
       <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">画像</label>
-        {imageDataUrl ? (
-          <div className="space-y-2">
-            <img
-              src={imageDataUrl}
-              alt={name}
-              className="w-32 h-32 rounded-full object-cover border-4 border-gray-200 shadow-md mx-auto"
-            />
-            <div className="flex gap-2">
-              <ImageDropZone onDrop={handleImageDrop} />
+        <div className="relative">
+          {/* アイコン領域（D&D対応 + クリックメニュー） */}
+          <div
+            data-testid="person-icon-area"
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={handleIconClick}
+            className={`
+              w-32 h-32 rounded-full mx-auto cursor-pointer
+              transition-all duration-200
+              ${
+                isDragging
+                  ? 'ring-4 ring-blue-500 ring-offset-2'
+                  : 'border-4 border-gray-200 hover:border-gray-300'
+              }
+              shadow-md
+            `}
+          >
+            {imageDataUrl ? (
+              <img
+                src={imageDataUrl}
+                alt={name}
+                className="w-full h-full rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full rounded-full bg-gray-400 flex items-center justify-center">
+                <span className="text-white text-4xl font-bold">
+                  {name.charAt(0).toUpperCase()}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* メニュー */}
+          {showMenu && (
+            <div
+              ref={menuRef}
+              className="absolute left-1/2 transform -translate-x-1/2 mt-2 bg-white border border-gray-300 rounded-md shadow-lg z-10 min-w-[160px]"
+            >
               <button
-                onClick={handleRemoveImage}
-                className="flex-1 px-3 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-300 rounded-md hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                onClick={handleUploadClick}
+                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 focus:outline-none focus:bg-gray-100"
               >
-                画像を削除
+                画像をアップロード
               </button>
+              {imageDataUrl && (
+                <button
+                  onClick={handleRemoveImage}
+                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 focus:outline-none focus:bg-red-50 border-t border-gray-200"
+                >
+                  画像を削除
+                </button>
+              )}
             </div>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <div className="w-32 h-32 rounded-full bg-gray-400 border-4 border-gray-200 shadow-md mx-auto flex items-center justify-center">
-              <span className="text-white text-4xl font-bold">
-                {name.charAt(0).toUpperCase()}
-              </span>
-            </div>
-            <ImageDropZone onDrop={handleImageDrop} />
-          </div>
-        )}
+          )}
+
+          {/* 非表示のファイル入力 */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+        </div>
       </div>
 
       {/* アクションボタン */}
