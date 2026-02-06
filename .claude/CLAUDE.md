@@ -6,36 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## プロジェクト概要
 
-人物相関図を作成・可視化するNext.jsアプリケーションです。React Flowによるグラフ表示、d3-forceによる自動配置、Zustandによる状態管理を組み合わせています。
+人物相関図を作成・可視化するNext.jsアプリケーションです。
 
-### 技術スタック
-
-- **フレームワーク**: Next.js 16 (App Router)
-- **言語**: TypeScript
-- **UIライブラリ**: React 19
-- **グラフ描画**: React Flow (@xyflow/react)
-- **自動配置**: d3-force
-- **状態管理**: Zustand (persistミドルウェアでLocalStorage永続化)
-- **スタイリング**: Tailwind CSS v4
-- **テスト**: Vitest + Testing Library
-- **Lint**: ESLint 9 (TypeScript ESLint)
+詳細はREADME.mdを参照してください。主要な技術スタックはNext.js 16、React 19、React Flow、d3-force、Zustand、Tailwind CSS v4です。
 
 ---
 
 ## コマンド
-
-### 開発
-
-```bash
-# 開発サーバー起動
-npm run dev
-
-# 本番ビルド
-npm run build
-
-# 本番サーバー起動
-npm start
-```
 
 ### 品質チェック
 
@@ -69,8 +46,9 @@ npm run lint && npm run type-check && npm test
 
 - **人物（Person）**: 名前、画像、ID、作成日時を保持
 - **関係（Relationship）**: 人物間の関係（ラベル、方向性）を保持
-- **UI状態**: force-directedレイアウトの有効/無効、選択中の人物ID
+- **UI状態**: force-directedレイアウトの有効/無効、選択中の人物IDリスト（複数選択対応）
 - **永続化**: Zustandのpersistミドルウェアで自動的にLocalStorage（キー: `relationship-chart-storage`）に保存
+- **バージョン管理**: v0（`selectedPersonId: string | null`）からv1（`selectedPersonIds: string[]`）へのマイグレーションを自動実行
 
 ### コンポーネント構成
 
@@ -81,18 +59,24 @@ src/
 │   └── page.tsx           # ホームページ（ReactFlowProviderでラップ）
 ├── components/
 │   ├── graph/             # グラフ描画コンポーネント
-│   │   ├── RelationshipGraph.tsx    # メインコンテナ（D&D/ペースト処理含む）
-│   │   ├── PersonNode.tsx           # 人物ノード（カスタムノード）
-│   │   ├── RelationshipEdge.tsx     # 関係エッジ（カスタムエッジ）
-│   │   ├── useForceLayout.ts        # d3-forceフック
-│   │   └── PersonRegistrationModal.tsx  # 人物登録モーダル
+│   │   ├── RelationshipGraph.tsx             # メインコンテナ（D&D/ペースト処理含む）
+│   │   ├── PersonNode.tsx                    # 人物ノード（カスタムノード）
+│   │   ├── RelationshipEdge.tsx              # 関係エッジ（カスタムエッジ）
+│   │   ├── useForceLayout.ts                 # d3-forceフック
+│   │   ├── PersonRegistrationModal.tsx       # 人物登録モーダル
+│   │   └── RelationshipRegistrationModal.tsx # 関係登録モーダル（エッジ接続時）
 │   ├── panel/             # サイドパネルコンポーネント
-│   │   ├── SidePanel.tsx           # パネル全体のコンテナ
-│   │   ├── PersonForm.tsx          # 人物追加フォーム
-│   │   ├── PersonEditForm.tsx      # 人物編集フォーム
-│   │   ├── PersonList.tsx          # 人物一覧
-│   │   └── RelationshipForm.tsx    # 関係追加フォーム
+│   │   ├── SidePanel.tsx                # パネル全体のコンテナ
+│   │   ├── DefaultPanel.tsx             # 未選択時パネル
+│   │   ├── SingleSelectionPanel.tsx     # 1人選択時パネル
+│   │   ├── PairSelectionPanel.tsx       # 2人選択時パネル
+│   │   ├── MultipleSelectionInfo.tsx    # 3人以上選択時の案内
+│   │   ├── PersonForm.tsx               # 人物追加フォーム（未使用）
+│   │   ├── PersonEditForm.tsx           # 人物編集フォーム
+│   │   ├── PersonList.tsx               # 人物一覧
+│   │   └── RelationshipForm.tsx         # 関係追加フォーム（未使用）
 │   ├── dnd/               # D&Dコンポーネント
+│   │   └── ImageDropZone.tsx        # 画像ドロップゾーン
 │   └── ui/                # 汎用UIコンポーネント
 ├── stores/
 │   └── useGraphStore.ts   # グローバルストア（⚠️ 状態管理の中心）
@@ -101,8 +85,9 @@ src/
 │   ├── relationship.ts    # Relationshipの型定義
 │   └── graph.ts           # React Flow用の型定義
 └── lib/
-    ├── graph-utils.ts     # Person/Relationship → Node/Edge変換
-    └── image-utils.ts     # 画像リサイズ処理（200x200px JPEG）
+    ├── graph-utils.ts        # Person/Relationship → Node/Edge変換
+    ├── image-utils.ts        # 画像リサイズ処理（200x200px JPEG）
+    └── node-intersection.ts  # ノード境界との交点計算
 ```
 
 ### データフロー
@@ -139,6 +124,22 @@ src/
 
 すべての型は`src/types/`で定義されています。特に`graph.ts`はReact Flowの`Node`と`Edge`に型パラメータを適用してカスタムデータ型を定義しています。
 
+### 5. ノード境界との交点計算
+
+エッジの端点はノードの中心ではなく、境界との交点に配置されます（`src/lib/node-intersection.ts`）。これにより、画像がエッジに覆われず、視覚的に整理された表示を実現しています。
+
+### 6. コンテキスト依存UI
+
+サイドパネルは選択状態に応じて動的に切り替わります：
+- **未選択時**: 人物一覧を表示
+- **1人選択時**: 人物編集フォームを表示
+- **2人選択時**: 関係登録フォームを表示
+- **3人以上選択時**: 案内メッセージを表示
+
+### 7. 選択状態の双方向同期
+
+Zustandストア（`selectedPersonIds`）とReact Flowの選択状態は双方向で同期されます。ノードのクリック操作とストアの更新が常に一致するよう、`onSelectionChange`と`setSelectedPersonIds`で連携しています。
+
 ---
 
 ## テスト
@@ -154,6 +155,8 @@ src/
 - `src/stores/useGraphStore.test.ts`: Zustandストアのアクション検証
 - `src/lib/graph-utils.test.ts`: データ変換ロジックの検証
 - `src/lib/image-utils.test.ts`: 画像処理のエラーハンドリング検証
+- `src/lib/node-intersection.test.ts`: ノード境界との交点計算の検証
+- `src/components/graph/RelationshipRegistrationModal.test.tsx`: 関係登録モーダルのUI検証
 
 ### 注意点
 
@@ -193,9 +196,17 @@ Tailwind CSS v4のレスポンシブクラス（`md:`プレフィックス）を
 - **ペースト**: `window`レベルで`paste`イベントをリッスン
 - **処理フロー**: 画像取得 → `processImage`でリサイズ → モーダル表示 → 名前入力 → ストアに追加
 
-### ノードクリック編集
+### 複数選択とコンテキスト依存パネル
 
-ノードクリックで`selectedPersonId`が設定され、サイドパネルの`PersonEditForm`が表示されます。背景クリックで選択解除されます。
+- **単一選択**: クリックで1人を選択、サイドパネルに編集フォームを表示
+- **複数選択**: Shift+クリックで複数人を選択、2人選択時は関係登録フォームを表示
+- **選択解除**: 背景クリックまたはEscキーで選択解除
+
+### エッジ接続による関係登録
+
+- ノードのエッジハンドルをドラッグして別のノードに接続すると、関係登録モーダルが表示されます
+- モーダルでラベルと方向性を入力後、関係が登録されます
+- エッジは`node-intersection.ts`で計算された境界上の交点から描画されます
 
 ---
 
@@ -244,9 +255,3 @@ localStorage.removeItem('relationship-chart-storage');
 
 ---
 
-## 参考リンク
-
-- [React Flow Documentation](https://reactflow.dev/)
-- [d3-force Documentation](https://github.com/d3/d3-force)
-- [Zustand Documentation](https://zustand-demo.pmnd.rs/)
-- [Next.js App Router Documentation](https://nextjs.org/docs/app)
