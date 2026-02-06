@@ -31,10 +31,13 @@ describe('PersonEditForm', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useGraphStore).mockReturnValue({
-      updatePerson: mockUpdatePerson,
-      removePerson: mockRemovePerson,
-    } as never);
+    vi.mocked(useGraphStore).mockImplementation((selector: unknown) => {
+      const state = {
+        updatePerson: mockUpdatePerson,
+        removePerson: mockRemovePerson,
+      };
+      return typeof selector === 'function' ? selector(state) : state;
+    });
   });
 
   describe('アイコン領域のD&D機能', () => {
@@ -281,6 +284,78 @@ describe('PersonEditForm', () => {
       await waitFor(() => {
         expect(screen.getByText(/画像ファイルのみアップロード可能です/)).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('即時反映', () => {
+    it('名前入力時に即座にupdatePersonが呼ばれる', () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const nameInput = screen.getByLabelText('名前');
+      fireEvent.change(nameInput, { target: { value: '山田次郎' } });
+
+      // updatePersonが即座に呼ばれることを確認
+      expect(mockUpdatePerson).toHaveBeenCalledWith(mockPerson.id, {
+        name: '山田次郎',
+        imageDataUrl: mockPerson.imageDataUrl,
+      });
+    });
+
+    it('名前が空文字の場合はupdatePersonが呼ばれない', () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const nameInput = screen.getByLabelText('名前');
+      fireEvent.change(nameInput, { target: { value: '   ' } }); // 空白のみ
+
+      // updatePersonが呼ばれないことを確認
+      expect(mockUpdatePerson).not.toHaveBeenCalled();
+    });
+
+    it('画像D&D時に即座にupdatePersonが呼ばれる', async () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const iconArea = screen.getByTestId('person-icon-area');
+
+      // 画像ファイルを作成
+      const file = new File(['image content'], 'test.png', { type: 'image/png' });
+
+      // ドロップイベントを発火
+      const dropEvent = new Event('drop', { bubbles: true });
+      Object.defineProperty(dropEvent, 'dataTransfer', {
+        value: { files: [file] },
+      });
+      fireEvent(iconArea, dropEvent);
+
+      // updatePersonが呼ばれることを確認
+      await waitFor(() => {
+        expect(mockUpdatePerson).toHaveBeenCalledWith(mockPerson.id, {
+          name: mockPerson.name,
+          imageDataUrl: 'data:image/jpeg;base64,mock-image',
+        });
+      });
+    });
+
+    it('画像削除時に即座にupdatePersonが呼ばれる', () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const iconArea = screen.getByTestId('person-icon-area');
+      fireEvent.click(iconArea);
+
+      const deleteButton = screen.getByText('画像を削除');
+      fireEvent.click(deleteButton);
+
+      // updatePersonが呼ばれることを確認
+      expect(mockUpdatePerson).toHaveBeenCalledWith(mockPerson.id, {
+        name: mockPerson.name,
+        imageDataUrl: undefined,
+      });
+    });
+
+    it('保存ボタンが存在しない', () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      // 保存ボタンが存在しないことを確認
+      expect(screen.queryByText('保存')).not.toBeInTheDocument();
     });
   });
 

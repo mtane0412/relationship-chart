@@ -24,7 +24,6 @@ type PersonEditFormProps = {
  */
 export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
   const updatePerson = useGraphStore((state) => state.updatePerson);
-  const removePerson = useGraphStore((state) => state.removePerson);
 
   const [name, setName] = useState(person.name);
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>(person.imageDataUrl);
@@ -36,25 +35,33 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
   const firstMenuItemRef = useRef<HTMLButtonElement>(null);
   const secondMenuItemRef = useRef<HTMLButtonElement>(null);
 
-  // 保存ハンドラ
-  const handleSave = () => {
-    if (!name.trim()) return;
+  // 名前変更ハンドラ（即時反映）
+  const handleNameChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const newName = e.target.value;
+    setName(newName);
 
-    updatePerson(person.id, {
-      name: name.trim(),
-      imageDataUrl,
-    });
-
-    onClose();
+    // trim後に空でなければ即座に更新
+    if (newName.trim()) {
+      updatePerson(person.id, {
+        name: newName.trim(),
+        imageDataUrl,
+      });
+    }
   };
 
-  // 画像処理共通関数
-  const handleImageFile = useCallback(async (file: File) => {
+  // 画像処理共通関数（即時反映）
+  const handleImageFile = async (file: File) => {
     setError('');
     try {
       const dataUrl = await processImage(file);
       setImageDataUrl(dataUrl);
       setShowMenu(false);
+
+      // 即座にストアを更新
+      updatePerson(person.id, {
+        name: name.trim() || person.name, // 空の場合は元の名前を使用
+        imageDataUrl: dataUrl,
+      });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '画像処理に失敗しました';
       setError(errorMessage);
@@ -62,7 +69,7 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
         console.error('画像処理に失敗しました:', err);
       }
     }
-  }, []);
+  };
 
   // ドラッグオーバーハンドラ
   const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
@@ -79,24 +86,21 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
   }, []);
 
   // ドロップハンドラ
-  const handleDrop = useCallback(
-    (e: DragEvent<HTMLDivElement>) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(false);
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
 
-      const files = Array.from(e.dataTransfer.files);
-      const imageFile = files.find((file) => file.type.startsWith('image/'));
+    const files = Array.from(e.dataTransfer.files);
+    const imageFile = files.find((file) => file.type.startsWith('image/'));
 
-      if (imageFile) {
-        handleImageFile(imageFile);
-      } else if (files.length > 0) {
-        // 非画像ファイルがドロップされた場合
-        setError('画像ファイルのみアップロード可能です');
-      }
-    },
-    [handleImageFile]
-  );
+    if (imageFile) {
+      handleImageFile(imageFile);
+    } else if (files.length > 0) {
+      // 非画像ファイルがドロップされた場合
+      setError('画像ファイルのみアップロード可能です');
+    }
+  };
 
   // アイコンクリックハンドラ
   const handleIconClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -158,19 +162,17 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
     setShowMenu(false);
   };
 
-  // 画像削除ハンドラ
+  // 画像削除ハンドラ（即時反映）
   const handleRemoveImage = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     setImageDataUrl(undefined);
     setShowMenu(false);
-  };
 
-  // 人物削除ハンドラ
-  const handleDeletePerson = () => {
-    if (confirm(`「${person.name}」を削除してもよろしいですか？`)) {
-      removePerson(person.id);
-      onClose();
-    }
+    // 即座にストアを更新
+    updatePerson(person.id, {
+      name: name.trim() || person.name, // 空の場合は元の名前を使用
+      imageDataUrl: undefined,
+    });
   };
 
   // メニューの外側をクリックした時にメニューを閉じる
@@ -253,7 +255,7 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
           id="edit-name"
           type="text"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={handleNameChange}
           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           placeholder="名前を入力"
         />
@@ -344,22 +346,6 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
         </div>
       </div>
 
-      {/* アクションボタン */}
-      <div className="space-y-2">
-        <button
-          onClick={handleSave}
-          disabled={!name.trim()}
-          className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          保存
-        </button>
-        <button
-          onClick={handleDeletePerson}
-          className="w-full px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-300 rounded-md hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-        >
-          この人物を削除
-        </button>
-      </div>
     </div>
   );
 }

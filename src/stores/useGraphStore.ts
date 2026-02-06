@@ -5,6 +5,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { temporal } from 'zundo';
 import { nanoid } from 'nanoid';
 import type { Person } from '@/types/person';
 import type { Relationship } from '@/types/relationship';
@@ -106,95 +107,111 @@ type GraphStateLegacy = {
 /**
  * グラフストア
  * 人物と関係を管理するグローバルストア
+ * temporalミドルウェアでUndo/Redo機能を提供
  * persistミドルウェアでLocalStorageに自動保存
  */
 export const useGraphStore = create<GraphStore>()(
   persist(
-    (set) => ({
-      // 初期状態
-      persons: [],
-      relationships: [],
-      forceEnabled: true, // デフォルトでforce-directedレイアウトを有効
-      selectedPersonIds: [], // 初期状態では何も選択されていない
+    temporal(
+      (set) => ({
+        // 初期状態
+        persons: [],
+        relationships: [],
+        forceEnabled: true, // デフォルトでforce-directedレイアウトを有効
+        selectedPersonIds: [], // 初期状態では何も選択されていない
 
-      // アクション
-      addPerson: (person) =>
-        set((state) => ({
-          persons: [
-            ...state.persons,
-            {
-              ...person,
-              id: nanoid(),
-              createdAt: new Date().toISOString(),
-            },
-          ],
-        })),
+        // アクション
+        addPerson: (person) =>
+          set((state) => ({
+            persons: [
+              ...state.persons,
+              {
+                ...person,
+                id: nanoid(),
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          })),
 
-      updatePerson: (personId, updates) =>
-        set((state) => ({
-          persons: state.persons.map((person) =>
-            person.id === personId ? { ...person, ...updates } : person
-          ),
-        })),
+        updatePerson: (personId, updates) =>
+          set((state) => ({
+            persons: state.persons.map((person) =>
+              person.id === personId ? { ...person, ...updates } : person
+            ),
+          })),
 
-      removePerson: (personId) =>
-        set((state) => ({
-          persons: state.persons.filter((p) => p.id !== personId),
-        })),
+        removePerson: (personId) =>
+          set((state) => ({
+            persons: state.persons.filter((p) => p.id !== personId),
+            // 関連するRelationshipも削除
+            relationships: state.relationships.filter(
+              (r) => r.sourcePersonId !== personId && r.targetPersonId !== personId
+            ),
+            // selectedPersonIdsからも除外
+            selectedPersonIds: state.selectedPersonIds.filter((id) => id !== personId),
+          })),
 
-      selectPerson: (personId) =>
-        set(() => ({
-          selectedPersonIds: personId ? [personId] : [],
-        })),
+        selectPerson: (personId) =>
+          set(() => ({
+            selectedPersonIds: personId ? [personId] : [],
+          })),
 
-      togglePersonSelection: (personId) =>
-        set((state) => {
-          const isSelected = state.selectedPersonIds.includes(personId);
-          if (isSelected) {
-            // 選択解除
-            return {
-              selectedPersonIds: state.selectedPersonIds.filter((id) => id !== personId),
-            };
-          } else {
-            // 選択追加
-            return {
-              selectedPersonIds: [...state.selectedPersonIds, personId],
-            };
-          }
-        }),
+        togglePersonSelection: (personId) =>
+          set((state) => {
+            const isSelected = state.selectedPersonIds.includes(personId);
+            if (isSelected) {
+              // 選択解除
+              return {
+                selectedPersonIds: state.selectedPersonIds.filter((id) => id !== personId),
+              };
+            } else {
+              // 選択追加
+              return {
+                selectedPersonIds: [...state.selectedPersonIds, personId],
+              };
+            }
+          }),
 
-      clearSelection: () =>
-        set(() => ({
-          selectedPersonIds: [],
-        })),
+        clearSelection: () =>
+          set(() => ({
+            selectedPersonIds: [],
+          })),
 
-      setSelectedPersonIds: (personIds) =>
-        set(() => ({
-          selectedPersonIds: personIds,
-        })),
+        setSelectedPersonIds: (personIds) =>
+          set(() => ({
+            selectedPersonIds: personIds,
+          })),
 
-      addRelationship: (relationship) =>
-        set((state) => ({
-          relationships: [
-            ...state.relationships,
-            {
-              ...relationship,
-              id: nanoid(),
-              createdAt: new Date().toISOString(),
-            },
-          ],
-        })),
+        addRelationship: (relationship) =>
+          set((state) => ({
+            relationships: [
+              ...state.relationships,
+              {
+                ...relationship,
+                id: nanoid(),
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          })),
 
-      removeRelationship: (relationshipId) =>
-        set((state) => ({
-          relationships: state.relationships.filter((r) => r.id !== relationshipId),
-        })),
+        removeRelationship: (relationshipId) =>
+          set((state) => ({
+            relationships: state.relationships.filter((r) => r.id !== relationshipId),
+          })),
 
-      setForceEnabled: (enabled) =>
-        set(() => ({
-          forceEnabled: enabled,
-        })),
-    }),
+        setForceEnabled: (enabled) =>
+          set(() => ({
+            forceEnabled: enabled,
+          })),
+      }),
+      {
+        // UI状態（selectedPersonIds, forceEnabled）はundo対象外
+        partialize: (state) => {
+          const { selectedPersonIds: _selectedPersonIds, forceEnabled: _forceEnabled, ...rest } = state;
+          return rest;
+        },
+      }
+    ),
     {
       name: 'relationship-chart-storage', // LocalStorageのキー名
       version: 1, // バージョン管理
