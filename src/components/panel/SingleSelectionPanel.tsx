@@ -24,7 +24,16 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
   const relationships = useGraphStore((state) => state.relationships);
   const persons = useGraphStore((state) => state.persons);
   const removeRelationship = useGraphStore((state) => state.removeRelationship);
+  const removePerson = useGraphStore((state) => state.removePerson);
   const clearSelection = useGraphStore((state) => state.clearSelection);
+
+  // 人物削除ハンドラ
+  const handleDeletePerson = () => {
+    if (confirm(`「${person.name}」を削除してもよろしいですか？`)) {
+      removePerson(person.id);
+      clearSelection();
+    }
+  };
 
   // この人物に関連する関係を取得
   const relatedRelationships = relationships.filter(
@@ -119,6 +128,16 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
           </div>
         </div>
       )}
+
+      {/* 削除ボタン（パネル最下部） */}
+      <div className="p-4 border-t border-gray-200 mt-auto">
+        <button
+          onClick={handleDeletePerson}
+          className="w-full px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-300 rounded-md hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+        >
+          この人物を削除
+        </button>
+      </div>
     </>
   );
 }

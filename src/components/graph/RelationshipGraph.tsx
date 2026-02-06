@@ -71,6 +71,8 @@ export function RelationshipGraph() {
   const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
   const addPerson = useGraphStore((state) => state.addPerson);
   const addRelationship = useGraphStore((state) => state.addRelationship);
+  const removePerson = useGraphStore((state) => state.removePerson);
+  const removeRelationship = useGraphStore((state) => state.removeRelationship);
   const setSelectedPersonIds = useGraphStore((state) => state.setSelectedPersonIds);
   const clearSelection = useGraphStore((state) => state.clearSelection);
 
@@ -200,6 +202,48 @@ export function RelationshipGraph() {
     return () => window.removeEventListener('paste', handlePaste);
   }, []);
 
+  // Undo/Redoキーボードショートカット
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // モーダルが開いている時はスキップ（モーダル内のinputでテキストundoを優先）
+      if (pendingRegistration !== null || pendingConnection !== null) {
+        return;
+      }
+
+      // input/textarea/contentEditable内ではスキップ（ブラウザ標準のテキストundoを優先）
+      const target = event.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+
+      // Cmd+Z (macOS) / Ctrl+Z (Windows): Undo
+      if ((event.metaKey || event.ctrlKey) && key === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        useGraphStore.temporal.getState().undo();
+        return;
+      }
+
+      // Cmd+Shift+Z (macOS) / Ctrl+Shift+Z (Windows): Redo
+      if ((event.metaKey || event.ctrlKey) && key === 'z' && event.shiftKey) {
+        event.preventDefault();
+        useGraphStore.temporal.getState().redo();
+        return;
+      }
+
+      // Ctrl+Y (Windows標準のRedo): Redo
+      if (event.ctrlKey && key === 'y' && !event.shiftKey && !event.metaKey) {
+        event.preventDefault();
+        useGraphStore.temporal.getState().redo();
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [pendingRegistration, pendingConnection]);
+
   // 選択変更ハンドラ（React Flowの選択状態をストアに同期）
   const handleSelectionChange = useCallback(
     (params: OnSelectionChangeParams) => {
@@ -233,6 +277,44 @@ export function RelationshipGraph() {
       }
     },
     [persons]
+  );
+
+  // ノード削除ハンドラ（確認ダイアログ付き）
+  const handleNodesDelete = useCallback(
+    (nodesToDelete: Node[]) => {
+      if (nodesToDelete.length === 0) return;
+
+      const count = nodesToDelete.length;
+      const firstNode = nodesToDelete[0] as PersonNodeType;
+      const message =
+        count === 1
+          ? `「${firstNode.data?.name || '不明な人物'}」を削除してもよろしいですか？`
+          : `${count}個の人物を削除してもよろしいですか？`;
+
+      if (confirm(message)) {
+        nodesToDelete.forEach((node) => removePerson(node.id));
+      }
+    },
+    [removePerson]
+  );
+
+  // エッジ削除ハンドラ（確認ダイアログ付き）
+  const handleEdgesDelete = useCallback(
+    (edgesToDelete: RelationshipEdge[]) => {
+      if (edgesToDelete.length === 0) return;
+
+      const count = edgesToDelete.length;
+      const firstEdge = edgesToDelete[0];
+      const message =
+        count === 1 && firstEdge
+          ? `「${firstEdge.data?.label || '不明な関係'}」を削除してもよろしいですか？`
+          : `${count}個の関係を削除してもよろしいですか？`;
+
+      if (confirm(message)) {
+        edgesToDelete.forEach((edge) => removeRelationship(edge.id));
+      }
+    },
+    [removeRelationship]
   );
 
   // モーダルからの登録ハンドラ
@@ -321,6 +403,9 @@ export function RelationshipGraph() {
         onSelectionChange={handleSelectionChange}
         onPaneClick={handlePaneClick}
         onConnect={handleConnect}
+        onNodesDelete={handleNodesDelete}
+        onEdgesDelete={handleEdgesDelete}
+        deleteKeyCode={['Backspace', 'Delete']}
         multiSelectionKeyCode="Shift"
         fitView
       >

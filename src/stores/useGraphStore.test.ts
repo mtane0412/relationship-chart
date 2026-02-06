@@ -134,6 +134,81 @@ describe('useGraphStore', () => {
 
       expect(result.current.persons).toHaveLength(1);
     });
+
+    it('人物削除時に関連するRelationshipも同時に削除される', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 2人の人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+        result.current.addPerson({
+          name: '佐藤花子',
+          imageDataUrl: 'data:image/jpeg;base64,def',
+        });
+      });
+
+      const personId1 = result.current.persons[0].id;
+      const personId2 = result.current.persons[1].id;
+
+      // 2人の間に関係を追加
+      act(() => {
+        result.current.addRelationship({
+          sourcePersonId: personId1,
+          targetPersonId: personId2,
+          label: '友人',
+          isDirected: false,
+        });
+      });
+
+      expect(result.current.relationships).toHaveLength(1);
+
+      // 人物1を削除
+      act(() => {
+        result.current.removePerson(personId1);
+      });
+
+      // 関連するRelationshipも削除されている
+      expect(result.current.relationships).toHaveLength(0);
+      expect(result.current.persons).toHaveLength(1);
+      expect(result.current.persons[0].id).toBe(personId2);
+    });
+
+    it('人物削除時にselectedPersonIdsからも除外される', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 2人の人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+        result.current.addPerson({
+          name: '佐藤花子',
+          imageDataUrl: 'data:image/jpeg;base64,def',
+        });
+      });
+
+      const personId1 = result.current.persons[0].id;
+      const personId2 = result.current.persons[1].id;
+
+      // 2人とも選択
+      act(() => {
+        result.current.setSelectedPersonIds([personId1, personId2]);
+      });
+
+      expect(result.current.selectedPersonIds).toEqual([personId1, personId2]);
+
+      // 人物1を削除
+      act(() => {
+        result.current.removePerson(personId1);
+      });
+
+      // selectedPersonIdsからも除外されている
+      expect(result.current.selectedPersonIds).toEqual([personId2]);
+    });
   });
 
   describe('addPerson（imageDataUrlなし）', () => {
@@ -523,6 +598,214 @@ describe('useGraphStore', () => {
       });
 
       expect(result.current.selectedPersonIds).toEqual([]);
+    });
+  });
+
+  describe('Undo/Redo (temporal middleware)', () => {
+    it('人物追加のundo/redoができる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+      });
+
+      expect(result.current.persons).toHaveLength(1);
+      const personId = result.current.persons[0].id;
+
+      // Undo
+      act(() => {
+        useGraphStore.temporal.getState().undo();
+      });
+
+      expect(result.current.persons).toHaveLength(0);
+
+      // Redo
+      act(() => {
+        useGraphStore.temporal.getState().redo();
+      });
+
+      expect(result.current.persons).toHaveLength(1);
+      expect(result.current.persons[0].id).toBe(personId);
+    });
+
+    it('人物更新のundoができる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+      });
+
+      const personId = result.current.persons[0].id;
+
+      // 名前を更新
+      act(() => {
+        result.current.updatePerson(personId, { name: '山田次郎' });
+      });
+
+      expect(result.current.persons[0].name).toBe('山田次郎');
+
+      // Undo
+      act(() => {
+        useGraphStore.temporal.getState().undo();
+      });
+
+      expect(result.current.persons[0].name).toBe('山田太郎');
+    });
+
+    it('関係追加のundoができる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 2人の人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+        result.current.addPerson({
+          name: '佐藤花子',
+          imageDataUrl: 'data:image/jpeg;base64,def',
+        });
+      });
+
+      const personId1 = result.current.persons[0].id;
+      const personId2 = result.current.persons[1].id;
+
+      // 関係を追加
+      act(() => {
+        result.current.addRelationship({
+          sourcePersonId: personId1,
+          targetPersonId: personId2,
+          label: '友人',
+          isDirected: false,
+        });
+      });
+
+      expect(result.current.relationships).toHaveLength(1);
+
+      // Undo
+      act(() => {
+        useGraphStore.temporal.getState().undo();
+      });
+
+      expect(result.current.relationships).toHaveLength(0);
+    });
+
+    it('人物削除のundoで関連関係も復元される', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 2人の人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+        result.current.addPerson({
+          name: '佐藤花子',
+          imageDataUrl: 'data:image/jpeg;base64,def',
+        });
+      });
+
+      const personId1 = result.current.persons[0].id;
+      const personId2 = result.current.persons[1].id;
+
+      // 関係を追加
+      act(() => {
+        result.current.addRelationship({
+          sourcePersonId: personId1,
+          targetPersonId: personId2,
+          label: '友人',
+          isDirected: false,
+        });
+      });
+
+      const relationshipId = result.current.relationships[0].id;
+
+      // 人物を削除（関連関係も削除される）
+      act(() => {
+        result.current.removePerson(personId1);
+      });
+
+      expect(result.current.persons).toHaveLength(1);
+      expect(result.current.relationships).toHaveLength(0);
+
+      // Undo（人物と関係が復元される）
+      act(() => {
+        useGraphStore.temporal.getState().undo();
+      });
+
+      expect(result.current.persons).toHaveLength(2);
+      expect(result.current.relationships).toHaveLength(1);
+      expect(result.current.relationships[0].id).toBe(relationshipId);
+    });
+
+    it('UI状態（selectedPersonIds）変更はundo対象外', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 2人の人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+        result.current.addPerson({
+          name: '佐藤花子',
+          imageDataUrl: 'data:image/jpeg;base64,def',
+        });
+      });
+
+      const personId1 = result.current.persons[0].id;
+
+      // 選択状態を変更（この操作はundo履歴に記録されない）
+      act(() => {
+        result.current.setSelectedPersonIds([personId1]);
+      });
+
+      expect(result.current.selectedPersonIds).toEqual([personId1]);
+
+      // 人物を1人削除（この操作はundo履歴に記録される）
+      act(() => {
+        result.current.removePerson(personId1);
+      });
+
+      expect(result.current.persons).toHaveLength(1);
+      // removePerson内でselectedPersonIdsから除外される
+      expect(result.current.selectedPersonIds).toEqual([]);
+
+      // Undoを実行（人物削除が取り消される）
+      act(() => {
+        useGraphStore.temporal.getState().undo();
+      });
+
+      // 人物が復元される
+      expect(result.current.persons).toHaveLength(2);
+      // selectedPersonIdsは復元されない（UI状態はundo対象外）
+      expect(result.current.selectedPersonIds).toEqual([]);
+    });
+
+    it('UI状態（forceEnabled）変更はundo対象外', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // forceEnabledを変更
+      act(() => {
+        result.current.setForceEnabled(false);
+      });
+
+      expect(result.current.forceEnabled).toBe(false);
+
+      // Undo（forceEnabledは変わらない）
+      act(() => {
+        useGraphStore.temporal.getState().undo();
+      });
+
+      expect(result.current.forceEnabled).toBe(false);
     });
   });
 });

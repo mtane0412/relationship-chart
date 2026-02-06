@@ -31,10 +31,13 @@ describe('PersonEditForm', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useGraphStore).mockReturnValue({
-      updatePerson: mockUpdatePerson,
-      removePerson: mockRemovePerson,
-    } as never);
+    vi.mocked(useGraphStore).mockImplementation((selector: unknown) => {
+      const state = {
+        updatePerson: mockUpdatePerson,
+        removePerson: mockRemovePerson,
+      };
+      return typeof selector === 'function' ? selector(state) : state;
+    });
   });
 
   describe('アイコン領域のD&D機能', () => {
@@ -281,6 +284,131 @@ describe('PersonEditForm', () => {
       await waitFor(() => {
         expect(screen.getByText(/画像ファイルのみアップロード可能です/)).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('名前入力', () => {
+    it('名前入力後Enterキー押下でupdatePersonが呼ばれる', () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const nameInput = screen.getByLabelText('名前');
+
+      // 名前を入力（この時点ではupdatePersonは呼ばれない）
+      fireEvent.change(nameInput, { target: { value: '山田次郎' } });
+      expect(mockUpdatePerson).not.toHaveBeenCalled();
+
+      // Enterキーを押す
+      fireEvent.keyDown(nameInput, { key: 'Enter', code: 'Enter' });
+
+      // updatePersonが呼ばれることを確認
+      expect(mockUpdatePerson).toHaveBeenCalledWith(mockPerson.id, {
+        name: '山田次郎',
+        imageDataUrl: mockPerson.imageDataUrl,
+      });
+    });
+
+    it('名前が空文字でEnterを押してもupdatePersonが呼ばれない', () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const nameInput = screen.getByLabelText('名前');
+
+      // 空白のみを入力
+      fireEvent.change(nameInput, { target: { value: '   ' } });
+
+      // Enterキーを押す
+      fireEvent.keyDown(nameInput, { key: 'Enter', code: 'Enter' });
+
+      // updatePersonが呼ばれないことを確認
+      expect(mockUpdatePerson).not.toHaveBeenCalled();
+    });
+
+    it('変換中（isComposing）のEnterは無視される', () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const nameInput = screen.getByLabelText('名前');
+
+      // 名前を入力
+      fireEvent.change(nameInput, { target: { value: '山田次郎' } });
+
+      // 変換中のEnterキー（isComposing: true）
+      const composingEvent = new KeyboardEvent('keydown', {
+        key: 'Enter',
+        code: 'Enter',
+        bubbles: true,
+      });
+      Object.defineProperty(composingEvent, 'isComposing', {
+        value: true,
+        writable: false,
+      });
+      fireEvent(nameInput, composingEvent);
+
+      // updatePersonが呼ばれないことを確認
+      expect(mockUpdatePerson).not.toHaveBeenCalled();
+
+      // 変換確定後のEnterキー（isComposing: false）
+      const confirmEvent = new KeyboardEvent('keydown', {
+        key: 'Enter',
+        code: 'Enter',
+        bubbles: true,
+      });
+      Object.defineProperty(confirmEvent, 'isComposing', {
+        value: false,
+        writable: false,
+      });
+      fireEvent(nameInput, confirmEvent);
+
+      // updatePersonが呼ばれることを確認
+      expect(mockUpdatePerson).toHaveBeenCalledWith(mockPerson.id, {
+        name: '山田次郎',
+        imageDataUrl: mockPerson.imageDataUrl,
+      });
+    });
+
+    it('画像D&D時に即座にupdatePersonが呼ばれる', async () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const iconArea = screen.getByTestId('person-icon-area');
+
+      // 画像ファイルを作成
+      const file = new File(['image content'], 'test.png', { type: 'image/png' });
+
+      // ドロップイベントを発火
+      const dropEvent = new Event('drop', { bubbles: true });
+      Object.defineProperty(dropEvent, 'dataTransfer', {
+        value: { files: [file] },
+      });
+      fireEvent(iconArea, dropEvent);
+
+      // updatePersonが呼ばれることを確認
+      await waitFor(() => {
+        expect(mockUpdatePerson).toHaveBeenCalledWith(mockPerson.id, {
+          name: mockPerson.name,
+          imageDataUrl: 'data:image/jpeg;base64,mock-image',
+        });
+      });
+    });
+
+    it('画像削除時に即座にupdatePersonが呼ばれる', () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const iconArea = screen.getByTestId('person-icon-area');
+      fireEvent.click(iconArea);
+
+      const deleteButton = screen.getByText('画像を削除');
+      fireEvent.click(deleteButton);
+
+      // updatePersonが呼ばれることを確認
+      expect(mockUpdatePerson).toHaveBeenCalledWith(mockPerson.id, {
+        name: mockPerson.name,
+        imageDataUrl: undefined,
+      });
+    });
+
+    it('保存ボタンが存在しない', () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      // 保存ボタンが存在しないことを確認
+      expect(screen.queryByText('保存')).not.toBeInTheDocument();
     });
   });
 
