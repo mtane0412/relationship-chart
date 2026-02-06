@@ -206,10 +206,11 @@ export const useGraphStore = create<GraphStore>()(
       }),
       {
         // UI状態（selectedPersonIds, forceEnabled）はundo対象外
-        partialize: (state) => {
-          const { selectedPersonIds: _selectedPersonIds, forceEnabled: _forceEnabled, ...rest } = state;
-          return rest;
-        },
+        // データ状態（persons, relationships）のみをundo履歴に保存
+        partialize: (state) => ({
+          persons: state.persons,
+          relationships: state.relationships,
+        }),
       }
     ),
     {

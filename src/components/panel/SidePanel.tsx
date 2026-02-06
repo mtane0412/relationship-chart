@@ -81,7 +81,7 @@ export function SidePanel() {
       </div>
 
       {/* コンテンツエリア */}
-      <div className="flex-1 overflow-y-auto">{content}</div>
+      <div className="flex-1 overflow-y-auto flex flex-col">{content}</div>
     </div>
   );
 }

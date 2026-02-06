@@ -205,6 +205,11 @@ export function RelationshipGraph() {
   // Undo/Redoキーボードショートカット
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // モーダルが開いている時はスキップ（モーダル内のinputでテキストundoを優先）
+      if (pendingRegistration !== null || pendingConnection !== null) {
+        return;
+      }
+
       // input/textarea/contentEditable内ではスキップ（ブラウザ標準のテキストundoを優先）
       const target = event.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
@@ -237,7 +242,7 @@ export function RelationshipGraph() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [pendingRegistration, pendingConnection]);
 
   // 選択変更ハンドラ（React Flowの選択状態をストアに同期）
   const handleSelectionChange = useCallback(
@@ -272,6 +277,44 @@ export function RelationshipGraph() {
       }
     },
     [persons]
+  );
+
+  // ノード削除ハンドラ（確認ダイアログ付き）
+  const handleNodesDelete = useCallback(
+    (nodesToDelete: Node[]) => {
+      if (nodesToDelete.length === 0) return;
+
+      const count = nodesToDelete.length;
+      const firstNode = nodesToDelete[0] as PersonNodeType;
+      const message =
+        count === 1
+          ? `「${firstNode.data?.name || '不明な人物'}」を削除してもよろしいですか？`
+          : `${count}個の人物を削除してもよろしいですか？`;
+
+      if (confirm(message)) {
+        nodesToDelete.forEach((node) => removePerson(node.id));
+      }
+    },
+    [removePerson]
+  );
+
+  // エッジ削除ハンドラ（確認ダイアログ付き）
+  const handleEdgesDelete = useCallback(
+    (edgesToDelete: RelationshipEdge[]) => {
+      if (edgesToDelete.length === 0) return;
+
+      const count = edgesToDelete.length;
+      const firstEdge = edgesToDelete[0];
+      const message =
+        count === 1 && firstEdge
+          ? `「${firstEdge.data?.label || '不明な関係'}」を削除してもよろしいですか？`
+          : `${count}個の関係を削除してもよろしいですか？`;
+
+      if (confirm(message)) {
+        edgesToDelete.forEach((edge) => removeRelationship(edge.id));
+      }
+    },
+    [removeRelationship]
   );
 
   // モーダルからの登録ハンドラ
@@ -360,8 +403,8 @@ export function RelationshipGraph() {
         onSelectionChange={handleSelectionChange}
         onPaneClick={handlePaneClick}
         onConnect={handleConnect}
-        onNodesDelete={(nodes) => nodes.forEach((n) => removePerson(n.id))}
-        onEdgesDelete={(edges) => edges.forEach((e) => removeRelationship(e.id))}
+        onNodesDelete={handleNodesDelete}
+        onEdgesDelete={handleEdgesDelete}
         deleteKeyCode={['Backspace', 'Delete']}
         multiSelectionKeyCode="Shift"
         fitView
