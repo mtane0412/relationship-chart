@@ -205,21 +205,30 @@ export function RelationshipGraph() {
   // Undo/Redoキーボードショートカット
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // input/textarea内ではスキップ（ブラウザ標準のテキストundoを優先）
+      // input/textarea/contentEditable内ではスキップ（ブラウザ標準のテキストundoを優先）
       const target = event.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
         return;
       }
 
+      const key = event.key.toLowerCase();
+
       // Cmd+Z (macOS) / Ctrl+Z (Windows): Undo
-      if ((event.metaKey || event.ctrlKey) && event.key === 'z' && !event.shiftKey) {
+      if ((event.metaKey || event.ctrlKey) && key === 'z' && !event.shiftKey) {
         event.preventDefault();
         useGraphStore.temporal.getState().undo();
         return;
       }
 
       // Cmd+Shift+Z (macOS) / Ctrl+Shift+Z (Windows): Redo
-      if ((event.metaKey || event.ctrlKey) && event.key === 'z' && event.shiftKey) {
+      if ((event.metaKey || event.ctrlKey) && key === 'z' && event.shiftKey) {
+        event.preventDefault();
+        useGraphStore.temporal.getState().redo();
+        return;
+      }
+
+      // Ctrl+Y (Windows標準のRedo): Redo
+      if (event.ctrlKey && key === 'y' && !event.shiftKey && !event.metaKey) {
         event.preventDefault();
         useGraphStore.temporal.getState().redo();
         return;

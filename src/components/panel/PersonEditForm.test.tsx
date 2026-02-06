@@ -287,28 +287,81 @@ describe('PersonEditForm', () => {
     });
   });
 
-  describe('即時反映', () => {
-    it('名前入力時に即座にupdatePersonが呼ばれる', () => {
+  describe('名前入力', () => {
+    it('名前入力後Enterキー押下でupdatePersonが呼ばれる', () => {
       render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
 
       const nameInput = screen.getByLabelText('名前');
-      fireEvent.change(nameInput, { target: { value: '山田次郎' } });
 
-      // updatePersonが即座に呼ばれることを確認
+      // 名前を入力（この時点ではupdatePersonは呼ばれない）
+      fireEvent.change(nameInput, { target: { value: '山田次郎' } });
+      expect(mockUpdatePerson).not.toHaveBeenCalled();
+
+      // Enterキーを押す
+      fireEvent.keyDown(nameInput, { key: 'Enter', code: 'Enter' });
+
+      // updatePersonが呼ばれることを確認
       expect(mockUpdatePerson).toHaveBeenCalledWith(mockPerson.id, {
         name: '山田次郎',
         imageDataUrl: mockPerson.imageDataUrl,
       });
     });
 
-    it('名前が空文字の場合はupdatePersonが呼ばれない', () => {
+    it('名前が空文字でEnterを押してもupdatePersonが呼ばれない', () => {
       render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
 
       const nameInput = screen.getByLabelText('名前');
-      fireEvent.change(nameInput, { target: { value: '   ' } }); // 空白のみ
+
+      // 空白のみを入力
+      fireEvent.change(nameInput, { target: { value: '   ' } });
+
+      // Enterキーを押す
+      fireEvent.keyDown(nameInput, { key: 'Enter', code: 'Enter' });
 
       // updatePersonが呼ばれないことを確認
       expect(mockUpdatePerson).not.toHaveBeenCalled();
+    });
+
+    it('変換中（isComposing）のEnterは無視される', () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const nameInput = screen.getByLabelText('名前');
+
+      // 名前を入力
+      fireEvent.change(nameInput, { target: { value: '山田次郎' } });
+
+      // 変換中のEnterキー（isComposing: true）
+      const composingEvent = new KeyboardEvent('keydown', {
+        key: 'Enter',
+        code: 'Enter',
+        bubbles: true,
+      });
+      Object.defineProperty(composingEvent, 'isComposing', {
+        value: true,
+        writable: false,
+      });
+      fireEvent(nameInput, composingEvent);
+
+      // updatePersonが呼ばれないことを確認
+      expect(mockUpdatePerson).not.toHaveBeenCalled();
+
+      // 変換確定後のEnterキー（isComposing: false）
+      const confirmEvent = new KeyboardEvent('keydown', {
+        key: 'Enter',
+        code: 'Enter',
+        bubbles: true,
+      });
+      Object.defineProperty(confirmEvent, 'isComposing', {
+        value: false,
+        writable: false,
+      });
+      fireEvent(nameInput, confirmEvent);
+
+      // updatePersonが呼ばれることを確認
+      expect(mockUpdatePerson).toHaveBeenCalledWith(mockPerson.id, {
+        name: '山田次郎',
+        imageDataUrl: mockPerson.imageDataUrl,
+      });
     });
 
     it('画像D&D時に即座にupdatePersonが呼ばれる', async () => {

@@ -35,17 +35,31 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
   const firstMenuItemRef = useRef<HTMLButtonElement>(null);
   const secondMenuItemRef = useRef<HTMLButtonElement>(null);
 
-  // 名前変更ハンドラ（即時反映）
+  // 名前変更ハンドラ（ローカルstateのみ更新）
   const handleNameChange = (e: ChangeEvent<HTMLInputElement>) => {
     const newName = e.target.value;
     setName(newName);
+  };
 
-    // trim後に空でなければ即座に更新
-    if (newName.trim()) {
-      updatePerson(person.id, {
-        name: newName.trim(),
-        imageDataUrl,
-      });
+  // 名前入力でEnterキー押下時のハンドラ
+  const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Enterキーが押された場合のみ処理
+    if (e.key === 'Enter') {
+      // 変換中（isComposing）のEnterは無視
+      // ネイティブイベントのisComposingをチェック
+      const nativeEvent = e.nativeEvent as KeyboardEvent;
+      if (nativeEvent.isComposing) {
+        return;
+      }
+
+      const trimmedName = name.trim();
+      // trim後に空でなければストアを更新
+      if (trimmedName) {
+        updatePerson(person.id, {
+          name: trimmedName,
+          imageDataUrl,
+        });
+      }
     }
   };
 
@@ -256,6 +270,7 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
           type="text"
           value={name}
           onChange={handleNameChange}
+          onKeyDown={handleNameKeyDown}
           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           placeholder="名前を入力"
         />

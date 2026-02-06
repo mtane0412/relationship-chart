@@ -12,7 +12,7 @@ class LocalStorageMock {
   private store: Map<string, string> = new Map();
 
   getItem(key: string): string | null {
-    return this.store.get(key) || null;
+    return this.store.get(key) ?? null;
   }
 
   setItem(key: string, value: string): void {
@@ -32,7 +32,7 @@ class LocalStorageMock {
   }
 
   key(index: number): string | null {
-    return Array.from(this.store.keys())[index] || null;
+    return Array.from(this.store.keys())[index] ?? null;
   }
 }
 
