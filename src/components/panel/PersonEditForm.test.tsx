@@ -164,5 +164,49 @@ describe('PersonEditForm', () => {
         expect(vi.mocked(processImage)).toHaveBeenCalledWith(file);
       });
     });
+
+    it('同じファイルを2回選択すると、2回とも画像が更新される', async () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const iconArea = screen.getByTestId('person-icon-area');
+      fireEvent.click(iconArea);
+
+      const uploadButton = screen.getByText('画像をアップロード');
+      fireEvent.click(uploadButton);
+
+      // ファイル入力要素を取得
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+
+      // 画像ファイルを作成
+      const file = new File(['image content'], 'test.png', { type: 'image/png' });
+
+      // 1回目のファイル選択
+      Object.defineProperty(fileInput, 'files', {
+        value: [file],
+        writable: true,
+      });
+      fireEvent.change(fileInput);
+
+      // processImageが1回目呼ばれることを確認
+      await waitFor(() => {
+        expect(vi.mocked(processImage)).toHaveBeenCalledTimes(1);
+      });
+
+      // メニューを再度開く
+      fireEvent.click(iconArea);
+      fireEvent.click(screen.getByText('画像をアップロード'));
+
+      // 2回目の同じファイル選択
+      Object.defineProperty(fileInput, 'files', {
+        value: [file],
+        writable: true,
+      });
+      fireEvent.change(fileInput);
+
+      // processImageが2回目も呼ばれることを確認（input valueがクリアされている場合）
+      await waitFor(() => {
+        expect(vi.mocked(processImage)).toHaveBeenCalledTimes(2);
+      });
+    });
   });
 });

@@ -105,6 +105,8 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
         handleImageFile(file);
       }
     }
+    // 同じファイルを再度選択できるようにinput valueをクリア
+    e.target.value = '';
   };
 
   // アップロードボタンクリックハンドラ
