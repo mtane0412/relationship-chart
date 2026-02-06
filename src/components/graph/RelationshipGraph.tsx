@@ -71,6 +71,8 @@ export function RelationshipGraph() {
   const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
   const addPerson = useGraphStore((state) => state.addPerson);
   const addRelationship = useGraphStore((state) => state.addRelationship);
+  const removePerson = useGraphStore((state) => state.removePerson);
+  const removeRelationship = useGraphStore((state) => state.removeRelationship);
   const setSelectedPersonIds = useGraphStore((state) => state.setSelectedPersonIds);
   const clearSelection = useGraphStore((state) => state.clearSelection);
 
@@ -200,6 +202,34 @@ export function RelationshipGraph() {
     return () => window.removeEventListener('paste', handlePaste);
   }, []);
 
+  // Undo/Redoキーボードショートカット
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // input/textarea内ではスキップ（ブラウザ標準のテキストundoを優先）
+      const target = event.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      // Cmd+Z (macOS) / Ctrl+Z (Windows): Undo
+      if ((event.metaKey || event.ctrlKey) && event.key === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        useGraphStore.temporal.getState().undo();
+        return;
+      }
+
+      // Cmd+Shift+Z (macOS) / Ctrl+Shift+Z (Windows): Redo
+      if ((event.metaKey || event.ctrlKey) && event.key === 'z' && event.shiftKey) {
+        event.preventDefault();
+        useGraphStore.temporal.getState().redo();
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // 選択変更ハンドラ（React Flowの選択状態をストアに同期）
   const handleSelectionChange = useCallback(
     (params: OnSelectionChangeParams) => {
@@ -321,6 +351,9 @@ export function RelationshipGraph() {
         onSelectionChange={handleSelectionChange}
         onPaneClick={handlePaneClick}
         onConnect={handleConnect}
+        onNodesDelete={(nodes) => nodes.forEach((n) => removePerson(n.id))}
+        onEdgesDelete={(edges) => edges.forEach((e) => removeRelationship(e.id))}
+        deleteKeyCode={['Backspace', 'Delete']}
         multiSelectionKeyCode="Shift"
         fitView
       >
