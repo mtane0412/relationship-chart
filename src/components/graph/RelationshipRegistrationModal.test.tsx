@@ -698,6 +698,25 @@ describe('RelationshipRegistrationModal', () => {
       expect(headerImage).toHaveAttribute('src', 'data:image/jpeg;base64,test1');
     });
 
+    it('画像がある場合、接続先の画像がimg要素で表示される', () => {
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子', imageDataUrl: 'data:image/jpeg;base64,test2' }}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // 接続先の画像が表示されることを確認
+      const images = screen.getAllByAltText('佐藤花子');
+      expect(images.length).toBeGreaterThan(0);
+      const headerImage = images.find(img => img.className.includes('w-10 h-10'));
+      expect(headerImage).toBeInTheDocument();
+      expect(headerImage).toHaveAttribute('src', 'data:image/jpeg;base64,test2');
+    });
+
     it('画像がない場合、接続元のイニシャル（大文字）がフォールバック表示される', () => {
       render(
         <RelationshipRegistrationModal
@@ -715,6 +734,45 @@ describe('RelationshipRegistrationModal', () => {
       expect(sourceInitial).toHaveTextContent('Y');
     });
 
+    it('画像がない場合、接続先のイニシャル（大文字）がフォールバック表示される', () => {
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,test' }}
+          targetPerson={{ name: 'sato hanako' }}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // 接続先のイニシャルが大文字で表示されることを確認
+      const targetInitial = screen.getByTestId('person-initial-target');
+      expect(targetInitial).toBeInTheDocument();
+      expect(targetInitial).toHaveTextContent('S');
+    });
+
+    it('両方に画像がある場合、2つのimg要素が表示される', () => {
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,test1' }}
+          targetPerson={{ name: '佐藤花子', imageDataUrl: 'data:image/jpeg;base64,test2' }}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // ヘッダー部分（w-10 h-10）の2つの画像が表示されることを確認
+      const sourceImages = screen.getAllByAltText('山田太郎');
+      const targetImages = screen.getAllByAltText('佐藤花子');
+      const sourceHeaderImage = sourceImages.find(img => img.className.includes('w-10 h-10'));
+      const targetHeaderImage = targetImages.find(img => img.className.includes('w-10 h-10'));
+      expect(sourceHeaderImage).toBeInTheDocument();
+      expect(targetHeaderImage).toBeInTheDocument();
+      expect(sourceHeaderImage).toHaveAttribute('src', 'data:image/jpeg;base64,test1');
+      expect(targetHeaderImage).toHaveAttribute('src', 'data:image/jpeg;base64,test2');
+    });
+
     it('名前が空文字列の場合、接続元のイニシャルは"?"が表示される', () => {
       render(
         <RelationshipRegistrationModal
@@ -730,6 +788,23 @@ describe('RelationshipRegistrationModal', () => {
       const sourceInitial = screen.getByTestId('person-initial-source');
       expect(sourceInitial).toBeInTheDocument();
       expect(sourceInitial).toHaveTextContent('?');
+    });
+
+    it('名前が空文字列の場合、接続先のイニシャルは"?"が表示される', () => {
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,test' }}
+          targetPerson={{ name: '' }}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // 接続先のイニシャルが"?"で表示されることを確認
+      const targetInitial = screen.getByTestId('person-initial-target');
+      expect(targetInitial).toBeInTheDocument();
+      expect(targetInitial).toHaveTextContent('?');
     });
   });
 });
