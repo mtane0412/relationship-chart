@@ -40,6 +40,8 @@ type RelationshipRegistrationModalProps = {
   sourcePerson: ModalPersonInfo;
   /** 接続先の人物情報 */
   targetPerson: ModalPersonInfo;
+  /** デフォルトの関係タイプ（省略時はbidirectional） */
+  defaultType?: RelationshipType;
   /** 編集時の初期データ（省略可能） */
   initialRelationship?: InitialRelationship;
   /** 登録ボタンクリック時のコールバック */
@@ -59,6 +61,7 @@ export function RelationshipRegistrationModal({
   isOpen,
   sourcePerson,
   targetPerson,
+  defaultType = 'bidirectional',
   initialRelationship,
   onSubmit,
   onCancel,
@@ -81,13 +84,13 @@ export function RelationshipRegistrationModal({
         setSourceToTargetLabel(initialRelationship.sourceToTargetLabel);
         setTargetToSourceLabel(initialRelationship.targetToSourceLabel || '');
       } else {
-        // フォームをリセット
-        setRelationshipType('bidirectional');
+        // フォームをリセット（defaultTypeを使用）
+        setRelationshipType(defaultType);
         setSourceToTargetLabel('');
         setTargetToSourceLabel('');
       }
     }
-  }, [isOpen, initialRelationship]);
+  }, [isOpen, defaultType, initialRelationship]);
 
   // Escapeキーでキャンセル
   useEffect(() => {
@@ -119,6 +122,50 @@ export function RelationshipRegistrationModal({
 
   if (!isOpen) return null;
 
+  /**
+   * 人物のミニアイコンを表示するヘルパーコンポーネント
+   * ラベル入力の方向コンテキスト表示に使用
+   */
+  const PersonMiniIcon = ({ person, testId }: { person: ModalPersonInfo; testId: string }) => {
+    if (person.imageDataUrl) {
+      return (
+        <img
+          data-testid={testId}
+          src={person.imageDataUrl}
+          alt={person.name}
+          className="w-6 h-6 rounded-full object-cover border border-gray-300"
+        />
+      );
+    }
+    return (
+      <div
+        data-testid={testId}
+        className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 text-xs font-semibold border border-gray-300"
+      >
+        {person.name.charAt(0).toUpperCase() || '?'}
+      </div>
+    );
+  };
+
+  /**
+   * 関係タイプに応じたプレースホルダーを返す
+   */
+  const getPlaceholder = (type: RelationshipType, isReverse = false): string => {
+    if (type === 'one-way') {
+      return '例: 片想い、憧れ';
+    }
+    if (type === 'bidirectional') {
+      return '例: 友人、親子、同僚';
+    }
+    if (type === 'dual-directed') {
+      return isReverse ? '例: 無関心、嫌い' : '例: 好き、憧れ';
+    }
+    if (type === 'undirected') {
+      return '例: 同一人物、別名';
+    }
+    return '例: 関係を入力';
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
@@ -144,7 +191,7 @@ export function RelationshipRegistrationModal({
           {isEditMode ? '関係を編集' : '関係を登録'}
         </h2>
 
-        {/* 2人の人物情報表示 */}
+        {/* 2人の人物情報表示 + セグメントコントロール */}
         <div className="mb-4 flex items-center justify-center gap-3 text-gray-700">
           {/* 接続元の人物 */}
           <div className="flex items-center gap-2">
@@ -165,8 +212,109 @@ export function RelationshipRegistrationModal({
             <span className="font-medium">{sourcePerson.name}</span>
           </div>
 
-          {/* 矢印 */}
-          <span className="text-gray-400 text-lg">→</span>
+          {/* セグメントコントロール（関係タイプ選択） */}
+          <div className="flex gap-1 bg-gray-100 rounded-md p-1">
+            {/* 片方向 (one-way) */}
+            <button
+              type="button"
+              onClick={() => setRelationshipType('one-way')}
+              aria-pressed={relationshipType === 'one-way'}
+              aria-label="片方向"
+              className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
+                relationshipType === 'one-way'
+                  ? 'bg-blue-100 ring-2 ring-blue-500'
+                  : 'hover:bg-gray-200'
+              }`}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-5 h-5"
+              >
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </button>
+
+            {/* 双方向 (bidirectional) */}
+            <button
+              type="button"
+              onClick={() => setRelationshipType('bidirectional')}
+              aria-pressed={relationshipType === 'bidirectional'}
+              aria-label="双方向"
+              className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
+                relationshipType === 'bidirectional'
+                  ? 'bg-blue-100 ring-2 ring-blue-500'
+                  : 'hover:bg-gray-200'
+              }`}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-5 h-5"
+              >
+                <path d="M5 12h14M11 6l-6 6 6 6M13 6l6 6-6 6" />
+              </svg>
+            </button>
+
+            {/* 片方向×2 (dual-directed) */}
+            <button
+              type="button"
+              onClick={() => setRelationshipType('dual-directed')}
+              aria-pressed={relationshipType === 'dual-directed'}
+              aria-label="片方向×2"
+              className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
+                relationshipType === 'dual-directed'
+                  ? 'bg-blue-100 ring-2 ring-blue-500'
+                  : 'hover:bg-gray-200'
+              }`}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-5 h-5"
+              >
+                <path d="M5 9h14M13 3l6 6-6 6" />
+                <path d="M19 15h-14M11 21l-6-6 6-6" />
+              </svg>
+            </button>
+
+            {/* 無方向 (undirected) */}
+            <button
+              type="button"
+              onClick={() => setRelationshipType('undirected')}
+              aria-pressed={relationshipType === 'undirected'}
+              aria-label="無方向"
+              className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
+                relationshipType === 'undirected'
+                  ? 'bg-blue-100 ring-2 ring-blue-500'
+                  : 'hover:bg-gray-200'
+              }`}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-5 h-5"
+              >
+                <path d="M4 12h16" />
+              </svg>
+            </button>
+          </div>
 
           {/* 接続先の人物 */}
           <div className="flex items-center gap-2">
@@ -190,93 +338,82 @@ export function RelationshipRegistrationModal({
 
         {/* フォーム */}
         <form onSubmit={handleSubmit}>
-          {/* 関係タイプ選択 */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              関係のタイプ
-            </label>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 cursor-pointer">
+          {/* ラベル入力（方向コンテキスト付き） */}
+          {relationshipType === 'dual-directed' ? (
+            // dual-directed: 2つのラベル入力セット
+            <>
+              <div className="mb-4">
+                <label
+                  htmlFor="relationship-label"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  関係のラベル
+                </label>
+                {/* 方向インジケーター（A → B） */}
+                <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                  <PersonMiniIcon person={sourcePerson} testId="mini-icon-source-forward" />
+                  <span>→</span>
+                  <PersonMiniIcon person={targetPerson} testId="mini-icon-target-forward" />
+                </div>
                 <input
-                  type="radio"
-                  name="relationshipType"
-                  value="bidirectional"
-                  checked={relationshipType === 'bidirectional'}
-                  onChange={(e) => setRelationshipType(e.target.value as RelationshipType)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-2 focus:ring-blue-500"
+                  ref={labelInputRef}
+                  id="relationship-label"
+                  type="text"
+                  value={sourceToTargetLabel}
+                  onChange={(e) => setSourceToTargetLabel(e.target.value)}
+                  placeholder={getPlaceholder('dual-directed', false)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
-                <span className="text-sm text-gray-700">双方向（例: 親子）↔</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
+              </div>
+              <div className="mb-4">
+                <label
+                  htmlFor="reverse-relationship-label"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  逆方向のラベル
+                </label>
+                {/* 方向インジケーター（A ← B） */}
+                <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                  <PersonMiniIcon person={sourcePerson} testId="mini-icon-source-reverse" />
+                  <span>←</span>
+                  <PersonMiniIcon person={targetPerson} testId="mini-icon-target-reverse" />
+                </div>
                 <input
-                  type="radio"
-                  name="relationshipType"
-                  value="dual-directed"
-                  checked={relationshipType === 'dual-directed'}
-                  onChange={(e) => setRelationshipType(e.target.value as RelationshipType)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-2 focus:ring-blue-500"
+                  id="reverse-relationship-label"
+                  type="text"
+                  value={targetToSourceLabel}
+                  onChange={(e) => setTargetToSourceLabel(e.target.value)}
+                  placeholder={getPlaceholder('dual-directed', true)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
-                <span className="text-sm text-gray-700">片方向×2（例: 好きと無関心）→ ←</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="relationshipType"
-                  value="one-way"
-                  checked={relationshipType === 'one-way'}
-                  onChange={(e) => setRelationshipType(e.target.value as RelationshipType)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-2 focus:ring-blue-500"
-                />
-                <span className="text-sm text-gray-700">片方向×1（例: 片想い）→</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="relationshipType"
-                  value="undirected"
-                  checked={relationshipType === 'undirected'}
-                  onChange={(e) => setRelationshipType(e.target.value as RelationshipType)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-2 focus:ring-blue-500"
-                />
-                <span className="text-sm text-gray-700">無方向（例: 同一人物）</span>
-              </label>
-            </div>
-          </div>
-
-          {/* ラベル入力 */}
-          <div className="mb-4">
-            <label
-              htmlFor="relationship-label"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              関係のラベル
-            </label>
-            <input
-              ref={labelInputRef}
-              id="relationship-label"
-              type="text"
-              value={sourceToTargetLabel}
-              onChange={(e) => setSourceToTargetLabel(e.target.value)}
-              placeholder="例: 友人、上司、同僚"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          {/* dual-directed選択時のみ2つ目のラベル入力を表示 */}
-          {relationshipType === 'dual-directed' && (
+              </div>
+            </>
+          ) : (
+            // one-way / bidirectional / undirected: 単一ラベル入力
             <div className="mb-4">
               <label
-                htmlFor="reverse-relationship-label"
+                htmlFor="relationship-label"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                逆方向のラベル
+                関係のラベル
               </label>
+              {/* 方向インジケーター */}
+              <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                <PersonMiniIcon person={sourcePerson} testId="mini-icon-source-single" />
+                <span>
+                  {relationshipType === 'one-way' && '→'}
+                  {relationshipType === 'bidirectional' && '↔'}
+                  {relationshipType === 'undirected' && '—'}
+                </span>
+                <PersonMiniIcon person={targetPerson} testId="mini-icon-target-single" />
+              </div>
               <input
-                id="reverse-relationship-label"
+                ref={labelInputRef}
+                id="relationship-label"
                 type="text"
-                value={targetToSourceLabel}
-                onChange={(e) => setTargetToSourceLabel(e.target.value)}
-                placeholder="例: 無関心、嫌い"
+                value={sourceToTargetLabel}
+                onChange={(e) => setSourceToTargetLabel(e.target.value)}
+                placeholder={getPlaceholder(relationshipType)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>

@@ -508,6 +508,7 @@ export function RelationshipGraph() {
             imageDataUrl: targetPerson?.imageDataUrl,
           };
         })()}
+        defaultType="one-way"
         initialRelationship={(() => {
           if (!pendingConnection?.existingRelationshipId) return undefined;
           const existingRelationship = relationships.find(

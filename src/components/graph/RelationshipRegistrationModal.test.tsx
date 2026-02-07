@@ -60,7 +60,7 @@ describe('RelationshipRegistrationModal', () => {
   });
 
   describe('関係タイプの選択', () => {
-    it('4種類のラジオボタンが表示される', () => {
+    it('4種類のセグメントコントロールボタンが表示される', () => {
       render(
         <RelationshipRegistrationModal
           isOpen={true}
@@ -71,14 +71,14 @@ describe('RelationshipRegistrationModal', () => {
         />
       );
 
-      // 4種類のラジオボタンが表示されることを確認
-      expect(screen.getByLabelText(/双方向/)).toBeInTheDocument();
-      expect(screen.getByLabelText(/片方向×2/)).toBeInTheDocument();
-      expect(screen.getByLabelText(/片方向×1/)).toBeInTheDocument();
-      expect(screen.getByLabelText(/無方向/)).toBeInTheDocument();
+      // 4種類のセグメントコントロールボタンが表示されることを確認
+      expect(screen.getByRole('button', { name: '片方向' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '双方向' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '片方向×2' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '無方向' })).toBeInTheDocument();
     });
 
-    it('初期状態では双方向が選択されている', () => {
+    it('defaultType未指定の場合、初期状態では双方向が選択されている', () => {
       render(
         <RelationshipRegistrationModal
           isOpen={true}
@@ -89,11 +89,49 @@ describe('RelationshipRegistrationModal', () => {
         />
       );
 
-      const bidirectional = screen.getByLabelText(/双方向/) as HTMLInputElement;
-      expect(bidirectional).toBeChecked();
+      const bidirectional = screen.getByRole('button', { name: '双方向' });
+      expect(bidirectional).toHaveAttribute('aria-pressed', 'true');
     });
 
-    it('関係タイプを変更できる', async () => {
+    it('defaultType="one-way"を指定した場合、初期状態で片方向が選択されている', () => {
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
+          defaultType="one-way"
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      const oneWay = screen.getByRole('button', { name: '片方向' });
+      expect(oneWay).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('initialRelationshipがある場合はdefaultTypeより優先される', () => {
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
+          defaultType="one-way"
+          initialRelationship={{
+            type: 'bidirectional',
+            sourceToTargetLabel: '親子',
+            targetToSourceLabel: null,
+          }}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // initialRelationshipのtypeが優先される
+      const bidirectional = screen.getByRole('button', { name: '双方向' });
+      expect(bidirectional).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('セグメントコントロールで関係タイプを変更できる', async () => {
       const user = userEvent.setup();
 
       render(
@@ -106,11 +144,11 @@ describe('RelationshipRegistrationModal', () => {
         />
       );
 
-      const oneWay = screen.getByLabelText(/片方向×1/) as HTMLInputElement;
+      const oneWay = screen.getByRole('button', { name: '片方向' });
 
-      // 片方向×1を選択
+      // 片方向を選択
       await user.click(oneWay);
-      expect(oneWay).toBeChecked();
+      expect(oneWay).toHaveAttribute('aria-pressed', 'true');
     });
 
     it('dual-directed選択時に2つ目のラベル入力が表示される', async () => {
@@ -130,7 +168,7 @@ describe('RelationshipRegistrationModal', () => {
       expect(screen.queryByLabelText(/逆方向のラベル/)).not.toBeInTheDocument();
 
       // dual-directedを選択
-      const dualDirected = screen.getByLabelText(/片方向×2/);
+      const dualDirected = screen.getByRole('button', { name: '片方向×2' });
       await user.click(dualDirected);
 
       // 2つ目のラベル入力が表示される
@@ -193,7 +231,7 @@ describe('RelationshipRegistrationModal', () => {
       );
 
       // dual-directedを選択
-      const dualDirected = screen.getByLabelText(/片方向×2/);
+      const dualDirected = screen.getByRole('button', { name: '片方向×2' });
       await user.click(dualDirected);
 
       // 1つ目のラベルを入力
@@ -220,7 +258,7 @@ describe('RelationshipRegistrationModal', () => {
       );
 
       // dual-directedを選択
-      const dualDirected = screen.getByLabelText(/片方向×2/);
+      const dualDirected = screen.getByRole('button', { name: '片方向×2' });
       await user.click(dualDirected);
 
       // 1つ目のラベルを入力
@@ -281,7 +319,7 @@ describe('RelationshipRegistrationModal', () => {
       );
 
       // dual-directedを選択
-      const dualDirected = screen.getByLabelText(/片方向×2/);
+      const dualDirected = screen.getByRole('button', { name: '片方向×2' });
       await user.click(dualDirected);
 
       const labelInput = screen.getByLabelText(/関係のラベル/);
@@ -314,7 +352,7 @@ describe('RelationshipRegistrationModal', () => {
       );
 
       // one-wayを選択
-      const oneWay = screen.getByLabelText(/片方向×1/);
+      const oneWay = screen.getByRole('button', { name: '片方向' });
       await user.click(oneWay);
 
       const labelInput = screen.getByLabelText(/関係のラベル/);
@@ -345,7 +383,7 @@ describe('RelationshipRegistrationModal', () => {
       );
 
       // undirectedを選択
-      const undirected = screen.getByLabelText(/無方向/);
+      const undirected = screen.getByRole('button', { name: '無方向' });
       await user.click(undirected);
 
       const labelInput = screen.getByLabelText(/関係のラベル/);
@@ -443,8 +481,8 @@ describe('RelationshipRegistrationModal', () => {
       );
 
       // 初期値が設定されていることを確認
-      const bidirectional = screen.getByLabelText(/双方向/) as HTMLInputElement;
-      expect(bidirectional).toBeChecked();
+      const bidirectional = screen.getByRole('button', { name: '双方向' });
+      expect(bidirectional).toHaveAttribute('aria-pressed', 'true');
 
       const labelInput = screen.getByLabelText(/関係のラベル/) as HTMLInputElement;
       expect(labelInput).toHaveValue('親子');
@@ -467,8 +505,8 @@ describe('RelationshipRegistrationModal', () => {
       );
 
       // 初期値が設定されていることを確認
-      const dualDirected = screen.getByLabelText(/片方向×2/) as HTMLInputElement;
-      expect(dualDirected).toBeChecked();
+      const dualDirected = screen.getByRole('button', { name: '片方向×2' });
+      expect(dualDirected).toHaveAttribute('aria-pressed', 'true');
 
       const labelInput = screen.getByLabelText(/関係のラベル/) as HTMLInputElement;
       expect(labelInput).toHaveValue('好き');
@@ -550,6 +588,95 @@ describe('RelationshipRegistrationModal', () => {
     });
   });
 
+  describe('ラベル入力の方向コンテキスト表示', () => {
+    it('one-way選択時、方向インジケーターと適切なプレースホルダーが表示される', () => {
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,test1' }}
+          targetPerson={{ name: '佐藤花子', imageDataUrl: 'data:image/jpeg;base64,test2' }}
+          defaultType="one-way"
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // 方向インジケーターのミニアイコンが表示される
+      const miniIcons = screen.getAllByTestId(/mini-icon/);
+      expect(miniIcons.length).toBeGreaterThanOrEqual(2);
+
+      // one-way用のプレースホルダーが表示される
+      const labelInput = screen.getByLabelText(/関係のラベル/) as HTMLInputElement;
+      expect(labelInput.placeholder).toMatch(/片想い|憧れ/);
+    });
+
+    it('dual-directed選択時、2つの方向インジケーターと適切なプレースホルダーが表示される', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,test1' }}
+          targetPerson={{ name: '佐藤花子', imageDataUrl: 'data:image/jpeg;base64,test2' }}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // dual-directedを選択
+      const dualDirected = screen.getByRole('button', { name: '片方向×2' });
+      await user.click(dualDirected);
+
+      // 2セットの方向インジケーターが表示される
+      const miniIcons = screen.getAllByTestId(/mini-icon/);
+      expect(miniIcons.length).toBeGreaterThanOrEqual(4); // 2セット × 2アイコン
+
+      // dual-directed用のプレースホルダーが表示される
+      const forwardLabel = screen.getByLabelText(/関係のラベル/) as HTMLInputElement;
+      expect(forwardLabel.placeholder).toMatch(/好き|憧れ/);
+
+      const reverseLabel = screen.getByLabelText(/逆方向のラベル/) as HTMLInputElement;
+      expect(reverseLabel.placeholder).toMatch(/無関心|嫌い/);
+    });
+
+    it('bidirectional選択時、適切なプレースホルダーが表示される', () => {
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
+          defaultType="bidirectional"
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      const labelInput = screen.getByLabelText(/関係のラベル/) as HTMLInputElement;
+      expect(labelInput.placeholder).toMatch(/友人|親子|同僚/);
+    });
+
+    it('undirected選択時、適切なプレースホルダーが表示される', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // undirectedを選択
+      const undirected = screen.getByRole('button', { name: '無方向' });
+      await user.click(undirected);
+
+      const labelInput = screen.getByLabelText(/関係のラベル/) as HTMLInputElement;
+      expect(labelInput.placeholder).toMatch(/同一人物|別名/);
+    });
+  });
+
   describe('人物アイコンの表示', () => {
     it('画像がある場合、接続元の画像がimg要素で表示される', () => {
       render(
@@ -562,10 +689,13 @@ describe('RelationshipRegistrationModal', () => {
         />
       );
 
-      // 接続元の画像が表示されることを確認
-      const sourceImage = screen.getByAltText('山田太郎');
-      expect(sourceImage).toBeInTheDocument();
-      expect(sourceImage).toHaveAttribute('src', 'data:image/jpeg;base64,test1');
+      // 接続元の画像が表示されることを確認（複数存在するためAllByを使用）
+      const images = screen.getAllByAltText('山田太郎');
+      expect(images.length).toBeGreaterThan(0);
+      // ヘッダー部分の大きい画像（w-10 h-10）が存在することを確認
+      const headerImage = images.find(img => img.className.includes('w-10 h-10'));
+      expect(headerImage).toBeInTheDocument();
+      expect(headerImage).toHaveAttribute('src', 'data:image/jpeg;base64,test1');
     });
 
     it('画像がない場合、接続元のイニシャル（大文字）がフォールバック表示される', () => {
