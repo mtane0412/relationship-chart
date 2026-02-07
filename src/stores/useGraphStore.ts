@@ -77,6 +77,13 @@ type GraphActions = {
   addRelationship: (relationship: Omit<Relationship, 'id' | 'createdAt'>) => void;
 
   /**
+   * 指定したIDの関係を更新する
+   * @param relationshipId - 更新する関係のID
+   * @param updates - 更新する内容（idとcreatedAtは更新不可）
+   */
+  updateRelationship: (relationshipId: string, updates: Partial<Omit<Relationship, 'id' | 'createdAt'>>) => void;
+
+  /**
    * 指定したIDの関係を削除する
    * @param relationshipId - 削除する関係のID
    */
@@ -231,6 +238,13 @@ export const useGraphStore = create<GraphStore>()(
               ],
             };
           }),
+
+        updateRelationship: (relationshipId, updates) =>
+          set((state) => ({
+            relationships: state.relationships.map((relationship) =>
+              relationship.id === relationshipId ? { ...relationship, ...updates } : relationship
+            ),
+          })),
 
         removeRelationship: (relationshipId) =>
           set((state) => ({

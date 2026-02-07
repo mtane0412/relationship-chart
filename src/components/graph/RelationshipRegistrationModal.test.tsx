@@ -425,6 +425,131 @@ describe('RelationshipRegistrationModal', () => {
     });
   });
 
+  describe('編集モード', () => {
+    it('initialRelationshipがある場合、初期値が設定される（bidirectional）', () => {
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
+          initialRelationship={{
+            type: 'bidirectional',
+            sourceToTargetLabel: '親子',
+            targetToSourceLabel: null,
+          }}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // 初期値が設定されていることを確認
+      const bidirectional = screen.getByLabelText(/双方向/) as HTMLInputElement;
+      expect(bidirectional).toBeChecked();
+
+      const labelInput = screen.getByLabelText(/関係のラベル/) as HTMLInputElement;
+      expect(labelInput).toHaveValue('親子');
+    });
+
+    it('initialRelationshipがある場合、初期値が設定される（dual-directed）', () => {
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
+          initialRelationship={{
+            type: 'dual-directed',
+            sourceToTargetLabel: '好き',
+            targetToSourceLabel: '無関心',
+          }}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // 初期値が設定されていることを確認
+      const dualDirected = screen.getByLabelText(/片方向×2/) as HTMLInputElement;
+      expect(dualDirected).toBeChecked();
+
+      const labelInput = screen.getByLabelText(/関係のラベル/) as HTMLInputElement;
+      expect(labelInput).toHaveValue('好き');
+
+      const reverseLabelInput = screen.getByLabelText(/逆方向のラベル/) as HTMLInputElement;
+      expect(reverseLabelInput).toHaveValue('無関心');
+    });
+
+    it('編集モードではタイトルが「関係を編集」になる', () => {
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
+          initialRelationship={{
+            type: 'bidirectional',
+            sourceToTargetLabel: '親子',
+            targetToSourceLabel: null,
+          }}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // タイトルが「関係を編集」であることを確認
+      expect(screen.getByText('関係を編集')).toBeInTheDocument();
+    });
+
+    it('編集モードではボタンラベルが「更新」になる', () => {
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
+          initialRelationship={{
+            type: 'bidirectional',
+            sourceToTargetLabel: '親子',
+            targetToSourceLabel: null,
+          }}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // ボタンラベルが「更新」であることを確認
+      expect(screen.getByRole('button', { name: '更新' })).toBeInTheDocument();
+    });
+
+    it('編集モードでフォームを送信すると更新された値でonSubmitが呼ばれる', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
+          initialRelationship={{
+            type: 'bidirectional',
+            sourceToTargetLabel: '友人',
+            targetToSourceLabel: null,
+          }}
+          onSubmit={onSubmit}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // ラベルを変更
+      const labelInput = screen.getByLabelText(/関係のラベル/);
+      await user.clear(labelInput);
+      await user.type(labelInput, '親友');
+
+      // 更新ボタンをクリック
+      const submitButton = screen.getByRole('button', { name: '更新' });
+      await user.click(submitButton);
+
+      // onSubmitが更新された値で呼ばれることを確認
+      expect(onSubmit).toHaveBeenCalledWith('bidirectional', '親友', null);
+    });
+  });
+
   describe('人物アイコンの表示', () => {
     it('画像がある場合、接続元の画像がimg要素で表示される', () => {
       render(

@@ -58,6 +58,8 @@ type PendingRegistration = {
 type PendingConnection = {
   sourcePersonId: string;
   targetPersonId: string;
+  /** 編集対象の既存関係ID（編集モードの場合） */
+  existingRelationshipId?: string;
 };
 
 /**
@@ -71,6 +73,7 @@ export function RelationshipGraph() {
   const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
   const addPerson = useGraphStore((state) => state.addPerson);
   const addRelationship = useGraphStore((state) => state.addRelationship);
+  const updateRelationship = useGraphStore((state) => state.updateRelationship);
   const removePerson = useGraphStore((state) => state.removePerson);
   const removeRelationship = useGraphStore((state) => state.removeRelationship);
   const setSelectedPersonIds = useGraphStore((state) => state.setSelectedPersonIds);
@@ -284,8 +287,12 @@ export function RelationshipGraph() {
           );
 
           if (existingRelationship) {
-            // 既に関係が存在する場合は接続をキャンセルし、ユーザーに通知
-            alert('この2人の間には既に関係が登録されています。');
+            // 既に関係が存在する場合は編集モーダルを開く
+            setPendingConnection({
+              sourcePersonId: connection.source,
+              targetPersonId: connection.target,
+              existingRelationshipId: existingRelationship.id,
+            });
             return;
           }
 
@@ -359,7 +366,7 @@ export function RelationshipGraph() {
     setPendingRegistration(null);
   }, []);
 
-  // 関係登録ハンドラ
+  // 関係登録・更新ハンドラ
   const handleRegisterRelationship = useCallback(
     (
       type: import('@/types/relationship').RelationshipType,
@@ -368,19 +375,28 @@ export function RelationshipGraph() {
     ) => {
       if (!pendingConnection) return;
 
-      // 関係を追加
-      addRelationship({
-        sourcePersonId: pendingConnection.sourcePersonId,
-        targetPersonId: pendingConnection.targetPersonId,
-        type,
-        sourceToTargetLabel,
-        targetToSourceLabel,
-      });
+      if (pendingConnection.existingRelationshipId) {
+        // 編集モード: 既存の関係を更新
+        updateRelationship(pendingConnection.existingRelationshipId, {
+          type,
+          sourceToTargetLabel,
+          targetToSourceLabel,
+        });
+      } else {
+        // 新規登録モード: 関係を追加
+        addRelationship({
+          sourcePersonId: pendingConnection.sourcePersonId,
+          targetPersonId: pendingConnection.targetPersonId,
+          type,
+          sourceToTargetLabel,
+          targetToSourceLabel,
+        });
+      }
 
       // モーダルを閉じる
       setPendingConnection(null);
     },
-    [pendingConnection, addRelationship]
+    [pendingConnection, addRelationship, updateRelationship]
   );
 
   // 関係登録のキャンセルハンドラ
@@ -490,6 +506,18 @@ export function RelationshipGraph() {
           return {
             name: targetPerson?.name || '不明な人物',
             imageDataUrl: targetPerson?.imageDataUrl,
+          };
+        })()}
+        initialRelationship={(() => {
+          if (!pendingConnection?.existingRelationshipId) return undefined;
+          const existingRelationship = relationships.find(
+            (r) => r.id === pendingConnection.existingRelationshipId
+          );
+          if (!existingRelationship) return undefined;
+          return {
+            type: existingRelationship.type,
+            sourceToTargetLabel: existingRelationship.sourceToTargetLabel,
+            targetToSourceLabel: existingRelationship.targetToSourceLabel,
           };
         })()}
         onSubmit={handleRegisterRelationship}

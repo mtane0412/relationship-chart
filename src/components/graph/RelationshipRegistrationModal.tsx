@@ -19,6 +19,18 @@ type ModalPersonInfo = {
 };
 
 /**
+ * 編集時の初期データ
+ */
+type InitialRelationship = {
+  /** 関係のタイプ */
+  type: RelationshipType;
+  /** sourceからtargetへのラベル */
+  sourceToTargetLabel: string;
+  /** targetからsourceへのラベル（dual-directedのみ） */
+  targetToSourceLabel: string | null;
+};
+
+/**
  * RelationshipRegistrationModalのプロパティ
  */
 type RelationshipRegistrationModalProps = {
@@ -28,6 +40,8 @@ type RelationshipRegistrationModalProps = {
   sourcePerson: ModalPersonInfo;
   /** 接続先の人物情報 */
   targetPerson: ModalPersonInfo;
+  /** 編集時の初期データ（省略可能） */
+  initialRelationship?: InitialRelationship;
   /** 登録ボタンクリック時のコールバック */
   onSubmit: (
     type: RelationshipType,
@@ -45,24 +59,35 @@ export function RelationshipRegistrationModal({
   isOpen,
   sourcePerson,
   targetPerson,
+  initialRelationship,
   onSubmit,
   onCancel,
 }: RelationshipRegistrationModalProps) {
+  // 編集モードかどうか
+  const isEditMode = Boolean(initialRelationship);
   const [relationshipType, setRelationshipType] = useState<RelationshipType>('bidirectional');
   const [sourceToTargetLabel, setSourceToTargetLabel] = useState('');
   const [targetToSourceLabel, setTargetToSourceLabel] = useState('');
   const labelInputRef = useRef<HTMLInputElement>(null);
 
-  // モーダルが開いたときにラベル入力にフォーカス
+  // モーダルが開いたときにフォーカスと初期値設定
   useEffect(() => {
     if (isOpen) {
       labelInputRef.current?.focus();
-      // フォームをリセット
-      setRelationshipType('bidirectional');
-      setSourceToTargetLabel('');
-      setTargetToSourceLabel('');
+
+      // 初期値を設定（編集モードの場合は initialRelationship から、そうでなければデフォルト値）
+      if (initialRelationship) {
+        setRelationshipType(initialRelationship.type);
+        setSourceToTargetLabel(initialRelationship.sourceToTargetLabel);
+        setTargetToSourceLabel(initialRelationship.targetToSourceLabel || '');
+      } else {
+        // フォームをリセット
+        setRelationshipType('bidirectional');
+        setSourceToTargetLabel('');
+        setTargetToSourceLabel('');
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, initialRelationship]);
 
   // Escapeキーでキャンセル
   useEffect(() => {
@@ -116,7 +141,7 @@ export function RelationshipRegistrationModal({
           id="relationship-modal-title"
           className="text-xl font-bold text-gray-900 mb-4"
         >
-          関係を登録
+          {isEditMode ? '関係を編集' : '関係を登録'}
         </h2>
 
         {/* 2人の人物情報表示 */}
@@ -271,7 +296,7 @@ export function RelationshipRegistrationModal({
               disabled={isSubmitDisabled}
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             >
-              登録
+              {isEditMode ? '更新' : '登録'}
             </button>
           </div>
         </form>

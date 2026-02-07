@@ -779,6 +779,191 @@ describe('useGraphStore', () => {
     });
   });
 
+  describe('updateRelationship', () => {
+    it('関係のタイプを更新できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 2人の人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+        result.current.addPerson({
+          name: '佐藤花子',
+          imageDataUrl: 'data:image/jpeg;base64,def',
+        });
+      });
+
+      const personId1 = result.current.persons[0].id;
+      const personId2 = result.current.persons[1].id;
+
+      // 関係を追加
+      act(() => {
+        result.current.addRelationship({
+          sourcePersonId: personId1,
+          targetPersonId: personId2,
+          type: 'one-way',
+          sourceToTargetLabel: '片想い',
+          targetToSourceLabel: null,
+        });
+      });
+
+      const relationshipId = result.current.relationships[0].id;
+
+      // タイプを更新
+      act(() => {
+        result.current.updateRelationship(relationshipId, {
+          type: 'bidirectional',
+        });
+      });
+
+      expect(result.current.relationships[0]).toMatchObject({
+        id: relationshipId,
+        type: 'bidirectional',
+        sourceToTargetLabel: '片想い', // ラベルは変更されない
+        targetToSourceLabel: null,
+      });
+    });
+
+    it('関係のラベルを更新できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 2人の人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+        result.current.addPerson({
+          name: '佐藤花子',
+          imageDataUrl: 'data:image/jpeg;base64,def',
+        });
+      });
+
+      const personId1 = result.current.persons[0].id;
+      const personId2 = result.current.persons[1].id;
+
+      // 関係を追加
+      act(() => {
+        result.current.addRelationship({
+          sourcePersonId: personId1,
+          targetPersonId: personId2,
+          type: 'bidirectional',
+          sourceToTargetLabel: '友人',
+          targetToSourceLabel: null,
+        });
+      });
+
+      const relationshipId = result.current.relationships[0].id;
+
+      // ラベルを更新
+      act(() => {
+        result.current.updateRelationship(relationshipId, {
+          sourceToTargetLabel: '親友',
+        });
+      });
+
+      expect(result.current.relationships[0]).toMatchObject({
+        id: relationshipId,
+        type: 'bidirectional',
+        sourceToTargetLabel: '親友',
+        targetToSourceLabel: null,
+      });
+    });
+
+    it('dual-directedの2つ目のラベルを更新できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 2人の人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+        result.current.addPerson({
+          name: '佐藤花子',
+          imageDataUrl: 'data:image/jpeg;base64,def',
+        });
+      });
+
+      const personId1 = result.current.persons[0].id;
+      const personId2 = result.current.persons[1].id;
+
+      // dual-directed関係を追加
+      act(() => {
+        result.current.addRelationship({
+          sourcePersonId: personId1,
+          targetPersonId: personId2,
+          type: 'dual-directed',
+          sourceToTargetLabel: '好き',
+          targetToSourceLabel: '無関心',
+        });
+      });
+
+      const relationshipId = result.current.relationships[0].id;
+
+      // 両方のラベルを更新
+      act(() => {
+        result.current.updateRelationship(relationshipId, {
+          sourceToTargetLabel: '愛している',
+          targetToSourceLabel: '嫌い',
+        });
+      });
+
+      expect(result.current.relationships[0]).toMatchObject({
+        id: relationshipId,
+        type: 'dual-directed',
+        sourceToTargetLabel: '愛している',
+        targetToSourceLabel: '嫌い',
+      });
+    });
+
+    it('存在しないIDで更新しても他の関係に影響しない', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 2人の人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+        result.current.addPerson({
+          name: '佐藤花子',
+          imageDataUrl: 'data:image/jpeg;base64,def',
+        });
+      });
+
+      const personId1 = result.current.persons[0].id;
+      const personId2 = result.current.persons[1].id;
+
+      // 関係を追加
+      act(() => {
+        result.current.addRelationship({
+          sourcePersonId: personId1,
+          targetPersonId: personId2,
+          type: 'bidirectional',
+          sourceToTargetLabel: '友人',
+          targetToSourceLabel: null,
+        });
+      });
+
+      // 存在しないIDで更新を試みる
+      act(() => {
+        result.current.updateRelationship('non-existent-id', {
+          sourceToTargetLabel: '敵',
+        });
+      });
+
+      // 既存の関係は変更されていない
+      expect(result.current.relationships[0]).toMatchObject({
+        type: 'bidirectional',
+        sourceToTargetLabel: '友人',
+        targetToSourceLabel: null,
+      });
+    });
+  });
+
   describe('マイグレーション（v1→v2）', () => {
     it.skip('v1のundirected関係（isDirected: false）をv2のundirectedに変換する', () => {
       // Note: Zustandのpersistミドルウェアはストアの初回初期化時にのみマイグレーションを実行するため、
