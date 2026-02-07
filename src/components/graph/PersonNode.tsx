@@ -3,8 +3,8 @@
  * 人物を表すカスタムノード（丸い画像+名前表示）
  */
 
-import { memo } from 'react';
-import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { memo, useState } from 'react';
+import { Handle, Position, type NodeProps, useConnection } from '@xyflow/react';
 import type { PersonNodeData } from '@/types/graph';
 
 /**
@@ -18,28 +18,50 @@ export const PersonNode = memo(({ data, selected }: NodeProps) => {
   // 名前の最初の1文字をイニシャルとして取得
   const initial = personData.name.charAt(0).toUpperCase();
 
+  // ホバー状態管理
+  const [isHovered, setIsHovered] = useState(false);
+
+  // 接続操作中かどうかを取得
+  const connection = useConnection();
+  const isConnecting = connection.inProgress;
+
+  // ハンドルを表示する条件：自身にホバー中 または 誰かが接続操作中
+  const showHandles = isHovered || isConnecting;
+
   return (
-    <div className="flex flex-col items-center group cursor-grab active:cursor-grabbing">
+    <div
+      className="flex flex-col items-center group cursor-grab active:cursor-grabbing"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       {/* 接続ポイント（上下左右） */}
       <Handle
         type="target"
         position={Position.Top}
-        className="bg-blue-500! w-3! h-3! border-2! border-white!"
+        className={`bg-blue-500! w-3! h-3! border-2! border-white! transition-opacity duration-200 ${
+          showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
       />
       <Handle
         type="source"
         position={Position.Bottom}
-        className="bg-blue-500! w-3! h-3! border-2! border-white!"
+        className={`bg-blue-500! w-3! h-3! border-2! border-white! transition-opacity duration-200 ${
+          showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
       />
       <Handle
         type="target"
         position={Position.Left}
-        className="bg-blue-500! w-3! h-3! border-2! border-white!"
+        className={`bg-blue-500! w-3! h-3! border-2! border-white! transition-opacity duration-200 ${
+          showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
       />
       <Handle
         type="source"
         position={Position.Right}
-        className="bg-blue-500! w-3! h-3! border-2! border-white!"
+        className={`bg-blue-500! w-3! h-3! border-2! border-white! transition-opacity duration-200 ${
+          showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
       />
 
       {/* 丸い画像またはデフォルトアバター */}

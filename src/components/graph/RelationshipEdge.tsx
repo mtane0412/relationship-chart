@@ -7,7 +7,7 @@
 
 'use client';
 
-import { memo } from 'react';
+import { memo, useState, useRef, useCallback, useEffect } from 'react';
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -28,6 +28,43 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
 
   const removeRelationship = useGraphStore((state) => state.removeRelationship);
   const edgeData = data as RelationshipEdgeData;
+
+  // ホバー状態管理（削除ボタン表示用）
+  const [isHovered, setIsHovered] = useState(false);
+  // ホバー解除の遅延タイマー
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  /**
+   * ホバー開始ハンドラ
+   * タイマーをクリアしてホバー状態を有効化
+   */
+  const handleMouseEnter = useCallback(() => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setIsHovered(true);
+  }, []);
+
+  /**
+   * ホバー終了ハンドラ
+   * 遅延後にホバー状態を無効化（削除ボタンへのマウス移動時間を確保）
+   */
+  const handleMouseLeave = useCallback(() => {
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsHovered(false);
+      hoverTimeoutRef.current = null;
+    }, 100); // 100ms の遅延
+  }, []);
+
+  // クリーンアップ: コンポーネントアンマウント時にタイマーをクリア
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // React Flowからノード情報を取得
   const { getNode } = useReactFlow();
@@ -167,7 +204,11 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
               }}
               className="flex items-center gap-1.5"
             >
-              <div className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full shadow-lg border-2 border-blue-200 hover:border-blue-400 hover:shadow-xl transition-all duration-200">
+              <div
+                className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full shadow-lg border-2 border-blue-200 hover:border-blue-400 hover:shadow-xl transition-all duration-200 cursor-pointer"
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+              >
                 <div className="text-xs font-semibold text-blue-800">
                   {edgeData.sourceToTargetLabel}
                 </div>
@@ -183,7 +224,11 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
               }}
               className="flex items-center gap-1.5"
             >
-              <div className="px-3 py-1.5 bg-gradient-to-r from-green-50 to-emerald-50 rounded-full shadow-lg border-2 border-green-200 hover:border-green-400 hover:shadow-xl transition-all duration-200">
+              <div
+                className="px-3 py-1.5 bg-gradient-to-r from-green-50 to-emerald-50 rounded-full shadow-lg border-2 border-green-200 hover:border-green-400 hover:shadow-xl transition-all duration-200 cursor-pointer"
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+              >
                 <div className="text-xs font-semibold text-green-800">
                   {edgeData.targetToSourceLabel}
                 </div>
@@ -200,7 +245,11 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
             >
               <button
                 onClick={handleDelete}
-                className="w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 hover:scale-110 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300"
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+                className={`w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 hover:scale-110 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300 ${
+                  isHovered ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                }`}
                 aria-label="関係を削除"
                 type="button"
               >
@@ -223,10 +272,14 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
               transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
               pointerEvents: 'all',
             }}
-            className="flex items-center gap-1.5 group/edge"
+            className="flex items-center gap-1.5"
           >
             {/* ラベルバッジ */}
-            <div className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full shadow-lg border-2 border-blue-200 group-hover/edge:border-blue-400 group-hover/edge:shadow-xl transition-all duration-200">
+            <div
+              className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full shadow-lg border-2 border-blue-200 hover:border-blue-400 hover:shadow-xl transition-all duration-200 cursor-pointer"
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+            >
               <div className="text-xs font-semibold text-blue-800">
                 {edgeData.sourceToTargetLabel}
               </div>
@@ -235,7 +288,11 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
             {/* 削除ボタン */}
             <button
               onClick={handleDelete}
-              className="w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 hover:scale-110 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300"
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              className={`w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 hover:scale-110 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300 ${
+                isHovered ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+              }`}
               aria-label="関係を削除"
               type="button"
             >
