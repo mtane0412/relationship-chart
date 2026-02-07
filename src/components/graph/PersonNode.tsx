@@ -39,28 +39,28 @@ export const PersonNode = memo(({ data, selected }: NodeProps) => {
         type="target"
         position={Position.Top}
         className={`bg-blue-500! w-3! h-3! border-2! border-white! transition-opacity duration-200 ${
-          showHandles ? 'opacity-100' : 'opacity-0'
+          showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
       />
       <Handle
         type="source"
         position={Position.Bottom}
         className={`bg-blue-500! w-3! h-3! border-2! border-white! transition-opacity duration-200 ${
-          showHandles ? 'opacity-100' : 'opacity-0'
+          showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
       />
       <Handle
         type="target"
         position={Position.Left}
         className={`bg-blue-500! w-3! h-3! border-2! border-white! transition-opacity duration-200 ${
-          showHandles ? 'opacity-100' : 'opacity-0'
+          showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
       />
       <Handle
         type="source"
         position={Position.Right}
         className={`bg-blue-500! w-3! h-3! border-2! border-white! transition-opacity duration-200 ${
-          showHandles ? 'opacity-100' : 'opacity-0'
+          showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
       />
 

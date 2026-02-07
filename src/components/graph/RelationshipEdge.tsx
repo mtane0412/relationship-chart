@@ -206,7 +206,7 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
               style={{
                 position: 'absolute',
                 transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
-                pointerEvents: isHovered ? 'all' : 'none',
+                pointerEvents: 'all',
               }}
             >
               <button
@@ -214,7 +214,7 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
                 className={`w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 hover:scale-110 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300 ${
-                  isHovered ? 'opacity-100' : 'opacity-0'
+                  isHovered ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
                 }`}
                 aria-label="関係を削除"
                 type="button"
@@ -257,7 +257,7 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
               className={`w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 hover:scale-110 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300 ${
-                isHovered ? 'opacity-100' : 'opacity-0'
+                isHovered ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
               }`}
               aria-label="関係を削除"
               type="button"
