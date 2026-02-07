@@ -55,6 +55,50 @@ type RelationshipRegistrationModalProps = {
 };
 
 /**
+ * 人物のミニアイコンを表示するヘルパーコンポーネント
+ * ラベル入力の方向コンテキスト表示に使用
+ */
+function PersonMiniIcon({ person, testId }: { person: ModalPersonInfo; testId: string }) {
+  if (person.imageDataUrl) {
+    return (
+      <img
+        data-testid={testId}
+        src={person.imageDataUrl}
+        alt={person.name}
+        className="w-6 h-6 rounded-full object-cover border border-gray-300"
+      />
+    );
+  }
+  return (
+    <div
+      data-testid={testId}
+      className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 text-xs font-semibold border border-gray-300"
+    >
+      {person.name.charAt(0).toUpperCase() || '?'}
+    </div>
+  );
+}
+
+/**
+ * 関係タイプに応じたプレースホルダーを返す
+ */
+function getPlaceholder(type: RelationshipType, isReverse = false): string {
+  if (type === 'one-way') {
+    return '例: 片想い、憧れ';
+  }
+  if (type === 'bidirectional') {
+    return '例: 友人、親子、同僚';
+  }
+  if (type === 'dual-directed') {
+    return isReverse ? '例: 無関心、嫌い' : '例: 好き、憧れ';
+  }
+  if (type === 'undirected') {
+    return '例: 同一人物、別名';
+  }
+  return '例: 関係を入力';
+}
+
+/**
  * 関係登録モーダルコンポーネント
  */
 export function RelationshipRegistrationModal({
@@ -121,50 +165,6 @@ export function RelationshipRegistrationModal({
   };
 
   if (!isOpen) return null;
-
-  /**
-   * 人物のミニアイコンを表示するヘルパーコンポーネント
-   * ラベル入力の方向コンテキスト表示に使用
-   */
-  const PersonMiniIcon = ({ person, testId }: { person: ModalPersonInfo; testId: string }) => {
-    if (person.imageDataUrl) {
-      return (
-        <img
-          data-testid={testId}
-          src={person.imageDataUrl}
-          alt={person.name}
-          className="w-6 h-6 rounded-full object-cover border border-gray-300"
-        />
-      );
-    }
-    return (
-      <div
-        data-testid={testId}
-        className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 text-xs font-semibold border border-gray-300"
-      >
-        {person.name.charAt(0).toUpperCase() || '?'}
-      </div>
-    );
-  };
-
-  /**
-   * 関係タイプに応じたプレースホルダーを返す
-   */
-  const getPlaceholder = (type: RelationshipType, isReverse = false): string => {
-    if (type === 'one-way') {
-      return '例: 片想い、憧れ';
-    }
-    if (type === 'bidirectional') {
-      return '例: 友人、親子、同僚';
-    }
-    if (type === 'dual-directed') {
-      return isReverse ? '例: 無関心、嫌い' : '例: 好き、憧れ';
-    }
-    if (type === 'undirected') {
-      return '例: 同一人物、別名';
-    }
-    return '例: 関係を入力';
-  };
 
   return (
     <div

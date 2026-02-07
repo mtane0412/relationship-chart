@@ -74,26 +74,53 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
                   {/* 関係の表示 */}
                   <div className="flex-1 min-w-0 text-sm">
                     {relationship.type === 'dual-directed' ? (
-                      // dual-directed: 2つのラベルを表示
+                      // dual-directed: 選択された人物の視点で表示
                       <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium text-blue-700">
-                            {relationship.sourceToTargetLabel}
-                          </span>
-                          <span className="text-gray-400">→</span>
-                          <span className="text-gray-600 truncate">
-                            {otherPerson.name}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-gray-600 truncate">
-                            {otherPerson.name}
-                          </span>
-                          <span className="text-gray-400">→</span>
-                          <span className="font-medium text-green-700">
-                            {relationship.targetToSourceLabel}
-                          </span>
-                        </div>
+                        {isSource ? (
+                          // 選択された人物がsourceの場合
+                          <>
+                            <div className="flex items-center gap-1">
+                              <span className="font-medium text-blue-700">
+                                {relationship.sourceToTargetLabel}
+                              </span>
+                              <span className="text-gray-400">→</span>
+                              <span className="text-gray-600 truncate">
+                                {otherPerson.name}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="text-gray-600 truncate">
+                                {otherPerson.name}
+                              </span>
+                              <span className="text-gray-400">→</span>
+                              <span className="font-medium text-green-700">
+                                {relationship.targetToSourceLabel}
+                              </span>
+                            </div>
+                          </>
+                        ) : (
+                          // 選択された人物がtargetの場合（ラベルと矢印を入れ替え）
+                          <>
+                            <div className="flex items-center gap-1">
+                              <span className="font-medium text-blue-700">
+                                {relationship.targetToSourceLabel}
+                              </span>
+                              <span className="text-gray-400">→</span>
+                              <span className="text-gray-600 truncate">
+                                {otherPerson.name}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="text-gray-600 truncate">
+                                {otherPerson.name}
+                              </span>
+                              <span className="text-gray-400">→</span>
+                              <span className="font-medium text-green-700">
+                                {relationship.sourceToTargetLabel}
+                              </span>
+                            </div>
+                          </>
+                        )}
                       </div>
                     ) : isSource ? (
                       // この人物が起点の場合

@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import type { Person } from '@/types/person';
 import type { RelationshipType } from '@/types/relationship';
@@ -31,6 +31,13 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
   const clearSelection = useGraphStore((state) => state.clearSelection);
 
   const [person1, person2] = persons;
+
+  // persons が変更されたときにフォーム状態をリセット
+  useEffect(() => {
+    setRelationshipType('bidirectional');
+    setSourceToTargetLabel('');
+    setTargetToSourceLabel('');
+  }, [persons]);
 
   // 2人の間の既存関係を取得（方向問わず）
   const existingRelationship = relationships.find(
