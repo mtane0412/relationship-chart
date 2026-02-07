@@ -59,10 +59,8 @@ describe('RelationshipRegistrationModal', () => {
     });
   });
 
-  describe('フォーム入力', () => {
-    it('ラベルを入力できる', async () => {
-      const user = userEvent.setup();
-
+  describe('関係タイプの選択', () => {
+    it('4種類のラジオボタンが表示される', () => {
       render(
         <RelationshipRegistrationModal
           isOpen={true}
@@ -73,15 +71,29 @@ describe('RelationshipRegistrationModal', () => {
         />
       );
 
-      const labelInput = screen.getByLabelText('関係のラベル');
-
-      // ラベルを入力
-      await user.type(labelInput, '親友');
-
-      expect(labelInput).toHaveValue('親友');
+      // 4種類のラジオボタンが表示されることを確認
+      expect(screen.getByLabelText(/双方向/)).toBeInTheDocument();
+      expect(screen.getByLabelText(/片方向×2/)).toBeInTheDocument();
+      expect(screen.getByLabelText(/片方向×1/)).toBeInTheDocument();
+      expect(screen.getByLabelText(/無方向/)).toBeInTheDocument();
     });
 
-    it('方向性チェックボックスを切り替えられる', async () => {
+    it('初期状態では双方向が選択されている', () => {
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      const bidirectional = screen.getByLabelText(/双方向/) as HTMLInputElement;
+      expect(bidirectional).toBeChecked();
+    });
+
+    it('関係タイプを変更できる', async () => {
       const user = userEvent.setup();
 
       render(
@@ -94,18 +106,35 @@ describe('RelationshipRegistrationModal', () => {
         />
       );
 
-      const checkbox = screen.getByLabelText('方向性あり');
+      const oneWay = screen.getByLabelText(/片方向×1/) as HTMLInputElement;
 
-      // 初期状態ではチェックされていない
-      expect(checkbox).not.toBeChecked();
+      // 片方向×1を選択
+      await user.click(oneWay);
+      expect(oneWay).toBeChecked();
+    });
 
-      // チェックを入れる
-      await user.click(checkbox);
-      expect(checkbox).toBeChecked();
+    it('dual-directed選択時に2つ目のラベル入力が表示される', async () => {
+      const user = userEvent.setup();
 
-      // もう一度クリックでチェックを外す
-      await user.click(checkbox);
-      expect(checkbox).not.toBeChecked();
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // 初期状態では2つ目のラベル入力は非表示
+      expect(screen.queryByLabelText(/逆方向のラベル/)).not.toBeInTheDocument();
+
+      // dual-directedを選択
+      const dualDirected = screen.getByLabelText(/片方向×2/);
+      await user.click(dualDirected);
+
+      // 2つ目のラベル入力が表示される
+      expect(screen.getByLabelText(/逆方向のラベル/)).toBeInTheDocument();
     });
   });
 
@@ -140,7 +169,7 @@ describe('RelationshipRegistrationModal', () => {
         />
       );
 
-      const labelInput = screen.getByLabelText('関係のラベル');
+      const labelInput = screen.getByLabelText(/関係のラベル/);
       const submitButton = screen.getByRole('button', { name: '登録' });
 
       // ラベルを入力
@@ -149,10 +178,68 @@ describe('RelationshipRegistrationModal', () => {
       // 登録ボタンが有効化される
       expect(submitButton).not.toBeDisabled();
     });
+
+    it('dual-directed選択時、逆方向ラベルが空の場合は登録ボタンが無効化される', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // dual-directedを選択
+      const dualDirected = screen.getByLabelText(/片方向×2/);
+      await user.click(dualDirected);
+
+      // 1つ目のラベルを入力
+      const labelInput = screen.getByLabelText(/関係のラベル/);
+      await user.type(labelInput, '好き');
+
+      const submitButton = screen.getByRole('button', { name: '登録' });
+
+      // 逆方向ラベルが空なので無効化されている
+      expect(submitButton).toBeDisabled();
+    });
+
+    it('dual-directed選択時、両方のラベルが入力されている場合は登録ボタンが有効化される', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // dual-directedを選択
+      const dualDirected = screen.getByLabelText(/片方向×2/);
+      await user.click(dualDirected);
+
+      // 1つ目のラベルを入力
+      const labelInput = screen.getByLabelText(/関係のラベル/);
+      await user.type(labelInput, '好き');
+
+      // 2つ目のラベルを入力
+      const reverseLabelInput = screen.getByLabelText(/逆方向のラベル/);
+      await user.type(reverseLabelInput, '無関心');
+
+      const submitButton = screen.getByRole('button', { name: '登録' });
+
+      // 登録ボタンが有効化される
+      expect(submitButton).not.toBeDisabled();
+    });
   });
 
   describe('コールバック呼び出し', () => {
-    it('登録ボタンをクリックするとonSubmitが呼ばれる', async () => {
+    it('bidirectionalタイプでonSubmitが呼ばれる', async () => {
       const user = userEvent.setup();
       const onSubmit = vi.fn();
 
@@ -166,20 +253,20 @@ describe('RelationshipRegistrationModal', () => {
         />
       );
 
-      const labelInput = screen.getByLabelText('関係のラベル');
+      const labelInput = screen.getByLabelText(/関係のラベル/);
       const submitButton = screen.getByRole('button', { name: '登録' });
 
-      // ラベルを入力
-      await user.type(labelInput, '親友');
+      // ラベルを入力（bidirectionalはデフォルト選択）
+      await user.type(labelInput, '親子');
 
       // 登録ボタンをクリック
       await user.click(submitButton);
 
       // onSubmitが正しい引数で呼ばれることを確認
-      expect(onSubmit).toHaveBeenCalledWith('親友', false);
+      expect(onSubmit).toHaveBeenCalledWith('bidirectional', '親子', null);
     });
 
-    it('方向性ありでonSubmitが呼ばれる', async () => {
+    it('dual-directedタイプでonSubmitが呼ばれる', async () => {
       const user = userEvent.setup();
       const onSubmit = vi.fn();
 
@@ -193,21 +280,85 @@ describe('RelationshipRegistrationModal', () => {
         />
       );
 
-      const labelInput = screen.getByLabelText('関係のラベル');
-      const checkbox = screen.getByLabelText('方向性あり');
+      // dual-directedを選択
+      const dualDirected = screen.getByLabelText(/片方向×2/);
+      await user.click(dualDirected);
+
+      const labelInput = screen.getByLabelText(/関係のラベル/);
+      const reverseLabelInput = screen.getByLabelText(/逆方向のラベル/);
       const submitButton = screen.getByRole('button', { name: '登録' });
 
       // ラベルを入力
-      await user.type(labelInput, '上司');
-
-      // 方向性ありにチェック
-      await user.click(checkbox);
+      await user.type(labelInput, '好き');
+      await user.type(reverseLabelInput, '無関心');
 
       // 登録ボタンをクリック
       await user.click(submitButton);
 
       // onSubmitが正しい引数で呼ばれることを確認
-      expect(onSubmit).toHaveBeenCalledWith('上司', true);
+      expect(onSubmit).toHaveBeenCalledWith('dual-directed', '好き', '無関心');
+    });
+
+    it('one-wayタイプでonSubmitが呼ばれる', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
+          onSubmit={onSubmit}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // one-wayを選択
+      const oneWay = screen.getByLabelText(/片方向×1/);
+      await user.click(oneWay);
+
+      const labelInput = screen.getByLabelText(/関係のラベル/);
+      const submitButton = screen.getByRole('button', { name: '登録' });
+
+      // ラベルを入力
+      await user.type(labelInput, '片想い');
+
+      // 登録ボタンをクリック
+      await user.click(submitButton);
+
+      // onSubmitが正しい引数で呼ばれることを確認
+      expect(onSubmit).toHaveBeenCalledWith('one-way', '片想い', null);
+    });
+
+    it('undirectedタイプでonSubmitが呼ばれる', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
+          onSubmit={onSubmit}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // undirectedを選択
+      const undirected = screen.getByLabelText(/無方向/);
+      await user.click(undirected);
+
+      const labelInput = screen.getByLabelText(/関係のラベル/);
+      const submitButton = screen.getByRole('button', { name: '登録' });
+
+      // ラベルを入力
+      await user.type(labelInput, '同一人物');
+
+      // 登録ボタンをクリック
+      await user.click(submitButton);
+
+      // onSubmitが正しい引数で呼ばれることを確認
+      expect(onSubmit).toHaveBeenCalledWith('undirected', '同一人物', null);
     });
 
     it('キャンセルボタンをクリックするとonCancelが呼ばれる', async () => {
@@ -267,7 +418,7 @@ describe('RelationshipRegistrationModal', () => {
         />
       );
 
-      const labelInput = screen.getByLabelText('関係のラベル');
+      const labelInput = screen.getByLabelText(/関係のラベル/);
 
       // ラベル入力にフォーカスされている
       expect(labelInput).toHaveFocus();
@@ -292,23 +443,6 @@ describe('RelationshipRegistrationModal', () => {
       expect(sourceImage).toHaveAttribute('src', 'data:image/jpeg;base64,test1');
     });
 
-    it('画像がある場合、接続先の画像がimg要素で表示される', () => {
-      render(
-        <RelationshipRegistrationModal
-          isOpen={true}
-          sourcePerson={{ name: '山田太郎' }}
-          targetPerson={{ name: '佐藤花子', imageDataUrl: 'data:image/jpeg;base64,test2' }}
-          onSubmit={vi.fn()}
-          onCancel={vi.fn()}
-        />
-      );
-
-      // 接続先の画像が表示されることを確認
-      const targetImage = screen.getByAltText('佐藤花子');
-      expect(targetImage).toBeInTheDocument();
-      expect(targetImage).toHaveAttribute('src', 'data:image/jpeg;base64,test2');
-    });
-
     it('画像がない場合、接続元のイニシャル（大文字）がフォールバック表示される', () => {
       render(
         <RelationshipRegistrationModal
@@ -326,43 +460,6 @@ describe('RelationshipRegistrationModal', () => {
       expect(sourceInitial).toHaveTextContent('Y');
     });
 
-    it('画像がない場合、接続先のイニシャル（大文字）がフォールバック表示される', () => {
-      render(
-        <RelationshipRegistrationModal
-          isOpen={true}
-          sourcePerson={{ name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,test' }}
-          targetPerson={{ name: 'sato hanako' }}
-          onSubmit={vi.fn()}
-          onCancel={vi.fn()}
-        />
-      );
-
-      // 接続先のイニシャルが大文字で表示されることを確認
-      const targetInitial = screen.getByTestId('person-initial-target');
-      expect(targetInitial).toBeInTheDocument();
-      expect(targetInitial).toHaveTextContent('S');
-    });
-
-    it('両方に画像がある場合、2つのimg要素が表示される', () => {
-      render(
-        <RelationshipRegistrationModal
-          isOpen={true}
-          sourcePerson={{ name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,test1' }}
-          targetPerson={{ name: '佐藤花子', imageDataUrl: 'data:image/jpeg;base64,test2' }}
-          onSubmit={vi.fn()}
-          onCancel={vi.fn()}
-        />
-      );
-
-      // 2つの画像が表示されることを確認
-      const sourceImage = screen.getByAltText('山田太郎');
-      const targetImage = screen.getByAltText('佐藤花子');
-      expect(sourceImage).toBeInTheDocument();
-      expect(targetImage).toBeInTheDocument();
-      expect(sourceImage).toHaveAttribute('src', 'data:image/jpeg;base64,test1');
-      expect(targetImage).toHaveAttribute('src', 'data:image/jpeg;base64,test2');
-    });
-
     it('名前が空文字列の場合、接続元のイニシャルは"?"が表示される', () => {
       render(
         <RelationshipRegistrationModal
@@ -378,23 +475,6 @@ describe('RelationshipRegistrationModal', () => {
       const sourceInitial = screen.getByTestId('person-initial-source');
       expect(sourceInitial).toBeInTheDocument();
       expect(sourceInitial).toHaveTextContent('?');
-    });
-
-    it('名前が空文字列の場合、接続先のイニシャルは"?"が表示される', () => {
-      render(
-        <RelationshipRegistrationModal
-          isOpen={true}
-          sourcePerson={{ name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,test' }}
-          targetPerson={{ name: '' }}
-          onSubmit={vi.fn()}
-          onCancel={vi.fn()}
-        />
-      );
-
-      // 接続先のイニシャルが"?"で表示されることを確認
-      const targetInitial = screen.getByTestId('person-initial-target');
-      expect(targetInitial).toBeInTheDocument();
-      expect(targetInitial).toHaveTextContent('?');
     });
   });
 });

@@ -96,14 +96,15 @@ describe('graph-utils', () => {
       expect(edges).toEqual([]);
     });
 
-    it('単一の無向Relationshipを RelationshipEdgeに変換できる', () => {
+    it('bidirectionalタイプのRelationshipをRelationshipEdgeに変換できる', () => {
       const relationships: Relationship[] = [
         {
           id: 'rel-1',
           sourcePersonId: 'person-1',
           targetPersonId: 'person-2',
-          label: '友人',
-          isDirected: false,
+          type: 'bidirectional',
+          sourceToTargetLabel: '親子',
+          targetToSourceLabel: null,
           createdAt: '2026-02-05T00:00:00.000Z',
         },
       ];
@@ -117,20 +118,22 @@ describe('graph-utils', () => {
         target: 'person-2',
         type: 'relationship',
         data: {
-          label: '友人',
-          isDirected: false,
+          type: 'bidirectional',
+          sourceToTargetLabel: '親子',
+          targetToSourceLabel: null,
         },
       });
     });
 
-    it('単一の有向RelationshipをRelationshipEdgeに変換できる', () => {
+    it('dual-directedタイプのRelationshipをRelationshipEdgeに変換できる', () => {
       const relationships: Relationship[] = [
         {
           id: 'rel-1',
           sourcePersonId: 'person-1',
           targetPersonId: 'person-2',
-          label: '上司',
-          isDirected: true,
+          type: 'dual-directed',
+          sourceToTargetLabel: '好き',
+          targetToSourceLabel: '無関心',
           createdAt: '2026-02-05T00:00:00.000Z',
         },
       ];
@@ -138,8 +141,51 @@ describe('graph-utils', () => {
       const edges = relationshipsToEdges(relationships);
 
       expect(edges).toHaveLength(1);
-      expect(edges[0].data?.isDirected).toBe(true);
-      expect(edges[0].data?.label).toBe('上司');
+      expect(edges[0].data?.type).toBe('dual-directed');
+      expect(edges[0].data?.sourceToTargetLabel).toBe('好き');
+      expect(edges[0].data?.targetToSourceLabel).toBe('無関心');
+    });
+
+    it('one-wayタイプのRelationshipをRelationshipEdgeに変換できる', () => {
+      const relationships: Relationship[] = [
+        {
+          id: 'rel-1',
+          sourcePersonId: 'person-1',
+          targetPersonId: 'person-2',
+          type: 'one-way',
+          sourceToTargetLabel: '片想い',
+          targetToSourceLabel: null,
+          createdAt: '2026-02-05T00:00:00.000Z',
+        },
+      ];
+
+      const edges = relationshipsToEdges(relationships);
+
+      expect(edges).toHaveLength(1);
+      expect(edges[0].data?.type).toBe('one-way');
+      expect(edges[0].data?.sourceToTargetLabel).toBe('片想い');
+      expect(edges[0].data?.targetToSourceLabel).toBeNull();
+    });
+
+    it('undirectedタイプのRelationshipをRelationshipEdgeに変換できる', () => {
+      const relationships: Relationship[] = [
+        {
+          id: 'rel-1',
+          sourcePersonId: 'person-1',
+          targetPersonId: 'person-2',
+          type: 'undirected',
+          sourceToTargetLabel: '同一人物',
+          targetToSourceLabel: null,
+          createdAt: '2026-02-05T00:00:00.000Z',
+        },
+      ];
+
+      const edges = relationshipsToEdges(relationships);
+
+      expect(edges).toHaveLength(1);
+      expect(edges[0].data?.type).toBe('undirected');
+      expect(edges[0].data?.sourceToTargetLabel).toBe('同一人物');
+      expect(edges[0].data?.targetToSourceLabel).toBeNull();
     });
 
     it('複数のRelationshipをRelationshipEdge配列に変換できる', () => {
@@ -148,16 +194,18 @@ describe('graph-utils', () => {
           id: 'rel-1',
           sourcePersonId: 'person-1',
           targetPersonId: 'person-2',
-          label: '友人',
-          isDirected: false,
+          type: 'bidirectional',
+          sourceToTargetLabel: '友人',
+          targetToSourceLabel: null,
           createdAt: '2026-02-05T00:00:00.000Z',
         },
         {
           id: 'rel-2',
           sourcePersonId: 'person-2',
           targetPersonId: 'person-3',
-          label: '同僚',
-          isDirected: false,
+          type: 'one-way',
+          sourceToTargetLabel: '同僚',
+          targetToSourceLabel: null,
           createdAt: '2026-02-05T00:01:00.000Z',
         },
       ];

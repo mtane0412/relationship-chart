@@ -6,6 +6,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import type { RelationshipType } from '@/types/relationship';
 
 /**
  * モーダルで表示する人物情報
@@ -28,7 +29,11 @@ type RelationshipRegistrationModalProps = {
   /** 接続先の人物情報 */
   targetPerson: ModalPersonInfo;
   /** 登録ボタンクリック時のコールバック */
-  onSubmit: (label: string, isDirected: boolean) => void;
+  onSubmit: (
+    type: RelationshipType,
+    sourceToTargetLabel: string,
+    targetToSourceLabel: string | null
+  ) => void;
   /** キャンセルボタンクリック時のコールバック */
   onCancel: () => void;
 };
@@ -43,8 +48,9 @@ export function RelationshipRegistrationModal({
   onSubmit,
   onCancel,
 }: RelationshipRegistrationModalProps) {
-  const [label, setLabel] = useState('');
-  const [isDirected, setIsDirected] = useState(false);
+  const [relationshipType, setRelationshipType] = useState<RelationshipType>('bidirectional');
+  const [sourceToTargetLabel, setSourceToTargetLabel] = useState('');
+  const [targetToSourceLabel, setTargetToSourceLabel] = useState('');
   const labelInputRef = useRef<HTMLInputElement>(null);
 
   // モーダルが開いたときにラベル入力にフォーカス
@@ -52,8 +58,9 @@ export function RelationshipRegistrationModal({
     if (isOpen) {
       labelInputRef.current?.focus();
       // フォームをリセット
-      setLabel('');
-      setIsDirected(false);
+      setRelationshipType('bidirectional');
+      setSourceToTargetLabel('');
+      setTargetToSourceLabel('');
     }
   }, [isOpen]);
 
@@ -69,12 +76,20 @@ export function RelationshipRegistrationModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onCancel]);
 
+  // 登録ボタンの有効/無効を判定
+  const isSubmitDisabled =
+    !sourceToTargetLabel.trim() ||
+    (relationshipType === 'dual-directed' && !targetToSourceLabel.trim());
+
   // 登録処理
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (label.trim()) {
-      onSubmit(label.trim(), isDirected);
-    }
+    if (isSubmitDisabled) return;
+
+    const finalTargetToSourceLabel =
+      relationshipType === 'dual-directed' ? targetToSourceLabel.trim() : null;
+
+    onSubmit(relationshipType, sourceToTargetLabel.trim(), finalTargetToSourceLabel);
   };
 
   if (!isOpen) return null;
@@ -150,6 +165,59 @@ export function RelationshipRegistrationModal({
 
         {/* フォーム */}
         <form onSubmit={handleSubmit}>
+          {/* 関係タイプ選択 */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              関係のタイプ
+            </label>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="relationshipType"
+                  value="bidirectional"
+                  checked={relationshipType === 'bidirectional'}
+                  onChange={(e) => setRelationshipType(e.target.value as RelationshipType)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-2 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">双方向（例: 親子）↔</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="relationshipType"
+                  value="dual-directed"
+                  checked={relationshipType === 'dual-directed'}
+                  onChange={(e) => setRelationshipType(e.target.value as RelationshipType)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-2 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">片方向×2（例: 好きと無関心）→ ←</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="relationshipType"
+                  value="one-way"
+                  checked={relationshipType === 'one-way'}
+                  onChange={(e) => setRelationshipType(e.target.value as RelationshipType)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-2 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">片方向×1（例: 片想い）→</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="relationshipType"
+                  value="undirected"
+                  checked={relationshipType === 'undirected'}
+                  onChange={(e) => setRelationshipType(e.target.value as RelationshipType)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-2 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">無方向（例: 同一人物）</span>
+              </label>
+            </div>
+          </div>
+
           {/* ラベル入力 */}
           <div className="mb-4">
             <label
@@ -162,31 +230,35 @@ export function RelationshipRegistrationModal({
               ref={labelInputRef}
               id="relationship-label"
               type="text"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
+              value={sourceToTargetLabel}
+              onChange={(e) => setSourceToTargetLabel(e.target.value)}
               placeholder="例: 友人、上司、同僚"
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
-          {/* 方向性チェックボックス */}
-          <div className="mb-6">
-            <label className="flex items-center gap-2 cursor-pointer">
+          {/* dual-directed選択時のみ2つ目のラベル入力を表示 */}
+          {relationshipType === 'dual-directed' && (
+            <div className="mb-4">
+              <label
+                htmlFor="reverse-relationship-label"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                逆方向のラベル
+              </label>
               <input
-                type="checkbox"
-                checked={isDirected}
-                onChange={(e) => setIsDirected(e.target.checked)}
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                id="reverse-relationship-label"
+                type="text"
+                value={targetToSourceLabel}
+                onChange={(e) => setTargetToSourceLabel(e.target.value)}
+                placeholder="例: 無関心、嫌い"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
-              <span className="text-sm text-gray-700">方向性あり</span>
-            </label>
-            <p className="text-xs text-gray-500 mt-1 ml-6">
-              方向性ありの場合、矢印が表示されます
-            </p>
-          </div>
+            </div>
+          )}
 
           {/* ボタン */}
-          <div className="flex gap-3 justify-end">
+          <div className="flex gap-3 justify-end mt-6">
             <button
               type="button"
               onClick={onCancel}
@@ -196,7 +268,7 @@ export function RelationshipRegistrationModal({
             </button>
             <button
               type="submit"
-              disabled={!label.trim()}
+              disabled={isSubmitDisabled}
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             >
               登録

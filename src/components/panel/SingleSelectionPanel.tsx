@@ -73,13 +73,38 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
                 >
                   {/* 関係の表示 */}
                   <div className="flex-1 min-w-0 text-sm">
-                    {isSource ? (
+                    {relationship.type === 'dual-directed' ? (
+                      // dual-directed: 2つのラベルを表示
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium text-blue-700">
+                            {relationship.sourceToTargetLabel}
+                          </span>
+                          <span className="text-gray-400">→</span>
+                          <span className="text-gray-600 truncate">
+                            {otherPerson.name}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-gray-600 truncate">
+                            {otherPerson.name}
+                          </span>
+                          <span className="text-gray-400">→</span>
+                          <span className="font-medium text-green-700">
+                            {relationship.targetToSourceLabel}
+                          </span>
+                        </div>
+                      </div>
+                    ) : isSource ? (
                       // この人物が起点の場合
                       <div className="flex items-center gap-1">
                         <span className="font-medium text-gray-700">
-                          {relationship.label}
+                          {relationship.sourceToTargetLabel}
                         </span>
-                        {relationship.isDirected && (
+                        {relationship.type === 'bidirectional' && (
+                          <span className="text-gray-400">↔</span>
+                        )}
+                        {relationship.type === 'one-way' && (
                           <span className="text-gray-400">→</span>
                         )}
                         <span className="text-gray-600 truncate">
@@ -92,11 +117,14 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
                         <span className="text-gray-600 truncate">
                           {otherPerson.name}
                         </span>
-                        {relationship.isDirected && (
+                        {relationship.type === 'bidirectional' && (
+                          <span className="text-gray-400">↔</span>
+                        )}
+                        {relationship.type === 'one-way' && (
                           <span className="text-gray-400">→</span>
                         )}
                         <span className="font-medium text-gray-700">
-                          {relationship.label}
+                          {relationship.sourceToTargetLabel}
                         </span>
                       </div>
                     )}

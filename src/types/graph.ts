@@ -4,6 +4,7 @@
  */
 
 import type { Node as ReactFlowNode, Edge as ReactFlowEdge } from '@xyflow/react';
+import type { RelationshipType } from '@/types/relationship';
 
 /**
  * カスタムノードのデータ型
@@ -19,8 +20,9 @@ export type PersonNodeData = {
  * RelationshipEdgeコンポーネントで使用される
  */
 export type RelationshipEdgeData = {
-  label: string;
-  isDirected: boolean;
+  type: RelationshipType;
+  sourceToTargetLabel: string;
+  targetToSourceLabel: string | null;
 };
 
 /**

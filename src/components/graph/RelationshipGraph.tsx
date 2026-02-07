@@ -276,6 +276,19 @@ export function RelationshipGraph() {
         const targetPerson = persons.find((p) => p.id === connection.target);
 
         if (sourcePerson && targetPerson) {
+          // 同じペアの関係が既に存在するかチェック（方向問わず）
+          const existingRelationship = relationships.find(
+            (r) =>
+              (r.sourcePersonId === connection.source && r.targetPersonId === connection.target) ||
+              (r.sourcePersonId === connection.target && r.targetPersonId === connection.source)
+          );
+
+          if (existingRelationship) {
+            // 既に関係が存在する場合は接続をキャンセルし、ユーザーに通知
+            alert('この2人の間には既に関係が登録されています。');
+            return;
+          }
+
           setPendingConnection({
             sourcePersonId: connection.source,
             targetPersonId: connection.target,
@@ -283,7 +296,7 @@ export function RelationshipGraph() {
         }
       }
     },
-    [persons]
+    [persons, relationships]
   );
 
   // ノード削除ハンドラ（確認ダイアログ付き）
@@ -314,7 +327,7 @@ export function RelationshipGraph() {
       const firstEdge = edgesToDelete[0];
       const message =
         count === 1 && firstEdge
-          ? `「${firstEdge.data?.label || '不明な関係'}」を削除してもよろしいですか？`
+          ? `「${firstEdge.data?.sourceToTargetLabel || '不明な関係'}」を削除してもよろしいですか？`
           : `${count}個の関係を削除してもよろしいですか？`;
 
       if (confirm(message)) {
@@ -348,15 +361,20 @@ export function RelationshipGraph() {
 
   // 関係登録ハンドラ
   const handleRegisterRelationship = useCallback(
-    (label: string, isDirected: boolean) => {
+    (
+      type: import('@/types/relationship').RelationshipType,
+      sourceToTargetLabel: string,
+      targetToSourceLabel: string | null
+    ) => {
       if (!pendingConnection) return;
 
       // 関係を追加
       addRelationship({
         sourcePersonId: pendingConnection.sourcePersonId,
         targetPersonId: pendingConnection.targetPersonId,
-        label,
-        isDirected,
+        type,
+        sourceToTargetLabel,
+        targetToSourceLabel,
       });
 
       // モーダルを閉じる
