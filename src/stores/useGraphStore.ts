@@ -77,6 +77,13 @@ type GraphActions = {
   addRelationship: (relationship: Omit<Relationship, 'id' | 'createdAt'>) => void;
 
   /**
+   * 指定したIDの関係を更新する
+   * @param relationshipId - 更新する関係のID
+   * @param updates - 更新する内容（idとcreatedAtは更新不可）
+   */
+  updateRelationship: (relationshipId: string, updates: Partial<Omit<Relationship, 'id' | 'createdAt'>>) => void;
+
+  /**
    * 指定したIDの関係を削除する
    * @param relationshipId - 削除する関係のID
    */
@@ -97,11 +104,33 @@ type GraphStore = GraphState & GraphActions;
 /**
  * LocalStorageに保存される古い形式の状態（v0）
  */
-type GraphStateLegacy = {
+type GraphStateV0 = {
   persons: Person[];
   relationships: Relationship[];
   forceEnabled: boolean;
   selectedPersonId: string | null;
+};
+
+/**
+ * v1形式のRelationship（label, isDirectedを使用）
+ */
+type RelationshipV1 = {
+  id: string;
+  sourcePersonId: string;
+  targetPersonId: string;
+  label: string;
+  isDirected: boolean;
+  createdAt: string;
+};
+
+/**
+ * LocalStorageに保存される古い形式の状態（v1）
+ */
+type GraphStateV1 = {
+  persons: Person[];
+  relationships: RelationshipV1[];
+  forceEnabled: boolean;
+  selectedPersonIds: string[];
 };
 
 /**
@@ -183,15 +212,46 @@ export const useGraphStore = create<GraphStore>()(
           })),
 
         addRelationship: (relationship) =>
+          set((state) => {
+            // 同じペアの関係が既に存在するかチェック（方向問わず）
+            const isDuplicate = state.relationships.some(
+              (r) =>
+                (r.sourcePersonId === relationship.sourcePersonId &&
+                  r.targetPersonId === relationship.targetPersonId) ||
+                (r.sourcePersonId === relationship.targetPersonId &&
+                  r.targetPersonId === relationship.sourcePersonId)
+            );
+
+            // 重複している場合は追加しない
+            if (isDuplicate) {
+              return state;
+            }
+
+            return {
+              relationships: [
+                ...state.relationships,
+                {
+                  ...relationship,
+                  id: nanoid(),
+                  createdAt: new Date().toISOString(),
+                },
+              ],
+            };
+          }),
+
+        updateRelationship: (relationshipId, updates) =>
           set((state) => ({
-            relationships: [
-              ...state.relationships,
-              {
+            relationships: state.relationships.map((relationship) => {
+              if (relationship.id !== relationshipId) {
+                return relationship;
+              }
+              // 接続先の変更は禁止し、ラベル/タイプのみ更新可能にする
+              const { sourcePersonId: _sourcePersonId, targetPersonId: _targetPersonId, ...safeUpdates } = updates;
+              return {
                 ...relationship,
-                id: nanoid(),
-                createdAt: new Date().toISOString(),
-              },
-            ],
+                ...safeUpdates,
+              };
+            }),
           })),
 
         removeRelationship: (relationshipId) =>
@@ -215,26 +275,49 @@ export const useGraphStore = create<GraphStore>()(
     ),
     {
       name: 'relationship-chart-storage', // LocalStorageのキー名
-      version: 1, // バージョン管理
-      // v0からv1へのマイグレーション
+      version: 2, // バージョン管理（v1→v2に更新）
+      // マイグレーション関数
       migrate: (persistedState: unknown, version: number) => {
-        // 初回ユーザー（versionがundefined）またはv1以降は変換不要
-        if (version === undefined || version >= 1) {
+        // 初回ユーザー（versionがundefined）またはv2以降は変換不要
+        if (version === undefined || version >= 2) {
           return persistedState as GraphStore;
         }
 
+        let state = persistedState;
+
         // v0からv1への変換
         if (version === 0) {
-          const oldState = persistedState as GraphStateLegacy;
+          const oldState = state as GraphStateV0;
           // selectedPersonId を除外して selectedPersonIds に変換
           const { selectedPersonId, ...rest } = oldState;
-          return {
+          state = {
             ...rest,
             selectedPersonIds: selectedPersonId ? [selectedPersonId] : [],
+          };
+        }
+
+        // v1からv2への変換
+        if (version <= 1) {
+          const v1State = state as GraphStateV1;
+          const migratedRelationships: Relationship[] = v1State.relationships.map((r) => ({
+            id: r.id,
+            sourcePersonId: r.sourcePersonId,
+            targetPersonId: r.targetPersonId,
+            type: r.isDirected ? ('one-way' as const) : ('undirected' as const),
+            sourceToTargetLabel: r.label,
+            targetToSourceLabel: null,
+            createdAt: r.createdAt,
+          }));
+
+          return {
+            persons: v1State.persons,
+            relationships: migratedRelationships,
+            forceEnabled: v1State.forceEnabled,
+            selectedPersonIds: v1State.selectedPersonIds,
           } as GraphStore;
         }
 
-        return persistedState as GraphStore;
+        return state as GraphStore;
       },
     }
   )

@@ -49,8 +49,9 @@ export function RelationshipForm() {
     addRelationship({
       sourcePersonId,
       targetPersonId,
-      label: label.trim(),
-      isDirected,
+      type: isDirected ? 'one-way' : 'undirected',
+      sourceToTargetLabel: label.trim(),
+      targetToSourceLabel: null,
     });
 
     // フォームをリセット

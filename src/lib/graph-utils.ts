@@ -38,8 +38,9 @@ export function relationshipsToEdges(
     target: relationship.targetPersonId,
     type: 'relationship' as const,
     data: {
-      label: relationship.label,
-      isDirected: relationship.isDirected,
+      type: relationship.type,
+      sourceToTargetLabel: relationship.sourceToTargetLabel,
+      targetToSourceLabel: relationship.targetToSourceLabel,
     },
   }));
 }

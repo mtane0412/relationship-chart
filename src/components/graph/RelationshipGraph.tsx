@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useMemo } from 'react';
 import {
   ReactFlow,
   Background,
@@ -33,6 +33,7 @@ import type {
   PersonNode as PersonNodeType,
   RelationshipEdge,
 } from '@/types/graph';
+import type { RelationshipType } from '@/types/relationship';
 
 // カスタムノードタイプの定義
 const nodeTypes: NodeTypes = {
@@ -58,6 +59,8 @@ type PendingRegistration = {
 type PendingConnection = {
   sourcePersonId: string;
   targetPersonId: string;
+  /** 編集対象の既存関係ID（編集モードの場合） */
+  existingRelationshipId?: string;
 };
 
 /**
@@ -71,6 +74,7 @@ export function RelationshipGraph() {
   const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
   const addPerson = useGraphStore((state) => state.addPerson);
   const addRelationship = useGraphStore((state) => state.addRelationship);
+  const updateRelationship = useGraphStore((state) => state.updateRelationship);
   const removePerson = useGraphStore((state) => state.removePerson);
   const removeRelationship = useGraphStore((state) => state.removeRelationship);
   const setSelectedPersonIds = useGraphStore((state) => state.setSelectedPersonIds);
@@ -276,6 +280,23 @@ export function RelationshipGraph() {
         const targetPerson = persons.find((p) => p.id === connection.target);
 
         if (sourcePerson && targetPerson) {
+          // 同じペアの関係が既に存在するかチェック（方向問わず）
+          const existingRelationship = relationships.find(
+            (r) =>
+              (r.sourcePersonId === connection.source && r.targetPersonId === connection.target) ||
+              (r.sourcePersonId === connection.target && r.targetPersonId === connection.source)
+          );
+
+          if (existingRelationship) {
+            // 既に関係が存在する場合は編集モーダルを開く
+            setPendingConnection({
+              sourcePersonId: connection.source,
+              targetPersonId: connection.target,
+              existingRelationshipId: existingRelationship.id,
+            });
+            return;
+          }
+
           setPendingConnection({
             sourcePersonId: connection.source,
             targetPersonId: connection.target,
@@ -283,7 +304,7 @@ export function RelationshipGraph() {
         }
       }
     },
-    [persons]
+    [persons, relationships]
   );
 
   // ノード削除ハンドラ（確認ダイアログ付き）
@@ -314,7 +335,7 @@ export function RelationshipGraph() {
       const firstEdge = edgesToDelete[0];
       const message =
         count === 1 && firstEdge
-          ? `「${firstEdge.data?.label || '不明な関係'}」を削除してもよろしいですか？`
+          ? `「${firstEdge.data?.sourceToTargetLabel || '不明な関係'}」を削除してもよろしいですか？`
           : `${count}個の関係を削除してもよろしいですか？`;
 
       if (confirm(message)) {
@@ -346,23 +367,37 @@ export function RelationshipGraph() {
     setPendingRegistration(null);
   }, []);
 
-  // 関係登録ハンドラ
+  // 関係登録・更新ハンドラ
   const handleRegisterRelationship = useCallback(
-    (label: string, isDirected: boolean) => {
+    (
+      type: RelationshipType,
+      sourceToTargetLabel: string,
+      targetToSourceLabel: string | null
+    ) => {
       if (!pendingConnection) return;
 
-      // 関係を追加
-      addRelationship({
-        sourcePersonId: pendingConnection.sourcePersonId,
-        targetPersonId: pendingConnection.targetPersonId,
-        label,
-        isDirected,
-      });
+      if (pendingConnection.existingRelationshipId) {
+        // 編集モード: 既存の関係を更新
+        updateRelationship(pendingConnection.existingRelationshipId, {
+          type,
+          sourceToTargetLabel,
+          targetToSourceLabel,
+        });
+      } else {
+        // 新規登録モード: 関係を追加
+        addRelationship({
+          sourcePersonId: pendingConnection.sourcePersonId,
+          targetPersonId: pendingConnection.targetPersonId,
+          type,
+          sourceToTargetLabel,
+          targetToSourceLabel,
+        });
+      }
 
       // モーダルを閉じる
       setPendingConnection(null);
     },
-    [pendingConnection, addRelationship]
+    [pendingConnection, addRelationship, updateRelationship]
   );
 
   // 関係登録のキャンセルハンドラ
@@ -458,22 +493,35 @@ export function RelationshipGraph() {
       {/* 関係登録モーダル */}
       <RelationshipRegistrationModal
         isOpen={pendingConnection !== null}
-        sourcePerson={(() => {
+        sourcePerson={useMemo(() => {
           if (!pendingConnection) return { name: '' };
           const sourcePerson = persons.find((p) => p.id === pendingConnection.sourcePersonId);
           return {
             name: sourcePerson?.name || '不明な人物',
             imageDataUrl: sourcePerson?.imageDataUrl,
           };
-        })()}
-        targetPerson={(() => {
+        }, [pendingConnection, persons])}
+        targetPerson={useMemo(() => {
           if (!pendingConnection) return { name: '' };
           const targetPerson = persons.find((p) => p.id === pendingConnection.targetPersonId);
           return {
             name: targetPerson?.name || '不明な人物',
             imageDataUrl: targetPerson?.imageDataUrl,
           };
-        })()}
+        }, [pendingConnection, persons])}
+        defaultType="one-way"
+        initialRelationship={useMemo(() => {
+          if (!pendingConnection?.existingRelationshipId) return undefined;
+          const existingRelationship = relationships.find(
+            (r) => r.id === pendingConnection.existingRelationshipId
+          );
+          if (!existingRelationship) return undefined;
+          return {
+            type: existingRelationship.type,
+            sourceToTargetLabel: existingRelationship.sourceToTargetLabel,
+            targetToSourceLabel: existingRelationship.targetToSourceLabel,
+          };
+        }, [pendingConnection, relationships])}
         onSubmit={handleRegisterRelationship}
         onCancel={handleCancelRelationship}
       />
