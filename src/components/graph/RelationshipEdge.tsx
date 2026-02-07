@@ -58,9 +58,12 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
   const dy = targetPoint.y - sourcePoint.y;
   const length = Math.sqrt(dx * dx + dy * dy);
 
+  // dual-directedの場合のみオフセット計算を行う
+  const isDualDirected = edgeData?.type === 'dual-directed';
   // 垂直方向の単位ベクトル（時計回りに90度回転）
-  const perpX = -dy / length;
-  const perpY = dx / length;
+  // lengthが0の場合は0除算を避けてオフセット無し（単一路線）にフォールバック
+  const perpX = isDualDirected && length !== 0 ? -dy / length : 0;
+  const perpY = isDualDirected && length !== 0 ? dx / length : 0;
 
   // オフセット距離（2本の線の間隔）
   const offset = 8;

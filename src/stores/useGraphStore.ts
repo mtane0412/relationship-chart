@@ -241,9 +241,17 @@ export const useGraphStore = create<GraphStore>()(
 
         updateRelationship: (relationshipId, updates) =>
           set((state) => ({
-            relationships: state.relationships.map((relationship) =>
-              relationship.id === relationshipId ? { ...relationship, ...updates } : relationship
-            ),
+            relationships: state.relationships.map((relationship) => {
+              if (relationship.id !== relationshipId) {
+                return relationship;
+              }
+              // 接続先の変更は禁止し、ラベル/タイプのみ更新可能にする
+              const { sourcePersonId: _sourcePersonId, targetPersonId: _targetPersonId, ...safeUpdates } = updates;
+              return {
+                ...relationship,
+                ...safeUpdates,
+              };
+            }),
           })),
 
         removeRelationship: (relationshipId) =>

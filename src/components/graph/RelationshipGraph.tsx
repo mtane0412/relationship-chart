@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useMemo } from 'react';
 import {
   ReactFlow,
   Background,
@@ -33,6 +33,7 @@ import type {
   PersonNode as PersonNodeType,
   RelationshipEdge,
 } from '@/types/graph';
+import type { RelationshipType } from '@/types/relationship';
 
 // カスタムノードタイプの定義
 const nodeTypes: NodeTypes = {
@@ -369,7 +370,7 @@ export function RelationshipGraph() {
   // 関係登録・更新ハンドラ
   const handleRegisterRelationship = useCallback(
     (
-      type: import('@/types/relationship').RelationshipType,
+      type: RelationshipType,
       sourceToTargetLabel: string,
       targetToSourceLabel: string | null
     ) => {
@@ -492,24 +493,24 @@ export function RelationshipGraph() {
       {/* 関係登録モーダル */}
       <RelationshipRegistrationModal
         isOpen={pendingConnection !== null}
-        sourcePerson={(() => {
+        sourcePerson={useMemo(() => {
           if (!pendingConnection) return { name: '' };
           const sourcePerson = persons.find((p) => p.id === pendingConnection.sourcePersonId);
           return {
             name: sourcePerson?.name || '不明な人物',
             imageDataUrl: sourcePerson?.imageDataUrl,
           };
-        })()}
-        targetPerson={(() => {
+        }, [pendingConnection, persons])}
+        targetPerson={useMemo(() => {
           if (!pendingConnection) return { name: '' };
           const targetPerson = persons.find((p) => p.id === pendingConnection.targetPersonId);
           return {
             name: targetPerson?.name || '不明な人物',
             imageDataUrl: targetPerson?.imageDataUrl,
           };
-        })()}
+        }, [pendingConnection, persons])}
         defaultType="one-way"
-        initialRelationship={(() => {
+        initialRelationship={useMemo(() => {
           if (!pendingConnection?.existingRelationshipId) return undefined;
           const existingRelationship = relationships.find(
             (r) => r.id === pendingConnection.existingRelationshipId
@@ -520,7 +521,7 @@ export function RelationshipGraph() {
             sourceToTargetLabel: existingRelationship.sourceToTargetLabel,
             targetToSourceLabel: existingRelationship.targetToSourceLabel,
           };
-        })()}
+        }, [pendingConnection, relationships])}
         onSubmit={handleRegisterRelationship}
         onCancel={handleCancelRelationship}
       />
