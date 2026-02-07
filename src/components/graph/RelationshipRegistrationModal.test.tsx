@@ -14,8 +14,8 @@ describe('RelationshipRegistrationModal', () => {
       render(
         <RelationshipRegistrationModal
           isOpen={false}
-          sourcePersonName="山田太郎"
-          targetPersonName="佐藤花子"
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
           onSubmit={vi.fn()}
           onCancel={vi.fn()}
         />
@@ -29,8 +29,8 @@ describe('RelationshipRegistrationModal', () => {
       render(
         <RelationshipRegistrationModal
           isOpen={true}
-          sourcePersonName="山田太郎"
-          targetPersonName="佐藤花子"
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
           onSubmit={vi.fn()}
           onCancel={vi.fn()}
         />
@@ -46,8 +46,8 @@ describe('RelationshipRegistrationModal', () => {
       render(
         <RelationshipRegistrationModal
           isOpen={true}
-          sourcePersonName="山田太郎"
-          targetPersonName="佐藤花子"
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
           onSubmit={vi.fn()}
           onCancel={vi.fn()}
         />
@@ -66,8 +66,8 @@ describe('RelationshipRegistrationModal', () => {
       render(
         <RelationshipRegistrationModal
           isOpen={true}
-          sourcePersonName="山田太郎"
-          targetPersonName="佐藤花子"
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
           onSubmit={vi.fn()}
           onCancel={vi.fn()}
         />
@@ -87,8 +87,8 @@ describe('RelationshipRegistrationModal', () => {
       render(
         <RelationshipRegistrationModal
           isOpen={true}
-          sourcePersonName="山田太郎"
-          targetPersonName="佐藤花子"
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
           onSubmit={vi.fn()}
           onCancel={vi.fn()}
         />
@@ -114,8 +114,8 @@ describe('RelationshipRegistrationModal', () => {
       render(
         <RelationshipRegistrationModal
           isOpen={true}
-          sourcePersonName="山田太郎"
-          targetPersonName="佐藤花子"
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
           onSubmit={vi.fn()}
           onCancel={vi.fn()}
         />
@@ -133,8 +133,8 @@ describe('RelationshipRegistrationModal', () => {
       render(
         <RelationshipRegistrationModal
           isOpen={true}
-          sourcePersonName="山田太郎"
-          targetPersonName="佐藤花子"
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
           onSubmit={vi.fn()}
           onCancel={vi.fn()}
         />
@@ -159,8 +159,8 @@ describe('RelationshipRegistrationModal', () => {
       render(
         <RelationshipRegistrationModal
           isOpen={true}
-          sourcePersonName="山田太郎"
-          targetPersonName="佐藤花子"
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
           onSubmit={onSubmit}
           onCancel={vi.fn()}
         />
@@ -186,8 +186,8 @@ describe('RelationshipRegistrationModal', () => {
       render(
         <RelationshipRegistrationModal
           isOpen={true}
-          sourcePersonName="山田太郎"
-          targetPersonName="佐藤花子"
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
           onSubmit={onSubmit}
           onCancel={vi.fn()}
         />
@@ -217,8 +217,8 @@ describe('RelationshipRegistrationModal', () => {
       render(
         <RelationshipRegistrationModal
           isOpen={true}
-          sourcePersonName="山田太郎"
-          targetPersonName="佐藤花子"
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
           onSubmit={vi.fn()}
           onCancel={onCancel}
         />
@@ -240,8 +240,8 @@ describe('RelationshipRegistrationModal', () => {
       render(
         <RelationshipRegistrationModal
           isOpen={true}
-          sourcePersonName="山田太郎"
-          targetPersonName="佐藤花子"
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
           onSubmit={vi.fn()}
           onCancel={onCancel}
         />
@@ -260,8 +260,8 @@ describe('RelationshipRegistrationModal', () => {
       render(
         <RelationshipRegistrationModal
           isOpen={true}
-          sourcePersonName="山田太郎"
-          targetPersonName="佐藤花子"
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
           onSubmit={vi.fn()}
           onCancel={vi.fn()}
         />
@@ -271,6 +271,130 @@ describe('RelationshipRegistrationModal', () => {
 
       // ラベル入力にフォーカスされている
       expect(labelInput).toHaveFocus();
+    });
+  });
+
+  describe('人物アイコンの表示', () => {
+    it('画像がある場合、接続元の画像がimg要素で表示される', () => {
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,test1' }}
+          targetPerson={{ name: '佐藤花子' }}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // 接続元の画像が表示されることを確認
+      const sourceImage = screen.getByAltText('山田太郎');
+      expect(sourceImage).toBeInTheDocument();
+      expect(sourceImage).toHaveAttribute('src', 'data:image/jpeg;base64,test1');
+    });
+
+    it('画像がある場合、接続先の画像がimg要素で表示される', () => {
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子', imageDataUrl: 'data:image/jpeg;base64,test2' }}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // 接続先の画像が表示されることを確認
+      const targetImage = screen.getByAltText('佐藤花子');
+      expect(targetImage).toBeInTheDocument();
+      expect(targetImage).toHaveAttribute('src', 'data:image/jpeg;base64,test2');
+    });
+
+    it('画像がない場合、接続元のイニシャル（大文字）がフォールバック表示される', () => {
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: 'yamada taro' }}
+          targetPerson={{ name: '佐藤花子', imageDataUrl: 'data:image/jpeg;base64,test' }}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // 接続元のイニシャルが大文字で表示されることを確認
+      const sourceInitial = screen.getByTestId('person-initial-source');
+      expect(sourceInitial).toBeInTheDocument();
+      expect(sourceInitial).toHaveTextContent('Y');
+    });
+
+    it('画像がない場合、接続先のイニシャル（大文字）がフォールバック表示される', () => {
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,test' }}
+          targetPerson={{ name: 'sato hanako' }}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // 接続先のイニシャルが大文字で表示されることを確認
+      const targetInitial = screen.getByTestId('person-initial-target');
+      expect(targetInitial).toBeInTheDocument();
+      expect(targetInitial).toHaveTextContent('S');
+    });
+
+    it('両方に画像がある場合、2つのimg要素が表示される', () => {
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,test1' }}
+          targetPerson={{ name: '佐藤花子', imageDataUrl: 'data:image/jpeg;base64,test2' }}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // 2つの画像が表示されることを確認
+      const sourceImage = screen.getByAltText('山田太郎');
+      const targetImage = screen.getByAltText('佐藤花子');
+      expect(sourceImage).toBeInTheDocument();
+      expect(targetImage).toBeInTheDocument();
+      expect(sourceImage).toHaveAttribute('src', 'data:image/jpeg;base64,test1');
+      expect(targetImage).toHaveAttribute('src', 'data:image/jpeg;base64,test2');
+    });
+
+    it('名前が空文字列の場合、接続元のイニシャルは"?"が表示される', () => {
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '' }}
+          targetPerson={{ name: '佐藤花子', imageDataUrl: 'data:image/jpeg;base64,test' }}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // 接続元のイニシャルが"?"で表示されることを確認
+      const sourceInitial = screen.getByTestId('person-initial-source');
+      expect(sourceInitial).toBeInTheDocument();
+      expect(sourceInitial).toHaveTextContent('?');
+    });
+
+    it('名前が空文字列の場合、接続先のイニシャルは"?"が表示される', () => {
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,test' }}
+          targetPerson={{ name: '' }}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // 接続先のイニシャルが"?"で表示されることを確認
+      const targetInitial = screen.getByTestId('person-initial-target');
+      expect(targetInitial).toBeInTheDocument();
+      expect(targetInitial).toHaveTextContent('?');
     });
   });
 });

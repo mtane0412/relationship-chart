@@ -458,16 +458,22 @@ export function RelationshipGraph() {
       {/* 関係登録モーダル */}
       <RelationshipRegistrationModal
         isOpen={pendingConnection !== null}
-        sourcePersonName={
-          pendingConnection
-            ? persons.find((p) => p.id === pendingConnection.sourcePersonId)?.name || '不明な人物'
-            : ''
-        }
-        targetPersonName={
-          pendingConnection
-            ? persons.find((p) => p.id === pendingConnection.targetPersonId)?.name || '不明な人物'
-            : ''
-        }
+        sourcePerson={(() => {
+          if (!pendingConnection) return { name: '' };
+          const sourcePerson = persons.find((p) => p.id === pendingConnection.sourcePersonId);
+          return {
+            name: sourcePerson?.name || '不明な人物',
+            imageDataUrl: sourcePerson?.imageDataUrl,
+          };
+        })()}
+        targetPerson={(() => {
+          if (!pendingConnection) return { name: '' };
+          const targetPerson = persons.find((p) => p.id === pendingConnection.targetPersonId);
+          return {
+            name: targetPerson?.name || '不明な人物',
+            imageDataUrl: targetPerson?.imageDataUrl,
+          };
+        })()}
         onSubmit={handleRegisterRelationship}
         onCancel={handleCancelRelationship}
       />

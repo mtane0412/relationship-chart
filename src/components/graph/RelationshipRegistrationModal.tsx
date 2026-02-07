@@ -8,15 +8,25 @@
 import { useState, useEffect, useRef } from 'react';
 
 /**
+ * モーダルで表示する人物情報
+ */
+type ModalPersonInfo = {
+  /** 人物名 */
+  name: string;
+  /** 人物の画像データURL（任意） */
+  imageDataUrl?: string;
+};
+
+/**
  * RelationshipRegistrationModalのプロパティ
  */
 type RelationshipRegistrationModalProps = {
   /** モーダルの表示/非表示 */
   isOpen: boolean;
-  /** 接続元の人物名 */
-  sourcePersonName: string;
-  /** 接続先の人物名 */
-  targetPersonName: string;
+  /** 接続元の人物情報 */
+  sourcePerson: ModalPersonInfo;
+  /** 接続先の人物情報 */
+  targetPerson: ModalPersonInfo;
   /** 登録ボタンクリック時のコールバック */
   onSubmit: (label: string, isDirected: boolean) => void;
   /** キャンセルボタンクリック時のコールバック */
@@ -28,8 +38,8 @@ type RelationshipRegistrationModalProps = {
  */
 export function RelationshipRegistrationModal({
   isOpen,
-  sourcePersonName,
-  targetPersonName,
+  sourcePerson,
+  targetPerson,
   onSubmit,
   onCancel,
 }: RelationshipRegistrationModalProps) {
@@ -94,11 +104,48 @@ export function RelationshipRegistrationModal({
           関係を登録
         </h2>
 
-        {/* 2人の人物名表示 */}
-        <div className="mb-4 flex items-center justify-center gap-2 text-gray-700">
-          <span className="font-medium">{sourcePersonName}</span>
-          <span className="text-gray-400">→</span>
-          <span className="font-medium">{targetPersonName}</span>
+        {/* 2人の人物情報表示 */}
+        <div className="mb-4 flex items-center justify-center gap-3 text-gray-700">
+          {/* 接続元の人物 */}
+          <div className="flex items-center gap-2">
+            {sourcePerson.imageDataUrl ? (
+              <img
+                src={sourcePerson.imageDataUrl}
+                alt={sourcePerson.name}
+                className="w-10 h-10 rounded-full object-cover border border-gray-300"
+              />
+            ) : (
+              <div
+                data-testid="person-initial-source"
+                className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 font-semibold border border-gray-300"
+              >
+                {sourcePerson.name.charAt(0).toUpperCase() || '?'}
+              </div>
+            )}
+            <span className="font-medium">{sourcePerson.name}</span>
+          </div>
+
+          {/* 矢印 */}
+          <span className="text-gray-400 text-lg">→</span>
+
+          {/* 接続先の人物 */}
+          <div className="flex items-center gap-2">
+            {targetPerson.imageDataUrl ? (
+              <img
+                src={targetPerson.imageDataUrl}
+                alt={targetPerson.name}
+                className="w-10 h-10 rounded-full object-cover border border-gray-300"
+              />
+            ) : (
+              <div
+                data-testid="person-initial-target"
+                className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 font-semibold border border-gray-300"
+              >
+                {targetPerson.name.charAt(0).toUpperCase() || '?'}
+              </div>
+            )}
+            <span className="font-medium">{targetPerson.name}</span>
+          </div>
         </div>
 
         {/* フォーム */}
