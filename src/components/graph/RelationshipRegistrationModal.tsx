@@ -119,7 +119,7 @@ export function RelationshipRegistrationModal({
                 data-testid="person-initial-source"
                 className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 font-semibold border border-gray-300"
               >
-                {sourcePerson.name.charAt(0)}
+                {sourcePerson.name.charAt(0).toUpperCase() || '?'}
               </div>
             )}
             <span className="font-medium">{sourcePerson.name}</span>
@@ -141,7 +141,7 @@ export function RelationshipRegistrationModal({
                 data-testid="person-initial-target"
                 className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 font-semibold border border-gray-300"
               >
-                {targetPerson.name.charAt(0)}
+                {targetPerson.name.charAt(0).toUpperCase() || '?'}
               </div>
             )}
             <span className="font-medium">{targetPerson.name}</span>
