@@ -21,8 +21,15 @@ type PairSelectionPanelProps = {
 
 /**
  * 関係タイプに応じたSVGアイコンを返す
+ * @param type - 関係タイプ
+ * @param hasRelationship - 関係が存在するか
+ * @param isReversed - 向きを反転するか（person1がtargetの場合true）
  */
-function getRelationshipIcon(type: RelationshipType, hasRelationship: boolean): React.ReactElement {
+function getRelationshipIcon(
+  type: RelationshipType,
+  hasRelationship: boolean,
+  isReversed: boolean = false
+): React.ReactElement {
   if (!hasRelationship) {
     // 関係なしの場合は点線
     return (
@@ -59,7 +66,13 @@ function getRelationshipIcon(type: RelationshipType, hasRelationship: boolean): 
         </svg>
       );
     case 'one-way':
-      return (
+      // isReversedがtrueの場合は左向き矢印、falseの場合は右向き矢印
+      return isReversed ? (
+        <svg width="40" height="24" viewBox="0 0 40 24" className="shrink-0">
+          <line x1="4" y1="12" x2="36" y2="12" stroke="#3b82f6" strokeWidth="2" />
+          <polygon points="4,12 8,9 8,15" fill="#3b82f6" />
+        </svg>
+      ) : (
         <svg width="40" height="24" viewBox="0 0 40 24" className="shrink-0">
           <line x1="4" y1="12" x2="36" y2="12" stroke="#3b82f6" strokeWidth="2" />
           <polygon points="36,12 32,9 32,15" fill="#3b82f6" />
@@ -169,6 +182,24 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
   const person1Initial = person1.name.charAt(0).toUpperCase() || '?';
   const person2Initial = person2.name.charAt(0).toUpperCase() || '?';
 
+  // 既存関係の向きを判定（person1がsourceかどうか）
+  const isReversed = existingRelationship
+    ? existingRelationship.sourcePersonId === person2.id
+    : false;
+
+  // 表示用のラベル（向きを正規化）
+  const displayLabel1to2 = existingRelationship
+    ? isReversed
+      ? existingRelationship.targetToSourceLabel
+      : existingRelationship.sourceToTargetLabel
+    : null;
+
+  const displayLabel2to1 = existingRelationship
+    ? isReversed
+      ? existingRelationship.sourceToTargetLabel
+      : existingRelationship.targetToSourceLabel
+    : null;
+
   return (
     <div className="flex flex-col h-full">
       {/* ヘッダー */}
@@ -219,7 +250,8 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
           {/* 関係アイコン */}
           {getRelationshipIcon(
             existingRelationship?.type ?? 'bidirectional',
-            !!existingRelationship
+            !!existingRelationship,
+            isReversed
           )}
 
           {/* 人物2のアバター */}
@@ -259,15 +291,15 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
             {existingRelationship.type === 'dual-directed' ? (
               <div className="space-y-0.5">
                 <div className="text-xs font-medium text-blue-700">
-                  {existingRelationship.sourceToTargetLabel}
+                  {displayLabel1to2}
                 </div>
                 <div className="text-xs font-medium text-green-700">
-                  {existingRelationship.targetToSourceLabel}
+                  {displayLabel2to1}
                 </div>
               </div>
             ) : (
               <div className="text-xs font-medium text-gray-700">
-                「{existingRelationship.sourceToTargetLabel}」
+                「{displayLabel1to2}」
               </div>
             )}
           </div>
