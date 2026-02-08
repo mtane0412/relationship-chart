@@ -25,8 +25,11 @@ export const PersonNode = memo(({ data, selected }: NodeProps) => {
   const connection = useConnection();
   const isConnecting = connection.inProgress;
 
-  // ハンドルを表示する条件：自身にホバー中 または 誰かが接続操作中
-  const showHandles = isHovered || isConnecting;
+  // sourceハンドルを表示する条件：自身にホバー中 かつ 接続操作中でない
+  const showSourceHandle = isHovered && !isConnecting;
+
+  // targetハンドルを表示する条件：誰かが接続操作中
+  const showTargetHandle = isConnecting;
 
   return (
     <div
@@ -35,14 +38,15 @@ export const PersonNode = memo(({ data, selected }: NodeProps) => {
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* 円形ハンドル（リング状） - source用 */}
-      {/* 画像部分を囲む正円のハンドルで、外周から接続可能 */}
+      {/* 画像部分を囲む正円のハンドルで、外周から接続開始可能 */}
+      {/* hover時かつ接続操作中でない時のみ有効化 */}
       {/* 中心部（画像）はそのままドラッグ移動用 */}
       <Handle
         type="source"
         id="ring-source"
         position={Position.Top}
         className={`!absolute !rounded-full !border-8 !border-blue-500 !bg-transparent transition-opacity duration-200 ${
-          showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+          showSourceHandle ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         style={{
           left: '50%',
@@ -50,18 +54,19 @@ export const PersonNode = memo(({ data, selected }: NodeProps) => {
           transform: 'translate(-50%, -50%)',
           width: '100px',
           height: '100px',
-          pointerEvents: showHandles ? 'auto' : 'none',
+          pointerEvents: showSourceHandle ? 'auto' : 'none',
         }}
       />
 
       {/* 円形ハンドル（リング状） - target用 */}
       {/* source用と同じ位置・サイズで配置し、接続の受け入れ領域を拡大 */}
+      {/* 接続操作中のみ有効化して、接続の受け入れを明確化 */}
       <Handle
         type="target"
         id="ring-target"
         position={Position.Top}
         className={`!absolute !rounded-full !border-8 !border-blue-500 !bg-transparent transition-opacity duration-200 ${
-          showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+          showTargetHandle ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         style={{
           left: '50%',
@@ -69,7 +74,7 @@ export const PersonNode = memo(({ data, selected }: NodeProps) => {
           transform: 'translate(-50%, -50%)',
           width: '100px',
           height: '100px',
-          pointerEvents: showHandles ? 'auto' : 'none',
+          pointerEvents: showTargetHandle ? 'auto' : 'none',
         }}
       />
 

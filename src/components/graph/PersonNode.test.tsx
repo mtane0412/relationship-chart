@@ -94,6 +94,23 @@ describe('PersonNode', () => {
         expect(className).toContain('border-8');
       });
     });
+
+    it('通常時はsourceハンドルのみがpointer-events-autoであること', () => {
+      const { container } = renderWithProvider();
+
+      const handles = container.querySelectorAll('.react-flow__handle');
+      const sourceHandle = Array.from(handles).find((handle) =>
+        handle.getAttribute('data-handleid')?.includes('source')
+      );
+      const targetHandle = Array.from(handles).find((handle) =>
+        handle.getAttribute('data-handleid')?.includes('target')
+      );
+
+      // 通常時（接続操作中でない時）はsourceハンドルのみが非表示（opacity-0, pointer-events-none）
+      // ※ hover状態でない限り、両方とも非表示
+      expect(sourceHandle?.className).toContain('pointer-events-none');
+      expect(targetHandle?.className).toContain('pointer-events-none');
+    });
   });
 
   describe('ノードの表示', () => {
