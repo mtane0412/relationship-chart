@@ -178,9 +178,9 @@ describe('PairSelectionPanel', () => {
             id: 'rel-1',
             sourcePersonId: person1.id,
             targetPersonId: person2.id,
-            type: 'bidirectional',
+            isDirected: true,
             sourceToTargetLabel: '友人',
-            targetToSourceLabel: null,
+            targetToSourceLabel: '友人', // bidirectional: 同じラベル
             createdAt: '2024-01-01T00:00:00.000Z',
           },
         ],
@@ -278,18 +278,21 @@ describe('PairSelectionPanel', () => {
         expect(screen.getByLabelText('逆方向のラベル')).toBeInTheDocument();
       });
 
-      // ラベルを入力
+      // ラベルを入力（既存の値をクリアしてから入力）
       const reverseLabelInput = screen.getByLabelText('逆方向のラベル');
+      await user.clear(reverseLabelInput);
       await user.type(reverseLabelInput, '同僚');
 
       // 更新ボタンをクリック
       const updateButton = screen.getByRole('button', { name: '更新' });
       await user.click(updateButton);
 
-      // ストアが更新されたことを確認
+      // ストアが更新されたことを確認（新データモデル形式）
       await waitFor(() => {
         const state = useGraphStore.getState();
-        expect(state.relationships[0].type).toBe('dual-directed');
+        // dual-directed: isDirected=true かつ sourceToTargetLabel !== targetToSourceLabel
+        expect(state.relationships[0].isDirected).toBe(true);
+        expect(state.relationships[0].sourceToTargetLabel).not.toBe(state.relationships[0].targetToSourceLabel);
         expect(state.relationships[0].targetToSourceLabel).toBe('同僚');
       });
     });
@@ -322,9 +325,9 @@ describe('PairSelectionPanel', () => {
             id: 'rel-1',
             sourcePersonId: person1.id,
             targetPersonId: person2.id,
-            type: 'dual-directed',
+            isDirected: true,
             sourceToTargetLabel: '好き',
-            targetToSourceLabel: '無関心',
+            targetToSourceLabel: '無関心', // dual-directed: 異なるラベル
             createdAt: '2024-01-01T00:00:00.000Z',
           },
         ],
@@ -362,9 +365,9 @@ describe('PairSelectionPanel', () => {
             id: 'rel-1',
             sourcePersonId: person2.id, // person2が起点
             targetPersonId: person1.id, // person1が終点
-            type: 'one-way',
+            isDirected: true,
             sourceToTargetLabel: '上司',
-            targetToSourceLabel: null,
+            targetToSourceLabel: null, // one-way: 逆方向ラベルなし
             createdAt: '2024-01-01T00:00:00.000Z',
           },
         ],
@@ -390,9 +393,9 @@ describe('PairSelectionPanel', () => {
             id: 'rel-1',
             sourcePersonId: person2.id, // person2が起点
             targetPersonId: person1.id, // person1が終点
-            type: 'one-way',
+            isDirected: true,
             sourceToTargetLabel: '上司',
-            targetToSourceLabel: null,
+            targetToSourceLabel: null, // one-way: 逆方向ラベルなし
             createdAt: '2024-01-01T00:00:00.000Z',
           },
         ],
@@ -467,9 +470,9 @@ describe('PairSelectionPanel', () => {
             id: 'rel-1',
             sourcePersonId: person2.id,
             targetPersonId: person1.id,
-            type: 'one-way',
+            isDirected: true,
             sourceToTargetLabel: '上司',
-            targetToSourceLabel: null,
+            targetToSourceLabel: null, // one-way: 逆方向ラベルなし
             createdAt: '2024-01-01T00:00:00.000Z',
           },
         ],

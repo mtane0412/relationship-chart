@@ -97,7 +97,7 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
   const length = Math.sqrt(dx * dx + dy * dy);
 
   // dual-directedの場合のみオフセット計算を行う
-  const isDualDirected = edgeData?.type === 'dual-directed';
+  const isDualDirected = edgeData?.displayType === 'dual-directed';
   // 垂直方向の単位ベクトル（時計回りに90度回転）
   // lengthが0の場合は0除算を避けてオフセット無し（単一路線）にフォールバック
   const perpX = isDualDirected && length !== 0 ? -dy / length : 0;
@@ -164,13 +164,13 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
 
   // マーカーの設定（選択状態に応じて色を変更）
   const markerEnd =
-    edgeData.type === 'undirected'
+    edgeData.displayType === 'undirected'
       ? undefined
       : selected
         ? 'url(#arrow-selected)'
         : 'url(#arrow)';
   const markerStart =
-    edgeData.type === 'bidirectional' || edgeData.type === 'dual-directed'
+    edgeData.displayType === 'bidirectional' || edgeData.displayType === 'dual-directed'
       ? selected
         ? 'url(#arrow-selected)'
         : 'url(#arrow)'
@@ -188,7 +188,7 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
 
   return (
     <>
-      {edgeData.type === 'dual-directed' ? (
+      {edgeData.displayType === 'dual-directed' ? (
         // dual-directed: 2本の平行な片方向矢印
         <>
           {/* 上側の線（source→target） */}
@@ -220,7 +220,7 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
 
       {/* ラベルと削除ボタン */}
       <EdgeLabelRenderer>
-        {edgeData.type === 'dual-directed' ? (
+        {edgeData.displayType === 'dual-directed' ? (
           // dual-directed: 2つのラベルを各線の近くに表示
           <>
             {/* source→targetのラベル（上側の線、開始側に寄せる） */}

@@ -46,9 +46,9 @@ describe('SingleSelectionPanel - 関係クリック遷移', () => {
     id: 'rel-1',
     sourcePersonId: 'person-1',
     targetPersonId: 'person-2',
-    type: 'bidirectional',
+    isDirected: true,
     sourceToTargetLabel: '親友',
-    targetToSourceLabel: null,
+    targetToSourceLabel: '親友', // bidirectional: 同じラベル
     createdAt: '2024-01-03T00:00:00Z',
   };
 
@@ -168,9 +168,9 @@ describe('SingleSelectionPanel - アイコン付き表示', () => {
     id: 'rel-1',
     sourcePersonId: 'person-1',
     targetPersonId: 'person-2',
-    type: 'bidirectional',
+    isDirected: true,
     sourceToTargetLabel: '親友',
-    targetToSourceLabel: null,
+    targetToSourceLabel: '親友', // bidirectional: 同じラベル
     createdAt: '2024-01-04T00:00:00Z',
   };
 
@@ -178,9 +178,9 @@ describe('SingleSelectionPanel - アイコン付き表示', () => {
     id: 'rel-2',
     sourcePersonId: 'person-1',
     targetPersonId: 'person-3',
-    type: 'one-way',
+    isDirected: true,
     sourceToTargetLabel: '先輩',
-    targetToSourceLabel: null,
+    targetToSourceLabel: null, // one-way: 逆方向ラベルなし
     createdAt: '2024-01-05T00:00:00Z',
   };
 
@@ -301,9 +301,9 @@ describe('SingleSelectionPanel - dual-directed表示', () => {
     id: 'rel-1',
     sourcePersonId: 'person-1',
     targetPersonId: 'person-2',
-    type: 'dual-directed',
+    isDirected: true,
     sourceToTargetLabel: '好き',
-    targetToSourceLabel: '無関心',
+    targetToSourceLabel: '無関心', // dual-directed: 異なるラベル
     createdAt: '2024-01-03T00:00:00Z',
   };
 

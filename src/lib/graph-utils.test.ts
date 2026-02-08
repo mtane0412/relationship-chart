@@ -102,9 +102,9 @@ describe('graph-utils', () => {
           id: 'rel-1',
           sourcePersonId: 'person-1',
           targetPersonId: 'person-2',
-          type: 'bidirectional',
+          isDirected: true,
           sourceToTargetLabel: '親子',
-          targetToSourceLabel: null,
+          targetToSourceLabel: '親子',
           createdAt: '2026-02-05T00:00:00.000Z',
         },
       ];
@@ -118,9 +118,9 @@ describe('graph-utils', () => {
         target: 'person-2',
         type: 'relationship',
         data: {
-          type: 'bidirectional',
+          displayType: 'bidirectional',
           sourceToTargetLabel: '親子',
-          targetToSourceLabel: null,
+          targetToSourceLabel: '親子',
         },
       });
     });
@@ -131,7 +131,7 @@ describe('graph-utils', () => {
           id: 'rel-1',
           sourcePersonId: 'person-1',
           targetPersonId: 'person-2',
-          type: 'dual-directed',
+          isDirected: true,
           sourceToTargetLabel: '好き',
           targetToSourceLabel: '無関心',
           createdAt: '2026-02-05T00:00:00.000Z',
@@ -141,7 +141,7 @@ describe('graph-utils', () => {
       const edges = relationshipsToEdges(relationships);
 
       expect(edges).toHaveLength(1);
-      expect(edges[0].data?.type).toBe('dual-directed');
+      expect(edges[0].data?.displayType).toBe('dual-directed');
       expect(edges[0].data?.sourceToTargetLabel).toBe('好き');
       expect(edges[0].data?.targetToSourceLabel).toBe('無関心');
     });
@@ -152,7 +152,7 @@ describe('graph-utils', () => {
           id: 'rel-1',
           sourcePersonId: 'person-1',
           targetPersonId: 'person-2',
-          type: 'one-way',
+          isDirected: true,
           sourceToTargetLabel: '片想い',
           targetToSourceLabel: null,
           createdAt: '2026-02-05T00:00:00.000Z',
@@ -162,7 +162,7 @@ describe('graph-utils', () => {
       const edges = relationshipsToEdges(relationships);
 
       expect(edges).toHaveLength(1);
-      expect(edges[0].data?.type).toBe('one-way');
+      expect(edges[0].data?.displayType).toBe('one-way');
       expect(edges[0].data?.sourceToTargetLabel).toBe('片想い');
       expect(edges[0].data?.targetToSourceLabel).toBeNull();
     });
@@ -173,9 +173,9 @@ describe('graph-utils', () => {
           id: 'rel-1',
           sourcePersonId: 'person-1',
           targetPersonId: 'person-2',
-          type: 'undirected',
+          isDirected: false,
           sourceToTargetLabel: '同一人物',
-          targetToSourceLabel: null,
+          targetToSourceLabel: '同一人物',
           createdAt: '2026-02-05T00:00:00.000Z',
         },
       ];
@@ -183,9 +183,9 @@ describe('graph-utils', () => {
       const edges = relationshipsToEdges(relationships);
 
       expect(edges).toHaveLength(1);
-      expect(edges[0].data?.type).toBe('undirected');
+      expect(edges[0].data?.displayType).toBe('undirected');
       expect(edges[0].data?.sourceToTargetLabel).toBe('同一人物');
-      expect(edges[0].data?.targetToSourceLabel).toBeNull();
+      expect(edges[0].data?.targetToSourceLabel).toBe('同一人物');
     });
 
     it('複数のRelationshipをRelationshipEdge配列に変換できる', () => {
@@ -194,16 +194,16 @@ describe('graph-utils', () => {
           id: 'rel-1',
           sourcePersonId: 'person-1',
           targetPersonId: 'person-2',
-          type: 'bidirectional',
+          isDirected: true,
           sourceToTargetLabel: '友人',
-          targetToSourceLabel: null,
+          targetToSourceLabel: '友人',
           createdAt: '2026-02-05T00:00:00.000Z',
         },
         {
           id: 'rel-2',
           sourcePersonId: 'person-2',
           targetPersonId: 'person-3',
-          type: 'one-way',
+          isDirected: true,
           sourceToTargetLabel: '同僚',
           targetToSourceLabel: null,
           createdAt: '2026-02-05T00:01:00.000Z',

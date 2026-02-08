@@ -9,6 +9,7 @@ import { PersonEditForm } from './PersonEditForm';
 import { useGraphStore } from '@/stores/useGraphStore';
 import type { Person } from '@/types/person';
 import type { Relationship } from '@/types/relationship';
+import { getRelationshipFromPerspective } from '@/lib/relationship-utils';
 
 /**
  * SingleSelectionPanelのプロパティ
@@ -49,43 +50,17 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
   const relatedRelationships: RelationshipItem[] = relationships
     .filter((r) => r.sourcePersonId === person.id || r.targetPersonId === person.id)
     .flatMap((relationship): RelationshipItem[] => {
-      if (relationship.type === 'dual-directed') {
-        // dual-directedの場合は2つの関係として展開
-        const isSource = relationship.sourcePersonId === person.id;
-        return [
-          {
-            relationship,
-            otherPersonId: isSource ? relationship.targetPersonId : relationship.sourcePersonId,
-            label: (isSource ? relationship.sourceToTargetLabel : relationship.targetToSourceLabel) || '',
-            direction: '→', // 自分→相手
-            key: `${relationship.id}-forward`,
-          },
-          {
-            relationship,
-            otherPersonId: isSource ? relationship.targetPersonId : relationship.sourcePersonId,
-            label: (isSource ? relationship.targetToSourceLabel : relationship.sourceToTargetLabel) || '',
-            direction: '←', // 相手→自分
-            key: `${relationship.id}-backward`,
-          },
-        ];
-      } else {
-        // bidirectional, one-way, undirectedの場合
-        const isSource = relationship.sourcePersonId === person.id;
-        return [
-          {
-            relationship,
-            otherPersonId: isSource ? relationship.targetPersonId : relationship.sourcePersonId,
-            label: relationship.sourceToTargetLabel,
-            direction:
-              relationship.type === 'bidirectional'
-                ? '↔'
-                : relationship.type === 'one-way'
-                  ? '→'
-                  : '—',
-            key: relationship.id,
-          },
-        ];
-      }
+      // getRelationshipFromPerspectiveを使用して視点ベースの関係情報を取得
+      const perspectiveItems = getRelationshipFromPerspective(relationship, person.id);
+
+      // RelationshipItemの配列に変換
+      return perspectiveItems.map((item, index) => ({
+        relationship,
+        otherPersonId: item.otherPersonId,
+        label: item.label,
+        direction: item.direction === '↔' ? '↔' : item.direction === '→' ? '→' : item.direction === '←' ? '←' : '—',
+        key: perspectiveItems.length > 1 ? `${relationship.id}-${index}` : relationship.id,
+      }));
     });
 
   return (

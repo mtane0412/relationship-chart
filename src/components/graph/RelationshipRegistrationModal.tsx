@@ -21,10 +21,10 @@ type ModalPersonInfo = {
 };
 
 /**
- * 編集時の初期データ
+ * 編集時の初期データ（UI用のRelationshipType形式）
  */
 type InitialRelationship = {
-  /** 関係のタイプ */
+  /** 関係のタイプ（UI表示用） */
   type: RelationshipType;
   /** sourceからtargetへのラベル */
   sourceToTargetLabel: string;
