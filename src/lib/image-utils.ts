@@ -140,6 +140,10 @@ export async function cropImage(
       canvas.width = targetSize;
       canvas.height = targetSize;
 
+      // 透過背景を白で塗りつぶす（透過PNGをアップロードした際の黒背景を防ぐ）
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, targetSize, targetSize);
+
       // クロップ領域を切り取って正方形にリサイズ
       ctx.drawImage(
         img,
