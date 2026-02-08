@@ -85,8 +85,31 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
   const addRelationship = useGraphStore((state) => state.addRelationship);
   const removeRelationship = useGraphStore((state) => state.removeRelationship);
   const clearSelection = useGraphStore((state) => state.clearSelection);
+  const selectPerson = useGraphStore((state) => state.selectPerson);
 
   const { getNode, setCenter } = useReactFlow();
+
+  /**
+   * ノードを画面中央に移動する
+   * @param personId - 人物ID
+   */
+  const focusNode = (personId: string) => {
+    const node = getNode(personId);
+    if (node) {
+      const w = node.measured?.width ?? 80;
+      const h = node.measured?.height ?? 120;
+      setCenter(node.position.x + w / 2, node.position.y + h / 2, { duration: 500 });
+    }
+  };
+
+  /**
+   * 人物を単一選択する
+   * @param personId - 人物ID
+   */
+  const handleSelectPerson = (personId: string) => {
+    selectPerson(personId);
+    focusNode(personId);
+  };
 
   const [person1, person2] = persons;
 
@@ -164,7 +187,19 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
         {/* 選択された2人のアバター表示 */}
         <div className="flex items-center justify-center gap-3 mb-3">
           {/* 人物1のアバター */}
-          <div className="flex flex-col items-center gap-1">
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => handleSelectPerson(person1.id)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleSelectPerson(person1.id);
+              }
+            }}
+            aria-label={`${person1.name}を選択`}
+            className="flex flex-col items-center gap-1 cursor-pointer hover:opacity-75 transition-opacity"
+          >
             {person1.imageDataUrl ? (
               <img
                 src={person1.imageDataUrl}
@@ -188,7 +223,19 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
           )}
 
           {/* 人物2のアバター */}
-          <div className="flex flex-col items-center gap-1">
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => handleSelectPerson(person2.id)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleSelectPerson(person2.id);
+              }
+            }}
+            aria-label={`${person2.name}を選択`}
+            className="flex flex-col items-center gap-1 cursor-pointer hover:opacity-75 transition-opacity"
+          >
             {person2.imageDataUrl ? (
               <img
                 src={person2.imageDataUrl}
