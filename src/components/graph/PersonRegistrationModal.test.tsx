@@ -3,7 +3,7 @@
  * クロップUI統合後の振る舞いを検証
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PersonRegistrationModal } from './PersonRegistrationModal';
@@ -12,6 +12,10 @@ describe('PersonRegistrationModal', () => {
   const mockOnSubmit = vi.fn();
   const mockOnCancel = vi.fn();
   const mockImageSrc = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('モーダルが閉じている場合は何も表示しない', () => {
     const { container } = render(

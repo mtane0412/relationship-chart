@@ -81,9 +81,11 @@ describe('ImageCropper', () => {
     const confirmButton = screen.getByRole('button', { name: /確定/i });
     await user.click(confirmButton);
 
-    // エラーメッセージが表示されることを確認
+    // エラーメッセージが表示されることを確認（次のアクションを促すメッセージ含む）
     await waitFor(() => {
-      expect(screen.getByText(/クロップ処理に失敗しました/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/クロップ処理に失敗しました。キャンセルしてやり直してください。/i)
+      ).toBeInTheDocument();
     });
 
     // onCompleteが呼ばれないことを確認

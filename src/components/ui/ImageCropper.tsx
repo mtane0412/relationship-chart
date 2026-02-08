@@ -54,10 +54,10 @@ export default function ImageCropper({
       const croppedImage = await cropImage(imageSrc, croppedAreaPixels);
       onComplete(croppedImage);
     } catch (error) {
-      // エラーメッセージをUIに表示
-      const errorMessage =
+      // エラーメッセージをUIに表示（ユーザーに次のアクションを促す）
+      const baseMessage =
         error instanceof Error ? error.message : 'クロップ処理に失敗しました';
-      setError(errorMessage);
+      setError(`${baseMessage}。キャンセルしてやり直してください。`);
 
       // 開発環境ではコンソールにもログ出力
       if (process.env.NODE_ENV === 'development') {
