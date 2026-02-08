@@ -25,6 +25,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { PersonNode } from './PersonNode';
+import { ItemNode } from './ItemNode';
 import { RelationshipEdge as RelationshipEdgeComponent } from './RelationshipEdge';
 import { PersonRegistrationModal } from './PersonRegistrationModal';
 import { RelationshipRegistrationModal } from './RelationshipRegistrationModal';
@@ -34,7 +35,7 @@ import { personsToNodes, relationshipsToEdges } from '@/lib/graph-utils';
 import { readFileAsDataUrl } from '@/lib/image-utils';
 import { getRelationshipDisplayType } from '@/lib/relationship-utils';
 import type {
-  PersonNode as PersonNodeType,
+  GraphNode,
   RelationshipEdge,
 } from '@/types/graph';
 import type { RelationshipType } from '@/types/relationship';
@@ -42,6 +43,7 @@ import type { RelationshipType } from '@/types/relationship';
 // カスタムノードタイプの定義
 const nodeTypes: NodeTypes = {
   person: PersonNode,
+  item: ItemNode,
 };
 
 // カスタムエッジタイプの定義
@@ -85,7 +87,7 @@ export function RelationshipGraph() {
   const clearSelection = useGraphStore((state) => state.clearSelection);
 
   // React Flowのノードとエッジの状態
-  const [nodes, setNodes, onNodesChange] = useNodesState<PersonNodeType>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<GraphNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<RelationshipEdge>([]);
 
   // 登録モーダルの状態
@@ -98,7 +100,7 @@ export function RelationshipGraph() {
   // ノード位置更新のコールバック（useForceLayout用）
   const handleNodesUpdate = useCallback(
     (updatedNodes: Node[]) => {
-      setNodes(updatedNodes as PersonNodeType[]);
+      setNodes(updatedNodes as GraphNode[]);
     },
     [setNodes]
   );
@@ -373,7 +375,7 @@ export function RelationshipGraph() {
       if (nodesToDelete.length === 0) return;
 
       const count = nodesToDelete.length;
-      const firstNode = nodesToDelete[0] as PersonNodeType;
+      const firstNode = nodesToDelete[0] as GraphNode;
       const message =
         count === 1
           ? `「${firstNode.data?.name || '不明な人物'}」を削除してもよろしいですか？`

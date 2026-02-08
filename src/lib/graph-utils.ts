@@ -5,24 +5,31 @@
 
 import type { Person } from '@/types/person';
 import type { Relationship } from '@/types/relationship';
-import type { PersonNode, RelationshipEdge } from '@/types/graph';
+import type { GraphNode, RelationshipEdge } from '@/types/graph';
 import { getRelationshipDisplayType } from './relationship-utils';
 
 /**
- * Person配列をPersonNode配列に変換する
+ * Person配列をGraphNode配列（PersonNodeまたはItemNode）に変換する
  * @param persons - 変換対象のPerson配列
- * @returns PersonNode配列。初期位置は(0, 0)に設定される
+ * @returns GraphNode配列。初期位置は(0, 0)に設定される
  */
-export function personsToNodes(persons: Person[]): PersonNode[] {
-  return persons.map((person) => ({
-    id: person.id,
-    type: 'person' as const,
-    data: {
-      name: person.name,
-      imageDataUrl: person.imageDataUrl,
-    },
-    position: { x: 0, y: 0 },
-  }));
+export function personsToNodes(persons: Person[]): GraphNode[] {
+  return persons.map((person) => {
+    // kindが未設定の場合は'person'として扱う
+    const kind = person.kind ?? 'person';
+    const nodeType = kind === 'item' ? ('item' as const) : ('person' as const);
+
+    return {
+      id: person.id,
+      type: nodeType,
+      data: {
+        name: person.name,
+        imageDataUrl: person.imageDataUrl,
+        kind: person.kind,
+      },
+      position: { x: 0, y: 0 },
+    };
+  });
 }
 
 /**

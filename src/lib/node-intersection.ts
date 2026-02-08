@@ -43,10 +43,104 @@ export function getCircleIntersection(
 }
 
 /**
+ * 四角形の境界との交点を計算する
+ * @param center - 四角形の中心座標
+ * @param width - 四角形の幅
+ * @param height - 四角形の高さ
+ * @param targetX - ターゲットのx座標
+ * @param targetY - ターゲットのy座標
+ * @returns 四角形の境界上の交点座標
+ */
+export function getRectIntersection(
+  center: { x: number; y: number },
+  width: number,
+  height: number,
+  targetX: number,
+  targetY: number
+): { x: number; y: number } {
+  // 中心からターゲットへの方向ベクトル
+  const dx = targetX - center.x;
+  const dy = targetY - center.y;
+
+  // 四角形の半分のサイズ
+  const halfWidth = width / 2;
+  const halfHeight = height / 2;
+
+  // ゼロ除算を避けるための処理
+  if (dx === 0 && dy === 0) {
+    // ターゲットが中心と同じ位置の場合は右辺の中点を返す
+    return { x: center.x + halfWidth, y: center.y };
+  }
+
+  // 各辺との交点を計算し、最も近いものを選択
+  let minDistance = Infinity;
+  let intersection = { x: center.x + halfWidth, y: center.y };
+
+  // 右辺との交点
+  if (dx !== 0) {
+    const t = halfWidth / Math.abs(dx);
+    const y = center.y + (dy * t * Math.sign(dx));
+    if (Math.abs(y - center.y) <= halfHeight && dx > 0) {
+      const x = center.x + halfWidth;
+      const distance = Math.sqrt((x - targetX) ** 2 + (y - targetY) ** 2);
+      if (distance < minDistance) {
+        minDistance = distance;
+        intersection = { x, y };
+      }
+    }
+  }
+
+  // 左辺との交点
+  if (dx !== 0) {
+    const t = halfWidth / Math.abs(dx);
+    const y = center.y + (dy * t * Math.sign(dx));
+    if (Math.abs(y - center.y) <= halfHeight && dx < 0) {
+      const x = center.x - halfWidth;
+      const distance = Math.sqrt((x - targetX) ** 2 + (y - targetY) ** 2);
+      if (distance < minDistance) {
+        minDistance = distance;
+        intersection = { x, y };
+      }
+    }
+  }
+
+  // 下辺との交点
+  if (dy !== 0) {
+    const t = halfHeight / Math.abs(dy);
+    const x = center.x + (dx * t * Math.sign(dy));
+    if (Math.abs(x - center.x) <= halfWidth && dy > 0) {
+      const y = center.y + halfHeight;
+      const distance = Math.sqrt((x - targetX) ** 2 + (y - targetY) ** 2);
+      if (distance < minDistance) {
+        minDistance = distance;
+        intersection = { x, y };
+      }
+    }
+  }
+
+  // 上辺との交点
+  if (dy !== 0) {
+    const t = halfHeight / Math.abs(dy);
+    const x = center.x + (dx * t * Math.sign(dy));
+    if (Math.abs(x - center.x) <= halfWidth && dy < 0) {
+      const y = center.y - halfHeight;
+      const distance = Math.sqrt((x - targetX) ** 2 + (y - targetY) ** 2);
+      if (distance < minDistance) {
+        minDistance = distance;
+        intersection = { x, y };
+      }
+    }
+  }
+
+  return intersection;
+}
+
+/**
  * ノードの情報（位置とサイズ）
  */
 interface NodeInfo {
   id: string;
+  type?: string;
   position: { x: number; y: number };
   measured?: { width?: number; height?: number };
 }
@@ -64,9 +158,11 @@ export function getEdgeIntersectionPoints(
   sourcePoint: { x: number; y: number };
   targetPoint: { x: number; y: number };
 } {
-  // ノードの幅を取得（名前ラベルの幅で可変、デフォルトは画像サイズ）
+  // ノードの幅と高さを取得（名前ラベルの幅で可変、デフォルトは画像サイズ）
   const sourceWidth = sourceNode.measured?.width || PERSON_IMAGE_SIZE;
+  const sourceHeight = sourceNode.measured?.height || PERSON_IMAGE_SIZE;
   const targetWidth = targetNode.measured?.width || PERSON_IMAGE_SIZE;
+  const targetHeight = targetNode.measured?.height || PERSON_IMAGE_SIZE;
 
   // ノードの中心座標を計算
   // centerX: 名前ラベルの幅に応じて可変
@@ -76,24 +172,41 @@ export function getEdgeIntersectionPoints(
   const targetCenterX = targetNode.position.x + targetWidth / 2;
   const targetCenterY = targetNode.position.y + PERSON_IMAGE_RADIUS;
 
-  // 円形ノードの半径（画像サイズ固定）
-  const radius = PERSON_IMAGE_RADIUS;
+  // ノードの種別に応じて交点を計算
+  const sourceIsItem = sourceNode.type === 'item';
+  const targetIsItem = targetNode.type === 'item';
 
   // ソースノードの境界との交点を計算
-  const sourcePoint = getCircleIntersection(
-    { x: sourceCenterX, y: sourceCenterY },
-    radius,
-    targetCenterX,
-    targetCenterY
-  );
+  const sourcePoint = sourceIsItem
+    ? getRectIntersection(
+        { x: sourceCenterX, y: sourceCenterY },
+        sourceWidth,
+        sourceHeight,
+        targetCenterX,
+        targetCenterY
+      )
+    : getCircleIntersection(
+        { x: sourceCenterX, y: sourceCenterY },
+        PERSON_IMAGE_RADIUS,
+        targetCenterX,
+        targetCenterY
+      );
 
   // ターゲットノードの境界との交点を計算
-  const targetPoint = getCircleIntersection(
-    { x: targetCenterX, y: targetCenterY },
-    radius,
-    sourceCenterX,
-    sourceCenterY
-  );
+  const targetPoint = targetIsItem
+    ? getRectIntersection(
+        { x: targetCenterX, y: targetCenterY },
+        targetWidth,
+        targetHeight,
+        sourceCenterX,
+        sourceCenterY
+      )
+    : getCircleIntersection(
+        { x: targetCenterX, y: targetCenterY },
+        PERSON_IMAGE_RADIUS,
+        sourceCenterX,
+        sourceCenterY
+      );
 
   return {
     sourcePoint,
