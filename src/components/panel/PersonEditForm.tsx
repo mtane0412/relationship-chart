@@ -37,6 +37,7 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const firstMenuItemRef = useRef<HTMLButtonElement>(null);
   const secondMenuItemRef = useRef<HTMLButtonElement>(null);
+  const thirdMenuItemRef = useRef<HTMLButtonElement>(null);
 
   // 名前変更ハンドラ（ローカルstateのみ更新）
   const handleNameChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -148,28 +149,75 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
     }
   };
 
+  // クリップボードから画像を貼り付けるハンドラ
+  const handleClipboardPaste = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    setShowMenu(false);
+    setError('');
+
+    try {
+      // Clipboard APIの対応チェック
+      if (!navigator.clipboard?.read) {
+        setError('このブラウザではクリップボードからの貼り付けに対応していません');
+        return;
+      }
+
+      // Clipboard APIで画像を取得
+      const clipboardItems = await navigator.clipboard.read();
+
+      // 画像アイテムを検索
+      for (const item of clipboardItems) {
+        const imageType = item.types.find((type) => type.startsWith('image/'));
+
+        if (imageType) {
+          const blob = await item.getType(imageType);
+          // BlobをFileに変換
+          const file = new File([blob], 'clipboard.png', { type: blob.type });
+          await handleImageFile(file);
+          return;
+        }
+      }
+
+      // 画像が見つからなかった場合
+      setError('クリップボードに画像がありません');
+    } catch (err) {
+      // エラーハンドリング
+      if (err instanceof Error && err.name === 'NotAllowedError') {
+        setError('クリップボードへのアクセスが許可されていません');
+      } else {
+        const errorMessage = err instanceof Error ? err.message : 'クリップボードからの貼り付けに失敗しました';
+        setError(errorMessage);
+      }
+      if (process.env.NODE_ENV === 'development') {
+        console.error('クリップボードエラー:', err);
+      }
+    }
+  };
+
   // メニューアイテムのキーボードナビゲーションハンドラ
-  const handleMenuItemKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, isFirst: boolean) => {
+  const handleMenuItemKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, menuIndex: number) => {
+    // メニューの表示状態に応じてref配列を動的に構築
+    const menuRefs = [firstMenuItemRef, secondMenuItemRef];
+    if (imageDataUrl) {
+      menuRefs.push(thirdMenuItemRef);
+    }
+
+    const menuCount = menuRefs.length;
+
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      if (isFirst && secondMenuItemRef.current) {
-        secondMenuItemRef.current.focus();
-      }
+      const nextIndex = (menuIndex + 1) % menuCount;
+      menuRefs[nextIndex].current?.focus();
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      if (!isFirst && firstMenuItemRef.current) {
-        firstMenuItemRef.current.focus();
-      }
+      const prevIndex = (menuIndex - 1 + menuCount) % menuCount;
+      menuRefs[prevIndex].current?.focus();
     } else if (e.key === 'Home') {
       e.preventDefault();
       firstMenuItemRef.current?.focus();
     } else if (e.key === 'End') {
       e.preventDefault();
-      if (secondMenuItemRef.current) {
-        secondMenuItemRef.current.focus();
-      } else {
-        firstMenuItemRef.current?.focus();
-      }
+      menuRefs[menuCount - 1].current?.focus();
     }
   };
 
@@ -339,23 +387,32 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
             <div
               ref={menuRef}
               role="menu"
-              className="absolute left-1/2 transform -translate-x-1/2 mt-2 bg-white border border-gray-300 rounded-md shadow-lg z-10 min-w-[160px]"
+              className="absolute left-1/2 transform -translate-x-1/2 mt-2 bg-white border border-gray-300 rounded-md shadow-lg z-10 min-w-[200px]"
             >
               <button
                 ref={firstMenuItemRef}
                 role="menuitem"
                 onClick={handleUploadClick}
-                onKeyDown={(e) => handleMenuItemKeyDown(e, true)}
+                onKeyDown={(e) => handleMenuItemKeyDown(e, 0)}
                 className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 focus:outline-none focus:bg-gray-100"
               >
                 画像をアップロード
               </button>
+              <button
+                ref={secondMenuItemRef}
+                role="menuitem"
+                onClick={handleClipboardPaste}
+                onKeyDown={(e) => handleMenuItemKeyDown(e, 1)}
+                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 border-t border-gray-200"
+              >
+                クリップボードから貼り付け
+              </button>
               {imageDataUrl && (
                 <button
-                  ref={secondMenuItemRef}
+                  ref={thirdMenuItemRef}
                   role="menuitem"
                   onClick={handleRemoveImage}
-                  onKeyDown={(e) => handleMenuItemKeyDown(e, false)}
+                  onKeyDown={(e) => handleMenuItemKeyDown(e, 2)}
                   className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 focus:outline-none focus:bg-red-50 border-t border-gray-200"
                 >
                   画像を削除

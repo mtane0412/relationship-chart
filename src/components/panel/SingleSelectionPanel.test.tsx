@@ -19,14 +19,22 @@ vi.mock('@/stores/useGraphStore', () => ({
   useGraphStore: vi.fn(),
 }));
 
+// useReactFlowのモック
+vi.mock('@xyflow/react', () => ({
+  useReactFlow: vi.fn(),
+}));
+
 // 動的importのため型をimport
 import { useGraphStore } from '@/stores/useGraphStore';
+import { useReactFlow } from '@xyflow/react';
 
 describe('SingleSelectionPanel - 関係クリック遷移', () => {
   const mockSetSelectedPersonIds = vi.fn();
   const mockRemovePerson = vi.fn();
   const mockRemoveRelationship = vi.fn();
   const mockClearSelection = vi.fn();
+  const mockGetNode = vi.fn();
+  const mockSetCenter = vi.fn();
 
   const testPerson: Person = {
     id: 'person-1',
@@ -67,6 +75,12 @@ describe('SingleSelectionPanel - 関係クリック遷移', () => {
       };
       return selector(state as never);
     });
+
+    // useReactFlowのモック設定
+    vi.mocked(useReactFlow).mockReturnValue({
+      getNode: mockGetNode,
+      setCenter: mockSetCenter,
+    } as never);
   });
 
   it('関係行をクリックすると2人選択状態に遷移する', async () => {
@@ -135,6 +149,130 @@ describe('SingleSelectionPanel - 関係クリック遷移', () => {
     expect(mockSetSelectedPersonIds).toHaveBeenCalledWith(['person-1', 'person-2']);
     expect(mockSetSelectedPersonIds).toHaveBeenCalledTimes(1);
   });
+
+  it('関係行クリック時にエッジ中心にビューポートが移動する', async () => {
+    const user = userEvent.setup();
+
+    // ノード情報をモック（位置とサイズ）
+    mockGetNode.mockImplementation((id: string) => {
+      if (id === 'person-1') {
+        return {
+          id: 'person-1',
+          position: { x: 0, y: 0 },
+          measured: { width: 80, height: 120 },
+        };
+      }
+      if (id === 'person-2') {
+        return {
+          id: 'person-2',
+          position: { x: 200, y: 100 },
+          measured: { width: 80, height: 120 },
+        };
+      }
+      return undefined;
+    });
+
+    render(<SingleSelectionPanel person={testPerson} />);
+
+    // 関係行をクリック
+    const relationshipRow = screen.getByText('親友').closest('div[role="button"]') as HTMLElement;
+    await user.click(relationshipRow);
+
+    // ノード中心の計算
+    // person-1: (0 + 80/2, 0 + 120/2) = (40, 60)
+    // person-2: (200 + 80/2, 100 + 120/2) = (240, 160)
+    // 中間点: ((40 + 240) / 2, (60 + 160) / 2) = (140, 110)
+    expect(mockSetCenter).toHaveBeenCalledWith(140, 110, { duration: 500 });
+  });
+
+  it('ノードが見つからない場合、ビューポート移動は呼ばれない', async () => {
+    const user = userEvent.setup();
+
+    // ノードが見つからない
+    mockGetNode.mockReturnValue(undefined);
+
+    render(<SingleSelectionPanel person={testPerson} />);
+
+    // 関係行をクリック
+    const relationshipRow = screen.getByText('親友').closest('div[role="button"]') as HTMLElement;
+    await user.click(relationshipRow);
+
+    // setSelectedPersonIdsは呼ばれる
+    expect(mockSetSelectedPersonIds).toHaveBeenCalledWith(['person-1', 'person-2']);
+
+    // ビューポート移動は呼ばれない
+    expect(mockSetCenter).not.toHaveBeenCalled();
+  });
+
+  it('measuredがないノードではデフォルト値が使用される', async () => {
+    const user = userEvent.setup();
+
+    // measuredがないノード情報をモック
+    mockGetNode.mockImplementation((id: string) => {
+      if (id === 'person-1') {
+        return {
+          id: 'person-1',
+          position: { x: 0, y: 0 },
+          // measuredなし
+        };
+      }
+      if (id === 'person-2') {
+        return {
+          id: 'person-2',
+          position: { x: 200, y: 100 },
+          // measuredなし
+        };
+      }
+      return undefined;
+    });
+
+    render(<SingleSelectionPanel person={testPerson} />);
+
+    // 関係行をクリック
+    const relationshipRow = screen.getByText('親友').closest('div[role="button"]') as HTMLElement;
+    await user.click(relationshipRow);
+
+    // デフォルト値（80, 120）を使用した中心計算
+    // person-1: (0 + 80/2, 0 + 120/2) = (40, 60)
+    // person-2: (200 + 80/2, 100 + 120/2) = (240, 160)
+    // 中間点: (140, 110)
+    expect(mockSetCenter).toHaveBeenCalledWith(140, 110, { duration: 500 });
+  });
+
+  it('キーボード操作でもビューポートが移動する', async () => {
+    const user = userEvent.setup();
+
+    // ノード情報をモック
+    mockGetNode.mockImplementation((id: string) => {
+      if (id === 'person-1') {
+        return {
+          id: 'person-1',
+          position: { x: 0, y: 0 },
+          measured: { width: 80, height: 120 },
+        };
+      }
+      if (id === 'person-2') {
+        return {
+          id: 'person-2',
+          position: { x: 200, y: 100 },
+          measured: { width: 80, height: 120 },
+        };
+      }
+      return undefined;
+    });
+
+    render(<SingleSelectionPanel person={testPerson} />);
+
+    // 関係行を探す
+    const relationshipRow = screen.getByText('親友').closest('div[role="button"]') as HTMLElement;
+
+    // フォーカスを当ててEnterキーを押す
+    relationshipRow.focus();
+    await user.keyboard('{Enter}');
+
+    // ビューポート移動が呼ばれる
+    expect(mockSetCenter).toHaveBeenCalledWith(140, 110, { duration: 500 });
+  });
 });
 
 describe('SingleSelectionPanel - アイコン付き表示', () => {
@@ -142,6 +280,8 @@ describe('SingleSelectionPanel - アイコン付き表示', () => {
   const mockRemovePerson = vi.fn();
   const mockRemoveRelationship = vi.fn();
   const mockClearSelection = vi.fn();
+  const mockGetNode = vi.fn();
+  const mockSetCenter = vi.fn();
 
   const testPerson: Person = {
     id: 'person-1',
@@ -199,6 +339,12 @@ describe('SingleSelectionPanel - アイコン付き表示', () => {
       };
       return selector(state as never);
     });
+
+    // useReactFlowのモック設定
+    vi.mocked(useReactFlow).mockReturnValue({
+      getNode: mockGetNode,
+      setCenter: mockSetCenter,
+    } as never);
   });
 
   it('相手人物の画像がある場合、アバター画像が矢印の後に表示される', () => {
@@ -282,6 +428,8 @@ describe('SingleSelectionPanel - dual-directed表示', () => {
   const mockRemovePerson = vi.fn();
   const mockRemoveRelationship = vi.fn();
   const mockClearSelection = vi.fn();
+  const mockGetNode = vi.fn();
+  const mockSetCenter = vi.fn();
 
   const testPerson: Person = {
     id: 'person-1',
@@ -322,6 +470,12 @@ describe('SingleSelectionPanel - dual-directed表示', () => {
       };
       return selector(state as never);
     });
+
+    // useReactFlowのモック設定
+    vi.mocked(useReactFlow).mockReturnValue({
+      getNode: mockGetNode,
+      setCenter: mockSetCenter,
+    } as never);
   });
 
   it('dual-directed関係は2つの行として表示される', () => {

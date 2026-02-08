@@ -8,6 +8,7 @@
 import { useCallback } from 'react';
 import { useReactFlow } from '@xyflow/react';
 import { useGraphStore } from '@/stores/useGraphStore';
+import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils';
 
 /**
  * 人物一覧コンポーネント
@@ -29,9 +30,8 @@ export function PersonList() {
     (personId: string) => {
       const node = getNode(personId);
       if (node) {
-        const w = node.measured?.width ?? 80;
-        const h = node.measured?.height ?? 120;
-        setCenter(node.position.x + w / 2, node.position.y + h / 2, { duration: 500 });
+        const center = getNodeCenter(node);
+        setCenter(center.x, center.y, { duration: VIEWPORT_ANIMATION_DURATION });
       }
     },
     [getNode, setCenter]

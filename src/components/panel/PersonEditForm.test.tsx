@@ -2,7 +2,7 @@
  * PersonEditFormコンポーネントのテスト
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PersonEditForm } from './PersonEditForm';
 import { useGraphStore } from '@/stores/useGraphStore';
@@ -463,42 +463,192 @@ describe('PersonEditForm', () => {
       expect(screen.getByText('画像をアップロード')).toBeInTheDocument();
     });
 
-    it('ArrowDownキーでメニュー内を下に移動できる', () => {
+    it('ArrowDownキーでメニュー内を下に移動できる（3項目）', () => {
       render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
 
       const iconArea = screen.getByTestId('person-icon-area');
       fireEvent.click(iconArea);
 
       const uploadButton = screen.getByText('画像をアップロード');
+      const pasteButton = screen.getByText('クリップボードから貼り付け');
       const deleteButton = screen.getByText('画像を削除');
 
       // 最初のボタンにフォーカス
       uploadButton.focus();
 
-      // ArrowDownキーを押す
+      // ArrowDownキーを押す（アップロード → クリップボード）
       fireEvent.keyDown(uploadButton, { key: 'ArrowDown' });
+      expect(document.activeElement).toBe(pasteButton);
 
-      // 次のボタンにフォーカスが移動することを確認
+      // ArrowDownキーを押す（クリップボード → 削除）
+      fireEvent.keyDown(pasteButton, { key: 'ArrowDown' });
       expect(document.activeElement).toBe(deleteButton);
+
+      // ArrowDownキーを押す（削除 → アップロード）
+      fireEvent.keyDown(deleteButton, { key: 'ArrowDown' });
+      expect(document.activeElement).toBe(uploadButton);
     });
 
-    it('ArrowUpキーでメニュー内を上に移動できる', () => {
+    it('ArrowUpキーでメニュー内を上に移動できる（3項目）', () => {
       render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
 
       const iconArea = screen.getByTestId('person-icon-area');
       fireEvent.click(iconArea);
 
       const uploadButton = screen.getByText('画像をアップロード');
+      const pasteButton = screen.getByText('クリップボードから貼り付け');
       const deleteButton = screen.getByText('画像を削除');
 
-      // 2番目のボタンにフォーカス
+      // 削除ボタンにフォーカス
       deleteButton.focus();
 
-      // ArrowUpキーを押す
+      // ArrowUpキーを押す（削除 → クリップボード）
       fireEvent.keyDown(deleteButton, { key: 'ArrowUp' });
+      expect(document.activeElement).toBe(pasteButton);
 
-      // 前のボタンにフォーカスが移動することを確認
+      // ArrowUpキーを押す（クリップボード → アップロード）
+      fireEvent.keyDown(pasteButton, { key: 'ArrowUp' });
       expect(document.activeElement).toBe(uploadButton);
+
+      // ArrowUpキーを押す（アップロード → 削除）
+      fireEvent.keyDown(uploadButton, { key: 'ArrowUp' });
+      expect(document.activeElement).toBe(deleteButton);
+    });
+  });
+
+  describe('クリップボードからの画像貼り付け', () => {
+    let originalClipboard: Clipboard | undefined;
+
+    beforeEach(() => {
+      // 元のnavigator.clipboardを保存
+      originalClipboard = navigator.clipboard;
+    });
+
+    afterEach(() => {
+      // navigator.clipboardを復元
+      Object.defineProperty(navigator, 'clipboard', {
+        value: originalClipboard,
+        writable: true,
+        configurable: true,
+      });
+    });
+
+    it('メニューに「クリップボードから貼り付け」が表示される', () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const iconArea = screen.getByTestId('person-icon-area');
+      fireEvent.click(iconArea);
+
+      // メニューに「クリップボードから貼り付け」が表示されることを確認
+      expect(screen.getByText('クリップボードから貼り付け')).toBeInTheDocument();
+    });
+
+    it('クリップボードに画像がある場合、readFileAsDataUrlが呼ばれる', async () => {
+      // Clipboard APIをモック
+      const mockBlob = new Blob(['mock-image'], { type: 'image/png' });
+      const mockClipboardItem = {
+        types: ['image/png'],
+        getType: vi.fn().mockResolvedValue(mockBlob),
+      };
+
+      Object.defineProperty(navigator, 'clipboard', {
+        value: {
+          read: vi.fn().mockResolvedValue([mockClipboardItem]),
+        },
+        writable: true,
+        configurable: true,
+      });
+
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const iconArea = screen.getByTestId('person-icon-area');
+      fireEvent.click(iconArea);
+
+      const pasteButton = screen.getByText('クリップボードから貼り付け');
+      fireEvent.click(pasteButton);
+
+      // readFileAsDataUrlが呼ばれることを確認
+      await waitFor(() => {
+        expect(vi.mocked(readFileAsDataUrl)).toHaveBeenCalled();
+      });
+    });
+
+    it('クリップボードに画像がない場合、エラーメッセージが表示される', async () => {
+      // Clipboard APIをモック（画像なし）
+      const mockClipboardItem = {
+        types: ['text/plain'],
+        getType: vi.fn(),
+      };
+
+      Object.defineProperty(navigator, 'clipboard', {
+        value: {
+          read: vi.fn().mockResolvedValue([mockClipboardItem]),
+        },
+        writable: true,
+        configurable: true,
+      });
+
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const iconArea = screen.getByTestId('person-icon-area');
+      fireEvent.click(iconArea);
+
+      const pasteButton = screen.getByText('クリップボードから貼り付け');
+      fireEvent.click(pasteButton);
+
+      // エラーメッセージが表示されることを確認
+      await waitFor(() => {
+        expect(screen.getByText('クリップボードに画像がありません')).toBeInTheDocument();
+      });
+    });
+
+    it('クリップボードアクセスが拒否された場合、エラーメッセージが表示される', async () => {
+      // Clipboard APIをモック（権限拒否）
+      const notAllowedError = new Error('Permission denied');
+      notAllowedError.name = 'NotAllowedError';
+
+      Object.defineProperty(navigator, 'clipboard', {
+        value: {
+          read: vi.fn().mockRejectedValue(notAllowedError),
+        },
+        writable: true,
+        configurable: true,
+      });
+
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const iconArea = screen.getByTestId('person-icon-area');
+      fireEvent.click(iconArea);
+
+      const pasteButton = screen.getByText('クリップボードから貼り付け');
+      fireEvent.click(pasteButton);
+
+      // エラーメッセージが表示されることを確認
+      await waitFor(() => {
+        expect(screen.getByText('クリップボードへのアクセスが許可されていません')).toBeInTheDocument();
+      });
+    });
+
+    it('Clipboard APIが未対応の場合、エラーメッセージが表示される', async () => {
+      // Clipboard APIを未定義にする
+      Object.defineProperty(navigator, 'clipboard', {
+        value: undefined,
+        writable: true,
+        configurable: true,
+      });
+
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const iconArea = screen.getByTestId('person-icon-area');
+      fireEvent.click(iconArea);
+
+      const pasteButton = screen.getByText('クリップボードから貼り付け');
+      fireEvent.click(pasteButton);
+
+      // エラーメッセージが表示されることを確認
+      await waitFor(() => {
+        expect(screen.getByText('このブラウザではクリップボードからの貼り付けに対応していません')).toBeInTheDocument();
+      });
     });
   });
 });

@@ -7,9 +7,11 @@
 
 import { PersonEditForm } from './PersonEditForm';
 import { useGraphStore } from '@/stores/useGraphStore';
+import { useReactFlow } from '@xyflow/react';
 import type { Person } from '@/types/person';
 import type { Relationship } from '@/types/relationship';
 import { getRelationshipFromPerspective } from '@/lib/relationship-utils';
+import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils';
 
 /**
  * SingleSelectionPanelのプロパティ
@@ -29,6 +31,7 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
   const removePerson = useGraphStore((state) => state.removePerson);
   const clearSelection = useGraphStore((state) => state.clearSelection);
   const setSelectedPersonIds = useGraphStore((state) => state.setSelectedPersonIds);
+  const { getNode, setCenter } = useReactFlow();
 
   // 人物削除ハンドラ
   const handleDeletePerson = () => {
@@ -85,9 +88,26 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
 
               if (!otherPerson) return null;
 
-              // 関係クリックハンドラ: 2人選択状態に遷移
+              // 関係クリックハンドラ: 2人選択状態に遷移 + ビューポート移動
               const handleRelationshipClick = () => {
                 setSelectedPersonIds([person.id, otherPerson.id]);
+
+                // ビューポートを2つのノードの中間点に移動
+                const node1 = getNode(person.id);
+                const node2 = getNode(otherPerson.id);
+
+                if (node1 && node2) {
+                  // 各ノードの中心座標を計算
+                  const node1Center = getNodeCenter(node1);
+                  const node2Center = getNodeCenter(node2);
+
+                  // 2つのノードの中間点を計算
+                  const midX = (node1Center.x + node2Center.x) / 2;
+                  const midY = (node1Center.y + node2Center.y) / 2;
+
+                  // ビューポートを中間点に移動（アニメーション付き）
+                  setCenter(midX, midY, { duration: VIEWPORT_ANIMATION_DURATION });
+                }
               };
 
               // キーボードハンドラ: Enter/Spaceで遷移
