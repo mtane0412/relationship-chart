@@ -47,6 +47,89 @@ describe('PairSelectionPanel', () => {
     });
   });
 
+  describe('UI構造', () => {
+    it('フォーム上部に「2人を選択中」タイトルが表示される', () => {
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      expect(screen.getByText('2人を選択中')).toBeInTheDocument();
+    });
+
+    it('フォーム上部に「選択解除」ボタンが表示される', () => {
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      expect(screen.getByRole('button', { name: '選択を解除' })).toBeInTheDocument();
+    });
+
+    it('フォーム内のアバターの下に名前が表示される', () => {
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      expect(screen.getByText('山田太郎')).toBeInTheDocument();
+      expect(screen.getByText('佐藤花子')).toBeInTheDocument();
+    });
+
+    it('フォーム内のアバターがクリック可能である', () => {
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const person1Avatar = screen.getByRole('button', { name: '山田太郎を選択' });
+      const person2Avatar = screen.getByRole('button', { name: '佐藤花子を選択' });
+
+      expect(person1Avatar).toBeInTheDocument();
+      expect(person2Avatar).toBeInTheDocument();
+    });
+
+    it('「選択解除」ボタンをクリックすると選択が解除される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const clearButton = screen.getByRole('button', { name: '選択を解除' });
+      await user.click(clearButton);
+
+      // ストアの選択が解除されたことを確認
+      await waitFor(() => {
+        const state = useGraphStore.getState();
+        expect(state.selectedPersonIds).toHaveLength(0);
+      });
+    });
+
+    it('フォーム内のアバターをクリックすると単一選択に切り替わる', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const person1Avatar = screen.getByRole('button', { name: '山田太郎を選択' });
+      await user.click(person1Avatar);
+
+      // ストアが単一選択に切り替わったことを確認
+      await waitFor(() => {
+        const state = useGraphStore.getState();
+        expect(state.selectedPersonIds).toEqual([person1.id]);
+      });
+    });
+  });
+
   describe('既存の関係がない場合', () => {
     it('関係追加フォームが表示される', () => {
       render(
@@ -78,14 +161,16 @@ describe('PairSelectionPanel', () => {
       });
     });
 
-    it('関係情報が表示される', () => {
+    it('編集フォームに既存のラベルが初期値として設定される', () => {
       render(
         <ReactFlowProvider>
           <PairSelectionPanel persons={[person1, person2]} />
         </ReactFlowProvider>
       );
 
-      expect(screen.getByText('「友人」')).toBeInTheDocument();
+      // フォームのラベル入力に既存の値が設定されている
+      const labelInput = screen.getByLabelText('関係のラベル') as HTMLInputElement;
+      expect(labelInput.value).toBe('友人');
     });
 
     it('編集フォームが表示される', () => {
@@ -243,7 +328,7 @@ describe('PairSelectionPanel', () => {
       expect(reverseLabelInput.value).toBe('無関心');
     });
 
-    it('関係の向きが逆の場合でも正しく表示される', async () => {
+    it('関係の向きが逆の場合でもフォームに正しいラベルが設定される', () => {
       // person2 → person1 の関係を設定
       useGraphStore.setState({
         relationships: [
@@ -265,12 +350,9 @@ describe('PairSelectionPanel', () => {
         </ReactFlowProvider>
       );
 
-      // ラベルが正しく表示される（person2 → person1 なので targetToSourceLabel が表示される）
-      // ただし、PairSelectionPanelは person1, person2 の順で受け取るので、
-      // displayLabel1to2 には targetToSourceLabel が入る
-      await waitFor(() => {
-        expect(screen.getByText('「上司」')).toBeInTheDocument();
-      });
+      // フォームのラベル入力に正しい値が設定されている
+      const labelInput = screen.getByLabelText('関係のラベル') as HTMLInputElement;
+      expect(labelInput.value).toBe('上司');
     });
   });
 });
