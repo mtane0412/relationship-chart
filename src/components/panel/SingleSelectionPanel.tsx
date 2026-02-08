@@ -42,7 +42,7 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
     relationship: Relationship;
     otherPersonId: string;
     label: string;
-    direction: '→' | '←' | '↔' | '';
+    direction: '→' | '←' | '↔' | '—';
     key: string;
   };
 
@@ -81,7 +81,7 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
                 ? '↔'
                 : relationship.type === 'one-way'
                   ? '→'
-                  : '',
+                  : '—',
             key: relationship.id,
           },
         ];
