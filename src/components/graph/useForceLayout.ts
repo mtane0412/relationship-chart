@@ -81,38 +81,39 @@ export function useForceLayout({
   const nodeIdsRef = useRef<string>('');
   const edgeIdsRef = useRef<string>('');
 
+  // ノードとエッジをrefで保持（依存配列から除外するため）
+  const nodesRef = useRef<Node[]>(nodes);
+  const edgesRef = useRef<Edge[]>(edges);
+
+  // 最新の値をrefに保存
+  nodesRef.current = nodes;
+  edgesRef.current = edges;
+
   useEffect(() => {
-    // forceレイアウトが無効な場合は何もしない
-    if (!enabled || nodes.length === 0) {
-      // シミュレーションが存在する場合は停止
+    // forceレイアウトが無効な場合はシミュレーションを停止
+    if (!enabled) {
       if (simulationRef.current) {
         simulationRef.current.stop();
         simulationRef.current = null;
+        nodeIdsRef.current = '';
+        edgeIdsRef.current = '';
       }
       return;
     }
 
+    // ノードが空の場合は何もしない
+    if (nodesRef.current.length === 0) {
+      return;
+    }
+
     // ノードIDとエッジIDの構成を計算
-    const currentNodeIds = nodes.map((n) => n.id).sort().join(',');
-    const currentEdgeIds = edges.map((e) => `${e.source}-${e.target}`).sort().join(',');
+    const currentNodeIds = nodesRef.current.map((n) => n.id).sort().join(',');
+    const currentEdgeIds = edgesRef.current.map((e) => `${e.source}-${e.target}`).sort().join(',');
 
     // ID構成が変化したかチェック
     const nodeIdsChanged = currentNodeIds !== nodeIdsRef.current;
     const edgeIdsChanged = currentEdgeIds !== edgeIdsRef.current;
     const structureChanged = nodeIdsChanged || edgeIdsChanged;
-
-    // ノードをコピーしてd3-force用に変換
-    const forceNodes: ForceNode[] = nodes.map((node) => ({
-      ...node,
-      x: node.position.x,
-      y: node.position.y,
-    }));
-
-    // エッジをd3-force用に変換
-    const forceLinks: ForceLink[] = edges.map((edge) => ({
-      source: edge.source,
-      target: edge.target,
-    }));
 
     // ID構成が変化した場合のみシミュレーションを再作成
     if (structureChanged || !simulationRef.current) {
@@ -120,6 +121,19 @@ export function useForceLayout({
       if (simulationRef.current) {
         simulationRef.current.stop();
       }
+
+      // ノードをコピーしてd3-force用に変換
+      const forceNodes: ForceNode[] = nodesRef.current.map((node) => ({
+        ...node,
+        x: node.position.x,
+        y: node.position.y,
+      }));
+
+      // エッジをd3-force用に変換
+      const forceLinks: ForceLink[] = edgesRef.current.map((edge) => ({
+        source: edge.source,
+        target: edge.target,
+      }));
 
       // シミュレーションを初期化
       const simulation = forceSimulation(forceNodes)
@@ -145,7 +159,7 @@ export function useForceLayout({
       // tickイベント: シミュレーションの各ステップで実行
       simulation.on('tick', () => {
         // ノード位置を更新
-        const updatedNodes = forceNodes.map((forceNode) => ({
+        const updatedNodes = simulation.nodes().map((forceNode) => ({
           ...forceNode,
           position: {
             x: forceNode.x ?? 0,
@@ -160,26 +174,18 @@ export function useForceLayout({
       simulationRef.current = simulation;
       nodeIdsRef.current = currentNodeIds;
       edgeIdsRef.current = currentEdgeIds;
-    } else {
-      // ID構成が変わらない場合は既存シミュレーションのノード位置のみ同期
-      const currentSimNodes = simulationRef.current.nodes();
-      nodes.forEach((node) => {
-        const simNode = currentSimNodes.find((n) => (n as Node).id === node.id);
-        if (simNode && !simNode.fx && !simNode.fy) {
-          // ドラッグ中（fx/fyが設定されている）でない場合のみ位置を同期
-          simNode.x = node.position.x;
-          simNode.y = node.position.y;
-        }
-      });
     }
 
-    // クリーンアップ: シミュレーションを停止
+    // クリーンアップ: enabledがfalseになった時とアンマウント時のみシミュレーションを停止
+    // 構造変化によるeffect再実行時は停止しない（新しいシミュレーションが既に作成されているため）
     return () => {
-      if (simulationRef.current) {
+      // enabledがfalseになる場合はシミュレーションを停止
+      if (!enabled && simulationRef.current) {
         simulationRef.current.stop();
+        simulationRef.current = null;
       }
     };
-  }, [nodes, edges, enabled, onNodesChange]);
+  }, [enabled, onNodesChange]);
 
   // ノードドラッグ開始時のハンドラ
   const handleNodeDragStart = (nodeId: string) => {
