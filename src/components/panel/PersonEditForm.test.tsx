@@ -6,15 +6,25 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PersonEditForm } from './PersonEditForm';
 import { useGraphStore } from '@/stores/useGraphStore';
-import { processImage } from '@/lib/image-utils';
+import { readFileAsDataUrl } from '@/lib/image-utils';
 import type { Person } from '@/types/person';
 
 // Zustandストアをモック
 vi.mock('@/stores/useGraphStore');
 
-// processImageをモック
+// image-utilsをモック
 vi.mock('@/lib/image-utils', () => ({
-  processImage: vi.fn().mockResolvedValue('data:image/jpeg;base64,mock-image'),
+  readFileAsDataUrl: vi.fn().mockResolvedValue('data:image/png;base64,raw-image'),
+  cropImage: vi.fn().mockResolvedValue('data:image/jpeg;base64,mock-image'),
+}));
+
+// ImageCropperをモック（クロップUIをスキップ）
+vi.mock('@/components/ui/ImageCropper', () => ({
+  default: ({ onComplete }: { onComplete: (image: string) => void }) => {
+    // モックでは即座にクロップ完了を呼ぶ
+    setTimeout(() => onComplete('data:image/jpeg;base64,mock-image'), 0);
+    return null;
+  },
 }));
 
 describe('PersonEditForm', () => {
@@ -73,9 +83,9 @@ describe('PersonEditForm', () => {
       });
       fireEvent(iconArea, dropEvent);
 
-      // processImageが呼ばれることを確認
+      // readFileAsDataUrlが呼ばれることを確認
       await waitFor(() => {
-        expect(vi.mocked(processImage)).toHaveBeenCalledWith(file);
+        expect(vi.mocked(readFileAsDataUrl)).toHaveBeenCalledWith(file);
       });
     });
 
@@ -189,9 +199,9 @@ describe('PersonEditForm', () => {
       });
       fireEvent.change(fileInput);
 
-      // processImageが呼ばれることを確認
+      // readFileAsDataUrlが呼ばれることを確認
       await waitFor(() => {
-        expect(vi.mocked(processImage)).toHaveBeenCalledWith(file);
+        expect(vi.mocked(readFileAsDataUrl)).toHaveBeenCalledWith(file);
       });
     });
 
@@ -217,9 +227,9 @@ describe('PersonEditForm', () => {
       });
       fireEvent.change(fileInput);
 
-      // processImageが1回目呼ばれることを確認
+      // readFileAsDataUrlが1回目呼ばれることを確認
       await waitFor(() => {
-        expect(vi.mocked(processImage)).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(readFileAsDataUrl)).toHaveBeenCalledTimes(1);
       });
 
       // メニューを再度開く
@@ -233,17 +243,17 @@ describe('PersonEditForm', () => {
       });
       fireEvent.change(fileInput);
 
-      // processImageが2回目も呼ばれることを確認（input valueがクリアされている場合）
+      // readFileAsDataUrlが2回目も呼ばれることを確認（input valueがクリアされている場合）
       await waitFor(() => {
-        expect(vi.mocked(processImage)).toHaveBeenCalledTimes(2);
+        expect(vi.mocked(readFileAsDataUrl)).toHaveBeenCalledTimes(2);
       });
     });
   });
 
   describe('エラーハンドリング', () => {
     it('画像処理が失敗した時、エラーメッセージが表示される', async () => {
-      // processImageをエラーをスローするようにモック
-      vi.mocked(processImage).mockRejectedValueOnce(new Error('画像処理に失敗しました'));
+      // readFileAsDataUrlをエラーをスローするようにモック
+      vi.mocked(readFileAsDataUrl).mockRejectedValueOnce(new Error('画像処理に失敗しました'));
 
       render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
 

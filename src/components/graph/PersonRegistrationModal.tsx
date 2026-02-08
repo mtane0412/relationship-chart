@@ -1,9 +1,11 @@
 /**
  * PersonRegistrationModalコンポーネント
  * キャンバスにD&D/ペーストされた画像から人物を登録するためのモーダル
+ * クロップUIを組み込み、クロップ後に名前入力へ遷移する
  */
 
 import { useState, useEffect, useRef } from 'react';
+import ImageCropper from '@/components/ui/ImageCropper';
 
 /**
  * PersonRegistrationModalのProps
@@ -11,34 +13,42 @@ import { useState, useEffect, useRef } from 'react';
 type PersonRegistrationModalProps = {
   /** モーダルの表示/非表示 */
   isOpen: boolean;
-  /** ドロップ/ペーストされた画像のData URL（オプショナル） */
-  imageDataUrl?: string;
+  /** ドロップ/ペーストされた元画像のData URL（オプショナル） */
+  rawImageSrc?: string;
   /** 登録ボタンが押されたときのコールバック */
-  onSubmit: (name: string) => void;
+  onSubmit: (name: string, croppedImageDataUrl: string | null) => void;
   /** キャンセルボタンが押されたときのコールバック */
   onCancel: () => void;
 };
 
 /**
  * 人物登録モーダルコンポーネント
- * 画像プレビュー + 名前入力フォームを表示する
+ * クロップUIで画像を調整後、名前入力フォームを表示する
  */
 export function PersonRegistrationModal({
   isOpen,
-  imageDataUrl,
+  rawImageSrc,
   onSubmit,
   onCancel,
 }: PersonRegistrationModalProps) {
   const [name, setName] = useState('');
+  const [croppedImageDataUrl, setCroppedImageDataUrl] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // モーダルが開かれたときに入力フィールドにフォーカス
+  // モーダルが開かれたときに状態をリセット
   useEffect(() => {
     if (isOpen) {
       setName(''); // 名前をリセット
-      inputRef.current?.focus();
+      setCroppedImageDataUrl(null); // クロップ済み画像をリセット
     }
   }, [isOpen]);
+
+  // クロップ完了後に名前入力フィールドにフォーカス
+  useEffect(() => {
+    if (croppedImageDataUrl) {
+      inputRef.current?.focus();
+    }
+  }, [croppedImageDataUrl]);
 
   // Escapeキーでキャンセル
   useEffect(() => {
@@ -58,22 +68,34 @@ export function PersonRegistrationModal({
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (name.trim()) {
-      onSubmit(name.trim());
+      onSubmit(name.trim(), croppedImageDataUrl);
     }
   };
 
   if (!isOpen) return null;
 
+  // クロップ前の場合はImageCropperを表示
+  if (rawImageSrc && !croppedImageDataUrl) {
+    return (
+      <ImageCropper
+        imageSrc={rawImageSrc}
+        onComplete={(croppedImage) => setCroppedImageDataUrl(croppedImage)}
+        onCancel={onCancel}
+      />
+    );
+  }
+
+  // クロップ後は名前入力フォームを表示
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
         <h2 className="text-xl font-bold text-gray-900 mb-4">人物を登録</h2>
 
-        {/* 画像プレビュー（画像がある場合のみ） */}
-        {imageDataUrl && (
+        {/* 画像プレビュー（クロップ済み画像がある場合のみ） */}
+        {croppedImageDataUrl && (
           <div className="mb-4 flex justify-center">
             <img
-              src={imageDataUrl}
+              src={croppedImageDataUrl}
               alt="プレビュー"
               className="w-32 h-32 rounded-full object-cover border-4 border-gray-200 shadow-md"
             />

@@ -5,7 +5,8 @@
 
 import { useState, useRef, useCallback, useEffect, type DragEvent, type ChangeEvent } from 'react';
 import { useGraphStore } from '@/stores/useGraphStore';
-import { processImage } from '@/lib/image-utils';
+import { readFileAsDataUrl } from '@/lib/image-utils';
+import ImageCropper from '@/components/ui/ImageCropper';
 import type { Person } from '@/types/person';
 
 /**
@@ -30,6 +31,8 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [error, setError] = useState('');
+  const [showCropper, setShowCropper] = useState(false);
+  const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const firstMenuItemRef = useRef<HTMLButtonElement>(null);
@@ -63,19 +66,14 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
     }
   };
 
-  // 画像処理共通関数（即時反映）
+  // 画像処理共通関数（クロップUIを表示）
   const handleImageFile = async (file: File) => {
     setError('');
     try {
-      const dataUrl = await processImage(file);
-      setImageDataUrl(dataUrl);
+      const dataUrl = await readFileAsDataUrl(file);
+      setRawImageSrc(dataUrl);
+      setShowCropper(true);
       setShowMenu(false);
-
-      // 即座にストアを更新
-      updatePerson(person.id, {
-        name: name.trim() || person.name, // 空の場合は元の名前を使用
-        imageDataUrl: dataUrl,
-      });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '画像処理に失敗しました';
       setError(errorMessage);
@@ -84,6 +82,25 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
       }
     }
   };
+
+  // クロップ完了ハンドラ（即時反映）
+  const handleCropComplete = useCallback((croppedImage: string) => {
+    setImageDataUrl(croppedImage);
+    setShowCropper(false);
+    setRawImageSrc(null);
+
+    // 即座にストアを更新
+    updatePerson(person.id, {
+      name: name.trim() || person.name, // 空の場合は元の名前を使用
+      imageDataUrl: croppedImage,
+    });
+  }, [person.id, person.name, name, updatePerson]);
+
+  // クロップキャンセルハンドラ
+  const handleCropCancel = useCallback(() => {
+    setShowCropper(false);
+    setRawImageSrc(null);
+  }, []);
 
   // ドラッグオーバーハンドラ
   const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
@@ -361,6 +378,14 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
         </div>
       </div>
 
+      {/* ImageCropperモーダル */}
+      {showCropper && rawImageSrc && (
+        <ImageCropper
+          imageSrc={rawImageSrc}
+          onComplete={handleCropComplete}
+          onCancel={handleCropCancel}
+        />
+      )}
     </div>
   );
 }
