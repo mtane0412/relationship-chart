@@ -30,6 +30,7 @@ export default function ImageCropper({
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [error, setError] = useState<string>('');
 
   // クロップ完了時にクロップ領域を保存
   const onCropComplete = useCallback(
@@ -45,12 +46,20 @@ export default function ImageCropper({
       return;
     }
 
+    // エラー状態をリセット
+    setError('');
+
     try {
       // クロップ処理を実行
       const croppedImage = await cropImage(imageSrc, croppedAreaPixels);
       onComplete(croppedImage);
     } catch (error) {
-      // エラーハンドリング（エラーメッセージを表示するなど）
+      // エラーメッセージをUIに表示
+      const errorMessage =
+        error instanceof Error ? error.message : 'クロップ処理に失敗しました';
+      setError(errorMessage);
+
+      // 開発環境ではコンソールにもログ出力
       if (process.env.NODE_ENV === 'development') {
         console.error('クロップ処理に失敗しました:', error);
       }
@@ -96,6 +105,13 @@ export default function ImageCropper({
               aria-label="ズーム調整"
             />
           </div>
+
+          {/* エラーメッセージ */}
+          {error && (
+            <p className="text-sm text-red-600" role="alert">
+              {error}
+            </p>
+          )}
 
           {/* 確定/キャンセルボタン */}
           <div className="flex justify-end gap-2">
