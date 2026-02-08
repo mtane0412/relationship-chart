@@ -7,6 +7,7 @@
 
 import { PersonEditForm } from './PersonEditForm';
 import { useGraphStore } from '@/stores/useGraphStore';
+import { useReactFlow } from '@xyflow/react';
 import type { Person } from '@/types/person';
 import type { Relationship } from '@/types/relationship';
 import { getRelationshipFromPerspective } from '@/lib/relationship-utils';
@@ -29,6 +30,7 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
   const removePerson = useGraphStore((state) => state.removePerson);
   const clearSelection = useGraphStore((state) => state.clearSelection);
   const setSelectedPersonIds = useGraphStore((state) => state.setSelectedPersonIds);
+  const { getNode, setCenter } = useReactFlow();
 
   // 人物削除ハンドラ
   const handleDeletePerson = () => {
@@ -85,9 +87,33 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
 
               if (!otherPerson) return null;
 
-              // 関係クリックハンドラ: 2人選択状態に遷移
+              // 関係クリックハンドラ: 2人選択状態に遷移 + ビューポート移動
               const handleRelationshipClick = () => {
                 setSelectedPersonIds([person.id, otherPerson.id]);
+
+                // ビューポートを2つのノードの中間点に移動
+                const node1 = getNode(person.id);
+                const node2 = getNode(otherPerson.id);
+
+                if (node1 && node2) {
+                  // デフォルト値（measuredがない場合に使用）
+                  const DEFAULT_NODE_WIDTH = 80;
+                  const DEFAULT_NODE_HEIGHT = 120;
+                  const ANIMATION_DURATION_MS = 500;
+
+                  // 各ノードの中心座標を計算
+                  const node1CenterX = node1.position.x + (node1.measured?.width ?? DEFAULT_NODE_WIDTH) / 2;
+                  const node1CenterY = node1.position.y + (node1.measured?.height ?? DEFAULT_NODE_HEIGHT) / 2;
+                  const node2CenterX = node2.position.x + (node2.measured?.width ?? DEFAULT_NODE_WIDTH) / 2;
+                  const node2CenterY = node2.position.y + (node2.measured?.height ?? DEFAULT_NODE_HEIGHT) / 2;
+
+                  // 2つのノードの中間点を計算
+                  const midX = (node1CenterX + node2CenterX) / 2;
+                  const midY = (node1CenterY + node2CenterY) / 2;
+
+                  // ビューポートを中間点に移動（アニメーション付き）
+                  setCenter(midX, midY, { duration: ANIMATION_DURATION_MS });
+                }
               };
 
               // キーボードハンドラ: Enter/Spaceで遷移
