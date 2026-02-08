@@ -35,21 +35,22 @@ export const PersonNode = memo(({ data, selected }: NodeProps) => {
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* 単一の円形ハンドル（リング状） */}
-      {/* ノード全体を覆う大きな円形ハンドルで、外周から接続可能 */}
-      {/* 中心部（画像・ラベル）はそのままドラッグ移動用 */}
+      {/* 画像部分を囲む正円のハンドルで、外周から接続可能 */}
+      {/* 中心部（画像）はそのままドラッグ移動用 */}
       <Handle
         type="source"
         id="ring"
         position={Position.Top}
-        className={`!absolute !inset-0 !w-full !h-full !rounded-full !border-4 !border-blue-500 !bg-transparent !transform-none transition-opacity duration-200 ${
+        className={`!absolute !rounded-full !border-4 !border-blue-500 !bg-transparent transition-opacity duration-200 ${
           showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         style={{
           left: '50%',
-          top: '50%',
+          top: '40px',
           transform: 'translate(-50%, -50%)',
           width: '100px',
           height: '100px',
+          pointerEvents: showHandles ? 'auto' : 'none',
         }}
       />
 
