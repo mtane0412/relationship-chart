@@ -6,6 +6,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useReactFlow } from '@xyflow/react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import type { Person } from '@/types/person';
 import type { RelationshipType } from '@/types/relationship';
@@ -19,6 +20,74 @@ type PairSelectionPanelProps = {
 };
 
 /**
+ * 関係タイプに応じたSVGアイコンを返す
+ * @param type - 関係タイプ
+ * @param hasRelationship - 関係が存在するか
+ * @param isReversed - 向きを反転するか（person1がtargetの場合true）
+ */
+function getRelationshipIcon(
+  type: RelationshipType,
+  hasRelationship: boolean,
+  isReversed: boolean = false
+): React.ReactElement {
+  if (!hasRelationship) {
+    // 関係なしの場合は点線
+    return (
+      <svg width="40" height="24" viewBox="0 0 40 24" className="shrink-0">
+        <line
+          x1="0"
+          y1="12"
+          x2="40"
+          y2="12"
+          stroke="#d1d5db"
+          strokeWidth="2"
+          strokeDasharray="4 4"
+        />
+      </svg>
+    );
+  }
+
+  switch (type) {
+    case 'bidirectional':
+      return (
+        <svg width="40" height="24" viewBox="0 0 40 24" className="shrink-0">
+          <line x1="4" y1="12" x2="36" y2="12" stroke="#3b82f6" strokeWidth="2" />
+          <polygon points="36,12 32,9 32,15" fill="#3b82f6" />
+          <polygon points="4,12 8,9 8,15" fill="#3b82f6" />
+        </svg>
+      );
+    case 'dual-directed':
+      return (
+        <svg width="40" height="24" viewBox="0 0 40 24" className="shrink-0">
+          <line x1="4" y1="8" x2="36" y2="8" stroke="#3b82f6" strokeWidth="2" />
+          <polygon points="36,8 32,5 32,11" fill="#3b82f6" />
+          <line x1="36" y1="16" x2="4" y2="16" stroke="#10b981" strokeWidth="2" />
+          <polygon points="4,16 8,13 8,19" fill="#10b981" />
+        </svg>
+      );
+    case 'one-way':
+      // isReversedがtrueの場合は左向き矢印、falseの場合は右向き矢印
+      return isReversed ? (
+        <svg width="40" height="24" viewBox="0 0 40 24" className="shrink-0">
+          <line x1="4" y1="12" x2="36" y2="12" stroke="#3b82f6" strokeWidth="2" />
+          <polygon points="4,12 8,9 8,15" fill="#3b82f6" />
+        </svg>
+      ) : (
+        <svg width="40" height="24" viewBox="0 0 40 24" className="shrink-0">
+          <line x1="4" y1="12" x2="36" y2="12" stroke="#3b82f6" strokeWidth="2" />
+          <polygon points="36,12 32,9 32,15" fill="#3b82f6" />
+        </svg>
+      );
+    case 'undirected':
+      return (
+        <svg width="40" height="24" viewBox="0 0 40 24" className="shrink-0">
+          <line x1="4" y1="12" x2="36" y2="12" stroke="#64748b" strokeWidth="2" />
+        </svg>
+      );
+  }
+}
+
+/**
  * 2人選択パネルコンポーネント
  */
 export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
@@ -29,6 +98,31 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
   const addRelationship = useGraphStore((state) => state.addRelationship);
   const removeRelationship = useGraphStore((state) => state.removeRelationship);
   const clearSelection = useGraphStore((state) => state.clearSelection);
+  const selectPerson = useGraphStore((state) => state.selectPerson);
+
+  const { getNode, setCenter } = useReactFlow();
+
+  /**
+   * ノードを画面中央に移動する
+   * @param personId - 人物ID
+   */
+  const focusNode = (personId: string) => {
+    const node = getNode(personId);
+    if (node) {
+      const w = node.measured?.width ?? 80;
+      const h = node.measured?.height ?? 120;
+      setCenter(node.position.x + w / 2, node.position.y + h / 2, { duration: 500 });
+    }
+  };
+
+  /**
+   * 人物を単一選択する
+   * @param personId - 人物ID
+   */
+  const handleSelectPerson = (personId: string) => {
+    selectPerson(personId);
+    focusNode(personId);
+  };
 
   const [person1, person2] = persons;
 
@@ -38,6 +132,23 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
     setSourceToTargetLabel('');
     setTargetToSourceLabel('');
   }, [persons]);
+
+  // ビューポートを2ノードの中点に移動
+  useEffect(() => {
+    const node1 = getNode(person1.id);
+    const node2 = getNode(person2.id);
+    if (node1 && node2) {
+      const w1 = node1.measured?.width ?? 80;
+      const h1 = node1.measured?.height ?? 120;
+      const w2 = node2.measured?.width ?? 80;
+      const h2 = node2.measured?.height ?? 120;
+
+      const midX = (node1.position.x + w1 / 2 + node2.position.x + w2 / 2) / 2;
+      const midY = (node1.position.y + h1 / 2 + node2.position.y + h2 / 2) / 2;
+
+      setCenter(midX, midY, { duration: 500 });
+    }
+  }, [person1.id, person2.id, getNode, setCenter]);
 
   // 2人の間の既存関係を取得（方向問わず）
   const existingRelationship = relationships.find(
@@ -67,11 +178,33 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
     setRelationshipType('bidirectional');
   };
 
+  // 相手のイニシャル（画像がない場合）
+  const person1Initial = person1.name.charAt(0).toUpperCase() || '?';
+  const person2Initial = person2.name.charAt(0).toUpperCase() || '?';
+
+  // 既存関係の向きを判定（person1がsourceかどうか）
+  const isReversed = existingRelationship
+    ? existingRelationship.sourcePersonId === person2.id
+    : false;
+
+  // 表示用のラベル（向きを正規化）
+  const displayLabel1to2 = existingRelationship
+    ? isReversed
+      ? existingRelationship.targetToSourceLabel
+      : existingRelationship.sourceToTargetLabel
+    : null;
+
+  const displayLabel2to1 = existingRelationship
+    ? isReversed
+      ? existingRelationship.sourceToTargetLabel
+      : existingRelationship.targetToSourceLabel
+    : null;
+
   return (
     <div className="flex flex-col h-full">
       {/* ヘッダー */}
       <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-gray-700">2人を選択中</h2>
           <button
             onClick={() => clearSelection()}
@@ -82,17 +215,100 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
           </button>
         </div>
 
-        {/* 選択された2人の表示 */}
-        <div className="flex items-center gap-2 text-sm">
-          <span className="font-medium text-gray-700">{person1.name}</span>
-          <span className="text-gray-400">↔</span>
-          <span className="font-medium text-gray-700">{person2.name}</span>
+        {/* 選択された2人のアバター表示 */}
+        <div className="flex items-center justify-center gap-3 mb-3">
+          {/* 人物1のアバター */}
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => handleSelectPerson(person1.id)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleSelectPerson(person1.id);
+              }
+            }}
+            aria-label={`${person1.name}を選択`}
+            className="flex flex-col items-center gap-1 cursor-pointer hover:opacity-75 transition-opacity"
+          >
+            {person1.imageDataUrl ? (
+              <img
+                src={person1.imageDataUrl}
+                alt={person1.name}
+                className="w-12 h-12 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center">
+                <span className="text-white text-lg font-bold">{person1Initial}</span>
+              </div>
+            )}
+            <span className="text-xs font-medium text-gray-700 truncate max-w-[80px]">
+              {person1.name}
+            </span>
+          </div>
+
+          {/* 関係アイコン */}
+          {getRelationshipIcon(
+            existingRelationship?.type ?? 'bidirectional',
+            !!existingRelationship,
+            isReversed
+          )}
+
+          {/* 人物2のアバター */}
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => handleSelectPerson(person2.id)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleSelectPerson(person2.id);
+              }
+            }}
+            aria-label={`${person2.name}を選択`}
+            className="flex flex-col items-center gap-1 cursor-pointer hover:opacity-75 transition-opacity"
+          >
+            {person2.imageDataUrl ? (
+              <img
+                src={person2.imageDataUrl}
+                alt={person2.name}
+                className="w-12 h-12 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center">
+                <span className="text-white text-lg font-bold">{person2Initial}</span>
+              </div>
+            )}
+            <span className="text-xs font-medium text-gray-700 truncate max-w-[80px]">
+              {person2.name}
+            </span>
+          </div>
         </div>
+
+        {/* 関係のラベル（既存関係がある場合） */}
+        {existingRelationship && (
+          <div className="text-center">
+            {existingRelationship.type === 'dual-directed' ? (
+              <div className="space-y-0.5">
+                <div className="text-xs font-medium text-blue-700">
+                  {displayLabel1to2}
+                </div>
+                <div className="text-xs font-medium text-green-700">
+                  {displayLabel2to1}
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs font-medium text-gray-700">
+                「{displayLabel1to2}」
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 関係登録フォーム（既存関係がある場合は非表示） */}
       {!existingRelationship ? (
-        <div className="p-4 border-b border-gray-200">
+        <div className="flex-1 overflow-y-auto p-4">
           <h3 className="text-sm font-semibold text-gray-700 mb-3">
             関係を追加
           </h3>
@@ -201,84 +417,17 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
             </button>
           </form>
         </div>
-      ) : (
-        <div className="p-4 border-b border-gray-200">
-          <p className="text-sm text-gray-600">
-            既に関係が登録されています
-          </p>
-        </div>
-      )}
+      ) : null}
 
-      {/* 既存の関係表示 */}
+      {/* 削除ボタン（既存関係がある場合のみ、パネル最下部） */}
       {existingRelationship && (
-        <div className="flex-1 overflow-y-auto p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">
-            既存の関係
-          </h3>
-          <div className="flex items-center gap-2 p-2 border border-gray-200 rounded-lg bg-gray-50">
-            {/* 関係の表示 */}
-            <div className="flex-1 min-w-0 text-sm">
-              {existingRelationship.type === 'dual-directed' ? (
-                // dual-directed: 2つのラベルを表示
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-1">
-                    <span className="font-medium text-blue-700">
-                      {existingRelationship.sourceToTargetLabel}
-                    </span>
-                    <span className="text-gray-400">→</span>
-                    <span className="text-gray-600">
-                      ({person1.id === existingRelationship.sourcePersonId ? person2.name : person1.name})
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-gray-600">
-                      ({person1.id === existingRelationship.sourcePersonId ? person2.name : person1.name})
-                    </span>
-                    <span className="text-gray-400">→</span>
-                    <span className="font-medium text-green-700">
-                      {existingRelationship.targetToSourceLabel}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                // bidirectional / one-way / undirected
-                <div className="flex items-center gap-1">
-                  <span className="font-medium text-gray-700">
-                    {existingRelationship.sourceToTargetLabel}
-                  </span>
-                  {existingRelationship.type === 'bidirectional' && (
-                    <span className="text-gray-400">↔</span>
-                  )}
-                  {existingRelationship.type === 'one-way' && (
-                    <span className="text-gray-400">
-                      {existingRelationship.sourcePersonId === person1.id ? '→' : '←'}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* 削除ボタン */}
-            <button
-              onClick={() => removeRelationship(existingRelationship.id)}
-              className="shrink-0 p-1 text-gray-400 hover:text-red-600 rounded-md hover:bg-red-50"
-              aria-label="関係を削除"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </div>
+        <div className="p-4 border-t border-gray-200 mt-auto">
+          <button
+            onClick={() => removeRelationship(existingRelationship.id)}
+            className="w-full px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-300 rounded-md hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            この関係を削除
+          </button>
         </div>
       )}
     </div>
