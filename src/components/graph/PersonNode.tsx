@@ -34,14 +34,33 @@ export const PersonNode = memo(({ data, selected }: NodeProps) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* 単一の円形ハンドル（リング状） */}
+      {/* 円形ハンドル（リング状） - source用 */}
       {/* 画像部分を囲む正円のハンドルで、外周から接続可能 */}
       {/* 中心部（画像）はそのままドラッグ移動用 */}
       <Handle
         type="source"
-        id="ring"
+        id="ring-source"
         position={Position.Top}
-        className={`!absolute !rounded-full !border-4 !border-blue-500 !bg-transparent transition-opacity duration-200 ${
+        className={`!absolute !rounded-full !border-8 !border-blue-500 !bg-transparent transition-opacity duration-200 ${
+          showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        style={{
+          left: '50%',
+          top: '40px',
+          transform: 'translate(-50%, -50%)',
+          width: '100px',
+          height: '100px',
+          pointerEvents: showHandles ? 'auto' : 'none',
+        }}
+      />
+
+      {/* 円形ハンドル（リング状） - target用 */}
+      {/* source用と同じ位置・サイズで配置し、接続の受け入れ領域を拡大 */}
+      <Handle
+        type="target"
+        id="ring-target"
+        position={Position.Top}
+        className={`!absolute !rounded-full !border-8 !border-blue-500 !bg-transparent transition-opacity duration-200 ${
           showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         style={{
@@ -55,23 +74,20 @@ export const PersonNode = memo(({ data, selected }: NodeProps) => {
       />
 
       {/* 丸い画像またはデフォルトアバター */}
-      <div className="relative transition-transform duration-200 group-hover:scale-110">
+      {/* scale-110を削除してハンドルのクリック領域を確保 */}
+      <div className="relative transition-transform duration-200">
         {personData.imageDataUrl ? (
           <img
             src={personData.imageDataUrl}
             alt={personData.name}
             className={`w-20 h-20 rounded-full object-cover border-4 border-white shadow-xl transition-all duration-200 ${
-              selected
-                ? 'ring-4 ring-blue-500'
-                : 'ring-2 ring-gray-200 group-hover:ring-4 group-hover:ring-blue-300'
+              selected ? 'ring-4 ring-blue-500' : 'ring-2 ring-gray-200'
             }`}
           />
         ) : (
           <div
             className={`w-20 h-20 rounded-full bg-gray-400 border-4 border-white shadow-xl transition-all duration-200 flex items-center justify-center ${
-              selected
-                ? 'ring-4 ring-blue-500'
-                : 'ring-2 ring-gray-200 group-hover:ring-4 group-hover:ring-blue-300'
+              selected ? 'ring-4 ring-blue-500' : 'ring-2 ring-gray-200'
             }`}
           >
             <span className="text-white text-2xl font-bold">{initial}</span>
@@ -82,9 +98,7 @@ export const PersonNode = memo(({ data, selected }: NodeProps) => {
       {/* 名前テキスト表示 */}
       <div
         className={`mt-2 px-3 py-1 bg-white rounded-full shadow-lg transition-all duration-200 ${
-          selected
-            ? 'border-2 border-blue-500'
-            : 'border border-gray-200 group-hover:shadow-xl group-hover:border-blue-300'
+          selected ? 'border-2 border-blue-500' : 'border border-gray-200'
         }`}
       >
         <div className="text-sm font-medium text-gray-900 whitespace-nowrap">

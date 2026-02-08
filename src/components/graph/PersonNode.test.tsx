@@ -40,27 +40,59 @@ describe('PersonNode', () => {
   };
 
   describe('ハンドル構成', () => {
-    it('単一の円形ハンドルがレンダリングされること', () => {
+    it('2つの円形ハンドル（source用とtarget用）がレンダリングされること', () => {
       const { container } = renderWithProvider();
 
       // React FlowのHandleコンポーネントは`.react-flow__handle`クラスを持つ
       const handles = container.querySelectorAll('.react-flow__handle');
-      expect(handles).toHaveLength(1);
+      expect(handles).toHaveLength(2);
 
-      // ハンドルがReact Flowに認識されていることを確認
-      const handle = handles[0];
-      expect(handle.classList.contains('react-flow__handle')).toBe(true);
+      // 両方のハンドルがReact Flowに認識されていることを確認
+      handles.forEach((handle) => {
+        expect(handle.classList.contains('react-flow__handle')).toBe(true);
+      });
+    });
+
+    it('source用ハンドルとtarget用ハンドルがそれぞれ存在すること', () => {
+      const { container } = renderWithProvider();
+
+      const handles = container.querySelectorAll('.react-flow__handle');
+
+      // data-handleid属性でsource用とtarget用を識別
+      const sourceHandle = Array.from(handles).find((handle) =>
+        handle.getAttribute('data-handleid')?.includes('source')
+      );
+      const targetHandle = Array.from(handles).find((handle) =>
+        handle.getAttribute('data-handleid')?.includes('target')
+      );
+
+      expect(sourceHandle).toBeInTheDocument();
+      expect(targetHandle).toBeInTheDocument();
     });
 
     it('ハンドルが円形（リング状）のスタイルを持つこと', () => {
       const { container } = renderWithProvider();
 
-      const handle = container.querySelector('.react-flow__handle');
-      expect(handle).toBeInTheDocument();
+      const handles = container.querySelectorAll('.react-flow__handle');
+      expect(handles.length).toBeGreaterThan(0);
 
-      // 円形のクラスが適用されていることを確認（rounded-fullなど）
-      const className = handle?.className || '';
-      expect(className).toContain('rounded-full');
+      // 両方のハンドルに円形のクラスが適用されていることを確認
+      handles.forEach((handle) => {
+        const className = handle?.className || '';
+        expect(className).toContain('rounded-full');
+      });
+    });
+
+    it('ハンドルが太い枠（border-8）を持つこと', () => {
+      const { container } = renderWithProvider();
+
+      const handles = container.querySelectorAll('.react-flow__handle');
+
+      // 両方のハンドルに太い枠が適用されていることを確認
+      handles.forEach((handle) => {
+        const className = handle?.className || '';
+        expect(className).toContain('border-8');
+      });
     });
   });
 
