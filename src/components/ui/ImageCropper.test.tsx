@@ -11,13 +11,17 @@ import * as imageUtils from '@/lib/image-utils';
 
 // react-easy-cropをモック
 vi.mock('react-easy-crop', () => ({
-  default: ({ onCropComplete }: { onCropComplete: (croppedArea: imageUtils.Area, croppedAreaPixels: imageUtils.Area) => void }) => {
+  default: ({ onCropComplete, cropShape }: { onCropComplete: (croppedArea: imageUtils.Area, croppedAreaPixels: imageUtils.Area) => void; cropShape?: string }) => {
     // レンダリング時に即座にonCropCompleteを呼び出す
     setTimeout(() => {
       const mockArea = { x: 0, y: 0, width: 100, height: 100 };
       onCropComplete(mockArea, mockArea);
     }, 0);
-    return <div data-testid="cropper-mock">Cropper Mock</div>;
+    return (
+      <div data-testid="cropper-mock" data-crop-shape={cropShape}>
+        Cropper Mock
+      </div>
+    );
   },
 }));
 
@@ -90,5 +94,46 @@ describe('ImageCropper', () => {
 
     // onCompleteが呼ばれないことを確認
     expect(mockOnComplete).not.toHaveBeenCalled();
+  });
+
+  it('cropShape propが未指定の場合、デフォルトで"round"が使用される', () => {
+    render(
+      <ImageCropper
+        imageSrc={mockImageSrc}
+        onComplete={mockOnComplete}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    const cropper = screen.getByTestId('cropper-mock');
+    expect(cropper).toHaveAttribute('data-crop-shape', 'round');
+  });
+
+  it('cropShape="rect"を指定すると四角形クロップが使用される', () => {
+    render(
+      <ImageCropper
+        imageSrc={mockImageSrc}
+        cropShape="rect"
+        onComplete={mockOnComplete}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    const cropper = screen.getByTestId('cropper-mock');
+    expect(cropper).toHaveAttribute('data-crop-shape', 'rect');
+  });
+
+  it('cropShape="round"を明示的に指定すると円形クロップが使用される', () => {
+    render(
+      <ImageCropper
+        imageSrc={mockImageSrc}
+        cropShape="round"
+        onComplete={mockOnComplete}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    const cropper = screen.getByTestId('cropper-mock');
+    expect(cropper).toHaveAttribute('data-crop-shape', 'round');
   });
 });

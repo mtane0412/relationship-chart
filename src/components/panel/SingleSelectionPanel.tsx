@@ -33,7 +33,12 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
   const setSelectedPersonIds = useGraphStore((state) => state.setSelectedPersonIds);
   const { getNode, setCenter } = useReactFlow();
 
-  // 人物削除ハンドラ
+  // 種別を取得
+  const kind = person.kind ?? 'person';
+  const isItem = kind === 'item';
+  const kindLabel = isItem ? '物' : '人物';
+
+  // 削除ハンドラ
   const handleDeletePerson = () => {
     if (confirm(`「${person.name}」を削除してもよろしいですか？`)) {
       removePerson(person.id);
@@ -123,8 +128,10 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
                 }
               };
 
-              // 相手のイニシャル（画像がない場合）
+              // 相手のイニシャルと種別
               const otherInitial = otherPerson.name.charAt(0).toUpperCase() || '?';
+              const otherKind = otherPerson.kind ?? 'person';
+              const otherIsItem = otherKind === 'item';
 
               return (
                 <div
@@ -142,15 +149,15 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
                     {relItem.direction && (
                       <span className="text-gray-400 shrink-0">{relItem.direction}</span>
                     )}
-                    {/* 相手人物のアバター */}
+                    {/* 相手人物/物のアバター */}
                     {otherPerson.imageDataUrl ? (
                       <img
                         src={otherPerson.imageDataUrl}
                         alt={otherPerson.name}
-                        className="shrink-0 w-7 h-7 rounded-full object-cover"
+                        className={`shrink-0 w-7 h-7 object-cover ${otherIsItem ? 'rounded-md' : 'rounded-full'}`}
                       />
                     ) : (
-                      <div className="shrink-0 w-7 h-7 rounded-full bg-gray-300 flex items-center justify-center">
+                      <div className={`shrink-0 w-7 h-7 bg-gray-300 flex items-center justify-center ${otherIsItem ? 'rounded-md' : 'rounded-full'}`}>
                         <span className="text-white text-xs font-bold">{otherInitial}</span>
                       </div>
                     )}
@@ -193,7 +200,7 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
           onClick={handleDeletePerson}
           className="w-full px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-300 rounded-md hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
         >
-          この人物を削除
+          この{kindLabel}を削除
         </button>
       </div>
     </>

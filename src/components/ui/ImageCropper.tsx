@@ -12,6 +12,8 @@ import { cropImage } from '@/lib/image-utils';
 interface ImageCropperProps {
   /** クロップ対象の画像（Data URL形式） */
   imageSrc: string;
+  /** クロップ形状（デフォルト: 'round'） */
+  cropShape?: 'round' | 'rect';
   /** クロップ完了時のコールバック（200x200pxのData URLを渡す） */
   onComplete: (croppedImage: string) => void;
   /** キャンセル時のコールバック */
@@ -20,10 +22,11 @@ interface ImageCropperProps {
 
 /**
  * ImageCropperコンポーネント
- * 円形プレビュー、ドラッグ＆ズーム機能を提供
+ * 円形/四角形プレビュー、ドラッグ＆ズーム機能を提供
  */
 export default function ImageCropper({
   imageSrc,
+  cropShape = 'round',
   onComplete,
   onCancel,
 }: ImageCropperProps) {
@@ -78,7 +81,7 @@ export default function ImageCropper({
             crop={crop}
             zoom={zoom}
             aspect={1}
-            cropShape="round"
+            cropShape={cropShape}
             showGrid={false}
             onCropChange={setCrop}
             onZoomChange={setZoom}

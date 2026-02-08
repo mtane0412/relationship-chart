@@ -39,6 +39,7 @@ import type {
   RelationshipEdge,
 } from '@/types/graph';
 import type { RelationshipType } from '@/types/relationship';
+import type { NodeKind } from '@/types/person';
 
 // カスタムノードタイプの定義
 const nodeTypes: NodeTypes = {
@@ -409,13 +410,14 @@ export function RelationshipGraph() {
 
   // モーダルからの登録ハンドラ
   const handleRegisterPerson = useCallback(
-    (name: string, croppedImageDataUrl: string | null) => {
+    (name: string, croppedImageDataUrl: string | null, kind: NodeKind) => {
       if (!pendingRegistration) return;
 
       // 人物を追加
       addPerson({
         name,
         imageDataUrl: croppedImageDataUrl ?? undefined,
+        kind,
       });
 
       // モーダルを閉じる

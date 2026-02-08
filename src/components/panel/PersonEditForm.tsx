@@ -26,6 +26,10 @@ type PersonEditFormProps = {
 export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
   const updatePerson = useGraphStore((state) => state.updatePerson);
 
+  // 種別を取得（デフォルトは'person'）
+  const kind = person.kind ?? 'person';
+  const isItem = kind === 'item';
+
   const [name, setName] = useState(person.name);
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>(person.imageDataUrl);
   const [isDragging, setIsDragging] = useState(false);
@@ -357,8 +361,9 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
             onClick={handleIconClick}
             onKeyDown={handleIconKeyDown}
             className={`
-              w-32 h-32 rounded-full mx-auto cursor-pointer
+              w-32 h-32 mx-auto cursor-pointer
               transition-all duration-200
+              ${isItem ? 'rounded-xl' : 'rounded-full'}
               ${
                 isDragging
                   ? 'ring-4 ring-blue-500 ring-offset-2'
@@ -371,10 +376,10 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
               <img
                 src={imageDataUrl}
                 alt={name}
-                className="w-full h-full rounded-full object-cover"
+                className={`w-full h-full object-cover ${isItem ? 'rounded-xl' : 'rounded-full'}`}
               />
             ) : (
-              <div className="w-full h-full rounded-full bg-gray-400 flex items-center justify-center">
+              <div className={`w-full h-full bg-gray-400 flex items-center justify-center ${isItem ? 'rounded-xl' : 'rounded-full'}`}>
                 <span className="text-white text-4xl font-bold">
                   {name.charAt(0).toUpperCase()}
                 </span>
@@ -439,6 +444,7 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
       {showCropper && rawImageSrc && (
         <ImageCropper
           imageSrc={rawImageSrc}
+          cropShape={isItem ? 'rect' : 'round'}
           onComplete={handleCropComplete}
           onCancel={handleCropCancel}
         />
