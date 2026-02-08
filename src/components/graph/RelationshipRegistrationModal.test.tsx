@@ -117,7 +117,7 @@ describe('RelationshipRegistrationModal', () => {
           targetPerson={{ name: '佐藤花子' }}
           defaultType="one-way"
           initialRelationship={{
-            type: 'bidirectional',
+            type: 'bidirectional', // UI用のRelationshipType
             sourceToTargetLabel: '親子',
             targetToSourceLabel: null,
           }}

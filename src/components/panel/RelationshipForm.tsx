@@ -45,13 +45,14 @@ export function RelationshipForm() {
       return;
     }
 
-    // 関係を追加
+    // 関係を追加（新データモデル形式）
+    const trimmedLabel = label.trim();
     addRelationship({
       sourcePersonId,
       targetPersonId,
-      type: isDirected ? 'one-way' : 'undirected',
-      sourceToTargetLabel: label.trim(),
-      targetToSourceLabel: null,
+      isDirected,
+      sourceToTargetLabel: trimmedLabel,
+      targetToSourceLabel: isDirected ? null : trimmedLabel, // undirectedの場合は同じラベル
     });
 
     // フォームをリセット

@@ -6,6 +6,7 @@
 import type { Person } from '@/types/person';
 import type { Relationship } from '@/types/relationship';
 import type { PersonNode, RelationshipEdge } from '@/types/graph';
+import { getRelationshipDisplayType } from './relationship-utils';
 
 /**
  * Person配列をPersonNode配列に変換する
@@ -38,7 +39,7 @@ export function relationshipsToEdges(
     target: relationship.targetPersonId,
     type: 'relationship' as const,
     data: {
-      type: relationship.type,
+      displayType: getRelationshipDisplayType(relationship),
       sourceToTargetLabel: relationship.sourceToTargetLabel,
       targetToSourceLabel: relationship.targetToSourceLabel,
     },

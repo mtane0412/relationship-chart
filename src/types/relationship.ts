@@ -17,17 +17,17 @@ export type RelationshipType = 'bidirectional' | 'dual-directed' | 'one-way' | '
  * @property id - 一意な識別子（nanoidで生成）
  * @property sourcePersonId - 関係の起点となる人物のID
  * @property targetPersonId - 関係の終点となる人物のID
- * @property type - 関係のタイプ
- * @property sourceToTargetLabel - sourceからtargetへの関係ラベル（全タイプで使用）
- * @property targetToSourceLabel - targetからsourceへの関係ラベル（dual-directedのみ使用）
+ * @property isDirected - true=有向、false=無向
+ * @property sourceToTargetLabel - sourceからtargetへの関係ラベル（null可）
+ * @property targetToSourceLabel - targetからsourceへの関係ラベル（null可）
  * @property createdAt - 作成日時（ISO 8601形式の文字列）
  */
 export type Relationship = {
   id: string;
   sourcePersonId: string;
   targetPersonId: string;
-  type: RelationshipType;
-  sourceToTargetLabel: string;
+  isDirected: boolean;
+  sourceToTargetLabel: string | null;
   targetToSourceLabel: string | null;
   createdAt: string;
 };

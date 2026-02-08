@@ -32,6 +32,7 @@ import { useForceLayout } from './useForceLayout';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { personsToNodes, relationshipsToEdges } from '@/lib/graph-utils';
 import { processImage } from '@/lib/image-utils';
+import { getRelationshipDisplayType } from '@/lib/relationship-utils';
 import type {
   PersonNode as PersonNodeType,
   RelationshipEdge,
@@ -393,7 +394,7 @@ export function RelationshipGraph() {
     setPendingRegistration(null);
   }, []);
 
-  // 関係登録・更新ハンドラ
+  // 関係登録・更新ハンドラ（UI層のRelationshipTypeを新データモデルに変換）
   const handleRegisterRelationship = useCallback(
     (
       type: RelationshipType,
@@ -402,21 +403,31 @@ export function RelationshipGraph() {
     ) => {
       if (!pendingConnection) return;
 
+      // UI層のRelationshipTypeを新データモデルに変換
+      const isDirected = type !== 'undirected';
+      const finalSourceToTargetLabel = sourceToTargetLabel.trim();
+      const finalTargetToSourceLabel =
+        type === 'dual-directed'
+          ? targetToSourceLabel?.trim() || null
+          : type === 'bidirectional' || type === 'undirected'
+            ? finalSourceToTargetLabel // 双方向・無方向は同じラベル
+            : null; // one-wayは逆方向ラベルなし
+
       if (pendingConnection.existingRelationshipId) {
         // 編集モード: 既存の関係を更新
         updateRelationship(pendingConnection.existingRelationshipId, {
-          type,
-          sourceToTargetLabel,
-          targetToSourceLabel,
+          isDirected,
+          sourceToTargetLabel: finalSourceToTargetLabel,
+          targetToSourceLabel: finalTargetToSourceLabel,
         });
       } else {
         // 新規登録モード: 関係を追加
         addRelationship({
           sourcePersonId: pendingConnection.sourcePersonId,
           targetPersonId: pendingConnection.targetPersonId,
-          type,
-          sourceToTargetLabel,
-          targetToSourceLabel,
+          isDirected,
+          sourceToTargetLabel: finalSourceToTargetLabel,
+          targetToSourceLabel: finalTargetToSourceLabel,
         });
       }
 
@@ -576,10 +587,12 @@ export function RelationshipGraph() {
             (r) => r.id === pendingConnection.existingRelationshipId
           );
           if (!existingRelationship) return undefined;
+          // 新データモデルからUI用のRelationshipTypeに変換
+          const displayType = getRelationshipDisplayType(existingRelationship);
           return {
-            type: existingRelationship.type,
-            sourceToTargetLabel: existingRelationship.sourceToTargetLabel,
-            targetToSourceLabel: existingRelationship.targetToSourceLabel,
+            type: displayType,
+            sourceToTargetLabel: existingRelationship.sourceToTargetLabel ?? '',
+            targetToSourceLabel: existingRelationship.targetToSourceLabel ?? null,
           };
         }, [pendingConnection, relationships])}
         onSubmit={handleRegisterRelationship}

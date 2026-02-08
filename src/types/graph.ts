@@ -20,8 +20,8 @@ export type PersonNodeData = {
  * RelationshipEdgeコンポーネントで使用される
  */
 export type RelationshipEdgeData = {
-  type: RelationshipType;
-  sourceToTargetLabel: string;
+  displayType: RelationshipType;
+  sourceToTargetLabel: string | null;
   targetToSourceLabel: string | null;
 };
 

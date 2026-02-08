@@ -161,9 +161,9 @@ describe('useGraphStore', () => {
         result.current.addRelationship({
           sourcePersonId: personId1,
           targetPersonId: personId2,
-          type: 'undirected',
+          isDirected: false,
           sourceToTargetLabel: '友人',
-          targetToSourceLabel: null,
+          targetToSourceLabel: '友人',
         });
       });
 
@@ -629,9 +629,9 @@ describe('useGraphStore', () => {
         result.current.addRelationship({
           sourcePersonId: personId1,
           targetPersonId: personId2,
-          type: 'bidirectional',
+          isDirected: true,
           sourceToTargetLabel: '親子',
-          targetToSourceLabel: null,
+          targetToSourceLabel: '親子',
         });
       });
 
@@ -639,9 +639,9 @@ describe('useGraphStore', () => {
       expect(result.current.relationships[0]).toMatchObject({
         sourcePersonId: personId1,
         targetPersonId: personId2,
-        type: 'bidirectional',
+        isDirected: true,
         sourceToTargetLabel: '親子',
-        targetToSourceLabel: null,
+        targetToSourceLabel: '親子',
       });
     });
 
@@ -668,7 +668,7 @@ describe('useGraphStore', () => {
         result.current.addRelationship({
           sourcePersonId: personId1,
           targetPersonId: personId2,
-          type: 'dual-directed',
+          isDirected: true,
           sourceToTargetLabel: '好き',
           targetToSourceLabel: '無関心',
         });
@@ -678,7 +678,7 @@ describe('useGraphStore', () => {
       expect(result.current.relationships[0]).toMatchObject({
         sourcePersonId: personId1,
         targetPersonId: personId2,
-        type: 'dual-directed',
+        isDirected: true,
         sourceToTargetLabel: '好き',
         targetToSourceLabel: '無関心',
       });
@@ -707,7 +707,7 @@ describe('useGraphStore', () => {
         result.current.addRelationship({
           sourcePersonId: personId1,
           targetPersonId: personId2,
-          type: 'one-way',
+          isDirected: true,
           sourceToTargetLabel: '片想い',
           targetToSourceLabel: null,
         });
@@ -720,9 +720,9 @@ describe('useGraphStore', () => {
         result.current.addRelationship({
           sourcePersonId: personId1,
           targetPersonId: personId2,
-          type: 'bidirectional',
+          isDirected: true,
           sourceToTargetLabel: '友人',
-          targetToSourceLabel: null,
+          targetToSourceLabel: '友人',
         });
       });
 
@@ -754,7 +754,7 @@ describe('useGraphStore', () => {
         result.current.addRelationship({
           sourcePersonId: personId1,
           targetPersonId: personId2,
-          type: 'one-way',
+          isDirected: true,
           sourceToTargetLabel: '片想い',
           targetToSourceLabel: null,
         });
@@ -767,7 +767,7 @@ describe('useGraphStore', () => {
         result.current.addRelationship({
           sourcePersonId: personId2,
           targetPersonId: personId1,
-          type: 'one-way',
+          isDirected: true,
           sourceToTargetLabel: '同僚',
           targetToSourceLabel: null,
         });
@@ -803,7 +803,7 @@ describe('useGraphStore', () => {
         result.current.addRelationship({
           sourcePersonId: personId1,
           targetPersonId: personId2,
-          type: 'one-way',
+          isDirected: true,
           sourceToTargetLabel: '片想い',
           targetToSourceLabel: null,
         });
@@ -814,15 +814,16 @@ describe('useGraphStore', () => {
       // タイプを更新
       act(() => {
         result.current.updateRelationship(relationshipId, {
-          type: 'bidirectional',
+          isDirected: true,
+          targetToSourceLabel: '片想い',
         });
       });
 
       expect(result.current.relationships[0]).toMatchObject({
         id: relationshipId,
-        type: 'bidirectional',
+        isDirected: true,
         sourceToTargetLabel: '片想い', // ラベルは変更されない
-        targetToSourceLabel: null,
+        targetToSourceLabel: '片想い',
       });
     });
 
@@ -849,9 +850,9 @@ describe('useGraphStore', () => {
         result.current.addRelationship({
           sourcePersonId: personId1,
           targetPersonId: personId2,
-          type: 'bidirectional',
+          isDirected: true,
           sourceToTargetLabel: '友人',
-          targetToSourceLabel: null,
+          targetToSourceLabel: '友人',
         });
       });
 
@@ -861,14 +862,15 @@ describe('useGraphStore', () => {
       act(() => {
         result.current.updateRelationship(relationshipId, {
           sourceToTargetLabel: '親友',
+          targetToSourceLabel: '親友',
         });
       });
 
       expect(result.current.relationships[0]).toMatchObject({
         id: relationshipId,
-        type: 'bidirectional',
+        isDirected: true,
         sourceToTargetLabel: '親友',
-        targetToSourceLabel: null,
+        targetToSourceLabel: '親友',
       });
     });
 
@@ -895,7 +897,7 @@ describe('useGraphStore', () => {
         result.current.addRelationship({
           sourcePersonId: personId1,
           targetPersonId: personId2,
-          type: 'dual-directed',
+          isDirected: true,
           sourceToTargetLabel: '好き',
           targetToSourceLabel: '無関心',
         });
@@ -913,7 +915,7 @@ describe('useGraphStore', () => {
 
       expect(result.current.relationships[0]).toMatchObject({
         id: relationshipId,
-        type: 'dual-directed',
+        isDirected: true,
         sourceToTargetLabel: '愛している',
         targetToSourceLabel: '嫌い',
       });
@@ -942,9 +944,9 @@ describe('useGraphStore', () => {
         result.current.addRelationship({
           sourcePersonId: personId1,
           targetPersonId: personId2,
-          type: 'bidirectional',
+          isDirected: true,
           sourceToTargetLabel: '友人',
-          targetToSourceLabel: null,
+          targetToSourceLabel: '友人',
         });
       });
 
@@ -957,15 +959,15 @@ describe('useGraphStore', () => {
 
       // 既存の関係は変更されていない
       expect(result.current.relationships[0]).toMatchObject({
-        type: 'bidirectional',
+        isDirected: true,
         sourceToTargetLabel: '友人',
-        targetToSourceLabel: null,
+        targetToSourceLabel: '友人',
       });
     });
   });
 
-  describe('マイグレーション（v1→v2）', () => {
-    it.skip('v1のundirected関係（isDirected: false）をv2のundirectedに変換する', () => {
+  describe('マイグレーション（v1→v3）', () => {
+    it.skip('v1のundirected関係（isDirected: false）をv3のundirectedに変換する', () => {
       // Note: Zustandのpersistミドルウェアはストアの初回初期化時にのみマイグレーションを実行するため、
       // テスト環境では正確なマイグレーションのテストが困難です。
       // 実際のマイグレーションは手動で確認することを推奨します。
@@ -982,8 +984,9 @@ describe('useGraphStore', () => {
               id: 'r1',
               sourcePersonId: 'p1',
               targetPersonId: 'p2',
-              label: '友人',
               isDirected: false,
+              sourceToTargetLabel: '友人',
+              targetToSourceLabel: '友人',
               createdAt: '2026-01-01T00:02:00.000Z',
             },
           ],
@@ -1003,13 +1006,13 @@ describe('useGraphStore', () => {
         id: 'r1',
         sourcePersonId: 'p1',
         targetPersonId: 'p2',
-        type: 'undirected',
+        isDirected: false,
         sourceToTargetLabel: '友人',
-        targetToSourceLabel: null,
+        targetToSourceLabel: '友人',
       });
     });
 
-    it.skip('v1のdirected関係（isDirected: true）をv2のone-wayに変換する', () => {
+    it.skip('v1のdirected関係（isDirected: true）をv3のone-wayに変換する', () => {
       // Note: マイグレーションテストはスキップ（上記と同様の理由）
 
       // v1形式のデータをLocalStorageに設定
@@ -1024,8 +1027,9 @@ describe('useGraphStore', () => {
               id: 'r1',
               sourcePersonId: 'p1',
               targetPersonId: 'p2',
-              label: '上司',
               isDirected: true,
+              sourceToTargetLabel: '上司',
+              targetToSourceLabel: null,
               createdAt: '2026-01-01T00:02:00.000Z',
             },
           ],
@@ -1045,7 +1049,7 @@ describe('useGraphStore', () => {
         id: 'r1',
         sourcePersonId: 'p1',
         targetPersonId: 'p2',
-        type: 'one-way',
+        isDirected: true,
         sourceToTargetLabel: '上司',
         targetToSourceLabel: null,
       });
@@ -1067,16 +1071,18 @@ describe('useGraphStore', () => {
               id: 'r1',
               sourcePersonId: 'p1',
               targetPersonId: 'p2',
-              label: '友人',
               isDirected: false,
+              sourceToTargetLabel: '友人',
+              targetToSourceLabel: '友人',
               createdAt: '2026-01-01T00:03:00.000Z',
             },
             {
               id: 'r2',
               sourcePersonId: 'p2',
               targetPersonId: 'p3',
-              label: '上司',
               isDirected: true,
+              sourceToTargetLabel: '上司',
+              targetToSourceLabel: null,
               createdAt: '2026-01-01T00:04:00.000Z',
             },
           ],
@@ -1093,12 +1099,184 @@ describe('useGraphStore', () => {
       // マイグレーション後のデータを確認
       expect(result.current.relationships).toHaveLength(2);
       expect(result.current.relationships[0]).toMatchObject({
-        type: 'undirected',
+        isDirected: false,
         sourceToTargetLabel: '友人',
+        targetToSourceLabel: '友人',
       });
       expect(result.current.relationships[1]).toMatchObject({
-        type: 'one-way',
+        isDirected: true,
         sourceToTargetLabel: '上司',
+        targetToSourceLabel: null,
+      });
+    });
+  });
+
+  describe('マイグレーション（v2→v3）', () => {
+    it.skip('v2のbidirectional関係をv3に変換する', () => {
+      // Note: Zustandのpersistミドルウェアはストアの初回初期化時にのみマイグレーションを実行するため、
+      // テスト環境では正確なマイグレーションのテストが困難です。
+      // 実際のマイグレーションは手動で確認することを推奨します。
+
+      // v2形式のデータをLocalStorageに設定
+      const v2Data = {
+        state: {
+          persons: [
+            { id: 'p1', name: '山田太郎', createdAt: '2026-01-01T00:00:00.000Z' },
+            { id: 'p2', name: '佐藤花子', createdAt: '2026-01-01T00:01:00.000Z' },
+          ],
+          relationships: [
+            {
+              id: 'r1',
+              sourcePersonId: 'p1',
+              targetPersonId: 'p2',
+              type: 'bidirectional',
+              sourceToTargetLabel: '友人',
+              targetToSourceLabel: null,
+              createdAt: '2026-01-01T00:02:00.000Z',
+            },
+          ],
+          selectedPersonIds: ['p1'],
+          forceEnabled: true,
+        },
+        version: 2,
+      };
+      localStorage.setItem('relationship-chart-storage', JSON.stringify(v2Data));
+
+      // ストアを読み込む
+      const { result } = renderHook(() => useGraphStore());
+
+      // マイグレーション後のデータを確認
+      expect(result.current.relationships).toHaveLength(1);
+      expect(result.current.relationships[0]).toMatchObject({
+        id: 'r1',
+        sourcePersonId: 'p1',
+        targetPersonId: 'p2',
+        isDirected: true,
+        sourceToTargetLabel: '友人',
+        targetToSourceLabel: '友人', // 同一ラベルに変換される
+      });
+    });
+
+    it.skip('v2のdual-directed関係をv3に変換する', () => {
+      // v2形式のデータをLocalStorageに設定
+      const v2Data = {
+        state: {
+          persons: [
+            { id: 'p1', name: '山田太郎', createdAt: '2026-01-01T00:00:00.000Z' },
+            { id: 'p2', name: '佐藤花子', createdAt: '2026-01-01T00:01:00.000Z' },
+          ],
+          relationships: [
+            {
+              id: 'r1',
+              sourcePersonId: 'p1',
+              targetPersonId: 'p2',
+              type: 'dual-directed',
+              sourceToTargetLabel: '好き',
+              targetToSourceLabel: '嫌い',
+              createdAt: '2026-01-01T00:02:00.000Z',
+            },
+          ],
+          selectedPersonIds: [],
+          forceEnabled: true,
+        },
+        version: 2,
+      };
+      localStorage.setItem('relationship-chart-storage', JSON.stringify(v2Data));
+
+      // ストアを読み込む
+      const { result } = renderHook(() => useGraphStore());
+
+      // マイグレーション後のデータを確認
+      expect(result.current.relationships).toHaveLength(1);
+      expect(result.current.relationships[0]).toMatchObject({
+        id: 'r1',
+        sourcePersonId: 'p1',
+        targetPersonId: 'p2',
+        isDirected: true,
+        sourceToTargetLabel: '好き',
+        targetToSourceLabel: '嫌い', // ラベルはそのまま維持
+      });
+    });
+
+    it.skip('v2のone-way関係をv3に変換する', () => {
+      // v2形式のデータをLocalStorageに設定
+      const v2Data = {
+        state: {
+          persons: [
+            { id: 'p1', name: '山田太郎', createdAt: '2026-01-01T00:00:00.000Z' },
+            { id: 'p2', name: '佐藤花子', createdAt: '2026-01-01T00:01:00.000Z' },
+          ],
+          relationships: [
+            {
+              id: 'r1',
+              sourcePersonId: 'p1',
+              targetPersonId: 'p2',
+              type: 'one-way',
+              sourceToTargetLabel: '片想い',
+              targetToSourceLabel: null,
+              createdAt: '2026-01-01T00:02:00.000Z',
+            },
+          ],
+          selectedPersonIds: [],
+          forceEnabled: true,
+        },
+        version: 2,
+      };
+      localStorage.setItem('relationship-chart-storage', JSON.stringify(v2Data));
+
+      // ストアを読み込む
+      const { result } = renderHook(() => useGraphStore());
+
+      // マイグレーション後のデータを確認
+      expect(result.current.relationships).toHaveLength(1);
+      expect(result.current.relationships[0]).toMatchObject({
+        id: 'r1',
+        sourcePersonId: 'p1',
+        targetPersonId: 'p2',
+        isDirected: true,
+        sourceToTargetLabel: '片想い',
+        targetToSourceLabel: null, // nullのまま
+      });
+    });
+
+    it.skip('v2のundirected関係をv3に変換する', () => {
+      // v2形式のデータをLocalStorageに設定
+      const v2Data = {
+        state: {
+          persons: [
+            { id: 'p1', name: '山田太郎', createdAt: '2026-01-01T00:00:00.000Z' },
+            { id: 'p2', name: '佐藤花子', createdAt: '2026-01-01T00:01:00.000Z' },
+          ],
+          relationships: [
+            {
+              id: 'r1',
+              sourcePersonId: 'p1',
+              targetPersonId: 'p2',
+              type: 'undirected',
+              sourceToTargetLabel: '同一人物',
+              targetToSourceLabel: null,
+              createdAt: '2026-01-01T00:02:00.000Z',
+            },
+          ],
+          selectedPersonIds: [],
+          forceEnabled: true,
+        },
+        version: 2,
+      };
+      localStorage.setItem('relationship-chart-storage', JSON.stringify(v2Data));
+
+      // ストアを読み込む
+      const { result } = renderHook(() => useGraphStore());
+
+      // マイグレーション後のデータを確認
+      expect(result.current.relationships).toHaveLength(1);
+      expect(result.current.relationships[0]).toMatchObject({
+        id: 'r1',
+        sourcePersonId: 'p1',
+        targetPersonId: 'p2',
+        isDirected: false,
+        sourceToTargetLabel: '同一人物',
+        targetToSourceLabel: '同一人物', // 同一ラベルに変換される
       });
     });
   });
@@ -1185,9 +1363,9 @@ describe('useGraphStore', () => {
         result.current.addRelationship({
           sourcePersonId: personId1,
           targetPersonId: personId2,
-          type: 'undirected',
+          isDirected: false,
           sourceToTargetLabel: '友人',
-          targetToSourceLabel: null,
+          targetToSourceLabel: '友人',
         });
       });
 
@@ -1224,9 +1402,9 @@ describe('useGraphStore', () => {
         result.current.addRelationship({
           sourcePersonId: personId1,
           targetPersonId: personId2,
-          type: 'undirected',
+          isDirected: false,
           sourceToTargetLabel: '友人',
-          targetToSourceLabel: null,
+          targetToSourceLabel: '友人',
         });
       });
 

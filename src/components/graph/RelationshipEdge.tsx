@@ -67,8 +67,14 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
     };
   }, []);
 
-  // React Flowからノード情報を取得
+  // React Flowからノード情報を取得（Hooksは常に同じ順序で呼び出す必要がある）
   const { getNode } = useReactFlow();
+
+  // edgeDataが存在しない場合は何も描画しない
+  if (!edgeData) {
+    return null;
+  }
+
   const sourceNode = getNode(source);
   const targetNode = getNode(target);
 
@@ -97,7 +103,7 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
   const length = Math.sqrt(dx * dx + dy * dy);
 
   // dual-directedの場合のみオフセット計算を行う
-  const isDualDirected = edgeData?.type === 'dual-directed';
+  const isDualDirected = edgeData.displayType === 'dual-directed';
   // 垂直方向の単位ベクトル（時計回りに90度回転）
   // lengthが0の場合は0除算を避けてオフセット無し（単一路線）にフォールバック
   const perpX = isDualDirected && length !== 0 ? -dy / length : 0;
@@ -164,13 +170,13 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
 
   // マーカーの設定（選択状態に応じて色を変更）
   const markerEnd =
-    edgeData.type === 'undirected'
+    edgeData.displayType === 'undirected'
       ? undefined
       : selected
         ? 'url(#arrow-selected)'
         : 'url(#arrow)';
   const markerStart =
-    edgeData.type === 'bidirectional' || edgeData.type === 'dual-directed'
+    edgeData.displayType === 'bidirectional' || edgeData.displayType === 'dual-directed'
       ? selected
         ? 'url(#arrow-selected)'
         : 'url(#arrow)'
@@ -188,7 +194,7 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
 
   return (
     <>
-      {edgeData.type === 'dual-directed' ? (
+      {edgeData.displayType === 'dual-directed' ? (
         // dual-directed: 2本の平行な片方向矢印
         <>
           {/* 上側の線（source→target） */}
@@ -220,48 +226,52 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
 
       {/* ラベルと削除ボタン */}
       <EdgeLabelRenderer>
-        {edgeData.type === 'dual-directed' ? (
+        {edgeData.displayType === 'dual-directed' ? (
           // dual-directed: 2つのラベルを各線の近くに表示
           <>
             {/* source→targetのラベル（上側の線、開始側に寄せる） */}
-            <div
-              style={{
-                position: 'absolute',
-                transform: `translate(-50%, -50%) translate(${topLabel.labelX}px,${topLabel.labelY}px)`,
-                pointerEvents: 'all',
-              }}
-              className="flex items-center gap-1.5"
-            >
+            {edgeData.sourceToTargetLabel && (
               <div
-                className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full shadow-lg border-2 border-blue-200 hover:border-blue-400 hover:shadow-xl transition-all duration-200 cursor-pointer"
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
+                style={{
+                  position: 'absolute',
+                  transform: `translate(-50%, -50%) translate(${topLabel.labelX}px,${topLabel.labelY}px)`,
+                  pointerEvents: 'all',
+                }}
+                className="flex items-center gap-1.5"
               >
-                <div className="text-xs font-semibold text-blue-800">
-                  {edgeData.sourceToTargetLabel}
+                <div
+                  className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full shadow-lg border-2 border-blue-200 hover:border-blue-400 hover:shadow-xl transition-all duration-200 cursor-pointer"
+                  onMouseEnter={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
+                >
+                  <div className="text-xs font-semibold text-blue-800">
+                    {edgeData.sourceToTargetLabel}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* target→sourceのラベル（下側の線、開始側に寄せる） */}
-            <div
-              style={{
-                position: 'absolute',
-                transform: `translate(-50%, -50%) translate(${bottomLabel.labelX}px,${bottomLabel.labelY}px)`,
-                pointerEvents: 'all',
-              }}
-              className="flex items-center gap-1.5"
-            >
+            {edgeData.targetToSourceLabel && (
               <div
-                className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full shadow-lg border-2 border-blue-200 hover:border-blue-400 hover:shadow-xl transition-all duration-200 cursor-pointer"
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
+                style={{
+                  position: 'absolute',
+                  transform: `translate(-50%, -50%) translate(${bottomLabel.labelX}px,${bottomLabel.labelY}px)`,
+                  pointerEvents: 'all',
+                }}
+                className="flex items-center gap-1.5"
               >
-                <div className="text-xs font-semibold text-blue-800">
-                  {edgeData.targetToSourceLabel}
+                <div
+                  className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full shadow-lg border-2 border-blue-200 hover:border-blue-400 hover:shadow-xl transition-all duration-200 cursor-pointer"
+                  onMouseEnter={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
+                >
+                  <div className="text-xs font-semibold text-blue-800">
+                    {edgeData.targetToSourceLabel}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* 削除ボタン（中央） */}
             <div
@@ -294,46 +304,51 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
           </>
         ) : (
           // bidirectional / one-way / undirected: 1つのラベルを中央に表示
-          <div
-            style={{
-              position: 'absolute',
-              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
-              pointerEvents: 'all',
-            }}
-            className="flex items-center gap-1.5"
-          >
-            {/* ラベルバッジ */}
-            <div
-              className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full shadow-lg border-2 border-blue-200 hover:border-blue-400 hover:shadow-xl transition-all duration-200 cursor-pointer"
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
-            >
-              <div className="text-xs font-semibold text-blue-800">
-                {edgeData.sourceToTargetLabel}
-              </div>
-            </div>
-
-            {/* 削除ボタン */}
-            <button
-              onClick={handleDelete}
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
-              className={`w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 hover:scale-110 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300 ${
-                isHovered ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-              }`}
-              aria-label="関係を削除"
-              type="button"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-                className="w-3.5 h-3.5"
+          <>
+            {/* 存在するラベルを表示（sourceToTargetLabel優先、なければtargetToSourceLabel） */}
+            {(edgeData.sourceToTargetLabel || edgeData.targetToSourceLabel) && (
+              <div
+                style={{
+                  position: 'absolute',
+                  transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+                  pointerEvents: 'all',
+                }}
+                className="flex items-center gap-1.5"
               >
-                <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-              </svg>
-            </button>
-          </div>
+                {/* ラベルバッジ */}
+                <div
+                  className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full shadow-lg border-2 border-blue-200 hover:border-blue-400 hover:shadow-xl transition-all duration-200 cursor-pointer"
+                  onMouseEnter={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
+                >
+                  <div className="text-xs font-semibold text-blue-800">
+                    {edgeData.sourceToTargetLabel || edgeData.targetToSourceLabel}
+                  </div>
+                </div>
+
+                {/* 削除ボタン */}
+                <button
+                  onClick={handleDelete}
+                  onMouseEnter={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
+                  className={`w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 hover:scale-110 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300 ${
+                    isHovered ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                  }`}
+                  aria-label="関係を削除"
+                  type="button"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    className="w-3.5 h-3.5"
+                  >
+                    <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                  </svg>
+                </button>
+              </div>
+            )}
+          </>
         )}
       </EdgeLabelRenderer>
     </>

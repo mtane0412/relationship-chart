@@ -134,6 +134,29 @@ type GraphStateV1 = {
 };
 
 /**
+ * v2形式のRelationship（type, sourceToTargetLabel, targetToSourceLabelを使用）
+ */
+type RelationshipV2 = {
+  id: string;
+  sourcePersonId: string;
+  targetPersonId: string;
+  type: 'bidirectional' | 'dual-directed' | 'one-way' | 'undirected';
+  sourceToTargetLabel: string;
+  targetToSourceLabel: string | null;
+  createdAt: string;
+};
+
+/**
+ * LocalStorageに保存される古い形式の状態（v2）
+ */
+type GraphStateV2 = {
+  persons: Person[];
+  relationships: RelationshipV2[];
+  forceEnabled: boolean;
+  selectedPersonIds: string[];
+};
+
+/**
  * グラフストア
  * 人物と関係を管理するグローバルストア
  * temporalミドルウェアでUndo/Redo機能を提供
@@ -275,11 +298,16 @@ export const useGraphStore = create<GraphStore>()(
     ),
     {
       name: 'relationship-chart-storage', // LocalStorageのキー名
-      version: 2, // バージョン管理（v1→v2に更新）
+      version: 3, // バージョン管理（v2→v3に更新）
       // マイグレーション関数
       migrate: (persistedState: unknown, version: number) => {
-        // 初回ユーザー（versionがundefined）またはv2以降は変換不要
-        if (version === undefined || version >= 2) {
+        // v3以降は変換不要
+        if (version >= 3) {
+          return persistedState as GraphStore;
+        }
+
+        // 初回ユーザー（永続化データがない場合）は変換不要
+        if (!persistedState || typeof persistedState !== 'object') {
           return persistedState as GraphStore;
         }
 
@@ -296,24 +324,81 @@ export const useGraphStore = create<GraphStore>()(
           };
         }
 
-        // v1からv2への変換
+        // v1からv3への変換（v2を経由せず直接v3に変換）
         if (version <= 1) {
           const v1State = state as GraphStateV1;
-          const migratedRelationships: Relationship[] = v1State.relationships.map((r) => ({
+          const v3Relationships: Relationship[] = v1State.relationships.map((r) => ({
             id: r.id,
             sourcePersonId: r.sourcePersonId,
             targetPersonId: r.targetPersonId,
-            type: r.isDirected ? ('one-way' as const) : ('undirected' as const),
+            isDirected: r.isDirected,
             sourceToTargetLabel: r.label,
-            targetToSourceLabel: null,
+            targetToSourceLabel: r.isDirected ? null : r.label, // undirectedの場合は同一ラベル
             createdAt: r.createdAt,
           }));
 
           return {
             persons: v1State.persons,
-            relationships: migratedRelationships,
+            relationships: v3Relationships,
             forceEnabled: v1State.forceEnabled,
             selectedPersonIds: v1State.selectedPersonIds,
+          } as GraphStore;
+        }
+
+        // v2からv3への変換
+        if (version <= 2) {
+          const v2State = state as GraphStateV2;
+          const v3Relationships: Relationship[] = v2State.relationships.map((r) => {
+            // typeフィールドから新しいisDirectedとラベルを導出
+            if (r.type === 'bidirectional') {
+              return {
+                id: r.id,
+                sourcePersonId: r.sourcePersonId,
+                targetPersonId: r.targetPersonId,
+                isDirected: true,
+                sourceToTargetLabel: r.sourceToTargetLabel,
+                targetToSourceLabel: r.sourceToTargetLabel, // 同一ラベルにする
+                createdAt: r.createdAt,
+              };
+            } else if (r.type === 'dual-directed') {
+              return {
+                id: r.id,
+                sourcePersonId: r.sourcePersonId,
+                targetPersonId: r.targetPersonId,
+                isDirected: true,
+                sourceToTargetLabel: r.sourceToTargetLabel,
+                targetToSourceLabel: r.targetToSourceLabel, // そのまま維持
+                createdAt: r.createdAt,
+              };
+            } else if (r.type === 'one-way') {
+              return {
+                id: r.id,
+                sourcePersonId: r.sourcePersonId,
+                targetPersonId: r.targetPersonId,
+                isDirected: true,
+                sourceToTargetLabel: r.sourceToTargetLabel,
+                targetToSourceLabel: null, // 片方向のみ
+                createdAt: r.createdAt,
+              };
+            } else {
+              // undirected
+              return {
+                id: r.id,
+                sourcePersonId: r.sourcePersonId,
+                targetPersonId: r.targetPersonId,
+                isDirected: false,
+                sourceToTargetLabel: r.sourceToTargetLabel,
+                targetToSourceLabel: r.sourceToTargetLabel, // 同一ラベルにする
+                createdAt: r.createdAt,
+              };
+            }
+          });
+
+          return {
+            persons: v2State.persons,
+            relationships: v3Relationships,
+            forceEnabled: v2State.forceEnabled,
+            selectedPersonIds: v2State.selectedPersonIds,
           } as GraphStore;
         }
 

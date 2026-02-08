@@ -10,6 +10,7 @@ import { useReactFlow } from '@xyflow/react';
 import { ArrowRight, ArrowLeft, ArrowLeftRight, Minus } from 'lucide-react';
 import { BidirectionalArrow } from '@/components/icons/BidirectionalArrow';
 import { useGraphStore } from '@/stores/useGraphStore';
+import { getRelationshipDisplayType } from '@/lib/relationship-utils';
 import type { Person } from '@/types/person';
 import type { RelationshipType } from '@/types/relationship';
 
@@ -114,15 +115,16 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
   // 初期値設定
   useEffect(() => {
     if (existingRelationship) {
-      setRelationshipType(existingRelationship.type);
+      const displayType = getRelationshipDisplayType(existingRelationship);
+      setRelationshipType(displayType);
       setSourceToTargetLabel(
         isReversed
-          ? existingRelationship.targetToSourceLabel || existingRelationship.sourceToTargetLabel
-          : existingRelationship.sourceToTargetLabel
+          ? existingRelationship.targetToSourceLabel || existingRelationship.sourceToTargetLabel || ''
+          : existingRelationship.sourceToTargetLabel || ''
       );
       setTargetToSourceLabel(
         isReversed
-          ? (existingRelationship.type === 'dual-directed' ? existingRelationship.sourceToTargetLabel : '')
+          ? (displayType === 'dual-directed' ? existingRelationship.sourceToTargetLabel || '' : '')
           : (existingRelationship.targetToSourceLabel || '')
       );
     } else {
@@ -189,20 +191,37 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
     if (!sourceToTargetLabel.trim()) return;
     if (relationshipType === 'dual-directed' && !targetToSourceLabel.trim()) return;
 
-    const finalTargetToSourceLabel =
-      relationshipType === 'dual-directed' ? targetToSourceLabel.trim() : null;
+    // UIのRelationshipTypeを新しいデータモデルに変換
+    let isDirected = true;
+    const finalSourceToTargetLabel = sourceToTargetLabel.trim();
+    let finalTargetToSourceLabel: string | null = null;
+
+    if (relationshipType === 'bidirectional') {
+      // 双方向: isDirected=true, 両方に同じラベル
+      finalTargetToSourceLabel = finalSourceToTargetLabel;
+    } else if (relationshipType === 'one-way') {
+      // 片方向: isDirected=true, sourceToTargetLabelのみ
+      finalTargetToSourceLabel = null;
+    } else if (relationshipType === 'dual-directed') {
+      // 片方向×2: isDirected=true, 異なるラベル
+      finalTargetToSourceLabel = targetToSourceLabel.trim();
+    } else if (relationshipType === 'undirected') {
+      // 無方向: isDirected=false, 両方に同じラベル
+      isDirected = false;
+      finalTargetToSourceLabel = finalSourceToTargetLabel;
+    }
 
     if (existingRelationship) {
       // 既存の関係を更新
       const updates = isReversed
         ? {
-            type: relationshipType,
-            sourceToTargetLabel: finalTargetToSourceLabel || sourceToTargetLabel.trim(),
-            targetToSourceLabel: relationshipType === 'dual-directed' ? sourceToTargetLabel.trim() : null,
+            isDirected,
+            sourceToTargetLabel: finalTargetToSourceLabel || finalSourceToTargetLabel,
+            targetToSourceLabel: relationshipType === 'dual-directed' ? finalSourceToTargetLabel : finalTargetToSourceLabel,
           }
         : {
-            type: relationshipType,
-            sourceToTargetLabel: sourceToTargetLabel.trim(),
+            isDirected,
+            sourceToTargetLabel: finalSourceToTargetLabel,
             targetToSourceLabel: finalTargetToSourceLabel,
           };
 
@@ -212,8 +231,8 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
       addRelationship({
         sourcePersonId: person1.id,
         targetPersonId: person2.id,
-        type: relationshipType,
-        sourceToTargetLabel: sourceToTargetLabel.trim(),
+        isDirected,
+        sourceToTargetLabel: finalSourceToTargetLabel,
         targetToSourceLabel: finalTargetToSourceLabel,
       });
     }
