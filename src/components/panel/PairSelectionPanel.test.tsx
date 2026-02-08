@@ -380,5 +380,124 @@ describe('PairSelectionPanel', () => {
       const labelInput = screen.getByLabelText('関係のラベル') as HTMLInputElement;
       expect(labelInput.value).toBe('上司');
     });
+
+    it('片方向関係が逆向きの場合、左向き矢印（←）を表示する', async () => {
+      const user = userEvent.setup();
+      // person2 → person1 の関係を設定（逆向き）
+      useGraphStore.setState({
+        relationships: [
+          {
+            id: 'rel-1',
+            sourcePersonId: person2.id, // person2が起点
+            targetPersonId: person1.id, // person1が終点
+            type: 'one-way',
+            sourceToTargetLabel: '上司',
+            targetToSourceLabel: null,
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+        ],
+      });
+
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      // 方向インジケーターに「←」が表示される
+      const indicator = screen.getByText('←');
+      expect(indicator).toBeInTheDocument();
+
+      // 関係タイプ選択ボタンをクリックしてドロップダウンを開く
+      const typePickerButton = screen.getByRole('button', { name: '関係タイプを選択' });
+      await user.click(typePickerButton);
+
+      // 片方向が選択されている
+      await waitFor(() => {
+        const oneWayButton = screen.getByRole('button', { name: '片方向' });
+        expect(oneWayButton).toHaveAttribute('aria-pressed', 'true');
+      });
+    });
+
+    it('片方向関係を新規作成する場合、person1 → person2 の方向で保存される', async () => {
+      const user = userEvent.setup();
+      // 既存の関係をクリア
+      useGraphStore.setState({
+        relationships: [],
+        selectedPersonIds: [person1.id, person2.id],
+      });
+
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      // 関係タイプを片方向に変更
+      const typePickerButton = screen.getByRole('button', { name: '関係タイプを選択' });
+      await user.click(typePickerButton);
+
+      const oneWayButton = await screen.findByRole('button', { name: '片方向' });
+      await user.click(oneWayButton);
+
+      // ラベルを入力
+      const labelInput = screen.getByLabelText('関係のラベル');
+      await user.type(labelInput, '部下');
+
+      // 登録ボタンをクリック
+      const submitButton = screen.getByRole('button', { name: '登録' });
+      await user.click(submitButton);
+
+      // ストアに person1 → person2 の関係が保存される
+      await waitFor(() => {
+        const state = useGraphStore.getState();
+        expect(state.relationships).toHaveLength(1);
+        expect(state.relationships[0].sourcePersonId).toBe(person1.id);
+        expect(state.relationships[0].targetPersonId).toBe(person2.id);
+        expect(state.relationships[0].sourceToTargetLabel).toBe('部下');
+      });
+    });
+
+    it('逆向き片方向関係を編集してラベルを更新すると、元の方向を保持する', async () => {
+      const user = userEvent.setup();
+      // person2 → person1 の関係を設定（逆向き）
+      useGraphStore.setState({
+        relationships: [
+          {
+            id: 'rel-1',
+            sourcePersonId: person2.id,
+            targetPersonId: person1.id,
+            type: 'one-way',
+            sourceToTargetLabel: '上司',
+            targetToSourceLabel: null,
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+        ],
+      });
+
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      // ラベルを変更
+      const labelInput = screen.getByLabelText('関係のラベル');
+      await user.clear(labelInput);
+      await user.type(labelInput, 'マネージャー');
+
+      // 更新ボタンをクリック
+      const updateButton = screen.getByRole('button', { name: '更新' });
+      await user.click(updateButton);
+
+      // ストアに person2 → person1 の方向で保存される（元の方向を保持）
+      await waitFor(() => {
+        const state = useGraphStore.getState();
+        expect(state.relationships).toHaveLength(1);
+        expect(state.relationships[0].sourcePersonId).toBe(person2.id);
+        expect(state.relationships[0].targetPersonId).toBe(person1.id);
+        expect(state.relationships[0].sourceToTargetLabel).toBe('マネージャー');
+      });
+    });
   });
 });

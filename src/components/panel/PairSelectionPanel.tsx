@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { useReactFlow } from '@xyflow/react';
-import { ArrowRight, ArrowLeftRight, Minus } from 'lucide-react';
+import { ArrowRight, ArrowLeft, ArrowLeftRight, Minus } from 'lucide-react';
 import { BidirectionalArrow } from '@/components/icons/BidirectionalArrow';
 import { useGraphStore } from '@/stores/useGraphStore';
 import type { Person } from '@/types/person';
@@ -20,6 +20,24 @@ type PairSelectionPanelProps = {
   /** 選択されている2人の人物 */
   persons: [Person, Person];
 };
+
+/**
+ * 表示用の方向インジケーターを返す
+ * @param type - 関係タイプ
+ * @param isReversed - 関係が逆向きかどうか
+ * @returns 方向インジケーター文字列
+ */
+function getDirectionIndicator(type: RelationshipType, isReversed: boolean): string {
+  if (type === 'bidirectional') {
+    return '↔';
+  }
+  if (type === 'one-way') {
+    // isReversedがtrueの場合は左向き矢印、falseの場合は右向き矢印
+    return isReversed ? '←' : '→';
+  }
+  // undirectedの場合は方向インジケーターなし
+  return '';
+}
 
 /**
  * 関係タイプに応じたプレースホルダーを返す
@@ -267,7 +285,9 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
               className="w-10 h-10 flex items-center justify-center rounded bg-gray-100 hover:bg-gray-200 transition-colors"
               data-toggle="relationship-type"
             >
-              {relationshipType === 'one-way' && <ArrowRight className="w-5 h-5" />}
+              {relationshipType === 'one-way' && (
+                isReversed ? <ArrowLeft className="w-5 h-5" /> : <ArrowRight className="w-5 h-5" />
+              )}
               {relationshipType === 'bidirectional' && <BidirectionalArrow className="w-5 h-5" />}
               {relationshipType === 'dual-directed' && <ArrowLeftRight className="w-5 h-5" />}
               {relationshipType === 'undirected' && <Minus className="w-5 h-5" />}
@@ -447,7 +467,7 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
             {relationshipType !== 'undirected' && (
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
                 <PersonMiniIcon person={person1} />
-                <span>{relationshipType === 'bidirectional' ? '↔' : '→'}</span>
+                <span>{getDirectionIndicator(relationshipType, isReversed)}</span>
                 <PersonMiniIcon person={person2} />
               </div>
             )}
