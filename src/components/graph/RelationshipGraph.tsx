@@ -591,8 +591,8 @@ export function RelationshipGraph() {
           const displayType = getRelationshipDisplayType(existingRelationship);
           return {
             type: displayType,
-            sourceToTargetLabel: existingRelationship.sourceToTargetLabel || '',
-            targetToSourceLabel: existingRelationship.targetToSourceLabel || null,
+            sourceToTargetLabel: existingRelationship.sourceToTargetLabel ?? '',
+            targetToSourceLabel: existingRelationship.targetToSourceLabel ?? null,
           };
         }, [pendingConnection, relationships])}
         onSubmit={handleRegisterRelationship}

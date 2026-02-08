@@ -332,12 +332,12 @@ export const useGraphStore = create<GraphStore>()(
             createdAt: r.createdAt,
           }));
 
-          state = {
+          return {
             persons: v1State.persons,
             relationships: v3Relationships,
             forceEnabled: v1State.forceEnabled,
             selectedPersonIds: v1State.selectedPersonIds,
-          };
+          } as GraphStore;
         }
 
         // v2からv3への変換

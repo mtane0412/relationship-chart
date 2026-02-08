@@ -67,6 +67,11 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
     };
   }, []);
 
+  // edgeDataが存在しない場合は何も描画しない
+  if (!edgeData) {
+    return null;
+  }
+
   // React Flowからノード情報を取得
   const { getNode } = useReactFlow();
   const sourceNode = getNode(source);
@@ -97,7 +102,7 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
   const length = Math.sqrt(dx * dx + dy * dy);
 
   // dual-directedの場合のみオフセット計算を行う
-  const isDualDirected = edgeData?.displayType === 'dual-directed';
+  const isDualDirected = edgeData.displayType === 'dual-directed';
   // 垂直方向の単位ベクトル（時計回りに90度回転）
   // lengthが0の場合は0除算を避けてオフセット無し（単一路線）にフォールバック
   const perpX = isDualDirected && length !== 0 ? -dy / length : 0;

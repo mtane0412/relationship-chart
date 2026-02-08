@@ -76,7 +76,8 @@ export function getRelationshipFromPerspective(
       });
     }
     if (relationship.targetToSourceLabel !== null && relationship.sourceToTargetLabel !== relationship.targetToSourceLabel) {
-      // dual-directedの場合のみ、逆方向のラベルも追加
+      // targetToSourceLabelが存在し、sourceToTargetLabelと異なる場合は逆方向のラベルも追加
+      // （dual-directedまたは逆方向のone-wayの場合に該当）
       results.push({
         label: relationship.targetToSourceLabel,
         direction: '←',
@@ -85,7 +86,8 @@ export function getRelationshipFromPerspective(
     }
   } else {
     // target側から見た場合
-    // dual-directedの場合は、まずsourceToTargetLabel（自分への矢印）を表示
+    // sourceToTargetLabelが存在し、targetToSourceLabelと異なる場合は相手からのラベルを表示
+    // （dual-directedまたは通常のone-wayの場合に該当）
     if (relationship.sourceToTargetLabel !== null && relationship.sourceToTargetLabel !== relationship.targetToSourceLabel) {
       results.push({
         label: relationship.sourceToTargetLabel,
