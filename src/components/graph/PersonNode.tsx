@@ -35,8 +35,10 @@ export const PersonNode = memo(({ data, selected }: NodeProps) => {
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* 接続ポイント（上下左右） */}
+      {/* すべてのハンドルをtype="source"に統一し、connectionMode="loose"で双方向接続を実現 */}
       <Handle
-        type="target"
+        type="source"
+        id="top"
         position={Position.Top}
         className={`bg-blue-500! w-3! h-3! border-2! border-white! transition-opacity duration-200 ${
           showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
@@ -44,13 +46,15 @@ export const PersonNode = memo(({ data, selected }: NodeProps) => {
       />
       <Handle
         type="source"
+        id="bottom"
         position={Position.Bottom}
         className={`bg-blue-500! w-3! h-3! border-2! border-white! transition-opacity duration-200 ${
           showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
       />
       <Handle
-        type="target"
+        type="source"
+        id="left"
         position={Position.Left}
         className={`bg-blue-500! w-3! h-3! border-2! border-white! transition-opacity duration-200 ${
           showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
@@ -58,6 +62,7 @@ export const PersonNode = memo(({ data, selected }: NodeProps) => {
       />
       <Handle
         type="source"
+        id="right"
         position={Position.Right}
         className={`bg-blue-500! w-3! h-3! border-2! border-white! transition-opacity duration-200 ${
           showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'

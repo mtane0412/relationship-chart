@@ -14,6 +14,7 @@ import {
   useNodesState,
   useEdgesState,
   useReactFlow,
+  ConnectionMode,
   type NodeTypes,
   type EdgeTypes,
   type Node,
@@ -452,6 +453,7 @@ export function RelationshipGraph() {
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        connectionMode={ConnectionMode.Loose}
         onNodeDragStart={(_, node) => handleNodeDragStart(node.id)}
         onNodeDrag={(_, node) =>
           handleNodeDrag(node.id, node.position)
