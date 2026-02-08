@@ -40,12 +40,12 @@ describe('PersonNode', () => {
   };
 
   describe('ハンドル構成', () => {
-    it('4つのハンドルがすべて type="source" でレンダリングされること', () => {
+    it('8つのハンドルがすべて type="source" でレンダリングされること', () => {
       const { container } = renderWithProvider();
 
       // React FlowのHandleコンポーネントは`.react-flow__handle`クラスを持つ
       const handles = container.querySelectorAll('.react-flow__handle');
-      expect(handles).toHaveLength(4);
+      expect(handles).toHaveLength(8);
 
       // すべてのハンドルがdata-handlepos属性を持つこと（React Flowの内部実装）
       // type="source"のみの場合、すべてsource用のハンドルとして動作
@@ -68,27 +68,26 @@ describe('PersonNode', () => {
 
       // idが重複していないこと
       const uniqueIds = new Set(ids);
-      expect(uniqueIds.size).toBe(4);
+      expect(uniqueIds.size).toBe(8);
+
+      // 期待されるIDが存在すること
+      const expectedIds = ['top', 'right', 'bottom', 'left', 'top-right', 'bottom-right', 'bottom-left', 'top-left'];
+      expectedIds.forEach((expectedId) => {
+        expect(ids).toContain(expectedId);
+      });
     });
 
-    it('上下左右の4方向のハンドルが配置されていること', () => {
+    it('8方向のハンドルが配置されていること', () => {
       const { container } = renderWithProvider();
 
       const handles = container.querySelectorAll('.react-flow__handle');
 
-      // React Flowのポジションクラスを確認
-      const positions = Array.from(handles).map((handle) => {
-        if (handle.classList.contains('react-flow__handle-top')) return 'top';
-        if (handle.classList.contains('react-flow__handle-bottom')) return 'bottom';
-        if (handle.classList.contains('react-flow__handle-left')) return 'left';
-        if (handle.classList.contains('react-flow__handle-right')) return 'right';
-        return null;
-      });
+      // 8つのハンドルがレンダリングされていることを確認
+      expect(handles).toHaveLength(8);
 
-      expect(positions).toContain('top');
-      expect(positions).toContain('bottom');
-      expect(positions).toContain('left');
-      expect(positions).toContain('right');
+      // 各ハンドルがdata-handleid属性を持つことを確認
+      const ids = Array.from(handles).map((handle) => handle.getAttribute('data-handleid'));
+      expect(ids.filter(Boolean)).toHaveLength(8);
     });
   });
 
