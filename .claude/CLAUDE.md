@@ -10,6 +10,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 詳細はREADME.mdを参照してください。主要な技術スタックはNext.js 16、React 19、React Flow、d3-force、Zustand、Tailwind CSS v4です。
 
+### アイコンライブラリ
+
+- **lucide-react** - 汎用アイコン（ArrowRight, ArrowLeftRight, Minusなど）※dual-directedな矢印は `ArrowLeftRight` を使用
+- **カスタムアイコン** - `src/components/icons/` - lucide-reactにないアイコン（BidirectionalArrow）
+- **重要**: モーダルとパネル間でアイコンを統一すること
+
 ---
 
 ## コマンド
@@ -139,6 +145,12 @@ src/
 ### 7. 選択状態の双方向同期
 
 Zustandストア（`selectedPersonIds`）とReact Flowの選択状態は双方向で同期されます。ノードのクリック操作とストアの更新が常に一致するよう、`onSelectionChange`と`setSelectedPersonIds`で連携しています。
+
+### 8. UI一貫性
+
+モーダル、パネル、フォームなど、同じ機能を持つUI要素は同じアイコンとスタイルを使用すること：
+- 関係タイプ選択アイコン（片方向、双方向、片方向×2、無方向）
+- カスタムアイコンコンポーネントは `src/components/icons/` に配置
 
 ---
 

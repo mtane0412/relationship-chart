@@ -7,6 +7,8 @@
 
 import { useState, useEffect } from 'react';
 import { useReactFlow } from '@xyflow/react';
+import { ArrowRight, ArrowLeft, ArrowLeftRight, Minus } from 'lucide-react';
+import { BidirectionalArrow } from '@/components/icons/BidirectionalArrow';
 import { useGraphStore } from '@/stores/useGraphStore';
 import type { Person } from '@/types/person';
 import type { RelationshipType } from '@/types/relationship';
@@ -20,87 +22,141 @@ type PairSelectionPanelProps = {
 };
 
 /**
- * 関係タイプに応じたSVGアイコンを返す
+ * 表示用の方向インジケーターを返す
  * @param type - 関係タイプ
- * @param hasRelationship - 関係が存在するか
- * @param isReversed - 向きを反転するか（person1がtargetの場合true）
+ * @param isReversed - 関係が逆向きかどうか
+ * @returns 方向インジケーター文字列
  */
-function getRelationshipIcon(
-  type: RelationshipType,
-  hasRelationship: boolean,
-  isReversed: boolean = false
-): React.ReactElement {
-  if (!hasRelationship) {
-    // 関係なしの場合は点線
+function getDirectionIndicator(type: RelationshipType, isReversed: boolean): string {
+  if (type === 'bidirectional') {
+    return '↔';
+  }
+  if (type === 'one-way') {
+    // isReversedがtrueの場合は左向き矢印、falseの場合は右向き矢印
+    return isReversed ? '←' : '→';
+  }
+  // undirectedの場合は方向インジケーターなし
+  return '';
+}
+
+/**
+ * 関係タイプに応じたプレースホルダーを返す
+ */
+function getPlaceholder(type: RelationshipType, isReverse = false): string {
+  if (type === 'one-way') {
+    return '例: 片想い、憧れ';
+  }
+  if (type === 'bidirectional') {
+    return '例: 友人、親子、同僚';
+  }
+  if (type === 'dual-directed') {
+    return isReverse ? '例: 無関心、嫌い' : '例: 好き、憧れ';
+  }
+  if (type === 'undirected') {
+    return '例: 同一人物、別名';
+  }
+  return '例: 関係を入力';
+}
+
+/**
+ * 人物のミニアイコンを表示するヘルパーコンポーネント
+ */
+function PersonMiniIcon({ person }: { person: Person }) {
+  if (person.imageDataUrl) {
     return (
-      <svg width="40" height="24" viewBox="0 0 40 24" className="shrink-0">
-        <line
-          x1="0"
-          y1="12"
-          x2="40"
-          y2="12"
-          stroke="#d1d5db"
-          strokeWidth="2"
-          strokeDasharray="4 4"
-        />
-      </svg>
+      <img
+        src={person.imageDataUrl}
+        alt={person.name}
+        className="w-6 h-6 rounded-full object-cover border border-gray-300"
+      />
     );
   }
-
-  switch (type) {
-    case 'bidirectional':
-      return (
-        <svg width="40" height="24" viewBox="0 0 40 24" className="shrink-0">
-          <line x1="4" y1="12" x2="36" y2="12" stroke="#3b82f6" strokeWidth="2" />
-          <polygon points="36,12 32,9 32,15" fill="#3b82f6" />
-          <polygon points="4,12 8,9 8,15" fill="#3b82f6" />
-        </svg>
-      );
-    case 'dual-directed':
-      return (
-        <svg width="40" height="24" viewBox="0 0 40 24" className="shrink-0">
-          <line x1="4" y1="8" x2="36" y2="8" stroke="#3b82f6" strokeWidth="2" />
-          <polygon points="36,8 32,5 32,11" fill="#3b82f6" />
-          <line x1="36" y1="16" x2="4" y2="16" stroke="#10b981" strokeWidth="2" />
-          <polygon points="4,16 8,13 8,19" fill="#10b981" />
-        </svg>
-      );
-    case 'one-way':
-      // isReversedがtrueの場合は左向き矢印、falseの場合は右向き矢印
-      return isReversed ? (
-        <svg width="40" height="24" viewBox="0 0 40 24" className="shrink-0">
-          <line x1="4" y1="12" x2="36" y2="12" stroke="#3b82f6" strokeWidth="2" />
-          <polygon points="4,12 8,9 8,15" fill="#3b82f6" />
-        </svg>
-      ) : (
-        <svg width="40" height="24" viewBox="0 0 40 24" className="shrink-0">
-          <line x1="4" y1="12" x2="36" y2="12" stroke="#3b82f6" strokeWidth="2" />
-          <polygon points="36,12 32,9 32,15" fill="#3b82f6" />
-        </svg>
-      );
-    case 'undirected':
-      return (
-        <svg width="40" height="24" viewBox="0 0 40 24" className="shrink-0">
-          <line x1="4" y1="12" x2="36" y2="12" stroke="#64748b" strokeWidth="2" />
-        </svg>
-      );
-  }
+  return (
+    <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 text-xs font-semibold border border-gray-300">
+      {person.name.charAt(0).toUpperCase() || '?'}
+    </div>
+  );
 }
 
 /**
  * 2人選択パネルコンポーネント
  */
 export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
-  const [relationshipType, setRelationshipType] = useState<RelationshipType>('bidirectional');
-  const [sourceToTargetLabel, setSourceToTargetLabel] = useState('');
-  const [targetToSourceLabel, setTargetToSourceLabel] = useState('');
   const relationships = useGraphStore((state) => state.relationships);
   const addRelationship = useGraphStore((state) => state.addRelationship);
+  const updateRelationship = useGraphStore((state) => state.updateRelationship);
   const removeRelationship = useGraphStore((state) => state.removeRelationship);
   const clearSelection = useGraphStore((state) => state.clearSelection);
   const selectPerson = useGraphStore((state) => state.selectPerson);
 
   const { getNode, setCenter } = useReactFlow();
+
+  const [person1, person2] = persons;
+
+  // 2人の間の既存関係を取得（方向問わず）
+  const existingRelationship = relationships.find(
+    (r) =>
+      (r.sourcePersonId === person1.id && r.targetPersonId === person2.id) ||
+      (r.sourcePersonId === person2.id && r.targetPersonId === person1.id)
+  );
+
+  // 既存関係の向きを判定（person1がsourceかどうか）
+  const isReversed = existingRelationship
+    ? existingRelationship.sourcePersonId === person2.id
+    : false;
+
+  // フォーム状態
+  const [relationshipType, setRelationshipType] = useState<RelationshipType>('bidirectional');
+  const [sourceToTargetLabel, setSourceToTargetLabel] = useState('');
+  const [targetToSourceLabel, setTargetToSourceLabel] = useState('');
+  const [isTypePickerOpen, setIsTypePickerOpen] = useState(false);
+
+  // 初期値設定
+  useEffect(() => {
+    if (existingRelationship) {
+      setRelationshipType(existingRelationship.type);
+      setSourceToTargetLabel(
+        isReversed
+          ? existingRelationship.targetToSourceLabel || existingRelationship.sourceToTargetLabel
+          : existingRelationship.sourceToTargetLabel
+      );
+      setTargetToSourceLabel(
+        isReversed
+          ? (existingRelationship.type === 'dual-directed' ? existingRelationship.sourceToTargetLabel : '')
+          : (existingRelationship.targetToSourceLabel || '')
+      );
+    } else {
+      setRelationshipType('bidirectional');
+      setSourceToTargetLabel('');
+      setTargetToSourceLabel('');
+    }
+  }, [existingRelationship, isReversed]);
+
+  // 外部クリックでドロップダウンを閉じる
+  useEffect(() => {
+    if (!isTypePickerOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      // ドロップダウンまたはトグルボタンの外側をクリックした場合のみ閉じる
+      const dropdown = document.querySelector('[data-dropdown="relationship-type"]');
+      const toggleButton = document.querySelector('[data-toggle="relationship-type"]');
+
+      if (
+        dropdown &&
+        toggleButton &&
+        !dropdown.contains(target) &&
+        !toggleButton.contains(target)
+      ) {
+        setIsTypePickerOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isTypePickerOpen]);
 
   /**
    * ノードを画面中央に移動する
@@ -124,89 +180,63 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
     focusNode(personId);
   };
 
-  const [person1, person2] = persons;
+  /**
+   * フォーム送信ハンドラ
+   */
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
 
-  // persons が変更されたときにフォーム状態をリセット
-  useEffect(() => {
-    setRelationshipType('bidirectional');
-    setSourceToTargetLabel('');
-    setTargetToSourceLabel('');
-  }, [persons]);
-
-  // ビューポートを2ノードの中点に移動
-  useEffect(() => {
-    const node1 = getNode(person1.id);
-    const node2 = getNode(person2.id);
-    if (node1 && node2) {
-      const w1 = node1.measured?.width ?? 80;
-      const h1 = node1.measured?.height ?? 120;
-      const w2 = node2.measured?.width ?? 80;
-      const h2 = node2.measured?.height ?? 120;
-
-      const midX = (node1.position.x + w1 / 2 + node2.position.x + w2 / 2) / 2;
-      const midY = (node1.position.y + h1 / 2 + node2.position.y + h2 / 2) / 2;
-
-      setCenter(midX, midY, { duration: 500 });
-    }
-  }, [person1.id, person2.id, getNode, setCenter]);
-
-  // 2人の間の既存関係を取得（方向問わず）
-  const existingRelationship = relationships.find(
-    (r) =>
-      (r.sourcePersonId === person1.id && r.targetPersonId === person2.id) ||
-      (r.sourcePersonId === person2.id && r.targetPersonId === person1.id)
-  );
-
-  // フォーム送信ハンドラ
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
     if (!sourceToTargetLabel.trim()) return;
     if (relationshipType === 'dual-directed' && !targetToSourceLabel.trim()) return;
 
-    // 関係を追加
-    addRelationship({
-      sourcePersonId: person1.id,
-      targetPersonId: person2.id,
-      type: relationshipType,
-      sourceToTargetLabel: sourceToTargetLabel.trim(),
-      targetToSourceLabel: relationshipType === 'dual-directed' ? targetToSourceLabel.trim() : null,
-    });
+    const finalTargetToSourceLabel =
+      relationshipType === 'dual-directed' ? targetToSourceLabel.trim() : null;
 
-    // フォームをリセット
-    setSourceToTargetLabel('');
-    setTargetToSourceLabel('');
-    setRelationshipType('bidirectional');
+    if (existingRelationship) {
+      // 既存の関係を更新
+      const updates = isReversed
+        ? {
+            type: relationshipType,
+            sourceToTargetLabel: finalTargetToSourceLabel || sourceToTargetLabel.trim(),
+            targetToSourceLabel: relationshipType === 'dual-directed' ? sourceToTargetLabel.trim() : null,
+          }
+        : {
+            type: relationshipType,
+            sourceToTargetLabel: sourceToTargetLabel.trim(),
+            targetToSourceLabel: finalTargetToSourceLabel,
+          };
+
+      updateRelationship(existingRelationship.id, updates);
+    } else {
+      // 新規の関係を追加
+      addRelationship({
+        sourcePersonId: person1.id,
+        targetPersonId: person2.id,
+        type: relationshipType,
+        sourceToTargetLabel: sourceToTargetLabel.trim(),
+        targetToSourceLabel: finalTargetToSourceLabel,
+      });
+    }
   };
 
   // 相手のイニシャル（画像がない場合）
   const person1Initial = person1.name.charAt(0).toUpperCase() || '?';
   const person2Initial = person2.name.charAt(0).toUpperCase() || '?';
 
-  // 既存関係の向きを判定（person1がsourceかどうか）
-  const isReversed = existingRelationship
-    ? existingRelationship.sourcePersonId === person2.id
-    : false;
-
-  // 表示用のラベル（向きを正規化）
-  const displayLabel1to2 = existingRelationship
-    ? isReversed
-      ? existingRelationship.targetToSourceLabel
-      : existingRelationship.sourceToTargetLabel
-    : null;
-
-  const displayLabel2to1 = existingRelationship
-    ? isReversed
-      ? existingRelationship.sourceToTargetLabel
-      : existingRelationship.targetToSourceLabel
-    : null;
+  // 登録ボタンの有効/無効を判定
+  const isSubmitDisabled =
+    !sourceToTargetLabel.trim() ||
+    (relationshipType === 'dual-directed' && !targetToSourceLabel.trim());
 
   return (
     <div className="flex flex-col h-full">
-      {/* ヘッダー */}
-      <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center justify-between mb-3">
+      {/* 関係追加/編集フォーム */}
+      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 flex flex-col">
+        {/* フォーム上部: タイトルと選択解除ボタン */}
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-gray-700">2人を選択中</h2>
           <button
+            type="button"
             onClick={() => clearSelection()}
             className="text-xs text-gray-500 hover:text-gray-700"
             aria-label="選択を解除"
@@ -214,10 +244,9 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
             ✕ 選択解除
           </button>
         </div>
-
-        {/* 選択された2人のアバター表示 */}
-        <div className="flex items-center justify-center gap-3 mb-3">
-          {/* 人物1のアバター */}
+        {/* 2人の人物情報表示 + 関係タイプ選択 */}
+        <div className="mb-4 flex items-center justify-center gap-3 text-gray-700">
+          {/* 人物1のアイコン */}
           <div
             role="button"
             tabIndex={0}
@@ -235,11 +264,11 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
               <img
                 src={person1.imageDataUrl}
                 alt={person1.name}
-                className="w-12 h-12 rounded-full object-cover"
+                className="w-10 h-10 rounded-full object-cover border border-gray-300"
               />
             ) : (
-              <div className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center">
-                <span className="text-white text-lg font-bold">{person1Initial}</span>
+              <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 font-semibold border border-gray-300">
+                {person1Initial}
               </div>
             )}
             <span className="text-xs font-medium text-gray-700 truncate max-w-[80px]">
@@ -247,14 +276,105 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
             </span>
           </div>
 
-          {/* 関係アイコン */}
-          {getRelationshipIcon(
-            existingRelationship?.type ?? 'bidirectional',
-            !!existingRelationship,
-            isReversed
-          )}
+          {/* 現在選択中の関係アイコン（クリックで展開） */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsTypePickerOpen(!isTypePickerOpen)}
+              aria-label="関係タイプを選択"
+              className="w-10 h-10 flex items-center justify-center rounded bg-gray-100 hover:bg-gray-200 transition-colors"
+              data-toggle="relationship-type"
+            >
+              {relationshipType === 'one-way' && (
+                isReversed ? <ArrowLeft className="w-5 h-5" /> : <ArrowRight className="w-5 h-5" />
+              )}
+              {relationshipType === 'bidirectional' && <BidirectionalArrow className="w-5 h-5" />}
+              {relationshipType === 'dual-directed' && <ArrowLeftRight className="w-5 h-5" />}
+              {relationshipType === 'undirected' && <Minus className="w-5 h-5" />}
+            </button>
 
-          {/* 人物2のアバター */}
+            {/* 関係タイプ選択ドロップダウン */}
+            {isTypePickerOpen && (
+              <div
+                className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white border border-gray-300 rounded-md shadow-lg p-1 flex gap-1 z-10"
+                data-dropdown="relationship-type"
+              >
+                {/* 片方向 (one-way) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRelationshipType('one-way');
+                    setIsTypePickerOpen(false);
+                  }}
+                  aria-pressed={relationshipType === 'one-way'}
+                  aria-label="片方向"
+                  className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
+                    relationshipType === 'one-way'
+                      ? 'bg-blue-100 ring-2 ring-blue-500'
+                      : 'hover:bg-gray-100'
+                  }`}
+                >
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+
+                {/* 双方向 (bidirectional) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRelationshipType('bidirectional');
+                    setIsTypePickerOpen(false);
+                  }}
+                  aria-pressed={relationshipType === 'bidirectional'}
+                  aria-label="双方向"
+                  className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
+                    relationshipType === 'bidirectional'
+                      ? 'bg-blue-100 ring-2 ring-blue-500'
+                      : 'hover:bg-gray-100'
+                  }`}
+                >
+                  <BidirectionalArrow className="w-5 h-5" />
+                </button>
+
+                {/* 片方向×2 (dual-directed) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRelationshipType('dual-directed');
+                    setIsTypePickerOpen(false);
+                  }}
+                  aria-pressed={relationshipType === 'dual-directed'}
+                  aria-label="片方向×2"
+                  className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
+                    relationshipType === 'dual-directed'
+                      ? 'bg-blue-100 ring-2 ring-blue-500'
+                      : 'hover:bg-gray-100'
+                  }`}
+                >
+                  <ArrowLeftRight className="w-5 h-5" />
+                </button>
+
+                {/* 無方向 (undirected) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRelationshipType('undirected');
+                    setIsTypePickerOpen(false);
+                  }}
+                  aria-pressed={relationshipType === 'undirected'}
+                  aria-label="無方向"
+                  className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
+                    relationshipType === 'undirected'
+                      ? 'bg-blue-100 ring-2 ring-blue-500'
+                      : 'hover:bg-gray-100'
+                  }`}
+                >
+                  <Minus className="w-5 h-5" />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* 人物2のアイコン */}
           <div
             role="button"
             tabIndex={0}
@@ -272,11 +392,11 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
               <img
                 src={person2.imageDataUrl}
                 alt={person2.name}
-                className="w-12 h-12 rounded-full object-cover"
+                className="w-10 h-10 rounded-full object-cover border border-gray-300"
               />
             ) : (
-              <div className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center">
-                <span className="text-white text-lg font-bold">{person2Initial}</span>
+              <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 font-semibold border border-gray-300">
+                {person2Initial}
               </div>
             )}
             <span className="text-xs font-medium text-gray-700 truncate max-w-[80px]">
@@ -285,143 +405,96 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
           </div>
         </div>
 
-        {/* 関係のラベル（既存関係がある場合） */}
-        {existingRelationship && (
-          <div className="text-center">
-            {existingRelationship.type === 'dual-directed' ? (
-              <div className="space-y-0.5">
-                <div className="text-xs font-medium text-blue-700">
-                  {displayLabel1to2}
-                </div>
-                <div className="text-xs font-medium text-green-700">
-                  {displayLabel2to1}
-                </div>
-              </div>
-            ) : (
-              <div className="text-xs font-medium text-gray-700">
-                「{displayLabel1to2}」
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* 関係登録フォーム（既存関係がある場合は非表示） */}
-      {!existingRelationship ? (
-        <div className="flex-1 overflow-y-auto p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">
-            関係を追加
-          </h3>
-          <form onSubmit={handleSubmit} className="space-y-3">
-            {/* 関係タイプ選択 */}
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-2">
-                関係のタイプ
-              </label>
-              <div className="space-y-1">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="relationshipType"
-                    value="bidirectional"
-                    checked={relationshipType === 'bidirectional'}
-                    onChange={(e) => setRelationshipType(e.target.value as RelationshipType)}
-                    className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-2 focus:ring-blue-500"
-                  />
-                  <span className="text-xs text-gray-700">双方向 ↔</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="relationshipType"
-                    value="dual-directed"
-                    checked={relationshipType === 'dual-directed'}
-                    onChange={(e) => setRelationshipType(e.target.value as RelationshipType)}
-                    className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-2 focus:ring-blue-500"
-                  />
-                  <span className="text-xs text-gray-700">片方向×2 → ←</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="relationshipType"
-                    value="one-way"
-                    checked={relationshipType === 'one-way'}
-                    onChange={(e) => setRelationshipType(e.target.value as RelationshipType)}
-                    className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-2 focus:ring-blue-500"
-                  />
-                  <span className="text-xs text-gray-700">片方向×1 →</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="relationshipType"
-                    value="undirected"
-                    checked={relationshipType === 'undirected'}
-                    onChange={(e) => setRelationshipType(e.target.value as RelationshipType)}
-                    className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-2 focus:ring-blue-500"
-                  />
-                  <span className="text-xs text-gray-700">無方向</span>
-                </label>
-              </div>
-            </div>
-
-            {/* ラベル入力 */}
-            <div>
+        {/* ラベル入力 */}
+        {relationshipType === 'dual-directed' ? (
+          // dual-directed: 2つのラベル入力セット
+          <>
+            <div className="mb-4">
               <label
-                htmlFor="pair-relationship-label"
-                className="block text-xs font-medium text-gray-700 mb-1"
+                htmlFor="relationship-label"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
                 関係のラベル
               </label>
+              {/* 方向インジケーター */}
+              <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                <PersonMiniIcon person={person1} />
+                <span>→</span>
+                <PersonMiniIcon person={person2} />
+              </div>
               <input
-                id="pair-relationship-label"
+                id="relationship-label"
                 type="text"
                 value={sourceToTargetLabel}
                 onChange={(e) => setSourceToTargetLabel(e.target.value)}
-                placeholder="例: 友人、上司、同僚"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder={getPlaceholder('dual-directed', false)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
-
-            {/* dual-directed選択時のみ2つ目のラベル入力を表示 */}
-            {relationshipType === 'dual-directed' && (
-              <div>
-                <label
-                  htmlFor="pair-reverse-relationship-label"
-                  className="block text-xs font-medium text-gray-700 mb-1"
-                >
-                  逆方向のラベル
-                </label>
-                <input
-                  id="pair-reverse-relationship-label"
-                  type="text"
-                  value={targetToSourceLabel}
-                  onChange={(e) => setTargetToSourceLabel(e.target.value)}
-                  placeholder="例: 無関心、嫌い"
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+            <div className="mb-4">
+              <label
+                htmlFor="reverse-relationship-label"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                逆方向のラベル
+              </label>
+              {/* 方向インジケーター */}
+              <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                <PersonMiniIcon person={person1} />
+                <span>←</span>
+                <PersonMiniIcon person={person2} />
+              </div>
+              <input
+                id="reverse-relationship-label"
+                type="text"
+                value={targetToSourceLabel}
+                onChange={(e) => setTargetToSourceLabel(e.target.value)}
+                placeholder={getPlaceholder('dual-directed', true)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </>
+        ) : (
+          // one-way / bidirectional / undirected: 単一ラベル入力
+          <div className="mb-4">
+            <label
+              htmlFor="relationship-label"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              関係のラベル
+            </label>
+            {/* 関係タイプに応じたインジケーター */}
+            {relationshipType !== 'undirected' && (
+              <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                <PersonMiniIcon person={person1} />
+                <span>{getDirectionIndicator(relationshipType, isReversed)}</span>
+                <PersonMiniIcon person={person2} />
               </div>
             )}
+            <input
+              id="relationship-label"
+              type="text"
+              value={sourceToTargetLabel}
+              onChange={(e) => setSourceToTargetLabel(e.target.value)}
+              placeholder={getPlaceholder(relationshipType)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+        )}
 
-            {/* 登録ボタン */}
-            <button
-              type="submit"
-              disabled={
-                !sourceToTargetLabel.trim() ||
-                (relationshipType === 'dual-directed' && !targetToSourceLabel.trim())
-              }
-              className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-            >
-              関係を追加
-            </button>
-          </form>
-        </div>
-      ) : null}
+        {/* 登録/更新ボタン */}
+        <button
+          type="submit"
+          disabled={isSubmitDisabled}
+          className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors mt-auto"
+        >
+          {existingRelationship ? '更新' : '登録'}
+        </button>
+      </form>
 
       {/* 削除ボタン（既存関係がある場合のみ、パネル最下部） */}
       {existingRelationship && (
-        <div className="p-4 border-t border-gray-200 mt-auto">
+        <div className="p-4 border-t border-gray-200">
           <button
             onClick={() => removeRelationship(existingRelationship.id)}
             className="w-full px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-300 rounded-md hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"

@@ -6,6 +6,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { ArrowRight, ArrowLeftRight, Minus } from 'lucide-react';
+import { BidirectionalArrow } from '@/components/icons/BidirectionalArrow';
 import type { RelationshipType } from '@/types/relationship';
 
 /**
@@ -226,17 +228,7 @@ export function RelationshipRegistrationModal({
                   : 'hover:bg-gray-200'
               }`}
             >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="w-5 h-5"
-              >
-                <path d="M5 12h14M13 6l6 6-6 6" />
-              </svg>
+              <ArrowRight className="w-5 h-5" />
             </button>
 
             {/* 双方向 (bidirectional) */}
@@ -251,17 +243,7 @@ export function RelationshipRegistrationModal({
                   : 'hover:bg-gray-200'
               }`}
             >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="w-5 h-5"
-              >
-                <path d="M5 12h14M11 6l-6 6 6 6M13 6l6 6-6 6" />
-              </svg>
+              <BidirectionalArrow className="w-5 h-5" />
             </button>
 
             {/* 片方向×2 (dual-directed) */}
@@ -276,18 +258,7 @@ export function RelationshipRegistrationModal({
                   : 'hover:bg-gray-200'
               }`}
             >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="w-5 h-5"
-              >
-                <path d="M5 9h14M13 3l6 6-6 6" />
-                <path d="M19 15h-14M11 21l-6-6 6-6" />
-              </svg>
+              <ArrowLeftRight className="w-5 h-5" />
             </button>
 
             {/* 無方向 (undirected) */}
@@ -302,17 +273,7 @@ export function RelationshipRegistrationModal({
                   : 'hover:bg-gray-200'
               }`}
             >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="w-5 h-5"
-              >
-                <path d="M4 12h16" />
-              </svg>
+              <Minus className="w-5 h-5" />
             </button>
           </div>
 
