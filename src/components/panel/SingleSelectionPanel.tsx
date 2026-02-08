@@ -117,6 +117,11 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
 
               // キーボードハンドラ: Enter/Spaceで遷移
               const handleKeyDown = (e: React.KeyboardEvent) => {
+                // インタラクティブ要素からのイベントは無視
+                if (e.target instanceof HTMLElement && e.target.closest('button')) {
+                  return;
+                }
+
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
                   handleRelationshipClick();
@@ -124,7 +129,7 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
               };
 
               // 相手のイニシャル（画像がない場合）
-              const otherInitial = otherPerson.name[0] || '?';
+              const otherInitial = otherPerson.name.charAt(0).toUpperCase() || '?';
 
               return (
                 <div
@@ -133,6 +138,7 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
                   tabIndex={0}
                   onClick={handleRelationshipClick}
                   onKeyDown={handleKeyDown}
+                  aria-label={`${otherPerson.name}との関係を開く`}
                   className="flex items-center gap-2 p-2 border border-gray-200 rounded-lg bg-gray-50 cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-colors"
                 >
                   {/* 関係の表示: 関係内容 エッジアイコン 相手アイコン 相手名前 */}
