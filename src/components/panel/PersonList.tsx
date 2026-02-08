@@ -5,6 +5,8 @@
 
 'use client';
 
+import { useCallback } from 'react';
+import { useReactFlow } from '@xyflow/react';
 import { useGraphStore } from '@/stores/useGraphStore';
 
 /**
@@ -16,6 +18,24 @@ export function PersonList() {
   const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
   const selectPerson = useGraphStore((state) => state.selectPerson);
   const togglePersonSelection = useGraphStore((state) => state.togglePersonSelection);
+
+  const { getNode, setCenter } = useReactFlow();
+
+  /**
+   * ノードを画面中央に移動する
+   * @param personId - 人物ID
+   */
+  const focusNode = useCallback(
+    (personId: string) => {
+      const node = getNode(personId);
+      if (node) {
+        const w = node.measured?.width ?? 80;
+        const h = node.measured?.height ?? 120;
+        setCenter(node.position.x + w / 2, node.position.y + h / 2, { duration: 500 });
+      }
+    },
+    [getNode, setCenter]
+  );
 
   if (persons.length === 0) {
     return (
@@ -43,6 +63,8 @@ export function PersonList() {
                 togglePersonSelection(person.id);
               } else {
                 selectPerson(person.id);
+                // 単一選択時のみノードを画面中央に移動
+                focusNode(person.id);
               }
             }}
             onKeyDown={(e) => {
@@ -58,6 +80,8 @@ export function PersonList() {
                   togglePersonSelection(person.id);
                 } else {
                   selectPerson(person.id);
+                  // 単一選択時のみノードを画面中央に移動
+                  focusNode(person.id);
                 }
               }
             }}

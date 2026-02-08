@@ -26,6 +26,7 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
   const removeRelationship = useGraphStore((state) => state.removeRelationship);
   const removePerson = useGraphStore((state) => state.removePerson);
   const clearSelection = useGraphStore((state) => state.clearSelection);
+  const setSelectedPersonIds = useGraphStore((state) => state.setSelectedPersonIds);
 
   // 人物削除ハンドラ
   const handleDeletePerson = () => {
@@ -66,11 +67,44 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
 
               if (!otherPerson) return null;
 
+              // 関係クリックハンドラ: 2人選択状態に遷移
+              const handleRelationshipClick = () => {
+                setSelectedPersonIds([person.id, otherPerson.id]);
+              };
+
+              // キーボードハンドラ: Enter/Spaceで遷移
+              const handleKeyDown = (e: React.KeyboardEvent) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleRelationshipClick();
+                }
+              };
+
+              // 相手のイニシャル（画像がない場合）
+              const otherInitial = otherPerson.name[0] || '?';
+
               return (
                 <div
                   key={relationship.id}
-                  className="flex items-center gap-2 p-2 border border-gray-200 rounded-lg bg-gray-50"
+                  role="button"
+                  tabIndex={0}
+                  onClick={handleRelationshipClick}
+                  onKeyDown={handleKeyDown}
+                  className="flex items-center gap-2 p-2 border border-gray-200 rounded-lg bg-gray-50 cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-colors"
                 >
+                  {/* 相手人物のアバター */}
+                  {otherPerson.imageDataUrl ? (
+                    <img
+                      src={otherPerson.imageDataUrl}
+                      alt={otherPerson.name}
+                      className="shrink-0 w-7 h-7 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="shrink-0 w-7 h-7 rounded-full bg-gray-300 flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">{otherInitial}</span>
+                    </div>
+                  )}
+
                   {/* 関係の表示 */}
                   <div className="flex-1 min-w-0 text-sm">
                     {relationship.type === 'dual-directed' ? (
@@ -159,7 +193,10 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
 
                   {/* 削除ボタン */}
                   <button
-                    onClick={() => removeRelationship(relationship.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeRelationship(relationship.id);
+                    }}
                     className="shrink-0 p-1 text-gray-400 hover:text-red-600 rounded-md hover:bg-red-50"
                     aria-label={`${otherPerson.name}との関係を削除`}
                   >
