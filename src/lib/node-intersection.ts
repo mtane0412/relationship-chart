@@ -4,6 +4,17 @@
  */
 
 /**
+ * PersonNodeの画像サイズ（固定値）
+ * PersonNode.tsxの画像は w-20 h-20 (80px x 80px)
+ */
+export const PERSON_IMAGE_SIZE = 80;
+
+/**
+ * PersonNodeの画像半径（固定値）
+ */
+export const PERSON_IMAGE_RADIUS = PERSON_IMAGE_SIZE / 2;
+
+/**
  * 円の境界との交点を計算する
  * @param center - 円の中心座標
  * @param radius - 円の半径
@@ -53,26 +64,25 @@ export function getEdgeIntersectionPoints(
   sourcePoint: { x: number; y: number };
   targetPoint: { x: number; y: number };
 } {
-  // ノードのサイズを取得（デフォルトは80x80）
-  const sourceWidth = sourceNode.measured?.width || 80;
-  const sourceHeight = sourceNode.measured?.height || 80;
-  const targetWidth = targetNode.measured?.width || 80;
-  const targetHeight = targetNode.measured?.height || 80;
+  // ノードの幅を取得（名前ラベルの幅で可変、デフォルトは画像サイズ）
+  const sourceWidth = sourceNode.measured?.width || PERSON_IMAGE_SIZE;
+  const targetWidth = targetNode.measured?.width || PERSON_IMAGE_SIZE;
 
   // ノードの中心座標を計算
+  // centerX: 名前ラベルの幅に応じて可変
+  // centerY: 画像の中心Y座標で固定（position.y + PERSON_IMAGE_RADIUS）
   const sourceCenterX = sourceNode.position.x + sourceWidth / 2;
-  const sourceCenterY = sourceNode.position.y + sourceHeight / 2;
+  const sourceCenterY = sourceNode.position.y + PERSON_IMAGE_RADIUS;
   const targetCenterX = targetNode.position.x + targetWidth / 2;
-  const targetCenterY = targetNode.position.y + targetHeight / 2;
+  const targetCenterY = targetNode.position.y + PERSON_IMAGE_RADIUS;
 
-  // 円形ノードの半径を計算（幅と高さの平均）
-  const sourceRadius = (sourceWidth + sourceHeight) / 4;
-  const targetRadius = (targetWidth + targetHeight) / 4;
+  // 円形ノードの半径（画像サイズ固定）
+  const radius = PERSON_IMAGE_RADIUS;
 
   // ソースノードの境界との交点を計算
   const sourcePoint = getCircleIntersection(
     { x: sourceCenterX, y: sourceCenterY },
-    sourceRadius,
+    radius,
     targetCenterX,
     targetCenterY
   );
@@ -80,7 +90,7 @@ export function getEdgeIntersectionPoints(
   // ターゲットノードの境界との交点を計算
   const targetPoint = getCircleIntersection(
     { x: targetCenterX, y: targetCenterY },
-    targetRadius,
+    radius,
     sourceCenterX,
     sourceCenterY
   );

@@ -119,16 +119,19 @@ describe('getEdgeIntersectionPoints', () => {
       targetNode
     );
 
-    // ソースノードの右端からターゲットノードの左端に接続
-    // ソースの中心(50, 50) + 半径50 = (100, 50)
-    expect(sourcePoint.x).toBeCloseTo(100, 1);
-    expect(sourcePoint.y).toBeCloseTo(50, 1);
-    // ターゲットの中心(250, 50) - 半径50 = (200, 50)
-    expect(targetPoint.x).toBeCloseTo(200, 1);
-    expect(targetPoint.y).toBeCloseTo(50, 1);
+    // 新しい計算式:
+    // - centerY = position.y + PERSON_IMAGE_RADIUS (40px固定)
+    // - centerX = position.x + measured.width / 2
+    // - radius = PERSON_IMAGE_RADIUS (40px固定)
+    // ソースノードの中心(50, 40)、右方向に半径40 → (90, 40)
+    expect(sourcePoint.x).toBeCloseTo(90, 1);
+    expect(sourcePoint.y).toBeCloseTo(40, 1);
+    // ターゲットノードの中心(250, 40)、左方向に半径40 → (210, 40)
+    expect(targetPoint.x).toBeCloseTo(210, 1);
+    expect(targetPoint.y).toBeCloseTo(40, 1);
   });
 
-  it('measuredが未定義の場合、デフォルトサイズを使用する', () => {
+  it('measuredが未定義の場合、デフォルト幅を使用する', () => {
     const sourceNode = {
       id: '1',
       position: { x: 0, y: 0 },
@@ -145,8 +148,41 @@ describe('getEdgeIntersectionPoints', () => {
       targetNode
     );
 
-    // デフォルトサイズ（80x80）を使用
-    expect(sourcePoint.x).toBeGreaterThan(0);
-    expect(targetPoint.x).toBeLessThan(300);
+    // デフォルト幅（80px）を使用
+    // ソースの中心(40, 40)、右方向に半径40 → (80, 40)
+    expect(sourcePoint.x).toBeCloseTo(80, 1);
+    expect(sourcePoint.y).toBeCloseTo(40, 1);
+    // ターゲットの中心(240, 40)、左方向に半径40 → (200, 40)
+    expect(targetPoint.x).toBeCloseTo(200, 1);
+    expect(targetPoint.y).toBeCloseTo(40, 1);
+  });
+
+  it('measuredの有無でY座標が変わらないことを検証', () => {
+    const baseNode = {
+      id: '1',
+      position: { x: 0, y: 0 },
+    };
+    const targetNode = {
+      id: '2',
+      position: { x: 200, y: 0 },
+      measured: { width: 100, height: 100 },
+    };
+
+    // measuredありの場合
+    const withMeasured = getEdgeIntersectionPoints(
+      { ...baseNode, measured: { width: 100, height: 120 } },
+      targetNode
+    );
+
+    // measuredなしの場合
+    const withoutMeasured = getEdgeIntersectionPoints(
+      { ...baseNode, measured: undefined },
+      targetNode
+    );
+
+    // Y座標は常に position.y + 40 で固定されるべき
+    expect(withMeasured.sourcePoint.y).toBeCloseTo(40, 1);
+    expect(withoutMeasured.sourcePoint.y).toBeCloseTo(40, 1);
+    expect(withMeasured.sourcePoint.y).toBeCloseTo(withoutMeasured.sourcePoint.y, 1);
   });
 });
