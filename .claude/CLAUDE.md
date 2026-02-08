@@ -12,8 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### アイコンライブラリ
 
-- **lucide-react** - 汎用アイコン（ArrowRight, Minusなど）
-- **カスタムアイコン** - `src/components/icons/` - lucide-reactにないアイコン（BidirectionalArrow, DualDirectedArrow）
+- **lucide-react** - 汎用アイコン（ArrowRight, ArrowLeftRight, Minusなど）※dual-directedな矢印は `ArrowLeftRight` を使用
+- **カスタムアイコン** - `src/components/icons/` - lucide-reactにないアイコン（BidirectionalArrow）
 - **重要**: モーダルとパネル間でアイコンを統一すること
 
 ---

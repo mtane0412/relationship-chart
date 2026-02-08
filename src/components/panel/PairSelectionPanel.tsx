@@ -114,6 +114,32 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
     }
   }, [existingRelationship, isReversed]);
 
+  // 外部クリックでドロップダウンを閉じる
+  useEffect(() => {
+    if (!isTypePickerOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      // ドロップダウンまたはトグルボタンの外側をクリックした場合のみ閉じる
+      const dropdown = document.querySelector('[data-dropdown="relationship-type"]');
+      const toggleButton = document.querySelector('[data-toggle="relationship-type"]');
+
+      if (
+        dropdown &&
+        toggleButton &&
+        !dropdown.contains(target) &&
+        !toggleButton.contains(target)
+      ) {
+        setIsTypePickerOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isTypePickerOpen]);
+
   /**
    * ノードを画面中央に移動する
    * @param personId - 人物ID
@@ -239,6 +265,7 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
               onClick={() => setIsTypePickerOpen(!isTypePickerOpen)}
               aria-label="関係タイプを選択"
               className="w-10 h-10 flex items-center justify-center rounded bg-gray-100 hover:bg-gray-200 transition-colors"
+              data-toggle="relationship-type"
             >
               {relationshipType === 'one-way' && <ArrowRight className="w-5 h-5" />}
               {relationshipType === 'bidirectional' && <BidirectionalArrow className="w-5 h-5" />}
@@ -248,7 +275,10 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
 
             {/* 関係タイプ選択ドロップダウン */}
             {isTypePickerOpen && (
-              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white border border-gray-300 rounded-md shadow-lg p-1 flex gap-1 z-10">
+              <div
+                className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white border border-gray-300 rounded-md shadow-lg p-1 flex gap-1 z-10"
+                data-dropdown="relationship-type"
+              >
                 {/* 片方向 (one-way) */}
                 <button
                   type="button"

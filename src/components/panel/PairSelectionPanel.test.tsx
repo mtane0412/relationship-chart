@@ -128,6 +128,32 @@ describe('PairSelectionPanel', () => {
         expect(state.selectedPersonIds).toEqual([person1.id]);
       });
     });
+
+    it('関係タイプ選択ドロップダウンが外部クリックで閉じる', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      // ドロップダウンを開く
+      const typePickerButton = screen.getByRole('button', { name: '関係タイプを選択' });
+      await user.click(typePickerButton);
+
+      // ドロップダウンが表示されることを確認
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: '片方向' })).toBeInTheDocument();
+      });
+
+      // フォーム外をクリック（document.bodyをクリック）
+      await user.click(document.body);
+
+      // ドロップダウンが閉じることを確認
+      await waitFor(() => {
+        expect(screen.queryByRole('button', { name: '片方向' })).not.toBeInTheDocument();
+      });
+    });
   });
 
   describe('既存の関係がない場合', () => {
