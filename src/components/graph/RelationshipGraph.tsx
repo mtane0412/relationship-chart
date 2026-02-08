@@ -286,8 +286,10 @@ export function RelationshipGraph() {
   // エッジクリックハンドラ（エッジに対応する2人を選択状態にする）
   const handleEdgeClick = useCallback(
     (_event: React.MouseEvent, edge: Edge) => {
-      // エッジのsourceとtargetを取得して2人選択状態にする
-      setSelectedPersonIds([edge.source, edge.target]);
+      // setTimeoutで遅延させることで、React FlowのonSelectionChangeとの競合を避ける
+      setTimeout(() => {
+        setSelectedPersonIds([edge.source, edge.target]);
+      }, 0);
     },
     [setSelectedPersonIds]
   );
