@@ -6,9 +6,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ArrowRight, Minus } from 'lucide-react';
+import { ArrowRight, ArrowLeftRight, Minus } from 'lucide-react';
 import { BidirectionalArrow } from '@/components/icons/BidirectionalArrow';
-import { DualDirectedArrow } from '@/components/icons/DualDirectedArrow';
 import type { RelationshipType } from '@/types/relationship';
 
 /**
@@ -222,7 +221,7 @@ export function RelationshipForm({
                 : 'hover:bg-gray-200'
             }`}
           >
-            <DualDirectedArrow className="w-5 h-5" />
+            <ArrowLeftRight className="w-5 h-5" />
           </button>
 
           {/* 無方向 (undirected) */}

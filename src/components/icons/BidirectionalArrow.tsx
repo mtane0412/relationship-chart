@@ -21,10 +21,10 @@ export function BidirectionalArrow({ className }: BidirectionalArrowProps) {
     >
       {/* 中央の線 */}
       <path d="M5 12h14" />
-      {/* 左の矢印頭 */}
-      <path d="M11 6l-6 6 6 6" />
-      {/* 右の矢印頭 */}
-      <path d="M13 6l6 6-6 6" />
+      {/* 左の矢印頭（小さく調整） */}
+      <path d="M8 9l-3 3 3 3" />
+      {/* 右の矢印頭（小さく調整） */}
+      <path d="M16 9l3 3-3 3" />
     </svg>
   );
 }

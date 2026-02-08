@@ -7,9 +7,8 @@
 
 import { useState, useEffect } from 'react';
 import { useReactFlow } from '@xyflow/react';
-import { ArrowRight, Minus } from 'lucide-react';
+import { ArrowRight, ArrowLeftRight, Minus } from 'lucide-react';
 import { BidirectionalArrow } from '@/components/icons/BidirectionalArrow';
-import { DualDirectedArrow } from '@/components/icons/DualDirectedArrow';
 import { useGraphStore } from '@/stores/useGraphStore';
 import type { Person } from '@/types/person';
 import type { RelationshipType } from '@/types/relationship';
@@ -401,7 +400,7 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
             >
               {relationshipType === 'one-way' && <ArrowRight className="w-5 h-5" />}
               {relationshipType === 'bidirectional' && <BidirectionalArrow className="w-5 h-5" />}
-              {relationshipType === 'dual-directed' && <DualDirectedArrow className="w-5 h-5" />}
+              {relationshipType === 'dual-directed' && <ArrowLeftRight className="w-5 h-5" />}
               {relationshipType === 'undirected' && <Minus className="w-5 h-5" />}
             </button>
 
@@ -459,7 +458,7 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
                       : 'hover:bg-gray-100'
                   }`}
                 >
-                  <DualDirectedArrow className="w-5 h-5" />
+                  <ArrowLeftRight className="w-5 h-5" />
                 </button>
 
                 {/* 無方向 (undirected) */}
