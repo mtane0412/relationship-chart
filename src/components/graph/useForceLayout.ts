@@ -77,73 +77,115 @@ export function useForceLayout({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const simulationRef = useRef<ReturnType<typeof forceSimulation<any>> | null>(null);
 
+  // ノードIDとエッジIDの構成を追跡するref
+  const nodeIdsRef = useRef<string>('');
+  const edgeIdsRef = useRef<string>('');
+
+  // ノードとエッジをrefで保持（依存配列から除外するため）
+  const nodesRef = useRef<Node[]>(nodes);
+  const edgesRef = useRef<Edge[]>(edges);
+
+  // 最新の値をrefに保存
+  nodesRef.current = nodes;
+  edgesRef.current = edges;
+
   useEffect(() => {
-    // forceレイアウトが無効な場合は何もしない
-    if (!enabled || nodes.length === 0) {
-      // シミュレーションが存在する場合は停止
+    // forceレイアウトが無効な場合はシミュレーションを停止
+    if (!enabled) {
       if (simulationRef.current) {
         simulationRef.current.stop();
         simulationRef.current = null;
+        nodeIdsRef.current = '';
+        edgeIdsRef.current = '';
       }
       return;
     }
 
-    // ノードをコピーしてd3-force用に変換
-    const forceNodes: ForceNode[] = nodes.map((node) => ({
-      ...node,
-      x: node.position.x,
-      y: node.position.y,
-    }));
+    // ノードが空の場合は何もしない
+    if (nodesRef.current.length === 0) {
+      return;
+    }
 
-    // エッジをd3-force用に変換
-    const forceLinks: ForceLink[] = edges.map((edge) => ({
-      source: edge.source,
-      target: edge.target,
-    }));
+    // ノードIDとエッジIDの構成を計算
+    const currentNodeIds = nodesRef.current.map((n) => n.id).sort().join(',');
+    const currentEdgeIds = edgesRef.current.map((e) => `${e.source}-${e.target}`).sort().join(',');
 
-    // シミュレーションを初期化
-    const simulation = forceSimulation(forceNodes)
-      // 関係（エッジ）に基づく引力
-      .force(
-        'link',
-        forceLink<ForceNode, ForceLink>(forceLinks)
-          .id((d) => (d as Node).id)
-          .distance(150) // ノード間の距離
-          .strength(0.5) // 引力の強さ
-      )
-      // ノード間の反発力
-      .force(
-        'charge',
-        forceManyBody<ForceNode>()
-          .strength(-300) // 反発力の強さ（負の値）
-      )
-      // 中心への引力
-      .force('center', forceCenter(400, 400))
-      // アルファ減衰率（アニメーションの減速率）
-      .alphaDecay(0.02);
+    // ID構成が変化したかチェック
+    const nodeIdsChanged = currentNodeIds !== nodeIdsRef.current;
+    const edgeIdsChanged = currentEdgeIds !== edgeIdsRef.current;
+    const structureChanged = nodeIdsChanged || edgeIdsChanged;
 
-    // tickイベント: シミュレーションの各ステップで実行
-    simulation.on('tick', () => {
-      // ノード位置を更新
-      const updatedNodes = forceNodes.map((forceNode) => ({
-        ...forceNode,
-        position: {
-          x: forceNode.x ?? 0,
-          y: forceNode.y ?? 0,
-        },
+    // ID構成が変化した場合のみシミュレーションを再作成
+    if (structureChanged || !simulationRef.current) {
+      // 既存シミュレーションを停止
+      if (simulationRef.current) {
+        simulationRef.current.stop();
+      }
+
+      // ノードをコピーしてd3-force用に変換
+      const forceNodes: ForceNode[] = nodesRef.current.map((node) => ({
+        ...node,
+        x: node.position.x,
+        y: node.position.y,
       }));
 
-      onNodesChange(updatedNodes);
-    });
+      // エッジをd3-force用に変換
+      const forceLinks: ForceLink[] = edgesRef.current.map((edge) => ({
+        source: edge.source,
+        target: edge.target,
+      }));
 
-    // refに保存
-    simulationRef.current = simulation;
+      // シミュレーションを初期化
+      const simulation = forceSimulation(forceNodes)
+        // 関係（エッジ）に基づく引力
+        .force(
+          'link',
+          forceLink<ForceNode, ForceLink>(forceLinks)
+            .id((d) => (d as Node).id)
+            .distance(150) // ノード間の距離
+            .strength(0.5) // 引力の強さ
+        )
+        // ノード間の反発力
+        .force(
+          'charge',
+          forceManyBody<ForceNode>()
+            .strength(-300) // 反発力の強さ（負の値）
+        )
+        // 中心への引力
+        .force('center', forceCenter(400, 400))
+        // アルファ減衰率（アニメーションの減速率）
+        .alphaDecay(0.02);
 
-    // クリーンアップ: シミュレーションを停止
+      // tickイベント: シミュレーションの各ステップで実行
+      simulation.on('tick', () => {
+        // ノード位置を更新
+        const updatedNodes = simulation.nodes().map((forceNode) => ({
+          ...forceNode,
+          position: {
+            x: forceNode.x ?? 0,
+            y: forceNode.y ?? 0,
+          },
+        }));
+
+        onNodesChange(updatedNodes);
+      });
+
+      // refに保存
+      simulationRef.current = simulation;
+      nodeIdsRef.current = currentNodeIds;
+      edgeIdsRef.current = currentEdgeIds;
+    }
+
+    // クリーンアップ: enabledがfalseになった時とアンマウント時のみシミュレーションを停止
+    // 構造変化によるeffect再実行時は停止しない（新しいシミュレーションが既に作成されているため）
     return () => {
-      simulation.stop();
+      // enabledがfalseになる場合はシミュレーションを停止
+      if (!enabled && simulationRef.current) {
+        simulationRef.current.stop();
+        simulationRef.current = null;
+      }
     };
-  }, [nodes, edges, enabled, onNodesChange]);
+  }, [enabled, onNodesChange]);
 
   // ノードドラッグ開始時のハンドラ
   const handleNodeDragStart = (nodeId: string) => {

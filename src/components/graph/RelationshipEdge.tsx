@@ -7,7 +7,7 @@
 
 'use client';
 
-import { memo, useState, useRef, useCallback, useEffect } from 'react';
+import { memo, useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -78,16 +78,26 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
   const sourceNode = getNode(source);
   const targetNode = getNode(target);
 
+  // ノードの境界との交点を計算（useMemoでキャッシュして再計算を最小化）
+  // Rules of Hooksに従い、early returnの前にuseMemoを呼び出す
+  const { sourcePoint, targetPoint } = useMemo(() => {
+    if (!sourceNode || !targetNode) {
+      return { sourcePoint: { x: 0, y: 0 }, targetPoint: { x: 0, y: 0 } };
+    }
+    return getEdgeIntersectionPoints(sourceNode, targetNode);
+  }, [
+    sourceNode?.position.x,
+    sourceNode?.position.y,
+    sourceNode?.measured?.width,
+    targetNode?.position.x,
+    targetNode?.position.y,
+    targetNode?.measured?.width,
+  ]);
+
   // ノードが見つからない場合は何も描画しない
   if (!sourceNode || !targetNode) {
     return null;
   }
-
-  // ノードの境界との交点を計算
-  const { sourcePoint, targetPoint } = getEdgeIntersectionPoints(
-    sourceNode,
-    targetNode
-  );
 
   // 直線のパスとラベル位置を計算
   const [edgePath, labelX, labelY] = getStraightPath({

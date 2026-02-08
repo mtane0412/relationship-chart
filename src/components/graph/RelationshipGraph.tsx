@@ -112,7 +112,8 @@ export function RelationshipGraph() {
       onNodesChange: handleNodesUpdate,
     });
 
-  // ストアのデータが変更されたらノードとエッジを更新
+  // ストアのデータ（persons, relationships）が変更されたらノードとエッジを更新
+  // 選択状態の変更ではシミュレーション再初期化を避けるため、selectedPersonIdsを依存配列から除外
   useEffect(() => {
     const newNodes = personsToNodes(persons);
     const newEdges = relationshipsToEdges(relationships);
@@ -121,44 +122,76 @@ export function RelationshipGraph() {
       // 既存ノードをid -> nodeのマップに変換して高速に参照する（O(n²) → O(n)）
       const prevNodeMap = new Map(prevNodes.map((node) => [node.id, node]));
 
-      // 既存のノード位置を保持しながら更新（選択状態はストアから設定）
+      // 既存のノード位置を保持しながら更新（選択状態は既存ノードから引き継ぐ）
       const updatedNodes = newNodes.map((newNode) => {
         const existingNode = prevNodeMap.get(newNode.id);
         if (existingNode) {
-          // 既存ノードが存在する場合は位置を保持し、選択状態はストアから設定
+          // 既存ノードが存在する場合は位置と選択状態を保持
           return {
             ...newNode,
             position: existingNode.position,
-            selected: selectedPersonIds.includes(newNode.id),
+            selected: existingNode.selected,
           };
         }
-        // 新規ノードの場合はランダムな位置に配置
+        // 新規ノードの場合はランダムな位置に配置（選択状態は未選択）
         return {
           ...newNode,
           position: {
             x: Math.random() * 500 + 100,
             y: Math.random() * 500 + 100,
           },
-          selected: selectedPersonIds.includes(newNode.id),
+          selected: false,
         };
       });
       return updatedNodes;
     });
 
-    // エッジの選択状態を設定（2人選択時にその2人間のエッジを強調）
-    const updatedEdges = newEdges.map((edge) => {
-      const isSelected =
-        selectedPersonIds.length === 2 &&
-        ((selectedPersonIds[0] === edge.source && selectedPersonIds[1] === edge.target) ||
-          (selectedPersonIds[0] === edge.target && selectedPersonIds[1] === edge.source));
-      return {
-        ...edge,
-        selected: isSelected,
-      };
+    // エッジの選択状態は既存エッジから引き継ぐ
+    setEdges((prevEdges) => {
+      const prevEdgeMap = new Map(prevEdges.map((edge) => [edge.id, edge]));
+      const updatedEdges = newEdges.map((newEdge) => {
+        const existingEdge = prevEdgeMap.get(newEdge.id);
+        return {
+          ...newEdge,
+          selected: existingEdge?.selected || false,
+        };
+      });
+      return updatedEdges;
+    });
+  }, [persons, relationships, setNodes, setEdges]);
+
+  // 選択状態の変更時に既存ノード/エッジのselectedプロパティのみ更新
+  // 配列参照を変更しないようにhasChangedフラグで最適化
+  useEffect(() => {
+    setNodes((prevNodes) => {
+      let hasChanged = false;
+      const updatedNodes = prevNodes.map((node) => {
+        const shouldBeSelected = selectedPersonIds.includes(node.id);
+        if (node.selected !== shouldBeSelected) {
+          hasChanged = true;
+          return { ...node, selected: shouldBeSelected };
+        }
+        return node;
+      });
+      return hasChanged ? updatedNodes : prevNodes;
     });
 
-    setEdges(updatedEdges);
-  }, [persons, relationships, selectedPersonIds, setNodes, setEdges]);
+    setEdges((prevEdges) => {
+      let hasChanged = false;
+      const updatedEdges = prevEdges.map((edge) => {
+        const isSelected =
+          selectedPersonIds.length === 2 &&
+          ((selectedPersonIds[0] === edge.source && selectedPersonIds[1] === edge.target) ||
+            (selectedPersonIds[0] === edge.target && selectedPersonIds[1] === edge.source));
+        if (edge.selected !== isSelected) {
+          hasChanged = true;
+          return { ...edge, selected: isSelected };
+        }
+        return edge;
+      });
+      return hasChanged ? updatedEdges : prevEdges;
+    });
+  }, [selectedPersonIds, setNodes, setEdges]);
 
   // キャンバスへの画像ドロップハンドラ
   const handleDrop = useCallback(
