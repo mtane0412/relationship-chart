@@ -141,7 +141,19 @@ export function RelationshipGraph() {
       return updatedNodes;
     });
 
-    setEdges(newEdges);
+    // エッジの選択状態を設定（2人選択時にその2人間のエッジを強調）
+    const updatedEdges = newEdges.map((edge) => {
+      const isSelected =
+        selectedPersonIds.length === 2 &&
+        ((selectedPersonIds[0] === edge.source && selectedPersonIds[1] === edge.target) ||
+          (selectedPersonIds[0] === edge.target && selectedPersonIds[1] === edge.source));
+      return {
+        ...edge,
+        selected: isSelected,
+      };
+    });
+
+    setEdges(updatedEdges);
   }, [persons, relationships, selectedPersonIds, setNodes, setEdges]);
 
   // キャンバスへの画像ドロップハンドラ
@@ -460,6 +472,18 @@ export function RelationshipGraph() {
               orient="auto-start-reverse"
             >
               <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b" />
+            </marker>
+            {/* 選択時の矢印マーカー（青） */}
+            <marker
+              id="arrow-selected"
+              viewBox="0 0 10 10"
+              refX="8"
+              refY="5"
+              markerWidth="6"
+              markerHeight="6"
+              orient="auto-start-reverse"
+            >
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#3b82f6" />
             </marker>
           </defs>
         </svg>

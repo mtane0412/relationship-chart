@@ -25,7 +25,7 @@ import type { RelationshipEdgeData } from '@/types/graph';
  * @param props - エッジのプロパティ
  */
 export const RelationshipEdge = memo((props: EdgeProps) => {
-  const { id, source, target, data } = props;
+  const { id, source, target, data, selected } = props;
 
   const removeRelationship = useGraphStore((state) => state.removeRelationship);
   const edgeData = data as RelationshipEdgeData;
@@ -162,39 +162,49 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
     removeRelationship(id);
   };
 
-  // マーカーの設定
+  // マーカーの設定（選択状態に応じて色を変更）
   const markerEnd =
-    edgeData.type === 'undirected' ? undefined : 'url(#arrow)';
+    edgeData.type === 'undirected'
+      ? undefined
+      : selected
+        ? 'url(#arrow-selected)'
+        : 'url(#arrow)';
   const markerStart =
     edgeData.type === 'bidirectional' || edgeData.type === 'dual-directed'
-      ? 'url(#arrow)'
+      ? selected
+        ? 'url(#arrow-selected)'
+        : 'url(#arrow)'
       : undefined;
+
+  // エッジのスタイル（選択状態に応じて色と太さを変更）
+  const edgeStyle = {
+    stroke: selected ? '#3b82f6' : '#64748b',
+    strokeWidth: selected ? 3.5 : 2,
+  };
+  const dualDirectedEdgeStyle = {
+    stroke: selected ? '#3b82f6' : '#64748b',
+    strokeWidth: selected ? 3 : 2,
+  };
 
   return (
     <>
       {edgeData.type === 'dual-directed' ? (
-        // dual-directed: 2本の平行な片方向矢印（統一色）
+        // dual-directed: 2本の平行な片方向矢印
         <>
           {/* 上側の線（source→target） */}
           <BaseEdge
             id={`${id}-top`}
             path={topPath}
-            style={{
-              stroke: '#64748b',
-              strokeWidth: 2,
-            }}
-            markerEnd="url(#arrow)"
+            style={dualDirectedEdgeStyle}
+            markerEnd={selected ? 'url(#arrow-selected)' : 'url(#arrow)'}
           />
 
           {/* 下側の線（target→source） */}
           <BaseEdge
             id={`${id}-bottom`}
             path={bottomPath}
-            style={{
-              stroke: '#64748b',
-              strokeWidth: 2,
-            }}
-            markerEnd="url(#arrow)"
+            style={dualDirectedEdgeStyle}
+            markerEnd={selected ? 'url(#arrow-selected)' : 'url(#arrow)'}
           />
         </>
       ) : (
@@ -202,10 +212,7 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
         <BaseEdge
           id={id}
           path={edgePath}
-          style={{
-            stroke: '#64748b',
-            strokeWidth: 2.5,
-          }}
+          style={edgeStyle}
           markerEnd={markerEnd}
           markerStart={markerStart}
         />
