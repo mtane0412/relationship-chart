@@ -34,80 +34,23 @@ export const PersonNode = memo(({ data, selected }: NodeProps) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* 接続ポイント（8方向：上下左右 + 斜め4方向） */}
-      {/* すべてのハンドルをtype="source"に統一し、connectionMode="loose"で双方向接続を実現 */}
-      {/* リング状の配置でノード外周から接続可能、中心部はドラッグ移動用 */}
-
-      {/* 4方向の基本ハンドル */}
+      {/* 単一の円形ハンドル（リング状） */}
+      {/* ノード全体を覆う大きな円形ハンドルで、外周から接続可能 */}
+      {/* 中心部（画像・ラベル）はそのままドラッグ移動用 */}
       <Handle
         type="source"
-        id="top"
+        id="ring"
         position={Position.Top}
-        className={`bg-blue-500! w-4! h-4! border-2! border-white! transition-opacity duration-200 ${
+        className={`!absolute !inset-0 !w-full !h-full !rounded-full !border-4 !border-blue-500 !bg-transparent !transform-none transition-opacity duration-200 ${
           showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
-      />
-      <Handle
-        type="source"
-        id="bottom"
-        position={Position.Bottom}
-        className={`bg-blue-500! w-4! h-4! border-2! border-white! transition-opacity duration-200 ${
-          showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        }`}
-      />
-      <Handle
-        type="source"
-        id="left"
-        position={Position.Left}
-        className={`bg-blue-500! w-4! h-4! border-2! border-white! transition-opacity duration-200 ${
-          showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        }`}
-      />
-      <Handle
-        type="source"
-        id="right"
-        position={Position.Right}
-        className={`bg-blue-500! w-4! h-4! border-2! border-white! transition-opacity duration-200 ${
-          showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        }`}
-      />
-
-      {/* 斜め4方向のハンドル（絶対配置で円周上に配置） */}
-      <Handle
-        type="source"
-        id="top-right"
-        position={Position.Top}
-        className={`bg-blue-500! w-4! h-4! border-2! border-white! transition-opacity duration-200 ${
-          showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        }`}
-        style={{ left: '71%', top: '29%' }}
-      />
-      <Handle
-        type="source"
-        id="bottom-right"
-        position={Position.Bottom}
-        className={`bg-blue-500! w-4! h-4! border-2! border-white! transition-opacity duration-200 ${
-          showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        }`}
-        style={{ left: '71%', top: '71%' }}
-      />
-      <Handle
-        type="source"
-        id="bottom-left"
-        position={Position.Bottom}
-        className={`bg-blue-500! w-4! h-4! border-2! border-white! transition-opacity duration-200 ${
-          showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        }`}
-        style={{ left: '29%', top: '71%' }}
-      />
-      <Handle
-        type="source"
-        id="top-left"
-        position={Position.Top}
-        className={`bg-blue-500! w-4! h-4! border-2! border-white! transition-opacity duration-200 ${
-          showHandles ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        }`}
-        style={{ left: '29%', top: '29%' }}
+        style={{
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '100px',
+          height: '100px',
+        }}
       />
 
       {/* 丸い画像またはデフォルトアバター */}

@@ -40,54 +40,27 @@ describe('PersonNode', () => {
   };
 
   describe('ハンドル構成', () => {
-    it('8つのハンドルがすべて type="source" でレンダリングされること', () => {
+    it('単一の円形ハンドルがレンダリングされること', () => {
       const { container } = renderWithProvider();
 
       // React FlowのHandleコンポーネントは`.react-flow__handle`クラスを持つ
       const handles = container.querySelectorAll('.react-flow__handle');
-      expect(handles).toHaveLength(8);
+      expect(handles).toHaveLength(1);
 
-      // すべてのハンドルがdata-handlepos属性を持つこと（React Flowの内部実装）
-      // type="source"のみの場合、すべてsource用のハンドルとして動作
-      handles.forEach((handle) => {
-        // React Flowがハンドルとして認識していることを確認
-        expect(handle.classList.contains('react-flow__handle')).toBe(true);
-      });
+      // ハンドルがReact Flowに認識されていることを確認
+      const handle = handles[0];
+      expect(handle.classList.contains('react-flow__handle')).toBe(true);
     });
 
-    it('各ハンドルに一意のidが設定されていること', () => {
+    it('ハンドルが円形（リング状）のスタイルを持つこと', () => {
       const { container } = renderWithProvider();
 
-      const handles = container.querySelectorAll('.react-flow__handle');
-      const ids = Array.from(handles).map((handle) => handle.getAttribute('data-handleid'));
+      const handle = container.querySelector('.react-flow__handle');
+      expect(handle).toBeInTheDocument();
 
-      // すべてのハンドルがidを持つこと
-      ids.forEach((id) => {
-        expect(id).toBeTruthy();
-      });
-
-      // idが重複していないこと
-      const uniqueIds = new Set(ids);
-      expect(uniqueIds.size).toBe(8);
-
-      // 期待されるIDが存在すること
-      const expectedIds = ['top', 'right', 'bottom', 'left', 'top-right', 'bottom-right', 'bottom-left', 'top-left'];
-      expectedIds.forEach((expectedId) => {
-        expect(ids).toContain(expectedId);
-      });
-    });
-
-    it('8方向のハンドルが配置されていること', () => {
-      const { container } = renderWithProvider();
-
-      const handles = container.querySelectorAll('.react-flow__handle');
-
-      // 8つのハンドルがレンダリングされていることを確認
-      expect(handles).toHaveLength(8);
-
-      // 各ハンドルがdata-handleid属性を持つことを確認
-      const ids = Array.from(handles).map((handle) => handle.getAttribute('data-handleid'));
-      expect(ids.filter(Boolean)).toHaveLength(8);
+      // 円形のクラスが適用されていることを確認（rounded-fullなど）
+      const className = handle?.className || '';
+      expect(className).toContain('rounded-full');
     });
   });
 
