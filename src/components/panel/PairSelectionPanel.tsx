@@ -11,6 +11,7 @@ import { ArrowRight, ArrowLeft, ArrowLeftRight, Minus } from 'lucide-react';
 import { BidirectionalArrow } from '@/components/icons/BidirectionalArrow';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { getRelationshipDisplayType } from '@/lib/relationship-utils';
+import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils';
 import type { Person } from '@/types/person';
 import type { RelationshipType } from '@/types/relationship';
 
@@ -167,9 +168,8 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
   const focusNode = (personId: string) => {
     const node = getNode(personId);
     if (node) {
-      const w = node.measured?.width ?? 80;
-      const h = node.measured?.height ?? 120;
-      setCenter(node.position.x + w / 2, node.position.y + h / 2, { duration: 500 });
+      const center = getNodeCenter(node);
+      setCenter(center.x, center.y, { duration: VIEWPORT_ANIMATION_DURATION });
     }
   };
 

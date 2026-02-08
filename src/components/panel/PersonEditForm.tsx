@@ -156,6 +156,12 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
     setError('');
 
     try {
+      // Clipboard APIの対応チェック
+      if (!navigator.clipboard?.read) {
+        setError('このブラウザではクリップボードからの貼り付けに対応していません');
+        return;
+      }
+
       // Clipboard APIで画像を取得
       const clipboardItems = await navigator.clipboard.read();
 

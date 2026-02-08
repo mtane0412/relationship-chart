@@ -2,7 +2,7 @@
  * PersonEditFormコンポーネントのテスト
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PersonEditForm } from './PersonEditForm';
 import { useGraphStore } from '@/stores/useGraphStore';
@@ -517,6 +517,22 @@ describe('PersonEditForm', () => {
   });
 
   describe('クリップボードからの画像貼り付け', () => {
+    let originalClipboard: Clipboard | undefined;
+
+    beforeEach(() => {
+      // 元のnavigator.clipboardを保存
+      originalClipboard = navigator.clipboard;
+    });
+
+    afterEach(() => {
+      // navigator.clipboardを復元
+      Object.defineProperty(navigator, 'clipboard', {
+        value: originalClipboard,
+        writable: true,
+        configurable: true,
+      });
+    });
+
     it('メニューに「クリップボードから貼り付け」が表示される', () => {
       render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
 
@@ -535,10 +551,12 @@ describe('PersonEditForm', () => {
         getType: vi.fn().mockResolvedValue(mockBlob),
       };
 
-      Object.assign(navigator, {
-        clipboard: {
+      Object.defineProperty(navigator, 'clipboard', {
+        value: {
           read: vi.fn().mockResolvedValue([mockClipboardItem]),
         },
+        writable: true,
+        configurable: true,
       });
 
       render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
@@ -562,10 +580,12 @@ describe('PersonEditForm', () => {
         getType: vi.fn(),
       };
 
-      Object.assign(navigator, {
-        clipboard: {
+      Object.defineProperty(navigator, 'clipboard', {
+        value: {
           read: vi.fn().mockResolvedValue([mockClipboardItem]),
         },
+        writable: true,
+        configurable: true,
       });
 
       render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
@@ -587,10 +607,12 @@ describe('PersonEditForm', () => {
       const notAllowedError = new Error('Permission denied');
       notAllowedError.name = 'NotAllowedError';
 
-      Object.assign(navigator, {
-        clipboard: {
+      Object.defineProperty(navigator, 'clipboard', {
+        value: {
           read: vi.fn().mockRejectedValue(notAllowedError),
         },
+        writable: true,
+        configurable: true,
       });
 
       render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
@@ -604,6 +626,28 @@ describe('PersonEditForm', () => {
       // エラーメッセージが表示されることを確認
       await waitFor(() => {
         expect(screen.getByText('クリップボードへのアクセスが許可されていません')).toBeInTheDocument();
+      });
+    });
+
+    it('Clipboard APIが未対応の場合、エラーメッセージが表示される', async () => {
+      // Clipboard APIを未定義にする
+      Object.defineProperty(navigator, 'clipboard', {
+        value: undefined,
+        writable: true,
+        configurable: true,
+      });
+
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const iconArea = screen.getByTestId('person-icon-area');
+      fireEvent.click(iconArea);
+
+      const pasteButton = screen.getByText('クリップボードから貼り付け');
+      fireEvent.click(pasteButton);
+
+      // エラーメッセージが表示されることを確認
+      await waitFor(() => {
+        expect(screen.getByText('このブラウザではクリップボードからの貼り付けに対応していません')).toBeInTheDocument();
       });
     });
   });

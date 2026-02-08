@@ -11,6 +11,7 @@ import { useReactFlow } from '@xyflow/react';
 import type { Person } from '@/types/person';
 import type { Relationship } from '@/types/relationship';
 import { getRelationshipFromPerspective } from '@/lib/relationship-utils';
+import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils';
 
 /**
  * SingleSelectionPanelのプロパティ
@@ -96,23 +97,16 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
                 const node2 = getNode(otherPerson.id);
 
                 if (node1 && node2) {
-                  // デフォルト値（measuredがない場合に使用）
-                  const DEFAULT_NODE_WIDTH = 80;
-                  const DEFAULT_NODE_HEIGHT = 120;
-                  const ANIMATION_DURATION_MS = 500;
-
                   // 各ノードの中心座標を計算
-                  const node1CenterX = node1.position.x + (node1.measured?.width ?? DEFAULT_NODE_WIDTH) / 2;
-                  const node1CenterY = node1.position.y + (node1.measured?.height ?? DEFAULT_NODE_HEIGHT) / 2;
-                  const node2CenterX = node2.position.x + (node2.measured?.width ?? DEFAULT_NODE_WIDTH) / 2;
-                  const node2CenterY = node2.position.y + (node2.measured?.height ?? DEFAULT_NODE_HEIGHT) / 2;
+                  const node1Center = getNodeCenter(node1);
+                  const node2Center = getNodeCenter(node2);
 
                   // 2つのノードの中間点を計算
-                  const midX = (node1CenterX + node2CenterX) / 2;
-                  const midY = (node1CenterY + node2CenterY) / 2;
+                  const midX = (node1Center.x + node2Center.x) / 2;
+                  const midY = (node1Center.y + node2Center.y) / 2;
 
                   // ビューポートを中間点に移動（アニメーション付き）
-                  setCenter(midX, midY, { duration: ANIMATION_DURATION_MS });
+                  setCenter(midX, midY, { duration: VIEWPORT_ANIMATION_DURATION });
                 }
               };
 
