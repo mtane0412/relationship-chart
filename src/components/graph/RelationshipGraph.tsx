@@ -445,6 +445,24 @@ export function RelationshipGraph() {
         <Background />
         <Controls />
         <MiniMap />
+
+        {/* SVGマーカー定義（全エッジで共有） */}
+        <svg>
+          <defs>
+            {/* 統一された矢印マーカー（グレー） */}
+            <marker
+              id="arrow"
+              viewBox="0 0 10 10"
+              refX="8"
+              refY="5"
+              markerWidth="6"
+              markerHeight="6"
+              orient="auto-start-reverse"
+            >
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b" />
+            </marker>
+          </defs>
+        </svg>
       </ReactFlow>
 
       {/* 空状態UI */}
