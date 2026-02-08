@@ -8,6 +8,7 @@
 import { PersonEditForm } from './PersonEditForm';
 import { useGraphStore } from '@/stores/useGraphStore';
 import type { Person } from '@/types/person';
+import type { Relationship } from '@/types/relationship';
 
 /**
  * SingleSelectionPanelのプロパティ
@@ -26,6 +27,7 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
   const removeRelationship = useGraphStore((state) => state.removeRelationship);
   const removePerson = useGraphStore((state) => state.removePerson);
   const clearSelection = useGraphStore((state) => state.clearSelection);
+  const setSelectedPersonIds = useGraphStore((state) => state.setSelectedPersonIds);
 
   // 人物削除ハンドラ
   const handleDeletePerson = () => {
@@ -35,10 +37,56 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
     }
   };
 
-  // この人物に関連する関係を取得
-  const relatedRelationships = relationships.filter(
-    (r) => r.sourcePersonId === person.id || r.targetPersonId === person.id
-  );
+  // この人物に関連する関係を取得し、dual-directedの場合は2つの関係として展開
+  type RelationshipItem = {
+    relationship: Relationship;
+    otherPersonId: string;
+    label: string;
+    direction: '→' | '←' | '↔' | '—';
+    key: string;
+  };
+
+  const relatedRelationships: RelationshipItem[] = relationships
+    .filter((r) => r.sourcePersonId === person.id || r.targetPersonId === person.id)
+    .flatMap((relationship): RelationshipItem[] => {
+      if (relationship.type === 'dual-directed') {
+        // dual-directedの場合は2つの関係として展開
+        const isSource = relationship.sourcePersonId === person.id;
+        return [
+          {
+            relationship,
+            otherPersonId: isSource ? relationship.targetPersonId : relationship.sourcePersonId,
+            label: (isSource ? relationship.sourceToTargetLabel : relationship.targetToSourceLabel) || '',
+            direction: '→', // 自分→相手
+            key: `${relationship.id}-forward`,
+          },
+          {
+            relationship,
+            otherPersonId: isSource ? relationship.targetPersonId : relationship.sourcePersonId,
+            label: (isSource ? relationship.targetToSourceLabel : relationship.sourceToTargetLabel) || '',
+            direction: '←', // 相手→自分
+            key: `${relationship.id}-backward`,
+          },
+        ];
+      } else {
+        // bidirectional, one-way, undirectedの場合
+        const isSource = relationship.sourcePersonId === person.id;
+        return [
+          {
+            relationship,
+            otherPersonId: isSource ? relationship.targetPersonId : relationship.sourcePersonId,
+            label: relationship.sourceToTargetLabel,
+            direction:
+              relationship.type === 'bidirectional'
+                ? '↔'
+                : relationship.type === 'one-way'
+                  ? '→'
+                  : '—',
+            key: relationship.id,
+          },
+        ];
+      }
+    });
 
   return (
     <>
@@ -56,110 +104,64 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
             この人物の関係
           </h3>
           <div className="space-y-2">
-            {relatedRelationships.map((relationship) => {
+            {relatedRelationships.map((relItem: RelationshipItem) => {
               // 相手の人物を特定
-              const isSource = relationship.sourcePersonId === person.id;
-              const otherPersonId = isSource
-                ? relationship.targetPersonId
-                : relationship.sourcePersonId;
-              const otherPerson = persons.find((p) => p.id === otherPersonId);
+              const otherPerson = persons.find((p) => p.id === relItem.otherPersonId);
 
               if (!otherPerson) return null;
 
+              // 関係クリックハンドラ: 2人選択状態に遷移
+              const handleRelationshipClick = () => {
+                setSelectedPersonIds([person.id, otherPerson.id]);
+              };
+
+              // キーボードハンドラ: Enter/Spaceで遷移
+              const handleKeyDown = (e: React.KeyboardEvent) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleRelationshipClick();
+                }
+              };
+
+              // 相手のイニシャル（画像がない場合）
+              const otherInitial = otherPerson.name[0] || '?';
+
               return (
                 <div
-                  key={relationship.id}
-                  className="flex items-center gap-2 p-2 border border-gray-200 rounded-lg bg-gray-50"
+                  key={relItem.key}
+                  role="button"
+                  tabIndex={0}
+                  onClick={handleRelationshipClick}
+                  onKeyDown={handleKeyDown}
+                  className="flex items-center gap-2 p-2 border border-gray-200 rounded-lg bg-gray-50 cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-colors"
                 >
-                  {/* 関係の表示 */}
-                  <div className="flex-1 min-w-0 text-sm">
-                    {relationship.type === 'dual-directed' ? (
-                      // dual-directed: 選択された人物の視点で表示
-                      <div className="flex flex-col gap-1">
-                        {isSource ? (
-                          // 選択された人物がsourceの場合
-                          <>
-                            <div className="flex items-center gap-1">
-                              <span className="font-medium text-blue-700">
-                                {relationship.sourceToTargetLabel}
-                              </span>
-                              <span className="text-gray-400">→</span>
-                              <span className="text-gray-600 truncate">
-                                {otherPerson.name}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <span className="text-gray-600 truncate">
-                                {otherPerson.name}
-                              </span>
-                              <span className="text-gray-400">→</span>
-                              <span className="font-medium text-green-700">
-                                {relationship.targetToSourceLabel}
-                              </span>
-                            </div>
-                          </>
-                        ) : (
-                          // 選択された人物がtargetの場合（ラベルと矢印を入れ替え）
-                          <>
-                            <div className="flex items-center gap-1">
-                              <span className="font-medium text-blue-700">
-                                {relationship.targetToSourceLabel}
-                              </span>
-                              <span className="text-gray-400">→</span>
-                              <span className="text-gray-600 truncate">
-                                {otherPerson.name}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <span className="text-gray-600 truncate">
-                                {otherPerson.name}
-                              </span>
-                              <span className="text-gray-400">→</span>
-                              <span className="font-medium text-green-700">
-                                {relationship.sourceToTargetLabel}
-                              </span>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    ) : isSource ? (
-                      // この人物が起点の場合
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium text-gray-700">
-                          {relationship.sourceToTargetLabel}
-                        </span>
-                        {relationship.type === 'bidirectional' && (
-                          <span className="text-gray-400">↔</span>
-                        )}
-                        {relationship.type === 'one-way' && (
-                          <span className="text-gray-400">→</span>
-                        )}
-                        <span className="text-gray-600 truncate">
-                          {otherPerson.name}
-                        </span>
-                      </div>
+                  {/* 関係の表示: 関係内容 エッジアイコン 相手アイコン 相手名前 */}
+                  <div className="flex-1 min-w-0 text-sm flex items-center gap-1">
+                    <span className="font-medium text-gray-700 truncate">{relItem.label}</span>
+                    {relItem.direction && (
+                      <span className="text-gray-400 shrink-0">{relItem.direction}</span>
+                    )}
+                    {/* 相手人物のアバター */}
+                    {otherPerson.imageDataUrl ? (
+                      <img
+                        src={otherPerson.imageDataUrl}
+                        alt={otherPerson.name}
+                        className="shrink-0 w-7 h-7 rounded-full object-cover"
+                      />
                     ) : (
-                      // この人物が終点の場合
-                      <div className="flex items-center gap-1">
-                        <span className="text-gray-600 truncate">
-                          {otherPerson.name}
-                        </span>
-                        {relationship.type === 'bidirectional' && (
-                          <span className="text-gray-400">↔</span>
-                        )}
-                        {relationship.type === 'one-way' && (
-                          <span className="text-gray-400">→</span>
-                        )}
-                        <span className="font-medium text-gray-700">
-                          {relationship.sourceToTargetLabel}
-                        </span>
+                      <div className="shrink-0 w-7 h-7 rounded-full bg-gray-300 flex items-center justify-center">
+                        <span className="text-white text-xs font-bold">{otherInitial}</span>
                       </div>
                     )}
+                    <span className="text-gray-600 truncate">{otherPerson.name}</span>
                   </div>
 
                   {/* 削除ボタン */}
                   <button
-                    onClick={() => removeRelationship(relationship.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeRelationship(relItem.relationship.id);
+                    }}
                     className="shrink-0 p-1 text-gray-400 hover:text-red-600 rounded-md hover:bg-red-50"
                     aria-label={`${otherPerson.name}との関係を削除`}
                   >
