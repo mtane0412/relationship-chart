@@ -301,8 +301,13 @@ export const useGraphStore = create<GraphStore>()(
       version: 3, // バージョン管理（v2→v3に更新）
       // マイグレーション関数
       migrate: (persistedState: unknown, version: number) => {
-        // 初回ユーザー（versionがundefined）またはv3以降は変換不要
-        if (version === undefined || version >= 3) {
+        // v3以降は変換不要
+        if (version >= 3) {
+          return persistedState as GraphStore;
+        }
+
+        // 初回ユーザー（永続化データがない場合）は変換不要
+        if (!persistedState || typeof persistedState !== 'object') {
           return persistedState as GraphStore;
         }
 
