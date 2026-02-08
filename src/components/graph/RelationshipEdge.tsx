@@ -17,6 +17,7 @@ import {
 } from '@xyflow/react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { getEdgeIntersectionPoints } from '@/lib/node-intersection';
+import { calculateLabelPositionOnEdge } from '@/lib/edge-label-position';
 import type { RelationshipEdgeData } from '@/types/graph';
 
 /**
@@ -117,20 +118,40 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
   const bottomTargetX = targetPoint.x - perpX * offset;
   const bottomTargetY = targetPoint.y - perpY * offset;
 
-  // 各線のパスとラベル位置を計算
-  const [topPath, topLabelX, topLabelY] = getStraightPath({
+  // 各線のパスを計算
+  const [topPath] = getStraightPath({
     sourceX: topSourceX,
     sourceY: topSourceY,
     targetX: topTargetX,
     targetY: topTargetY,
   });
 
-  const [bottomPath, bottomLabelX, bottomLabelY] = getStraightPath({
+  const [bottomPath] = getStraightPath({
     sourceX: bottomTargetX,
     sourceY: bottomTargetY,
     targetX: bottomSourceX,
     targetY: bottomSourceY,
   });
+
+  // ラベル位置を開始側に寄せる（0.3の比率）
+  const labelRatio = 0.3;
+  // topLabel: source→targetの線で、sourceから0.3の位置（A側）
+  const topLabel = calculateLabelPositionOnEdge(
+    topSourceX,
+    topSourceY,
+    topTargetX,
+    topTargetY,
+    labelRatio
+  );
+  // bottomLabel: target→sourceの線で、targetから0.3の位置（B側）
+  // bottomPathはbottomTarget→bottomSourceなので、その向きで計算
+  const bottomLabel = calculateLabelPositionOnEdge(
+    bottomTargetX,
+    bottomTargetY,
+    bottomSourceX,
+    bottomSourceY,
+    labelRatio
+  );
 
   /**
    * 削除ボタンのクリックハンドラ
@@ -152,17 +173,17 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
   return (
     <>
       {edgeData.type === 'dual-directed' ? (
-        // dual-directed: 2本の平行な片方向矢印
+        // dual-directed: 2本の平行な片方向矢印（統一色）
         <>
           {/* 上側の線（source→target） */}
           <BaseEdge
             id={`${id}-top`}
             path={topPath}
             style={{
-              stroke: '#3b82f6',
+              stroke: '#64748b',
               strokeWidth: 2,
             }}
-            markerEnd="url(#arrow-blue)"
+            markerEnd="url(#arrow)"
           />
 
           {/* 下側の線（target→source） */}
@@ -170,10 +191,10 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
             id={`${id}-bottom`}
             path={bottomPath}
             style={{
-              stroke: '#10b981',
+              stroke: '#64748b',
               strokeWidth: 2,
             }}
-            markerEnd="url(#arrow-green)"
+            markerEnd="url(#arrow)"
           />
         </>
       ) : (
@@ -195,11 +216,11 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
         {edgeData.type === 'dual-directed' ? (
           // dual-directed: 2つのラベルを各線の近くに表示
           <>
-            {/* source→targetのラベル（上側の線） */}
+            {/* source→targetのラベル（上側の線、開始側に寄せる） */}
             <div
               style={{
                 position: 'absolute',
-                transform: `translate(-50%, -50%) translate(${topLabelX}px,${topLabelY}px)`,
+                transform: `translate(-50%, -50%) translate(${topLabel.labelX}px,${topLabel.labelY}px)`,
                 pointerEvents: 'all',
               }}
               className="flex items-center gap-1.5"
@@ -215,21 +236,21 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
               </div>
             </div>
 
-            {/* target→sourceのラベル（下側の線） */}
+            {/* target→sourceのラベル（下側の線、開始側に寄せる） */}
             <div
               style={{
                 position: 'absolute',
-                transform: `translate(-50%, -50%) translate(${bottomLabelX}px,${bottomLabelY}px)`,
+                transform: `translate(-50%, -50%) translate(${bottomLabel.labelX}px,${bottomLabel.labelY}px)`,
                 pointerEvents: 'all',
               }}
               className="flex items-center gap-1.5"
             >
               <div
-                className="px-3 py-1.5 bg-gradient-to-r from-green-50 to-emerald-50 rounded-full shadow-lg border-2 border-green-200 hover:border-green-400 hover:shadow-xl transition-all duration-200 cursor-pointer"
+                className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full shadow-lg border-2 border-blue-200 hover:border-blue-400 hover:shadow-xl transition-all duration-200 cursor-pointer"
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
               >
-                <div className="text-xs font-semibold text-green-800">
+                <div className="text-xs font-semibold text-blue-800">
                   {edgeData.targetToSourceLabel}
                 </div>
               </div>
@@ -311,7 +332,7 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
 
       {/* 矢印マーカー定義 */}
       <defs>
-        {/* 通常の矢印（グレー） */}
+        {/* 統一された矢印（グレー） */}
         <marker
           id="arrow"
           viewBox="0 0 10 10"
@@ -322,32 +343,6 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
           orient="auto-start-reverse"
         >
           <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b" />
-        </marker>
-
-        {/* dual-directed用の矢印（青） */}
-        <marker
-          id="arrow-blue"
-          viewBox="0 0 10 10"
-          refX="8"
-          refY="5"
-          markerWidth="6"
-          markerHeight="6"
-          orient="auto-start-reverse"
-        >
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#3b82f6" />
-        </marker>
-
-        {/* dual-directed用の矢印（緑） */}
-        <marker
-          id="arrow-green"
-          viewBox="0 0 10 10"
-          refX="8"
-          refY="5"
-          markerWidth="6"
-          markerHeight="6"
-          orient="auto-start-reverse"
-        >
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981" />
         </marker>
       </defs>
     </>
