@@ -31,7 +31,7 @@ import { RelationshipRegistrationModal } from './RelationshipRegistrationModal';
 import { useForceLayout } from './useForceLayout';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { personsToNodes, relationshipsToEdges } from '@/lib/graph-utils';
-import { processImage } from '@/lib/image-utils';
+import { readFileAsDataUrl } from '@/lib/image-utils';
 import { getRelationshipDisplayType } from '@/lib/relationship-utils';
 import type {
   PersonNode as PersonNodeType,
@@ -53,7 +53,7 @@ const edgeTypes: EdgeTypes = {
  * 画像D&D/ペースト時の登録待ちデータ
  */
 type PendingRegistration = {
-  imageDataUrl?: string;
+  rawImageSrc?: string;
   position: { x: number; y: number };
 };
 
@@ -205,8 +205,8 @@ export function RelationshipGraph() {
       if (!imageFile) return;
 
       try {
-        // 画像をリサイズ
-        const imageDataUrl = await processImage(imageFile);
+        // 元画像をData URLに変換（リサイズなし）
+        const rawImageSrc = await readFileAsDataUrl(imageFile);
 
         // ドロップ位置をReact Flowの座標系に変換
         const position = screenToFlowPosition({
@@ -215,7 +215,7 @@ export function RelationshipGraph() {
         });
 
         // モーダルを開く
-        setPendingRegistration({ imageDataUrl, position });
+        setPendingRegistration({ rawImageSrc, position });
       } catch (error) {
         console.error('画像処理に失敗しました:', error);
       }
@@ -245,14 +245,14 @@ export function RelationshipGraph() {
       if (!file) return;
 
       try {
-        // 画像をリサイズ
-        const imageDataUrl = await processImage(file);
+        // 元画像をData URLに変換（リサイズなし）
+        const rawImageSrc = await readFileAsDataUrl(file);
 
         // キャンバス中央の座標を計算（screenToFlowPositionはここでは使えないので概算）
         const position = { x: 400, y: 300 };
 
         // モーダルを開く
-        setPendingRegistration({ imageDataUrl, position });
+        setPendingRegistration({ rawImageSrc, position });
       } catch (error) {
         console.error('画像処理に失敗しました:', error);
       }
@@ -407,13 +407,13 @@ export function RelationshipGraph() {
 
   // モーダルからの登録ハンドラ
   const handleRegisterPerson = useCallback(
-    (name: string) => {
+    (name: string, croppedImageDataUrl: string | null) => {
       if (!pendingRegistration) return;
 
       // 人物を追加
       addPerson({
         name,
-        imageDataUrl: pendingRegistration.imageDataUrl,
+        imageDataUrl: croppedImageDataUrl ?? undefined,
       });
 
       // モーダルを閉じる
@@ -589,7 +589,7 @@ export function RelationshipGraph() {
       {/* 人物登録モーダル */}
       <PersonRegistrationModal
         isOpen={pendingRegistration !== null}
-        imageDataUrl={pendingRegistration?.imageDataUrl}
+        rawImageSrc={pendingRegistration?.rawImageSrc}
         onSubmit={handleRegisterPerson}
         onCancel={handleCancelRegistration}
       />
