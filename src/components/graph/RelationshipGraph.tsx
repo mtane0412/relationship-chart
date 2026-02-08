@@ -17,6 +17,7 @@ import {
   type NodeTypes,
   type EdgeTypes,
   type Node,
+  type Edge,
   type Connection,
   type OnSelectionChangeParams,
 } from '@xyflow/react';
@@ -282,6 +283,15 @@ export function RelationshipGraph() {
     clearSelection();
   }, [clearSelection]);
 
+  // エッジクリックハンドラ（エッジに対応する2人を選択状態にする）
+  const handleEdgeClick = useCallback(
+    (_event: React.MouseEvent, edge: Edge) => {
+      // エッジのsourceとtargetを取得して2人選択状態にする
+      setSelectedPersonIds([edge.source, edge.target]);
+    },
+    [setSelectedPersonIds]
+  );
+
   // エッジ接続ハンドラ
   const handleConnect = useCallback(
     (connection: Connection) => {
@@ -447,6 +457,7 @@ export function RelationshipGraph() {
         onNodeDragStop={(_, node) => handleNodeDragEnd(node.id)}
         onSelectionChange={handleSelectionChange}
         onPaneClick={handlePaneClick}
+        onEdgeClick={handleEdgeClick}
         onConnect={handleConnect}
         onNodesDelete={handleNodesDelete}
         onEdgesDelete={handleEdgesDelete}
