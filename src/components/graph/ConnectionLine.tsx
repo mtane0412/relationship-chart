@@ -17,7 +17,7 @@ import { getEdgeIntersectionPoints, PERSON_IMAGE_SIZE } from '@/lib/node-interse
 export function ConnectionLine(props: ConnectionLineComponentProps) {
   const { fromNode, fromX, fromY, toX, toY } = props;
 
-  const { getNode } = useReactFlow();
+  const { getNode, getNodes } = useReactFlow();
 
   // toNodeが存在する場合（ノード上にホバーしている場合）、境界との交点を計算
   // toNodeが存在しない場合（空中をドラッグしている場合）、マウス位置をそのまま使用
@@ -45,8 +45,35 @@ export function ConnectionLine(props: ConnectionLineComponentProps) {
       };
     }
 
-    // toX, toYの位置に仮想的なターゲットノードがあると仮定
-    // ターゲットノードのサイズを80x80pxと仮定（PersonNode/ItemNodeの画像サイズ）
+    // toX, toYの位置にあるノードを探す
+    const allNodes = getNodes();
+    const targetNode = allNodes.find((node) => {
+      if (node.id === fromNode.id) return false; // 自分自身は除外
+
+      const nodeWidth = node.measured?.width ?? PERSON_IMAGE_SIZE;
+      const nodeHeight = node.measured?.height ?? PERSON_IMAGE_SIZE;
+
+      // ノードの範囲を計算（connectionRadius=60pxを考慮して拡張）
+      const expandedMargin = 60;
+      const left = node.position.x - expandedMargin;
+      const right = node.position.x + nodeWidth + expandedMargin;
+      const top = node.position.y - expandedMargin;
+      const bottom = node.position.y + nodeHeight + expandedMargin;
+
+      // マウス位置がノードの拡張範囲内にあるかチェック
+      return toX >= left && toX <= right && toY >= top && toY <= bottom;
+    });
+
+    if (targetNode) {
+      // ターゲットノードが見つかった場合、境界との交点を計算
+      const points = getEdgeIntersectionPoints(sourceNode, targetNode);
+      return {
+        sourcePoint: points.sourcePoint,
+        targetPoint: points.targetPoint,
+      };
+    }
+
+    // ターゲットノードが見つからない場合、仮想ノードを使用
     const virtualTargetNode: {
       id: string;
       type?: string;
@@ -55,7 +82,7 @@ export function ConnectionLine(props: ConnectionLineComponentProps) {
     } = {
       id: 'virtual-target',
       position: {
-        x: toX - PERSON_IMAGE_SIZE / 2, // 中心位置からオフセット
+        x: toX - PERSON_IMAGE_SIZE / 2,
         y: toY - PERSON_IMAGE_SIZE / 2,
       },
       measured: {
@@ -65,16 +92,13 @@ export function ConnectionLine(props: ConnectionLineComponentProps) {
     };
 
     // 交点を計算
-    const points = getEdgeIntersectionPoints(
-      sourceNode,
-      virtualTargetNode
-    );
+    const points = getEdgeIntersectionPoints(sourceNode, virtualTargetNode);
 
     return {
       sourcePoint: points.sourcePoint,
-      targetPoint: { x: toX, y: toY }, // ターゲット側はマウス位置をそのまま使用
+      targetPoint: points.targetPoint,
     };
-  }, [fromNode, fromX, fromY, toX, toY, getNode]);
+  }, [fromNode, fromX, fromY, toX, toY, getNode, getNodes]);
 
   // 直線のパスを計算
   const [edgePath] = getStraightPath({
