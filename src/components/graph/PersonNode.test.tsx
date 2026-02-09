@@ -83,15 +83,15 @@ describe('PersonNode', () => {
       });
     });
 
-    it('ハンドルが太い枠（border-8）を持つこと', () => {
+    it('ハンドルが太い枠（borderWidth: 10px）を持つこと', () => {
       const { container } = renderWithProvider();
 
       const handles = container.querySelectorAll('.react-flow__handle');
 
-      // 両方のハンドルに太い枠が適用されていることを確認
+      // 両方のハンドルに太い枠（10px）が適用されていることを確認
       handles.forEach((handle) => {
-        const className = handle?.className || '';
-        expect(className).toContain('border-8');
+        const style = (handle as HTMLElement).style;
+        expect(style.borderWidth).toBe('10px');
       });
     });
 

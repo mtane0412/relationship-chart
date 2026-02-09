@@ -3,40 +3,49 @@
  * 人物を表すカスタムノード（丸い画像+名前表示）
  */
 
-import { memo, useState } from 'react';
-import { Handle, Position, type NodeProps, useConnection } from '@xyflow/react';
+import { memo } from 'react';
+import { Handle, Position, type NodeProps } from '@xyflow/react';
 import type { PersonNodeData } from '@/types/graph';
+import { useHandleHover } from './useHandleHover';
 
 /**
  * 人物ノードコンポーネント
  * @param props - React Flowから渡されるノードプロパティ
  */
-export const PersonNode = memo(({ data, selected }: NodeProps) => {
+export const PersonNode = memo(({ data, selected, id }: NodeProps) => {
   // PersonNodeDataとして型アサーションを使用
   const personData = data as PersonNodeData;
 
   // 名前の最初の1文字をイニシャルとして取得
   const initial = personData.name.charAt(0).toUpperCase();
 
-  // ホバー状態管理
-  const [isHovered, setIsHovered] = useState(false);
-
-  // 接続操作中かどうかを取得
-  const connection = useConnection();
-  const isConnecting = connection.inProgress;
-
-  // sourceハンドルを表示する条件：自身にホバー中 かつ 接続操作中でない
-  const showSourceHandle = isHovered && !isConnecting;
-
-  // targetハンドルを表示する条件：誰かが接続操作中
-  const showTargetHandle = isConnecting;
+  // ホバー状態管理（200ms遅延で接続操作の安定性を向上）
+  const { handleMouseEnter, handleMouseLeave, showSourceHandle, showTargetHandle } =
+    useHandleHover(id);
 
   return (
     <div
       className="flex flex-col items-center group cursor-grab active:cursor-grabbing"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
+      {/* 透明なホバーゾーン（ハンドル外周までカバー） */}
+      {/* ハンドルは100x100px、ゾーンは108x108pxでハンドルの外側も含める */}
+      <div
+        className="absolute"
+        style={{
+          left: '50%',
+          top: '40px',
+          transform: 'translate(-50%, -50%)',
+          width: '108px',
+          height: '108px',
+          pointerEvents: 'auto',
+          zIndex: 1,
+        }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      />
+
       {/* 円形ハンドル（リング状） - source用 */}
       {/* 画像部分を囲む正円のハンドルで、外周から接続開始可能 */}
       {/* hover時かつ接続操作中でない時のみ有効化 */}
@@ -45,7 +54,7 @@ export const PersonNode = memo(({ data, selected }: NodeProps) => {
         type="source"
         id="ring-source"
         position={Position.Top}
-        className={`!absolute !rounded-full !border-8 !border-blue-500 !bg-transparent transition-opacity duration-200 ${
+        className={`!absolute !rounded-full !border-blue-500 !bg-transparent transition-opacity duration-200 ${
           showSourceHandle ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         style={{
@@ -54,8 +63,12 @@ export const PersonNode = memo(({ data, selected }: NodeProps) => {
           transform: 'translate(-50%, -50%)',
           width: '100px',
           height: '100px',
+          borderWidth: '10px',
           pointerEvents: showSourceHandle ? 'auto' : 'none',
+          zIndex: 2,
         }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       />
 
       {/* 円形ハンドル（リング状） - target用 */}
@@ -65,7 +78,7 @@ export const PersonNode = memo(({ data, selected }: NodeProps) => {
         type="target"
         id="ring-target"
         position={Position.Top}
-        className={`!absolute !rounded-full !border-8 !border-blue-500 !bg-transparent transition-opacity duration-200 ${
+        className={`!absolute !rounded-full !border-blue-500 !bg-transparent transition-opacity duration-200 ${
           showTargetHandle ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         style={{
@@ -74,13 +87,17 @@ export const PersonNode = memo(({ data, selected }: NodeProps) => {
           transform: 'translate(-50%, -50%)',
           width: '100px',
           height: '100px',
+          borderWidth: '10px',
           pointerEvents: showTargetHandle ? 'auto' : 'none',
+          zIndex: 2,
         }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       />
 
       {/* 丸い画像またはデフォルトアバター */}
-      {/* scale-110を削除してハンドルのクリック領域を確保 */}
-      <div className="relative transition-transform duration-200">
+      {/* z-indexを上げて中央部分をドラッグ可能にする */}
+      <div className="relative transition-transform duration-200" style={{ zIndex: 10 }}>
         {personData.imageDataUrl ? (
           <img
             src={personData.imageDataUrl}
@@ -101,10 +118,12 @@ export const PersonNode = memo(({ data, selected }: NodeProps) => {
       </div>
 
       {/* 名前テキスト表示 */}
+      {/* z-indexを上げてドラッグ可能にする */}
       <div
         className={`mt-2 px-3 py-1 bg-white rounded-full shadow-lg transition-all duration-200 ${
           selected ? 'border-2 border-blue-500' : 'border border-gray-200'
         }`}
+        style={{ zIndex: 10 }}
       >
         <div className="text-sm font-medium text-gray-900 whitespace-nowrap">
           {personData.name}
