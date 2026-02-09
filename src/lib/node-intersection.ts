@@ -166,10 +166,11 @@ export function getEdgeIntersectionPoints(
   targetPoint: { x: number; y: number };
 } {
   // ノードの幅と高さを取得（名前ラベルの幅で可変、デフォルトは画像サイズ）
+  // 注: sourceHeight/targetHeightは現在未使用（画像領域のPERSON_IMAGE_SIZEを使用）
   const sourceWidth = sourceNode.measured?.width || PERSON_IMAGE_SIZE;
-  const sourceHeight = sourceNode.measured?.height || PERSON_IMAGE_SIZE;
+  const _sourceHeight = sourceNode.measured?.height || PERSON_IMAGE_SIZE;
   const targetWidth = targetNode.measured?.width || PERSON_IMAGE_SIZE;
-  const targetHeight = targetNode.measured?.height || PERSON_IMAGE_SIZE;
+  const _targetHeight = targetNode.measured?.height || PERSON_IMAGE_SIZE;
 
   // ノードの中心座標を計算
   // centerX: 名前ラベルの幅に応じて可変
@@ -187,8 +188,8 @@ export function getEdgeIntersectionPoints(
   const sourcePoint = sourceIsItem
     ? getRectIntersection(
         { x: sourceCenterX, y: sourceCenterY },
-        sourceWidth,
-        sourceHeight,
+        PERSON_IMAGE_SIZE,
+        PERSON_IMAGE_SIZE,
         targetCenterX,
         targetCenterY
       )
@@ -203,8 +204,8 @@ export function getEdgeIntersectionPoints(
   const targetPoint = targetIsItem
     ? getRectIntersection(
         { x: targetCenterX, y: targetCenterY },
-        targetWidth,
-        targetHeight,
+        PERSON_IMAGE_SIZE,
+        PERSON_IMAGE_SIZE,
         sourceCenterX,
         sourceCenterY
       )
