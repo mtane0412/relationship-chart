@@ -21,7 +21,7 @@ export const PersonNode = memo(({ data, selected, id }: NodeProps) => {
 
   // ホバー状態管理（200ms遅延で接続操作の安定性を向上）
   const { handleMouseEnter, handleMouseLeave, showSourceHandle, showTargetHandle, isConnectingToThisNode } =
-    useHandleHover(id);
+    useHandleHover(id, selected);
 
   return (
     <div

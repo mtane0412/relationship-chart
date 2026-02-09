@@ -27,7 +27,7 @@ export interface UseHandleHoverResult {
   isConnectingToThisNode: boolean;
 }
 
-export function useHandleHover(nodeId: string): UseHandleHoverResult {
+export function useHandleHover(nodeId: string, selected: boolean): UseHandleHoverResult {
   const [isHovered, setIsHovered] = useState(false);
   const leaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const connection = useConnection();
@@ -59,8 +59,9 @@ export function useHandleHover(nodeId: string): UseHandleHoverResult {
   }, []);
 
   // 接続中のハンドル表示判定
+  // 選択状態のノードでは常にソースハンドルを表示（エッジを伸ばしやすくする）
   const showSourceHandle =
-    isHovered &&
+    (selected || isHovered) &&
     !(connection.inProgress && connection.fromNode?.id === nodeId);
 
   const showTargetHandle =

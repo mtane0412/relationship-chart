@@ -38,10 +38,27 @@ describe('useHandleHover', () => {
         toPosition: null,
       });
 
-      const { result } = renderHook(() => useHandleHover('test-node-id'));
+      const { result } = renderHook(() => useHandleHover('test-node-id', false));
 
       expect(result.current.isHovered).toBe(false);
       expect(result.current.isConnectingToThisNode).toBe(false);
+    });
+
+    it('選択状態のノードではshowSourceHandleが常にtrueになること', () => {
+      vi.mocked(useConnection).mockReturnValue({
+        inProgress: false,
+        fromHandle: null,
+        toHandle: null,
+        fromNode: null,
+        toNode: null,
+        fromPosition: null,
+        toPosition: null,
+      });
+
+      const { result } = renderHook(() => useHandleHover('test-node-id', true));
+
+      // 選択状態の場合、ホバーしていなくてもshowSourceHandleがtrueになる
+      expect(result.current.showSourceHandle).toBe(true);
     });
 
     it('onMouseEnterを呼ぶとisHoveredがtrueになること', () => {
@@ -55,7 +72,7 @@ describe('useHandleHover', () => {
         toPosition: null,
       });
 
-      const { result } = renderHook(() => useHandleHover('test-node-id'));
+      const { result } = renderHook(() => useHandleHover('test-node-id', false));
 
       act(() => {
         result.current.handleMouseEnter();
@@ -75,7 +92,7 @@ describe('useHandleHover', () => {
         toPosition: null,
       });
 
-      const { result } = renderHook(() => useHandleHover('test-node-id'));
+      const { result } = renderHook(() => useHandleHover('test-node-id', false));
 
       // ホバー開始
       act(() => {
@@ -111,7 +128,7 @@ describe('useHandleHover', () => {
         toPosition: null,
       });
 
-      const { result } = renderHook(() => useHandleHover('test-node-id'));
+      const { result } = renderHook(() => useHandleHover('test-node-id', false));
 
       // ホバー開始
       act(() => {
@@ -159,7 +176,7 @@ describe('useHandleHover', () => {
         toPosition: null,
       });
 
-      const { result } = renderHook(() => useHandleHover('test-node-id'));
+      const { result } = renderHook(() => useHandleHover('test-node-id', false));
 
       expect(result.current.showSourceHandle).toBe(false);
     });
@@ -175,7 +192,7 @@ describe('useHandleHover', () => {
         toPosition: null,
       });
 
-      const { result } = renderHook(() => useHandleHover('test-node-id'));
+      const { result } = renderHook(() => useHandleHover('test-node-id', false));
 
       expect(result.current.showTargetHandle).toBe(false);
     });
@@ -191,7 +208,7 @@ describe('useHandleHover', () => {
         toPosition: null,
       });
 
-      const { result } = renderHook(() => useHandleHover('test-node-id'));
+      const { result } = renderHook(() => useHandleHover('test-node-id', false));
 
       // ホバー開始
       act(() => {
@@ -213,7 +230,7 @@ describe('useHandleHover', () => {
         toPosition: null,
       });
 
-      const { result } = renderHook(() => useHandleHover('test-node-id'));
+      const { result } = renderHook(() => useHandleHover('test-node-id', false));
 
       expect(result.current.showSourceHandle).toBe(false);
       expect(result.current.showTargetHandle).toBe(false);
@@ -230,7 +247,7 @@ describe('useHandleHover', () => {
         toPosition: null,
       });
 
-      const { result } = renderHook(() => useHandleHover('test-node-id'));
+      const { result } = renderHook(() => useHandleHover('test-node-id', false));
 
       expect(result.current.isConnectingToThisNode).toBe(true);
     });
@@ -246,7 +263,7 @@ describe('useHandleHover', () => {
         toPosition: null,
       });
 
-      const { result } = renderHook(() => useHandleHover('test-node-id'));
+      const { result } = renderHook(() => useHandleHover('test-node-id', false));
 
       expect(result.current.isConnectingToThisNode).toBe(false);
     });
@@ -262,7 +279,7 @@ describe('useHandleHover', () => {
         toPosition: null,
       });
 
-      const { result } = renderHook(() => useHandleHover('test-node-id'));
+      const { result } = renderHook(() => useHandleHover('test-node-id', false));
 
       expect(result.current.isConnectingToThisNode).toBe(false);
     });
@@ -280,7 +297,7 @@ describe('useHandleHover', () => {
         toPosition: null,
       });
 
-      const { result, unmount } = renderHook(() => useHandleHover('test-node-id'));
+      const { result, unmount } = renderHook(() => useHandleHover('test-node-id', false));
 
       // ホバー開始
       act(() => {
