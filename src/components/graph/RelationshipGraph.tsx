@@ -27,6 +27,7 @@ import '@xyflow/react/dist/style.css';
 import { PersonNode } from './PersonNode';
 import { ItemNode } from './ItemNode';
 import { RelationshipEdge as RelationshipEdgeComponent } from './RelationshipEdge';
+import { ConnectionLine } from './ConnectionLine';
 import { PersonRegistrationModal } from './PersonRegistrationModal';
 import { RelationshipRegistrationModal } from './RelationshipRegistrationModal';
 import { useForceLayout } from './useForceLayout';
@@ -521,7 +522,7 @@ export function RelationshipGraph() {
         edgeTypes={edgeTypes}
         connectionMode={ConnectionMode.Loose}
         connectionLineType={ConnectionLineType.Straight}
-        connectionLineStyle={{ stroke: '#3b82f6', strokeWidth: 2 }}
+        connectionLineComponent={ConnectionLine}
         connectionRadius={60}
         onNodeDragStart={(_, node) => handleNodeDragStart(node.id)}
         onNodeDrag={(_, node) =>
