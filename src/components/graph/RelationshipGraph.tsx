@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useCallback, useState, useMemo } from 'react';
+import { useEffect, useCallback, useState, useMemo, useRef } from 'react';
 import {
   ReactFlow,
   Background,
@@ -27,6 +27,7 @@ import '@xyflow/react/dist/style.css';
 import { PersonNode } from './PersonNode';
 import { ItemNode } from './ItemNode';
 import { RelationshipEdge as RelationshipEdgeComponent } from './RelationshipEdge';
+import { ConnectionLine } from './ConnectionLine';
 import { PersonRegistrationModal } from './PersonRegistrationModal';
 import { RelationshipRegistrationModal } from './RelationshipRegistrationModal';
 import { useForceLayout } from './useForceLayout';
@@ -34,6 +35,7 @@ import { useGraphStore } from '@/stores/useGraphStore';
 import { personsToNodes, relationshipsToEdges } from '@/lib/graph-utils';
 import { readFileAsDataUrl } from '@/lib/image-utils';
 import { getRelationshipDisplayType } from '@/lib/relationship-utils';
+import { findClosestTargetNode } from '@/lib/connection-target-detection';
 import type {
   GraphNode,
   RelationshipEdge,
@@ -97,7 +99,13 @@ export function RelationshipGraph() {
   const [pendingConnection, setPendingConnection] = useState<PendingConnection | null>(null);
 
   // React Flow APIを取得
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, getNodes } = useReactFlow();
+
+  // onConnectが呼ばれたかどうかを追跡するフラグ
+  const onConnectCalledRef = useRef(false);
+
+  // 接続元ノードIDを保存するref（onConnectEndで使用）
+  const connectingFromNodeIdRef = useRef<string | null>(null);
 
   // ノード位置更新のコールバック（useForceLayout用）
   // d3-forceのtickイベントで頻繁に呼ばれるため、既存ノードの選択状態を保持する
@@ -350,9 +358,21 @@ export function RelationshipGraph() {
     [setSelectedPersonIds]
   );
 
+  // エッジ接続開始ハンドラ
+  const handleConnectStart = useCallback(
+    (_event: MouseEvent | TouchEvent, params: { nodeId: string | null; handleId: string | null }) => {
+      // 接続元ノードIDを保存
+      connectingFromNodeIdRef.current = params.nodeId;
+    },
+    []
+  );
+
   // エッジ接続ハンドラ
   const handleConnect = useCallback(
     (connection: Connection) => {
+      // onConnectが呼ばれたことを記録
+      onConnectCalledRef.current = true;
+
       // sourceとtargetが存在し、異なることを確認（自己接続を防止）
       if (connection.source && connection.target && connection.source !== connection.target) {
         // 両方の人物が実際に存在することを確認
@@ -385,6 +405,97 @@ export function RelationshipGraph() {
       }
     },
     [persons, relationships]
+  );
+
+  // エッジ接続終了ハンドラ（プレビューラインがターゲットノードとつながっている場合の接続）
+  const handleConnectEnd = useCallback(
+    (event: MouseEvent | TouchEvent) => {
+      // onConnectが既に呼ばれていた場合は何もしない（重複接続を防止）
+      if (onConnectCalledRef.current) {
+        onConnectCalledRef.current = false; // フラグをリセット
+        connectingFromNodeIdRef.current = null; // 接続元をリセット
+        return;
+      }
+
+      // 接続元ノードがない場合は何もしない
+      const fromNodeId = connectingFromNodeIdRef.current;
+      if (!fromNodeId) {
+        return;
+      }
+
+      // ポインタ位置を取得（マウス／タッチ対応）
+      let clientX: number;
+      let clientY: number;
+      if ('clientX' in event) {
+        // MouseEvent
+        clientX = event.clientX;
+        clientY = event.clientY;
+      } else {
+        // TouchEvent
+        const touchEvent = event as TouchEvent;
+        const touch =
+          (touchEvent.changedTouches && touchEvent.changedTouches[0]) ||
+          (touchEvent.touches && touchEvent.touches[0]);
+        // タッチ情報が取得できない場合は何もしない
+        if (!touch) {
+          connectingFromNodeIdRef.current = null;
+          return;
+        }
+        clientX = touch.clientX;
+        clientY = touch.clientY;
+      }
+
+      // Flow座標系に変換
+      const flowPosition = screenToFlowPosition({ x: clientX, y: clientY });
+
+      // マウス位置から最も近いノードを検出
+      const allNodes = getNodes();
+      const targetNode = findClosestTargetNode(
+        flowPosition.x,
+        flowPosition.y,
+        allNodes,
+        fromNodeId,
+        60
+      );
+
+      // 接続元をリセット
+      connectingFromNodeIdRef.current = null;
+
+      // ターゲットノードが見つかった場合、接続を作成
+      if (targetNode && targetNode.id !== fromNodeId) {
+        const sourcePersonId = fromNodeId;
+        const targetPersonId = targetNode.id;
+
+        // 両方の人物が実際に存在することを確認
+        const sourcePerson = persons.find((p) => p.id === sourcePersonId);
+        const targetPerson = persons.find((p) => p.id === targetPersonId);
+
+        if (sourcePerson && targetPerson) {
+          // 同じペアの関係が既に存在するかチェック（方向問わず）
+          const existingRelationship = relationships.find(
+            (r) =>
+              (r.sourcePersonId === sourcePersonId && r.targetPersonId === targetPersonId) ||
+              (r.sourcePersonId === targetPersonId && r.targetPersonId === sourcePersonId)
+          );
+
+          if (existingRelationship) {
+            // 既に関係が存在する場合は編集モーダルを開く
+            setPendingConnection({
+              sourcePersonId,
+              targetPersonId,
+              existingRelationshipId: existingRelationship.id,
+            });
+            return;
+          }
+
+          setPendingConnection({
+            sourcePersonId,
+            targetPersonId,
+          });
+        }
+      }
+    },
+    [screenToFlowPosition, getNodes, persons, relationships]
   );
 
   // ノード削除ハンドラ（確認ダイアログ付き）
@@ -521,7 +632,8 @@ export function RelationshipGraph() {
         edgeTypes={edgeTypes}
         connectionMode={ConnectionMode.Loose}
         connectionLineType={ConnectionLineType.Straight}
-        connectionLineStyle={{ stroke: '#3b82f6', strokeWidth: 2 }}
+        connectionLineComponent={ConnectionLine}
+        connectionRadius={60}
         onNodeDragStart={(_, node) => handleNodeDragStart(node.id)}
         onNodeDrag={(_, node) =>
           handleNodeDrag(node.id, node.position)
@@ -530,7 +642,9 @@ export function RelationshipGraph() {
         onSelectionChange={handleSelectionChange}
         onPaneClick={handlePaneClick}
         onEdgeClick={handleEdgeClick}
+        onConnectStart={handleConnectStart}
         onConnect={handleConnect}
+        onConnectEnd={handleConnectEnd}
         onNodesDelete={handleNodesDelete}
         onEdgesDelete={handleEdgesDelete}
         deleteKeyCode={['Backspace', 'Delete']}
