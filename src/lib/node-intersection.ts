@@ -72,62 +72,67 @@ export function getRectIntersection(
     return { x: center.x + halfWidth, y: center.y };
   }
 
-  // 各辺との交点を計算し、最も近いものを選択
-  let minDistance = Infinity;
+  // 各辺との交点を計算し、中心に最も近いものを選択
+  let minDistanceFromCenter = Infinity;
   let intersection = { x: center.x + halfWidth, y: center.y };
 
-  // 右辺との交点
-  if (dx !== 0) {
-    const t = halfWidth / Math.abs(dx);
-    const y = center.y + (dy * t * Math.sign(dx));
-    if (Math.abs(y - center.y) <= halfHeight && dx > 0) {
-      const x = center.x + halfWidth;
-      const distance = Math.sqrt((x - targetX) ** 2 + (y - targetY) ** 2);
-      if (distance < minDistance) {
-        minDistance = distance;
-        intersection = { x, y };
+  // 右辺（x = center.x + halfWidth）との交点
+  if (dx > 0) {
+    // パラメータ t: center + t * (dx, dy) = (center.x + halfWidth, y)
+    // t = halfWidth / dx
+    const t = halfWidth / dx;
+    const y = center.y + dy * t;
+    // 交点が右辺の範囲内にあるか確認
+    if (Math.abs(y - center.y) <= halfHeight) {
+      const distanceFromCenter = Math.sqrt(halfWidth ** 2 + (y - center.y) ** 2);
+      if (distanceFromCenter < minDistanceFromCenter) {
+        minDistanceFromCenter = distanceFromCenter;
+        intersection = { x: center.x + halfWidth, y };
       }
     }
   }
 
-  // 左辺との交点
-  if (dx !== 0) {
-    const t = halfWidth / Math.abs(dx);
-    const y = center.y + (dy * t * Math.sign(dx));
-    if (Math.abs(y - center.y) <= halfHeight && dx < 0) {
-      const x = center.x - halfWidth;
-      const distance = Math.sqrt((x - targetX) ** 2 + (y - targetY) ** 2);
-      if (distance < minDistance) {
-        minDistance = distance;
-        intersection = { x, y };
+  // 左辺（x = center.x - halfWidth）との交点
+  if (dx < 0) {
+    // t = -halfWidth / dx
+    const t = -halfWidth / dx;
+    const y = center.y + dy * t;
+    // 交点が左辺の範囲内にあるか確認
+    if (Math.abs(y - center.y) <= halfHeight) {
+      const distanceFromCenter = Math.sqrt(halfWidth ** 2 + (y - center.y) ** 2);
+      if (distanceFromCenter < minDistanceFromCenter) {
+        minDistanceFromCenter = distanceFromCenter;
+        intersection = { x: center.x - halfWidth, y };
       }
     }
   }
 
-  // 下辺との交点
-  if (dy !== 0) {
-    const t = halfHeight / Math.abs(dy);
-    const x = center.x + (dx * t * Math.sign(dy));
-    if (Math.abs(x - center.x) <= halfWidth && dy > 0) {
-      const y = center.y + halfHeight;
-      const distance = Math.sqrt((x - targetX) ** 2 + (y - targetY) ** 2);
-      if (distance < minDistance) {
-        minDistance = distance;
-        intersection = { x, y };
+  // 下辺（y = center.y + halfHeight）との交点
+  if (dy > 0) {
+    // t = halfHeight / dy
+    const t = halfHeight / dy;
+    const x = center.x + dx * t;
+    // 交点が下辺の範囲内にあるか確認
+    if (Math.abs(x - center.x) <= halfWidth) {
+      const distanceFromCenter = Math.sqrt((x - center.x) ** 2 + halfHeight ** 2);
+      if (distanceFromCenter < minDistanceFromCenter) {
+        minDistanceFromCenter = distanceFromCenter;
+        intersection = { x, y: center.y + halfHeight };
       }
     }
   }
 
-  // 上辺との交点
-  if (dy !== 0) {
-    const t = halfHeight / Math.abs(dy);
-    const x = center.x + (dx * t * Math.sign(dy));
-    if (Math.abs(x - center.x) <= halfWidth && dy < 0) {
-      const y = center.y - halfHeight;
-      const distance = Math.sqrt((x - targetX) ** 2 + (y - targetY) ** 2);
-      if (distance < minDistance) {
-        minDistance = distance;
-        intersection = { x, y };
+  // 上辺（y = center.y - halfHeight）との交点
+  if (dy < 0) {
+    // t = -halfHeight / dy
+    const t = -halfHeight / dy;
+    const x = center.x + dx * t;
+    // 交点が上辺の範囲内にあるか確認
+    if (Math.abs(x - center.x) <= halfWidth) {
+      const distanceFromCenter = Math.sqrt((x - center.x) ** 2 + halfHeight ** 2);
+      if (distanceFromCenter < minDistanceFromCenter) {
+        minDistanceFromCenter = distanceFromCenter;
+        intersection = { x, y: center.y - halfHeight };
       }
     }
   }

@@ -345,4 +345,93 @@ describe('getRectIntersection', () => {
     expect(intersection.x).toBeCloseTo(140, 1);
     expect(intersection.y).toBeCloseTo(140, 1);
   });
+
+  it('四角形の中心から少し左下の交点を計算する（重要: エッジが辺上を滑らない）', () => {
+    const center = { x: 100, y: 100 };
+    const width = 80;
+    const height = 80;
+    const targetX = 80; // 中心より少し左
+    const targetY = 200; // 中心より下
+
+    const intersection = getRectIntersection(
+      center,
+      width,
+      height,
+      targetX,
+      targetY
+    );
+
+    // 方向ベクトル: dx = -20, dy = 100
+    // 下辺（y=140）との交点: x = 100 + (-20) * ((140-100) / 100) = 100 - 8 = 92
+    // エッジは常に中心(100, 100)から(80, 200)に向かう光線上にあるべき
+    expect(intersection.x).toBeCloseTo(92, 1);
+    expect(intersection.y).toBeCloseTo(140, 1);
+  });
+
+  it('四角形の中心から斜め左下の交点を計算する', () => {
+    const center = { x: 100, y: 100 };
+    const width = 80;
+    const height = 80;
+    const targetX = 0; // 中心より左
+    const targetY = 200; // 中心より下
+
+    const intersection = getRectIntersection(
+      center,
+      width,
+      height,
+      targetX,
+      targetY
+    );
+
+    // 方向ベクトル: dx = -100, dy = 100
+    // 左辺（x=60）との交点: y = 100 + 100 * ((60-100) / -100) = 100 + 40 = 140
+    // しかし、y=140は下辺の位置なので、角(60, 140)に近い
+    // 実際には左辺（x=60）との交点を計算: y = 100 + 100 * ((60-100) / -100) = 100 + 40 = 140
+    // 下辺（y=140）との交点を計算: x = 100 + (-100) * ((140-100) / 100) = 100 - 40 = 60
+    // 両方とも角(60, 140)を指す → 角の位置
+    expect(intersection.x).toBeCloseTo(60, 1);
+    expect(intersection.y).toBeCloseTo(140, 1);
+  });
+
+  it('四角形の中心から斜め左上の交点を計算する', () => {
+    const center = { x: 100, y: 100 };
+    const width = 80;
+    const height = 80;
+    const targetX = 0;
+    const targetY = 0;
+
+    const intersection = getRectIntersection(
+      center,
+      width,
+      height,
+      targetX,
+      targetY
+    );
+
+    // 斜め左上方向（45度）
+    // 角(60, 60)
+    expect(intersection.x).toBeCloseTo(60, 1);
+    expect(intersection.y).toBeCloseTo(60, 1);
+  });
+
+  it('四角形の中心から斜め右上の交点を計算する', () => {
+    const center = { x: 100, y: 100 };
+    const width = 80;
+    const height = 80;
+    const targetX = 200;
+    const targetY = 0;
+
+    const intersection = getRectIntersection(
+      center,
+      width,
+      height,
+      targetX,
+      targetY
+    );
+
+    // 斜め右上方向（45度）
+    // 角(140, 60)
+    expect(intersection.x).toBeCloseTo(140, 1);
+    expect(intersection.y).toBeCloseTo(60, 1);
+  });
 });
