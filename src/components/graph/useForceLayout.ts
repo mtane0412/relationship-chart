@@ -13,6 +13,7 @@ import {
   type SimulationLinkDatum,
 } from 'd3-force';
 import type { Node, Edge } from '@xyflow/react';
+import type { ForceParams } from '@/stores/useGraphStore';
 
 /**
  * d3-force用のノード型
@@ -41,6 +42,8 @@ type UseForceLayoutParams = {
   enabled: boolean;
   /** ノード位置更新のコールバック */
   onNodesChange: (nodes: Node[]) => void;
+  /** force-directedレイアウトのパラメータ */
+  forceParams: ForceParams;
 };
 
 /**
@@ -72,6 +75,7 @@ export function useForceLayout({
   edges,
   enabled,
   onNodesChange,
+  forceParams,
 }: UseForceLayoutParams) {
   // シミュレーションのrefを保持
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -84,10 +88,12 @@ export function useForceLayout({
   // ノードとエッジをrefで保持（依存配列から除外するため）
   const nodesRef = useRef<Node[]>(nodes);
   const edgesRef = useRef<Edge[]>(edges);
+  const forceParamsRef = useRef<ForceParams>(forceParams);
 
   // 最新の値をrefに保存
   nodesRef.current = nodes;
   edgesRef.current = edges;
+  forceParamsRef.current = forceParams;
 
   useEffect(() => {
     // forceレイアウトが無効な場合はシミュレーションを停止
@@ -142,14 +148,14 @@ export function useForceLayout({
           'link',
           forceLink<ForceNode, ForceLink>(forceLinks)
             .id((d) => (d as Node).id)
-            .distance(150) // ノード間の距離
-            .strength(0.5) // 引力の強さ
+            .distance(forceParamsRef.current.linkDistance) // ノード間の距離
+            .strength(forceParamsRef.current.linkStrength) // 引力の強さ
         )
         // ノード間の反発力
         .force(
           'charge',
           forceManyBody<ForceNode>()
-            .strength(-300) // 反発力の強さ（負の値）
+            .strength(forceParamsRef.current.chargeStrength) // 反発力の強さ（負の値）
         )
         // 中心への引力
         .force('center', forceCenter(400, 400))
@@ -186,6 +192,29 @@ export function useForceLayout({
       }
     };
   }, [enabled, onNodesChange]);
+
+  // forceParamsが変更された時にシミュレーションを動的更新
+  useEffect(() => {
+    if (!enabled || !simulationRef.current) {
+      return;
+    }
+
+    // 既存のforceを動的に更新
+    const linkForce = simulationRef.current.force('link') as ReturnType<typeof forceLink<ForceNode, ForceLink>> | undefined;
+    const chargeForce = simulationRef.current.force('charge') as ReturnType<typeof forceManyBody<ForceNode>> | undefined;
+
+    if (linkForce) {
+      linkForce.distance(forceParamsRef.current.linkDistance);
+      linkForce.strength(forceParamsRef.current.linkStrength);
+    }
+
+    if (chargeForce) {
+      chargeForce.strength(forceParamsRef.current.chargeStrength);
+    }
+
+    // シミュレーションを再加熱（パラメータ変更を反映）
+    simulationRef.current.alpha(0.3).restart();
+  }, [enabled, forceParams]);
 
   // ノードドラッグ開始時のハンドラ
   const handleNodeDragStart = (nodeId: string) => {

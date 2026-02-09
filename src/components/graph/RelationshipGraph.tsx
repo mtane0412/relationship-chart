@@ -78,6 +78,7 @@ export function RelationshipGraph() {
   const persons = useGraphStore((state) => state.persons);
   const relationships = useGraphStore((state) => state.relationships);
   const forceEnabled = useGraphStore((state) => state.forceEnabled);
+  const forceParams = useGraphStore((state) => state.forceParams);
   const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
   const addPerson = useGraphStore((state) => state.addPerson);
   const addRelationship = useGraphStore((state) => state.addRelationship);
@@ -113,6 +114,7 @@ export function RelationshipGraph() {
       edges,
       enabled: forceEnabled,
       onNodesChange: handleNodesUpdate,
+      forceParams,
     });
 
   // ストアのデータ（persons, relationships）が変更されたらノードとエッジを更新
