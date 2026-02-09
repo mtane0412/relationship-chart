@@ -61,12 +61,14 @@ type UseForceLayoutParams = {
  * @example
  * ```tsx
  * const [enabled, setEnabled] = useState(true);
+ * const forceParams = useGraphStore((state) => state.forceParams);
  *
  * useForceLayout({
  *   nodes,
  *   edges,
  *   enabled,
  *   onNodesChange: (updatedNodes) => setNodes(updatedNodes),
+ *   forceParams,
  * });
  * ```
  */

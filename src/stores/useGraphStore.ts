@@ -351,12 +351,12 @@ export const useGraphStore = create<GraphStore>()(
       migrate: (persistedState: unknown, version: number) => {
         // v4以降は変換不要
         if (version >= 4) {
-          return persistedState as GraphStore;
+          return persistedState as GraphState;
         }
 
         // 初回ユーザー（永続化データがない場合）は変換不要
         if (!persistedState || typeof persistedState !== 'object') {
-          return persistedState as GraphStore;
+          return persistedState as GraphState;
         }
 
         let state = persistedState;
@@ -385,16 +385,16 @@ export const useGraphStore = create<GraphStore>()(
             createdAt: r.createdAt,
           }));
 
-          return {
+          state = {
             persons: v1State.persons,
             relationships: v3Relationships,
             forceEnabled: v1State.forceEnabled,
             selectedPersonIds: v1State.selectedPersonIds,
-          } as GraphStore;
+          };
         }
 
         // v2からv3への変換
-        if (version <= 2) {
+        if (version === 2) {
           const v2State = state as GraphStateV2;
           const v3Relationships: Relationship[] = v2State.relationships.map((r) => {
             // typeフィールドから新しいisDirectedとラベルを導出
@@ -447,22 +447,23 @@ export const useGraphStore = create<GraphStore>()(
             relationships: v3Relationships,
             forceEnabled: v2State.forceEnabled,
             selectedPersonIds: v2State.selectedPersonIds,
-          } as GraphState;
+          };
         }
 
         // v3からv4への変換（forceParamsを補完）
+        // v0/v1/v2からの変換後も必ずここを通るため、すべてのバージョンでforceParamsが補完される
         if (version <= 3) {
           const v3State = state as Partial<GraphState>;
           // forceParamsがない場合はデフォルト値を追加
           if (!v3State.forceParams) {
-            return {
+            state = {
               ...v3State,
               forceParams: DEFAULT_FORCE_PARAMS,
-            } as GraphStore;
+            };
           }
         }
 
-        return state as GraphStore;
+        return state as GraphState;
       },
     }
   )
