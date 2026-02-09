@@ -35,6 +35,7 @@ describe('graph-utils', () => {
         data: {
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,/9j/4AAQSkZJRg...',
+          kind: 'person',
         },
         position: { x: 0, y: 0 },
       });
@@ -83,9 +84,114 @@ describe('graph-utils', () => {
         data: {
           name: '山田太郎',
           imageDataUrl: undefined,
+          kind: 'person',
         },
         position: { x: 0, y: 0 },
       });
+    });
+
+    it('kind: "person"を持つPersonをPersonNodeに変換できる', () => {
+      const persons: Person[] = [
+        {
+          id: 'person-1',
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+          kind: 'person',
+          createdAt: '2026-02-05T00:00:00.000Z',
+        },
+      ];
+
+      const nodes = personsToNodes(persons);
+
+      expect(nodes).toHaveLength(1);
+      expect(nodes[0]).toEqual({
+        id: 'person-1',
+        type: 'person',
+        data: {
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+          kind: 'person',
+        },
+        position: { x: 0, y: 0 },
+      });
+    });
+
+    it('kind: "item"を持つPersonをItemNodeに変換できる', () => {
+      const persons: Person[] = [
+        {
+          id: 'item-1',
+          name: '伝説の剣',
+          imageDataUrl: 'data:image/jpeg;base64,sword',
+          kind: 'item',
+          createdAt: '2026-02-05T00:00:00.000Z',
+        },
+      ];
+
+      const nodes = personsToNodes(persons);
+
+      expect(nodes).toHaveLength(1);
+      expect(nodes[0]).toEqual({
+        id: 'item-1',
+        type: 'item',
+        data: {
+          name: '伝説の剣',
+          imageDataUrl: 'data:image/jpeg;base64,sword',
+          kind: 'item',
+        },
+        position: { x: 0, y: 0 },
+      });
+    });
+
+    it('kindが未設定のPersonはPersonNodeとして変換される', () => {
+      const persons: Person[] = [
+        {
+          id: 'person-1',
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+          createdAt: '2026-02-05T00:00:00.000Z',
+        },
+      ];
+
+      const nodes = personsToNodes(persons);
+
+      expect(nodes).toHaveLength(1);
+      expect(nodes[0]).toEqual({
+        id: 'person-1',
+        type: 'person',
+        data: {
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+          kind: 'person',
+        },
+        position: { x: 0, y: 0 },
+      });
+    });
+
+    it('人物と物を混在させてノード配列に変換できる', () => {
+      const persons: Person[] = [
+        {
+          id: 'person-1',
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+          kind: 'person',
+          createdAt: '2026-02-05T00:00:00.000Z',
+        },
+        {
+          id: 'item-1',
+          name: '魔法の杖',
+          imageDataUrl: 'data:image/jpeg;base64,wand',
+          kind: 'item',
+          createdAt: '2026-02-05T00:01:00.000Z',
+        },
+      ];
+
+      const nodes = personsToNodes(persons);
+
+      expect(nodes).toHaveLength(2);
+      expect(nodes[0].type).toBe('person');
+      expect(nodes[0].data.kind).toBe('person');
+      expect(nodes[1].type).toBe('item');
+      expect(nodes[1].data.kind).toBe('item');
     });
   });
 

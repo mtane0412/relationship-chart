@@ -42,9 +42,26 @@ function getDirectionIndicator(type: RelationshipType, isReversed: boolean): str
 }
 
 /**
- * 関係タイプに応じたプレースホルダーを返す
+ * 関係タイプと種別に応じたプレースホルダーを返す
  */
-function getPlaceholder(type: RelationshipType, isReverse = false): string {
+function getPlaceholder(type: RelationshipType, isReverse = false, hasItem = false): string {
+  // 物が含まれている場合のプレースホルダー
+  if (hasItem) {
+    if (type === 'one-way') {
+      return '例: 所有、使用';
+    }
+    if (type === 'bidirectional') {
+      return '例: 所有、使用';
+    }
+    if (type === 'dual-directed') {
+      return isReverse ? '例: 使用' : '例: 所有';
+    }
+    if (type === 'undirected') {
+      return '例: 所有、使用';
+    }
+  }
+
+  // 人物間のプレースホルダー（従来通り）
   if (type === 'one-way') {
     return '例: 片想い、憧れ';
   }
@@ -61,20 +78,24 @@ function getPlaceholder(type: RelationshipType, isReverse = false): string {
 }
 
 /**
- * 人物のミニアイコンを表示するヘルパーコンポーネント
+ * 人物/物のミニアイコンを表示するヘルパーコンポーネント
  */
 function PersonMiniIcon({ person }: { person: Person }) {
+  const kind = person.kind ?? 'person';
+  const isItem = kind === 'item';
+  const borderRadius = isItem ? 'rounded-md' : 'rounded-full';
+
   if (person.imageDataUrl) {
     return (
       <img
         src={person.imageDataUrl}
         alt={person.name}
-        className="w-6 h-6 rounded-full object-cover border border-gray-300"
+        className={`w-6 h-6 ${borderRadius} object-cover border border-gray-300`}
       />
     );
   }
   return (
-    <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 text-xs font-semibold border border-gray-300">
+    <div className={`w-6 h-6 ${borderRadius} bg-gray-300 flex items-center justify-center text-gray-600 text-xs font-semibold border border-gray-300`}>
       {person.name.charAt(0).toUpperCase() || '?'}
     </div>
   );
@@ -94,6 +115,9 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
   const { getNode, setCenter } = useReactFlow();
 
   const [person1, person2] = persons;
+
+  // 物が含まれているかチェック
+  const hasItem = (person1.kind === 'item') || (person2.kind === 'item');
 
   // 2人の間の既存関係を取得（方向問わず）
   const existingRelationship = relationships.find(
@@ -238,9 +262,13 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
     }
   };
 
-  // 相手のイニシャル（画像がない場合）
+  // 相手のイニシャルと種別（画像がない場合）
   const person1Initial = person1.name.charAt(0).toUpperCase() || '?';
   const person2Initial = person2.name.charAt(0).toUpperCase() || '?';
+  const person1Kind = person1.kind ?? 'person';
+  const person2Kind = person2.kind ?? 'person';
+  const person1IsItem = person1Kind === 'item';
+  const person2IsItem = person2Kind === 'item';
 
   // 登録ボタンの有効/無効を判定
   const isSubmitDisabled =
@@ -265,7 +293,7 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
         </div>
         {/* 2人の人物情報表示 + 関係タイプ選択 */}
         <div className="mb-4 flex items-center justify-center gap-3 text-gray-700">
-          {/* 人物1のアイコン */}
+          {/* 人物/物1のアイコン */}
           <div
             role="button"
             tabIndex={0}
@@ -283,10 +311,10 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
               <img
                 src={person1.imageDataUrl}
                 alt={person1.name}
-                className="w-10 h-10 rounded-full object-cover border border-gray-300"
+                className={`w-10 h-10 object-cover border border-gray-300 ${person1IsItem ? 'rounded-lg' : 'rounded-full'}`}
               />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 font-semibold border border-gray-300">
+              <div className={`w-10 h-10 bg-gray-300 flex items-center justify-center text-gray-700 font-semibold border border-gray-300 ${person1IsItem ? 'rounded-lg' : 'rounded-full'}`}>
                 {person1Initial}
               </div>
             )}
@@ -393,7 +421,7 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
             )}
           </div>
 
-          {/* 人物2のアイコン */}
+          {/* 人物/物2のアイコン */}
           <div
             role="button"
             tabIndex={0}
@@ -411,10 +439,10 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
               <img
                 src={person2.imageDataUrl}
                 alt={person2.name}
-                className="w-10 h-10 rounded-full object-cover border border-gray-300"
+                className={`w-10 h-10 object-cover border border-gray-300 ${person2IsItem ? 'rounded-lg' : 'rounded-full'}`}
               />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 font-semibold border border-gray-300">
+              <div className={`w-10 h-10 bg-gray-300 flex items-center justify-center text-gray-700 font-semibold border border-gray-300 ${person2IsItem ? 'rounded-lg' : 'rounded-full'}`}>
                 {person2Initial}
               </div>
             )}
@@ -446,7 +474,7 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
                 type="text"
                 value={sourceToTargetLabel}
                 onChange={(e) => setSourceToTargetLabel(e.target.value)}
-                placeholder={getPlaceholder('dual-directed', false)}
+                placeholder={getPlaceholder('dual-directed', false, hasItem)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -468,7 +496,7 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
                 type="text"
                 value={targetToSourceLabel}
                 onChange={(e) => setTargetToSourceLabel(e.target.value)}
-                placeholder={getPlaceholder('dual-directed', true)}
+                placeholder={getPlaceholder('dual-directed', true, hasItem)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -495,7 +523,7 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
               type="text"
               value={sourceToTargetLabel}
               onChange={(e) => setSourceToTargetLabel(e.target.value)}
-              placeholder={getPlaceholder(relationshipType)}
+              placeholder={getPlaceholder(relationshipType, false, hasItem)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>

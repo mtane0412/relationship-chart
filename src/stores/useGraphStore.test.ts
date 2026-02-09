@@ -237,6 +237,163 @@ describe('useGraphStore', () => {
     });
   });
 
+  describe('addPerson（kind指定）', () => {
+    it('kind: "person"を指定して人物を追加できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      const newPerson: Omit<Person, 'id' | 'createdAt'> = {
+        name: '山田太郎',
+        imageDataUrl: 'data:image/jpeg;base64,abc',
+        kind: 'person',
+      };
+
+      act(() => {
+        result.current.addPerson(newPerson);
+      });
+
+      expect(result.current.persons).toHaveLength(1);
+      expect(result.current.persons[0]).toMatchObject({
+        name: '山田太郎',
+        imageDataUrl: 'data:image/jpeg;base64,abc',
+        kind: 'person',
+      });
+      expect(result.current.persons[0].id).toBeTruthy();
+      expect(result.current.persons[0].createdAt).toBeTruthy();
+    });
+
+    it('kind: "item"を指定して物を追加できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      const newItem: Omit<Person, 'id' | 'createdAt'> = {
+        name: '伝説の剣',
+        imageDataUrl: 'data:image/jpeg;base64,sword',
+        kind: 'item',
+      };
+
+      act(() => {
+        result.current.addPerson(newItem);
+      });
+
+      expect(result.current.persons).toHaveLength(1);
+      expect(result.current.persons[0]).toMatchObject({
+        name: '伝説の剣',
+        imageDataUrl: 'data:image/jpeg;base64,sword',
+        kind: 'item',
+      });
+      expect(result.current.persons[0].id).toBeTruthy();
+      expect(result.current.persons[0].createdAt).toBeTruthy();
+    });
+
+    it('kindを省略した場合は人物として扱われる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      const newPerson: Omit<Person, 'id' | 'createdAt'> = {
+        name: '山田太郎',
+        imageDataUrl: 'data:image/jpeg;base64,abc',
+      };
+
+      act(() => {
+        result.current.addPerson(newPerson);
+      });
+
+      expect(result.current.persons).toHaveLength(1);
+      expect(result.current.persons[0]).toMatchObject({
+        name: '山田太郎',
+        imageDataUrl: 'data:image/jpeg;base64,abc',
+      });
+      // kindはundefinedだが、'person'として動作することを期待
+      expect(result.current.persons[0].kind).toBeUndefined();
+    });
+
+    it('人物と物を混在させて追加できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+          kind: 'person',
+        });
+        result.current.addPerson({
+          name: '魔法の杖',
+          imageDataUrl: 'data:image/jpeg;base64,wand',
+          kind: 'item',
+        });
+      });
+
+      expect(result.current.persons).toHaveLength(2);
+      expect(result.current.persons[0].kind).toBe('person');
+      expect(result.current.persons[1].kind).toBe('item');
+    });
+  });
+
+  describe('removePerson（kind指定）', () => {
+    it('物ノードを削除できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      act(() => {
+        result.current.addPerson({
+          name: '伝説の剣',
+          imageDataUrl: 'data:image/jpeg;base64,sword',
+          kind: 'item',
+        });
+      });
+
+      expect(result.current.persons).toHaveLength(1);
+      const itemId = result.current.persons[0].id;
+
+      act(() => {
+        result.current.removePerson(itemId);
+      });
+
+      expect(result.current.persons).toHaveLength(0);
+    });
+
+    it('物ノード削除時に関連するRelationshipも同時に削除される', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 人物と物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+          kind: 'person',
+        });
+        result.current.addPerson({
+          name: '伝説の剣',
+          imageDataUrl: 'data:image/jpeg;base64,sword',
+          kind: 'item',
+        });
+      });
+
+      const personId = result.current.persons[0].id;
+      const itemId = result.current.persons[1].id;
+
+      // 人物と物の間に関係を追加
+      act(() => {
+        result.current.addRelationship({
+          sourcePersonId: personId,
+          targetPersonId: itemId,
+          isDirected: true,
+          sourceToTargetLabel: '所有',
+          targetToSourceLabel: null,
+        });
+      });
+
+      expect(result.current.relationships).toHaveLength(1);
+
+      // 物を削除
+      act(() => {
+        result.current.removePerson(itemId);
+      });
+
+      // 関連するRelationshipも削除されている
+      expect(result.current.relationships).toHaveLength(0);
+      expect(result.current.persons).toHaveLength(1);
+      expect(result.current.persons[0].id).toBe(personId);
+    });
+  });
+
   describe('updatePerson', () => {
     it('人物の名前を更新できる', () => {
       const { result } = renderHook(() => useGraphStore());
