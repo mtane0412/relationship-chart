@@ -9,6 +9,7 @@
 import { useMemo } from 'react';
 import { ConnectionLineComponentProps, getStraightPath, useReactFlow } from '@xyflow/react';
 import { getEdgeIntersectionPoints, PERSON_IMAGE_SIZE } from '@/lib/node-intersection';
+import { findClosestTargetNode } from '@/lib/connection-target-detection';
 
 /**
  * カスタム接続線コンポーネント
@@ -47,43 +48,7 @@ export function ConnectionLine(props: ConnectionLineComponentProps) {
 
     // toX, toYの位置にあるノードを探す（マウス位置に最も近いノードを選択）
     const allNodes = getNodes();
-
-    // connectionRadius内にあるすべてのノードを取得
-    const candidateNodes = allNodes
-      .filter((node) => {
-        if (node.id === fromNode.id) return false; // 自分自身は除外
-
-        const nodeWidth = node.measured?.width ?? PERSON_IMAGE_SIZE;
-        const nodeHeight = node.measured?.height ?? PERSON_IMAGE_SIZE;
-
-        // ノードの範囲を計算（connectionRadius=60pxを考慮して拡張）
-        const expandedMargin = 60;
-        const left = node.position.x - expandedMargin;
-        const right = node.position.x + nodeWidth + expandedMargin;
-        const top = node.position.y - expandedMargin;
-        const bottom = node.position.y + nodeHeight + expandedMargin;
-
-        // マウス位置がノードの拡張範囲内にあるかチェック
-        return toX >= left && toX <= right && toY >= top && toY <= bottom;
-      })
-      .map((node) => {
-        // ノード中心座標を計算
-        const nodeWidth = node.measured?.width ?? PERSON_IMAGE_SIZE;
-        const nodeHeight = node.measured?.height ?? PERSON_IMAGE_SIZE;
-        const centerX = node.position.x + nodeWidth / 2;
-        const centerY = node.position.y + nodeHeight / 2;
-
-        // マウス位置からノード中心までの距離を計算
-        const distance = Math.sqrt(
-          Math.pow(toX - centerX, 2) + Math.pow(toY - centerY, 2)
-        );
-
-        return { node, distance };
-      })
-      .sort((a, b) => a.distance - b.distance); // 距離が近い順にソート
-
-    // 最も近いノードを取得
-    const targetNode = candidateNodes.length > 0 ? candidateNodes[0].node : null;
+    const targetNode = findClosestTargetNode(toX, toY, allNodes, fromNode.id, 60);
 
     if (targetNode) {
       // ターゲットノードが見つかった場合、境界との交点を計算

@@ -14,6 +14,7 @@ import {
   useNodesState,
   useEdgesState,
   useReactFlow,
+  useConnection,
   ConnectionMode,
   ConnectionLineType,
   type NodeTypes,
@@ -35,6 +36,7 @@ import { useGraphStore } from '@/stores/useGraphStore';
 import { personsToNodes, relationshipsToEdges } from '@/lib/graph-utils';
 import { readFileAsDataUrl } from '@/lib/image-utils';
 import { getRelationshipDisplayType } from '@/lib/relationship-utils';
+import { findClosestTargetNode } from '@/lib/connection-target-detection';
 import type {
   GraphNode,
   RelationshipEdge,
@@ -98,7 +100,10 @@ export function RelationshipGraph() {
   const [pendingConnection, setPendingConnection] = useState<PendingConnection | null>(null);
 
   // React Flow APIを取得
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, getNodes } = useReactFlow();
+
+  // 接続状態を取得（onConnectEndで使用）
+  const connection = useConnection();
 
   // ノード位置更新のコールバック（useForceLayout用）
   // d3-forceのtickイベントで頻繁に呼ばれるため、既存ノードの選択状態を保持する
@@ -388,6 +393,44 @@ export function RelationshipGraph() {
     [persons, relationships]
   );
 
+  // エッジ接続終了ハンドラ（プレビューラインがターゲットノードとつながっている場合の接続）
+  const handleConnectEnd = useCallback(
+    (event: MouseEvent | TouchEvent) => {
+      // 接続中でない、またはsourceがない場合は何もしない
+      if (!connection.inProgress || !connection.fromNode) {
+        return;
+      }
+
+      // マウス位置を取得
+      const clientX = 'clientX' in event ? event.clientX : event.touches[0].clientX;
+      const clientY = 'clientY' in event ? event.clientY : event.touches[0].clientY;
+
+      // Flow座標系に変換
+      const flowPosition = screenToFlowPosition({ x: clientX, y: clientY });
+
+      // マウス位置から最も近いノードを検出
+      const allNodes = getNodes();
+      const targetNode = findClosestTargetNode(
+        flowPosition.x,
+        flowPosition.y,
+        allNodes,
+        connection.fromNode.id,
+        60
+      );
+
+      // ターゲットノードが見つかった場合、接続を作成
+      if (targetNode && targetNode.id !== connection.fromNode.id) {
+        handleConnect({
+          source: connection.fromNode.id,
+          target: targetNode.id,
+          sourceHandle: connection.fromHandle?.id ?? null,
+          targetHandle: null,
+        });
+      }
+    },
+    [connection, screenToFlowPosition, getNodes, handleConnect]
+  );
+
   // ノード削除ハンドラ（確認ダイアログ付き）
   const handleNodesDelete = useCallback(
     (nodesToDelete: Node[]) => {
@@ -533,6 +576,7 @@ export function RelationshipGraph() {
         onPaneClick={handlePaneClick}
         onEdgeClick={handleEdgeClick}
         onConnect={handleConnect}
+        onConnectEnd={handleConnectEnd}
         onNodesDelete={handleNodesDelete}
         onEdgesDelete={handleEdgesDelete}
         deleteKeyCode={['Backspace', 'Delete']}
