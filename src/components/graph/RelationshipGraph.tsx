@@ -423,9 +423,27 @@ export function RelationshipGraph() {
         return;
       }
 
-      // マウス位置を取得
-      const clientX = 'clientX' in event ? event.clientX : event.touches[0].clientX;
-      const clientY = 'clientY' in event ? event.clientY : event.touches[0].clientY;
+      // ポインタ位置を取得（マウス／タッチ対応）
+      let clientX: number;
+      let clientY: number;
+      if ('clientX' in event) {
+        // MouseEvent
+        clientX = event.clientX;
+        clientY = event.clientY;
+      } else {
+        // TouchEvent
+        const touchEvent = event as TouchEvent;
+        const touch =
+          (touchEvent.changedTouches && touchEvent.changedTouches[0]) ||
+          (touchEvent.touches && touchEvent.touches[0]);
+        // タッチ情報が取得できない場合は何もしない
+        if (!touch) {
+          connectingFromNodeIdRef.current = null;
+          return;
+        }
+        clientX = touch.clientX;
+        clientY = touch.clientY;
+      }
 
       // Flow座標系に変換
       const flowPosition = screenToFlowPosition({ x: clientX, y: clientY });

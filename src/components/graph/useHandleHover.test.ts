@@ -192,7 +192,7 @@ describe('useHandleHover', () => {
         toPosition: null,
       });
 
-      const { result } = renderHook(() => useHandleHover('test-node-id', false));
+      const { result } = renderHook(() => useHandleHover('test-node-id', true));
 
       expect(result.current.showTargetHandle).toBe(false);
     });
