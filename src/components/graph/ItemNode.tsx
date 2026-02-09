@@ -18,7 +18,7 @@ export const ItemNode = memo(({ data, selected, id }: NodeProps) => {
   const itemData = data as PersonNodeData;
 
   // ホバー状態管理（200ms遅延で接続操作の安定性を向上）
-  const { handleMouseEnter, handleMouseLeave, showSourceHandle, showTargetHandle } =
+  const { handleMouseEnter, handleMouseLeave, showSourceHandle, showTargetHandle, isConnectingToThisNode } =
     useHandleHover(id);
 
   return (
@@ -72,6 +72,7 @@ export const ItemNode = memo(({ data, selected, id }: NodeProps) => {
       {/* 角丸四角形ハンドル - target用 */}
       {/* source用と同じ位置・サイズで配置し、接続の受け入れ領域を拡大 */}
       {/* 接続操作中のみ有効化して、接続の受け入れを明確化 */}
+      {/* 他のノードから接続中の時のみz-indexを上げてノード全体を接続可能にする */}
       <Handle
         type="target"
         id="ring-target"
@@ -87,10 +88,29 @@ export const ItemNode = memo(({ data, selected, id }: NodeProps) => {
           height: '98px',
           borderWidth: '9px',
           pointerEvents: showTargetHandle ? 'auto' : 'none',
-          zIndex: 2,
+          zIndex: isConnectingToThisNode ? 15 : 2,
         }}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+      />
+
+      {/* 中央部分専用の透明なtarget handle */}
+      {/* 接続中のみ有効化して、画像中央部分もクリック可能にする */}
+      <Handle
+        type="target"
+        id="center-target"
+        position={Position.Top}
+        className="!absolute !rounded-xl !bg-transparent !border-0"
+        style={{
+          left: '50%',
+          top: '40px',
+          transform: 'translate(-50%, -50%)',
+          width: '88px',
+          height: '88px',
+          opacity: 0,
+          pointerEvents: isConnectingToThisNode ? 'auto' : 'none',
+          zIndex: isConnectingToThisNode ? 15 : 2,
+        }}
       />
 
       {/* 角丸四角形の画像またはデフォルトアイコン */}

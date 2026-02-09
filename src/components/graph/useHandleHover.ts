@@ -23,6 +23,8 @@ export interface UseHandleHoverResult {
   showSourceHandle: boolean;
   /** ターゲットハンドルを表示するかどうか */
   showTargetHandle: boolean;
+  /** 他のノードから接続中で、このノードがターゲット候補かどうか */
+  isConnectingToThisNode: boolean;
 }
 
 export function useHandleHover(nodeId: string): UseHandleHoverResult {
@@ -65,11 +67,16 @@ export function useHandleHover(nodeId: string): UseHandleHoverResult {
     isHovered &&
     !(connection.inProgress && connection.toNode?.id === nodeId);
 
+  // 他のノードから接続中で、このノードがターゲット候補かどうか
+  const isConnectingToThisNode =
+    connection.inProgress && connection.fromNode?.id !== nodeId;
+
   return {
     isHovered,
     handleMouseEnter,
     handleMouseLeave,
     showSourceHandle,
     showTargetHandle,
+    isConnectingToThisNode,
   };
 }

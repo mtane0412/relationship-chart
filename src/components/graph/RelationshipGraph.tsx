@@ -522,6 +522,7 @@ export function RelationshipGraph() {
         connectionMode={ConnectionMode.Loose}
         connectionLineType={ConnectionLineType.Straight}
         connectionLineStyle={{ stroke: '#3b82f6', strokeWidth: 2 }}
+        connectionRadius={60}
         onNodeDragStart={(_, node) => handleNodeDragStart(node.id)}
         onNodeDrag={(_, node) =>
           handleNodeDrag(node.id, node.position)

@@ -40,14 +40,14 @@ describe('PersonNode', () => {
   };
 
   describe('ハンドル構成', () => {
-    it('2つの円形ハンドル（source用とtarget用）がレンダリングされること', () => {
+    it('3つの円形ハンドル（source用、target用、中央target用）がレンダリングされること', () => {
       const { container } = renderWithProvider();
 
       // React FlowのHandleコンポーネントは`.react-flow__handle`クラスを持つ
       const handles = container.querySelectorAll('.react-flow__handle');
-      expect(handles).toHaveLength(2);
+      expect(handles).toHaveLength(3);
 
-      // 両方のハンドルがReact Flowに認識されていることを確認
+      // すべてのハンドルがReact Flowに認識されていることを確認
       handles.forEach((handle) => {
         expect(handle.classList.contains('react-flow__handle')).toBe(true);
       });
@@ -83,15 +83,19 @@ describe('PersonNode', () => {
       });
     });
 
-    it('ハンドルが太い枠（borderWidth: 10px）を持つこと', () => {
+    it('外周ハンドルが太い枠（borderWidth: 10px）を持つこと', () => {
       const { container } = renderWithProvider();
 
       const handles = container.querySelectorAll('.react-flow__handle');
 
-      // 両方のハンドルに太い枠（10px）が適用されていることを確認
-      handles.forEach((handle) => {
-        const style = (handle as HTMLElement).style;
-        expect(style.borderWidth).toBe('10px');
+      // 外周ハンドル（source, ring-target）に太い枠（10px）が適用されていることを確認
+      // 中央のtarget handleはborderがないのでスキップ
+      Array.from(handles).forEach((handle) => {
+        const handleId = handle.getAttribute('data-handleid');
+        if (handleId !== 'center-target') {
+          const style = (handle as HTMLElement).style;
+          expect(style.borderWidth).toBe('10px');
+        }
       });
     });
 

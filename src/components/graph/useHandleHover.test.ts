@@ -41,6 +41,7 @@ describe('useHandleHover', () => {
       const { result } = renderHook(() => useHandleHover('test-node-id'));
 
       expect(result.current.isHovered).toBe(false);
+      expect(result.current.isConnectingToThisNode).toBe(false);
     });
 
     it('onMouseEnterを呼ぶとisHoveredがtrueになること', () => {
@@ -216,6 +217,54 @@ describe('useHandleHover', () => {
 
       expect(result.current.showSourceHandle).toBe(false);
       expect(result.current.showTargetHandle).toBe(false);
+    });
+
+    it('他のノードから接続中の場合、isConnectingToThisNodeがtrueになること', () => {
+      vi.mocked(useConnection).mockReturnValue({
+        inProgress: true,
+        fromHandle: { type: 'source', nodeId: 'other-node-id', id: 'handle-1' },
+        toHandle: null,
+        fromNode: { id: 'other-node-id' } as Node,
+        toNode: null,
+        fromPosition: null,
+        toPosition: null,
+      });
+
+      const { result } = renderHook(() => useHandleHover('test-node-id'));
+
+      expect(result.current.isConnectingToThisNode).toBe(true);
+    });
+
+    it('自ノードから接続中の場合、isConnectingToThisNodeがfalseになること', () => {
+      vi.mocked(useConnection).mockReturnValue({
+        inProgress: true,
+        fromHandle: { type: 'source', nodeId: 'test-node-id', id: 'handle-1' },
+        toHandle: null,
+        fromNode: { id: 'test-node-id' } as Node,
+        toNode: null,
+        fromPosition: null,
+        toPosition: null,
+      });
+
+      const { result } = renderHook(() => useHandleHover('test-node-id'));
+
+      expect(result.current.isConnectingToThisNode).toBe(false);
+    });
+
+    it('接続していない場合、isConnectingToThisNodeがfalseになること', () => {
+      vi.mocked(useConnection).mockReturnValue({
+        inProgress: false,
+        fromHandle: null,
+        toHandle: null,
+        fromNode: null,
+        toNode: null,
+        fromPosition: null,
+        toPosition: null,
+      });
+
+      const { result } = renderHook(() => useHandleHover('test-node-id'));
+
+      expect(result.current.isConnectingToThisNode).toBe(false);
     });
   });
 
