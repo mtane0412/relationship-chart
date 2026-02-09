@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useCallback, useState, useMemo } from 'react';
+import { useEffect, useCallback, useState, useMemo, useRef } from 'react';
 import {
   ReactFlow,
   Background,
@@ -104,6 +104,9 @@ export function RelationshipGraph() {
 
   // 接続状態を取得（onConnectEndで使用）
   const connection = useConnection();
+
+  // onConnectが呼ばれたかどうかを追跡するフラグ
+  const onConnectCalledRef = useRef(false);
 
   // ノード位置更新のコールバック（useForceLayout用）
   // d3-forceのtickイベントで頻繁に呼ばれるため、既存ノードの選択状態を保持する
@@ -359,6 +362,9 @@ export function RelationshipGraph() {
   // エッジ接続ハンドラ
   const handleConnect = useCallback(
     (connection: Connection) => {
+      // onConnectが呼ばれたことを記録
+      onConnectCalledRef.current = true;
+
       // sourceとtargetが存在し、異なることを確認（自己接続を防止）
       if (connection.source && connection.target && connection.source !== connection.target) {
         // 両方の人物が実際に存在することを確認
@@ -396,6 +402,12 @@ export function RelationshipGraph() {
   // エッジ接続終了ハンドラ（プレビューラインがターゲットノードとつながっている場合の接続）
   const handleConnectEnd = useCallback(
     (event: MouseEvent | TouchEvent) => {
+      // onConnectが既に呼ばれていた場合は何もしない（重複接続を防止）
+      if (onConnectCalledRef.current) {
+        onConnectCalledRef.current = false; // フラグをリセット
+        return;
+      }
+
       // 接続中でない、またはsourceがない場合は何もしない
       if (!connection.inProgress || !connection.fromNode) {
         return;
