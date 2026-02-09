@@ -14,7 +14,6 @@ import {
   useNodesState,
   useEdgesState,
   useReactFlow,
-  useConnection,
   ConnectionMode,
   ConnectionLineType,
   type NodeTypes,
@@ -102,11 +101,11 @@ export function RelationshipGraph() {
   // React Flow APIを取得
   const { screenToFlowPosition, getNodes } = useReactFlow();
 
-  // 接続状態を取得（onConnectEndで使用）
-  const connection = useConnection();
-
   // onConnectが呼ばれたかどうかを追跡するフラグ
   const onConnectCalledRef = useRef(false);
+
+  // 接続元ノードIDを保存するref（onConnectEndで使用）
+  const connectingFromNodeIdRef = useRef<string | null>(null);
 
   // ノード位置更新のコールバック（useForceLayout用）
   // d3-forceのtickイベントで頻繁に呼ばれるため、既存ノードの選択状態を保持する
@@ -359,6 +358,15 @@ export function RelationshipGraph() {
     [setSelectedPersonIds]
   );
 
+  // エッジ接続開始ハンドラ
+  const handleConnectStart = useCallback(
+    (_event: MouseEvent | TouchEvent, params: { nodeId: string | null; handleId: string | null }) => {
+      // 接続元ノードIDを保存
+      connectingFromNodeIdRef.current = params.nodeId;
+    },
+    []
+  );
+
   // エッジ接続ハンドラ
   const handleConnect = useCallback(
     (connection: Connection) => {
@@ -405,11 +413,13 @@ export function RelationshipGraph() {
       // onConnectが既に呼ばれていた場合は何もしない（重複接続を防止）
       if (onConnectCalledRef.current) {
         onConnectCalledRef.current = false; // フラグをリセット
+        connectingFromNodeIdRef.current = null; // 接続元をリセット
         return;
       }
 
-      // 接続中でない、またはsourceがない場合は何もしない
-      if (!connection.inProgress || !connection.fromNode) {
+      // 接続元ノードがない場合は何もしない
+      const fromNodeId = connectingFromNodeIdRef.current;
+      if (!fromNodeId) {
         return;
       }
 
@@ -426,13 +436,16 @@ export function RelationshipGraph() {
         flowPosition.x,
         flowPosition.y,
         allNodes,
-        connection.fromNode.id,
+        fromNodeId,
         60
       );
 
+      // 接続元をリセット
+      connectingFromNodeIdRef.current = null;
+
       // ターゲットノードが見つかった場合、接続を作成
-      if (targetNode && targetNode.id !== connection.fromNode.id) {
-        const sourcePersonId = connection.fromNode.id;
+      if (targetNode && targetNode.id !== fromNodeId) {
+        const sourcePersonId = fromNodeId;
         const targetPersonId = targetNode.id;
 
         // 両方の人物が実際に存在することを確認
@@ -464,7 +477,7 @@ export function RelationshipGraph() {
         }
       }
     },
-    [connection, screenToFlowPosition, getNodes, persons, relationships]
+    [screenToFlowPosition, getNodes, persons, relationships]
   );
 
   // ノード削除ハンドラ（確認ダイアログ付き）
@@ -611,6 +624,7 @@ export function RelationshipGraph() {
         onSelectionChange={handleSelectionChange}
         onPaneClick={handlePaneClick}
         onEdgeClick={handleEdgeClick}
+        onConnectStart={handleConnectStart}
         onConnect={handleConnect}
         onConnectEnd={handleConnectEnd}
         onNodesDelete={handleNodesDelete}
