@@ -11,6 +11,27 @@ import type { Person } from '@/types/person';
 import type { Relationship } from '@/types/relationship';
 
 /**
+ * force-directedレイアウトのパラメータ型
+ */
+export type ForceParams = {
+  /** リンク距離（50〜500） */
+  linkDistance: number;
+  /** リンク強度（0〜1） */
+  linkStrength: number;
+  /** 反発力（-1000〜0） */
+  chargeStrength: number;
+};
+
+/**
+ * force-directedレイアウトのデフォルトパラメータ
+ */
+export const DEFAULT_FORCE_PARAMS: ForceParams = {
+  linkDistance: 150,
+  linkStrength: 0.5,
+  chargeStrength: -300,
+};
+
+/**
  * グラフストアの状態型
  */
 type GraphState = {
@@ -22,6 +43,8 @@ type GraphState = {
   forceEnabled: boolean;
   /** 選択中の人物のIDリスト（複数選択対応） */
   selectedPersonIds: string[];
+  /** force-directedレイアウトのパラメータ */
+  forceParams: ForceParams;
 };
 
 /**
@@ -94,6 +117,17 @@ type GraphActions = {
    * @param enabled - 有効にする場合はtrue、無効にする場合はfalse
    */
   setForceEnabled: (enabled: boolean) => void;
+
+  /**
+   * force-directedレイアウトのパラメータを設定する（部分更新）
+   * @param params - 更新するパラメータ（指定したもののみ更新）
+   */
+  setForceParams: (params: Partial<ForceParams>) => void;
+
+  /**
+   * force-directedレイアウトのパラメータをデフォルト値にリセットする
+   */
+  resetForceParams: () => void;
 };
 
 /**
@@ -171,6 +205,7 @@ export const useGraphStore = create<GraphStore>()(
         relationships: [],
         forceEnabled: true, // デフォルトでforce-directedレイアウトを有効
         selectedPersonIds: [], // 初期状態では何も選択されていない
+        forceParams: DEFAULT_FORCE_PARAMS, // デフォルトのforceパラメータ
 
         // アクション
         addPerson: (person) =>
@@ -286,6 +321,19 @@ export const useGraphStore = create<GraphStore>()(
           set(() => ({
             forceEnabled: enabled,
           })),
+
+        setForceParams: (params) =>
+          set((state) => ({
+            forceParams: {
+              ...state.forceParams,
+              ...params,
+            },
+          })),
+
+        resetForceParams: () =>
+          set(() => ({
+            forceParams: DEFAULT_FORCE_PARAMS,
+          })),
       }),
       {
         // UI状態（selectedPersonIds, forceEnabled）はundo対象外
@@ -298,17 +346,17 @@ export const useGraphStore = create<GraphStore>()(
     ),
     {
       name: 'relationship-chart-storage', // LocalStorageのキー名
-      version: 3, // バージョン管理（v2→v3に更新）
+      version: 4, // バージョン管理（v3→v4に更新）
       // マイグレーション関数
       migrate: (persistedState: unknown, version: number) => {
-        // v3以降は変換不要
-        if (version >= 3) {
-          return persistedState as GraphStore;
+        // v4以降は変換不要
+        if (version >= 4) {
+          return persistedState as GraphState;
         }
 
         // 初回ユーザー（永続化データがない場合）は変換不要
         if (!persistedState || typeof persistedState !== 'object') {
-          return persistedState as GraphStore;
+          return persistedState as GraphState;
         }
 
         let state = persistedState;
@@ -337,16 +385,16 @@ export const useGraphStore = create<GraphStore>()(
             createdAt: r.createdAt,
           }));
 
-          return {
+          state = {
             persons: v1State.persons,
             relationships: v3Relationships,
             forceEnabled: v1State.forceEnabled,
             selectedPersonIds: v1State.selectedPersonIds,
-          } as GraphStore;
+          };
         }
 
         // v2からv3への変換
-        if (version <= 2) {
+        if (version === 2) {
           const v2State = state as GraphStateV2;
           const v3Relationships: Relationship[] = v2State.relationships.map((r) => {
             // typeフィールドから新しいisDirectedとラベルを導出
@@ -394,15 +442,28 @@ export const useGraphStore = create<GraphStore>()(
             }
           });
 
-          return {
+          state = {
             persons: v2State.persons,
             relationships: v3Relationships,
             forceEnabled: v2State.forceEnabled,
             selectedPersonIds: v2State.selectedPersonIds,
-          } as GraphStore;
+          };
         }
 
-        return state as GraphStore;
+        // v3からv4への変換（forceParamsを補完）
+        // v0/v1/v2からの変換後も必ずここを通るため、すべてのバージョンでforceParamsが補完される
+        if (version <= 3) {
+          const v3State = state as Partial<GraphState>;
+          // forceParamsがない場合はデフォルト値を追加
+          if (!v3State.forceParams) {
+            state = {
+              ...v3State,
+              forceParams: DEFAULT_FORCE_PARAMS,
+            };
+          }
+        }
+
+        return state as GraphState;
       },
     }
   )

@@ -78,6 +78,7 @@ export function RelationshipGraph() {
   const persons = useGraphStore((state) => state.persons);
   const relationships = useGraphStore((state) => state.relationships);
   const forceEnabled = useGraphStore((state) => state.forceEnabled);
+  const forceParams = useGraphStore((state) => state.forceParams);
   const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
   const addPerson = useGraphStore((state) => state.addPerson);
   const addRelationship = useGraphStore((state) => state.addRelationship);
@@ -99,9 +100,24 @@ export function RelationshipGraph() {
   const { screenToFlowPosition } = useReactFlow();
 
   // ノード位置更新のコールバック（useForceLayout用）
+  // d3-forceのtickイベントで頻繁に呼ばれるため、既存ノードの選択状態を保持する
   const handleNodesUpdate = useCallback(
     (updatedNodes: Node[]) => {
-      setNodes(updatedNodes as GraphNode[]);
+      setNodes((prevNodes) => {
+        // 既存ノードをid -> nodeのマップに変換して高速に参照する
+        const prevNodeMap = new Map(prevNodes.map((node) => [node.id, node]));
+
+        // 位置は更新するが、選択状態は既存ノードから引き継ぐ
+        const nodesWithSelection = updatedNodes.map((node) => {
+          const prevNode = prevNodeMap.get(node.id);
+          return {
+            ...node,
+            selected: prevNode?.selected ?? false,
+          };
+        });
+
+        return nodesWithSelection as GraphNode[];
+      });
     },
     [setNodes]
   );
@@ -113,6 +129,7 @@ export function RelationshipGraph() {
       edges,
       enabled: forceEnabled,
       onNodesChange: handleNodesUpdate,
+      forceParams,
     });
 
   // ストアのデータ（persons, relationships）が変更されたらノードとエッジを更新
