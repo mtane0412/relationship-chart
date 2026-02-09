@@ -432,15 +432,39 @@ export function RelationshipGraph() {
 
       // ターゲットノードが見つかった場合、接続を作成
       if (targetNode && targetNode.id !== connection.fromNode.id) {
-        handleConnect({
-          source: connection.fromNode.id,
-          target: targetNode.id,
-          sourceHandle: connection.fromHandle?.id ?? null,
-          targetHandle: null,
-        });
+        const sourcePersonId = connection.fromNode.id;
+        const targetPersonId = targetNode.id;
+
+        // 両方の人物が実際に存在することを確認
+        const sourcePerson = persons.find((p) => p.id === sourcePersonId);
+        const targetPerson = persons.find((p) => p.id === targetPersonId);
+
+        if (sourcePerson && targetPerson) {
+          // 同じペアの関係が既に存在するかチェック（方向問わず）
+          const existingRelationship = relationships.find(
+            (r) =>
+              (r.sourcePersonId === sourcePersonId && r.targetPersonId === targetPersonId) ||
+              (r.sourcePersonId === targetPersonId && r.targetPersonId === sourcePersonId)
+          );
+
+          if (existingRelationship) {
+            // 既に関係が存在する場合は編集モーダルを開く
+            setPendingConnection({
+              sourcePersonId,
+              targetPersonId,
+              existingRelationshipId: existingRelationship.id,
+            });
+            return;
+          }
+
+          setPendingConnection({
+            sourcePersonId,
+            targetPersonId,
+          });
+        }
       }
     },
-    [connection, screenToFlowPosition, getNodes, handleConnect]
+    [connection, screenToFlowPosition, getNodes, persons, relationships]
   );
 
   // ノード削除ハンドラ（確認ダイアログ付き）
