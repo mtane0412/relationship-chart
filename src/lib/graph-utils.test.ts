@@ -35,6 +35,7 @@ describe('graph-utils', () => {
         data: {
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,/9j/4AAQSkZJRg...',
+          kind: 'person',
         },
         position: { x: 0, y: 0 },
       });
@@ -83,6 +84,7 @@ describe('graph-utils', () => {
         data: {
           name: '山田太郎',
           imageDataUrl: undefined,
+          kind: 'person',
         },
         position: { x: 0, y: 0 },
       });
@@ -159,6 +161,7 @@ describe('graph-utils', () => {
         data: {
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          kind: 'person',
         },
         position: { x: 0, y: 0 },
       });

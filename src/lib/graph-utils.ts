@@ -25,7 +25,7 @@ export function personsToNodes(persons: Person[]): GraphNode[] {
       data: {
         name: person.name,
         imageDataUrl: person.imageDataUrl,
-        kind: person.kind,
+        kind,
       },
       position: { x: 0, y: 0 },
     };

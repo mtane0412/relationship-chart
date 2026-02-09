@@ -131,6 +131,8 @@ export function getRectIntersection(
     if (Math.abs(x - center.x) <= halfWidth) {
       const distanceFromCenter = Math.sqrt((x - center.x) ** 2 + halfHeight ** 2);
       if (distanceFromCenter < minDistanceFromCenter) {
+        // 注: minDistanceFromCenterへの代入はこの後使われないが、
+        // すべての辺で同じパターンを維持するために保持している
         minDistanceFromCenter = distanceFromCenter;
         intersection = { x, y: center.y - halfHeight };
       }
