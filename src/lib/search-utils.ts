@@ -12,16 +12,24 @@ import type { Relationship } from '@/types/relationship';
  * @property id - 人物または関係のID
  * @property label - 表示用ラベル（人物名または関係ラベル）
  * @property nodeKind - 人物の場合のノード種別（'person' or 'item'）
+ * @property imageDataUrl - 人物/物の画像URL
  * @property sourcePersonId - 関係の場合の起点人物ID
  * @property targetPersonId - 関係の場合の終点人物ID
+ * @property isDirected - 関係の場合の方向性
+ * @property sourceImageDataUrl - 関係の場合の起点人物の画像URL
+ * @property targetImageDataUrl - 関係の場合の終点人物の画像URL
  */
 export type SearchResult = {
   kind: 'person' | 'relationship';
   id: string;
   label: string;
   nodeKind?: 'person' | 'item';
+  imageDataUrl?: string;
   sourcePersonId?: string;
   targetPersonId?: string;
+  isDirected?: boolean;
+  sourceImageDataUrl?: string;
+  targetImageDataUrl?: string;
 };
 
 /**
@@ -58,11 +66,16 @@ export function searchGraph(
       id: person.id,
       label: person.name,
       nodeKind: (person.kind ?? 'person') as 'person' | 'item',
+      imageDataUrl: person.imageDataUrl,
     }));
 
   // 関係を検索
   const relationshipResults: SearchResult[] = [];
   for (const rel of relationships) {
+    // 起点と終点の人物を検索
+    const sourcePerson = persons.find((p) => p.id === rel.sourcePersonId);
+    const targetPerson = persons.find((p) => p.id === rel.targetPersonId);
+
     // sourceToTargetLabelを検索
     if (rel.sourceToTargetLabel && rel.sourceToTargetLabel.toLowerCase().includes(lowerQuery)) {
       relationshipResults.push({
@@ -71,6 +84,9 @@ export function searchGraph(
         label: rel.sourceToTargetLabel,
         sourcePersonId: rel.sourcePersonId,
         targetPersonId: rel.targetPersonId,
+        isDirected: rel.isDirected,
+        sourceImageDataUrl: sourcePerson?.imageDataUrl,
+        targetImageDataUrl: targetPerson?.imageDataUrl,
       });
     }
 
@@ -82,6 +98,9 @@ export function searchGraph(
         label: rel.targetToSourceLabel,
         sourcePersonId: rel.sourcePersonId,
         targetPersonId: rel.targetPersonId,
+        isDirected: rel.isDirected,
+        sourceImageDataUrl: sourcePerson?.imageDataUrl,
+        targetImageDataUrl: targetPerson?.imageDataUrl,
       });
     }
   }

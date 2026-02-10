@@ -79,6 +79,7 @@ describe('searchGraph', () => {
         id: 'person1',
         label: '山田太郎',
         nodeKind: 'person',
+        imageDataUrl: undefined,
       });
     });
 
@@ -116,6 +117,26 @@ describe('searchGraph', () => {
         id: 'item1',
         label: 'テストアイテム',
         nodeKind: 'item',
+        imageDataUrl: undefined,
+      });
+    });
+
+    it('画像付き人物を検索すると画像URLが含まれる', () => {
+      const personWithImage: Person = {
+        id: 'person-with-image',
+        name: '画像付き太郎',
+        imageDataUrl: 'data:image/png;base64,iVBORw0KGgo=',
+        createdAt: '2024-01-04T00:00:00Z',
+      };
+
+      const result = searchGraph('画像付き', [personWithImage], []);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        kind: 'person',
+        id: 'person-with-image',
+        label: '画像付き太郎',
+        nodeKind: 'person',
+        imageDataUrl: 'data:image/png;base64,iVBORw0KGgo=',
       });
     });
   });
@@ -130,6 +151,9 @@ describe('searchGraph', () => {
         label: '上司',
         sourcePersonId: 'person1',
         targetPersonId: 'person2',
+        isDirected: true,
+        sourceImageDataUrl: undefined,
+        targetImageDataUrl: undefined,
       });
     });
 
@@ -142,6 +166,9 @@ describe('searchGraph', () => {
         label: '部下',
         sourcePersonId: 'person1',
         targetPersonId: 'person2',
+        isDirected: true,
+        sourceImageDataUrl: undefined,
+        targetImageDataUrl: undefined,
       });
     });
 
@@ -156,6 +183,48 @@ describe('searchGraph', () => {
       expect(result).toHaveLength(2);
       expect(result.map((r: SearchResult) => r.label)).toContain('先輩');
       expect(result.map((r: SearchResult) => r.label)).toContain('後輩');
+    });
+
+    it('関係検索時に起点と終点の人物画像URLが含まれる', () => {
+      const personsWithImages: Person[] = [
+        {
+          id: 'p1',
+          name: '太郎',
+          imageDataUrl: 'data:image/png;base64,image1',
+          createdAt: '2024-01-01T00:00:00Z',
+        },
+        {
+          id: 'p2',
+          name: '花子',
+          imageDataUrl: 'data:image/png;base64,image2',
+          createdAt: '2024-01-02T00:00:00Z',
+        },
+      ];
+
+      const relationshipsWithImages: Relationship[] = [
+        {
+          id: 'r1',
+          sourcePersonId: 'p1',
+          targetPersonId: 'p2',
+          isDirected: true,
+          sourceToTargetLabel: '友達',
+          targetToSourceLabel: null,
+          createdAt: '2024-01-01T00:00:00Z',
+        },
+      ];
+
+      const result = searchGraph('友達', personsWithImages, relationshipsWithImages);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        kind: 'relationship',
+        id: 'r1',
+        label: '友達',
+        sourcePersonId: 'p1',
+        targetPersonId: 'p2',
+        isDirected: true,
+        sourceImageDataUrl: 'data:image/png;base64,image1',
+        targetImageDataUrl: 'data:image/png;base64,image2',
+      });
     });
   });
 

@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Panel, useReactFlow } from '@xyflow/react';
-import { Search, User, Package, Link } from 'lucide-react';
+import { Search, User, Package, ArrowRight, Minus } from 'lucide-react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { searchGraph, type SearchResult } from '@/lib/search-utils';
 import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils';
@@ -213,31 +213,63 @@ export default function SearchBar() {
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <span
-                    className={`flex items-center justify-center p-1 rounded ${
-                      result.kind === 'person'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-green-100 text-green-700'
-                    }`}
-                    title={
-                      result.kind === 'person'
-                        ? result.nodeKind === 'item'
-                          ? '物'
-                          : '人物'
-                        : '関係'
-                    }
-                  >
-                    {result.kind === 'person' ? (
-                      result.nodeKind === 'item' ? (
-                        <Package size={14} />
+                  {result.kind === 'person' ? (
+                    // 人物/物の場合: ノード画像またはアイコン
+                    <div className="flex-shrink-0">
+                      {result.imageDataUrl ? (
+                        <img
+                          src={result.imageDataUrl}
+                          alt={result.label}
+                          className="w-8 h-8 rounded-full object-cover"
+                        />
                       ) : (
-                        <User size={14} />
-                      )
-                    ) : (
-                      <Link size={14} />
-                    )}
-                  </span>
-                  <span>{result.label}</span>
+                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                          {result.nodeKind === 'item' ? (
+                            <Package size={16} className="text-gray-600" />
+                          ) : (
+                            <User size={16} className="text-gray-600" />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    // 関係の場合: 2つのノード画像 + 関係アイコン
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {/* 起点人物 */}
+                      {result.sourceImageDataUrl ? (
+                        <img
+                          src={result.sourceImageDataUrl}
+                          alt="起点"
+                          className="w-6 h-6 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+                          <User size={12} className="text-gray-600" />
+                        </div>
+                      )}
+
+                      {/* 関係アイコン */}
+                      {result.isDirected ? (
+                        <ArrowRight size={12} className="text-gray-400" />
+                      ) : (
+                        <Minus size={12} className="text-gray-400" />
+                      )}
+
+                      {/* 終点人物 */}
+                      {result.targetImageDataUrl ? (
+                        <img
+                          src={result.targetImageDataUrl}
+                          alt="終点"
+                          className="w-6 h-6 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+                          <User size={12} className="text-gray-600" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <span className="truncate">{result.label}</span>
                 </div>
               </button>
             ))

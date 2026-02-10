@@ -216,6 +216,63 @@ describe('SearchBar', () => {
       });
     });
 
+    it('画像がない人物ノードにはUserアイコンが表示される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <SearchBar />
+        </ReactFlowProvider>
+      );
+
+      const combobox = screen.getByRole('combobox');
+      await user.type(combobox, '山田');
+
+      await waitFor(() => {
+        const option = screen.getByRole('option', { name: /山田太郎/i });
+        expect(option).toBeInTheDocument();
+
+        // アイコンコンテナが表示されることを確認
+        const iconContainer = option.querySelector('div.rounded-full');
+        expect(iconContainer).toBeInTheDocument();
+      });
+    });
+
+    it('画像がある人物ノードには画像が表示される', async () => {
+      const user = userEvent.setup();
+
+      // 画像付き人物を追加
+      const personWithImage: Person = {
+        id: 'person-with-image',
+        name: '画像付き太郎',
+        imageDataUrl: 'data:image/png;base64,iVBORw0KGgo=',
+        createdAt: '2024-01-03T00:00:00Z',
+      };
+
+      useGraphStore.setState({
+        persons: [personWithImage],
+        relationships: [],
+      });
+
+      render(
+        <ReactFlowProvider>
+          <SearchBar />
+        </ReactFlowProvider>
+      );
+
+      const combobox = screen.getByRole('combobox');
+      await user.type(combobox, '画像付き');
+
+      await waitFor(() => {
+        const option = screen.getByRole('option', { name: /画像付き太郎/i });
+        expect(option).toBeInTheDocument();
+
+        // 画像が表示されることを確認
+        const img = option.querySelector('img[alt="画像付き太郎"]');
+        expect(img).toBeInTheDocument();
+        expect(img).toHaveAttribute('src', 'data:image/png;base64,iVBORw0KGgo=');
+      });
+    });
+
     it('物ノードにはPackageアイコンが表示される', async () => {
       const user = userEvent.setup();
 
@@ -245,34 +302,13 @@ describe('SearchBar', () => {
         const option = screen.getByRole('option', { name: /テストアイテム/i });
         expect(option).toBeInTheDocument();
 
-        // Packageアイコンのtitle属性が「物」であることを確認
-        const iconContainer = option.querySelector('span[title="物"]');
+        // アイコンコンテナが表示されることを確認
+        const iconContainer = option.querySelector('div.rounded-full');
         expect(iconContainer).toBeInTheDocument();
       });
     });
 
-    it('人物ノードにはUserアイコンが表示される', async () => {
-      const user = userEvent.setup();
-      render(
-        <ReactFlowProvider>
-          <SearchBar />
-        </ReactFlowProvider>
-      );
-
-      const combobox = screen.getByRole('combobox');
-      await user.type(combobox, '山田');
-
-      await waitFor(() => {
-        const option = screen.getByRole('option', { name: /山田太郎/i });
-        expect(option).toBeInTheDocument();
-
-        // Userアイコンのtitle属性が「人物」であることを確認
-        const iconContainer = option.querySelector('span[title="人物"]');
-        expect(iconContainer).toBeInTheDocument();
-      });
-    });
-
-    it('関係にはLinkアイコンが表示される', async () => {
+    it('関係には2つのノード画像と関係アイコンが表示される', async () => {
       const user = userEvent.setup();
       render(
         <ReactFlowProvider>
@@ -287,9 +323,9 @@ describe('SearchBar', () => {
         const option = screen.getByRole('option', { name: /上司/i });
         expect(option).toBeInTheDocument();
 
-        // Linkアイコンのtitle属性が「関係」であることを確認
-        const iconContainer = option.querySelector('span[title="関係"]');
-        expect(iconContainer).toBeInTheDocument();
+        // 2つのノードアイコン（画像なしの場合はUserアイコン）が表示されることを確認
+        const iconContainers = option.querySelectorAll('div.rounded-full');
+        expect(iconContainers.length).toBeGreaterThanOrEqual(2);
       });
     });
   });
