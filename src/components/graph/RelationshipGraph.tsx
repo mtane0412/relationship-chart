@@ -31,11 +31,16 @@ import { ConnectionLine } from './ConnectionLine';
 import { PersonRegistrationModal } from './PersonRegistrationModal';
 import { RelationshipRegistrationModal } from './RelationshipRegistrationModal';
 import { useForceLayout } from './useForceLayout';
+import { useContextMenu } from './useContextMenu';
+import { ContextMenu } from './ContextMenu';
+import type { ContextMenuItem } from './ContextMenu';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { personsToNodes, relationshipsToEdges } from '@/lib/graph-utils';
 import { readFileAsDataUrl } from '@/lib/image-utils';
 import { getRelationshipDisplayType } from '@/lib/relationship-utils';
 import { findClosestTargetNode } from '@/lib/connection-target-detection';
+import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils';
+import { UserPlus, XCircle, Pencil, Trash2, Maximize2, Link, ArrowLeft } from 'lucide-react';
 import type {
   GraphNode,
   RelationshipEdge,
@@ -99,7 +104,17 @@ export function RelationshipGraph() {
   const [pendingConnection, setPendingConnection] = useState<PendingConnection | null>(null);
 
   // React Flow APIを取得
-  const { screenToFlowPosition, getNodes } = useReactFlow();
+  const { screenToFlowPosition, getNodes, getNode, setCenter } = useReactFlow();
+
+  // コンテキストメニューの状態管理
+  const {
+    contextMenu,
+    handleNodeContextMenu,
+    handleEdgeContextMenu,
+    handlePaneContextMenu,
+    closeContextMenu,
+    switchToAddRelationshipMode,
+  } = useContextMenu(screenToFlowPosition);
 
   // onConnectが呼ばれたかどうかを追跡するフラグ
   const onConnectCalledRef = useRef(false);
@@ -344,8 +359,13 @@ export function RelationshipGraph() {
 
   // 背景クリックハンドラ
   const handlePaneClick = useCallback(() => {
+    // コンテキストメニューが表示されている場合はメニューを閉じるのみ（選択解除しない）
+    if (contextMenu) {
+      closeContextMenu();
+      return;
+    }
     clearSelection();
-  }, [clearSelection]);
+  }, [clearSelection, contextMenu, closeContextMenu]);
 
   // エッジクリックハンドラ（エッジに対応する2人を選択状態にする）
   const handleEdgeClick = useCallback(
@@ -621,6 +641,229 @@ export function RelationshipGraph() {
   }, [pendingConnection, persons]);
 
 
+  // まだ繋がっていないノードを取得するヘルパー関数
+  const getUnconnectedNodes = useCallback(
+    (sourceNodeId: string) => {
+      // 指定されたノードと関係を持っているノードのIDセット
+      const connectedNodeIds = new Set<string>();
+      relationships.forEach((rel) => {
+        if (rel.sourcePersonId === sourceNodeId) {
+          connectedNodeIds.add(rel.targetPersonId);
+        } else if (rel.targetPersonId === sourceNodeId) {
+          connectedNodeIds.add(rel.sourcePersonId);
+        }
+      });
+
+      // まだ繋がっていないノード（自分自身と既に繋がっているノードを除外）
+      return persons.filter(
+        (p) => p.id !== sourceNodeId && !connectedNodeIds.has(p.id)
+      );
+    },
+    [persons, relationships]
+  );
+
+  // コンテキストメニュー項目の構築
+  const contextMenuItems: ContextMenuItem[] = useMemo(() => {
+    if (!contextMenu) return [];
+
+    switch (contextMenu.type) {
+      case 'node': {
+        const person = persons.find((p) => p.id === contextMenu.nodeId);
+        const unconnectedNodes = getUnconnectedNodes(contextMenu.nodeId);
+
+        const items: ContextMenuItem[] = [
+          {
+            label: '中心に表示',
+            icon: Maximize2,
+            onClick: () => {
+              // ノードの中心点を取得して表示位置を移動
+              const node = getNode(contextMenu.nodeId);
+              if (node) {
+                const center = getNodeCenter(node);
+                setCenter(center.x, center.y, { zoom: 1, duration: VIEWPORT_ANIMATION_DURATION });
+              }
+              closeContextMenu();
+            },
+          },
+        ];
+
+        // まだ繋がっていないノードが存在する場合は「関係を追加」を追加
+        if (unconnectedNodes.length > 0) {
+          items.push({
+            label: '関係を追加',
+            icon: Link,
+            closeOnClick: false, // モード切り替えなのでメニューを閉じない
+            onClick: () => {
+              // 関係追加モードに切り替え
+              switchToAddRelationshipMode(contextMenu.nodeId, contextMenu.position);
+            },
+          });
+        }
+
+        items.push(
+          {
+            label: '',
+            separator: true,
+            onClick: () => {}, // セパレーターなので何もしない
+          },
+          {
+            label: '編集',
+            icon: Pencil,
+            onClick: () => {
+              setSelectedPersonIds([contextMenu.nodeId]);
+              closeContextMenu();
+            },
+          },
+          {
+            label: '削除',
+            icon: Trash2,
+            danger: true,
+            onClick: () => {
+              if (
+                confirm(
+                  `「${person?.name || '不明な人物'}」を削除してもよろしいですか？`
+                )
+              ) {
+                removePerson(contextMenu.nodeId);
+              }
+              closeContextMenu();
+            },
+          }
+        );
+
+        return items;
+      }
+      case 'add-relationship': {
+        const unconnectedNodes = getUnconnectedNodes(contextMenu.sourceNodeId);
+
+        const items: ContextMenuItem[] = [
+          {
+            label: '戻る',
+            icon: ArrowLeft,
+            closeOnClick: false, // モード切り替えなのでメニューを閉じない
+            onClick: () => {
+              // ノードメニューに戻る
+              const node = getNode(contextMenu.sourceNodeId);
+              if (node) {
+                handleNodeContextMenu(
+                  { preventDefault: () => {}, clientX: contextMenu.position.x, clientY: contextMenu.position.y } as React.MouseEvent,
+                  node
+                );
+              } else {
+                closeContextMenu();
+              }
+            },
+          },
+          {
+            label: '',
+            separator: true,
+            onClick: () => {},
+          },
+        ];
+
+        // まだ繋がっていないノードのリストを追加（アイコン + 名前）
+        unconnectedNodes.forEach((targetPerson) => {
+          items.push({
+            label: targetPerson.name,
+            imageUrl: targetPerson.imageDataUrl,
+            onClick: () => {
+              setPendingConnection({
+                sourcePersonId: contextMenu.sourceNodeId,
+                targetPersonId: targetPerson.id,
+              });
+              closeContextMenu();
+            },
+          });
+        });
+
+        return items;
+      }
+      case 'edge': {
+        const edge = edges.find((e) => e.id === contextMenu.edgeId);
+        return [
+          {
+            label: '関係を編集',
+            icon: Pencil,
+            onClick: () => {
+              if (edge) {
+                setSelectedPersonIds([edge.source, edge.target]);
+              }
+              closeContextMenu();
+            },
+          },
+          {
+            label: '関係を削除',
+            icon: Trash2,
+            danger: true,
+            onClick: () => {
+              const edgeData = edges.find((e) => e.id === contextMenu.edgeId);
+              if (
+                confirm(
+                  `「${edgeData?.data?.sourceToTargetLabel || '不明な関係'}」を削除してもよろしいですか？`
+                )
+              ) {
+                removeRelationship(contextMenu.edgeId);
+              }
+              closeContextMenu();
+            },
+          },
+        ];
+      }
+      case 'pane': {
+        const items: ContextMenuItem[] = [
+          {
+            label: 'ここに人物を追加',
+            icon: UserPlus,
+            onClick: () => {
+              setPendingRegistration({
+                position: contextMenu.flowPosition,
+              });
+              closeContextMenu();
+            },
+          },
+        ];
+
+        // 選択がある場合は「選択をすべて解除」を追加
+        if (selectedPersonIds.length > 0) {
+          items.push({
+            label: '',
+            separator: true,
+            onClick: () => {}, // セパレーターなので何もしない
+          });
+          items.push({
+            label: '選択をすべて解除',
+            icon: XCircle,
+            onClick: () => {
+              clearSelection();
+              closeContextMenu();
+            },
+          });
+        }
+
+        return items;
+      }
+      default:
+        return [];
+    }
+  }, [
+    contextMenu,
+    persons,
+    edges,
+    selectedPersonIds,
+    setSelectedPersonIds,
+    removePerson,
+    removeRelationship,
+    clearSelection,
+    closeContextMenu,
+    setPendingRegistration,
+    getNode,
+    setCenter,
+    getUnconnectedNodes,
+    switchToAddRelationshipMode,
+    handleNodeContextMenu,
+    setPendingConnection,
+  ]);
+
   return (
     <div className="w-full h-screen relative" onDrop={handleDrop} onDragOver={handleDragOver}>
       <ReactFlow
@@ -642,6 +885,10 @@ export function RelationshipGraph() {
         onSelectionChange={handleSelectionChange}
         onPaneClick={handlePaneClick}
         onEdgeClick={handleEdgeClick}
+        onNodeContextMenu={handleNodeContextMenu}
+        onEdgeContextMenu={handleEdgeContextMenu}
+        onPaneContextMenu={handlePaneContextMenu}
+        onMoveStart={closeContextMenu}
         onConnectStart={handleConnectStart}
         onConnect={handleConnect}
         onConnectEnd={handleConnectEnd}
@@ -766,6 +1013,15 @@ export function RelationshipGraph() {
         onSubmit={handleRegisterRelationship}
         onCancel={handleCancelRelationship}
       />
+
+      {/* コンテキストメニュー */}
+      {contextMenu && (
+        <ContextMenu
+          items={contextMenuItems}
+          position={contextMenu.position}
+          onClose={closeContextMenu}
+        />
+      )}
     </div>
   );
 }
