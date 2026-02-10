@@ -15,7 +15,6 @@ import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils
  */
 export function PersonList() {
   const persons = useGraphStore((state) => state.persons);
-  const removePerson = useGraphStore((state) => state.removePerson);
   const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
   const selectPerson = useGraphStore((state) => state.selectPerson);
   const togglePersonSelection = useGraphStore((state) => state.togglePersonSelection);
@@ -110,30 +109,6 @@ export function PersonList() {
             {person.name}
           </p>
         </div>
-
-        {/* 削除ボタン */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            removePerson(person.id);
-          }}
-          className="shrink-0 p-1 text-gray-400 hover:text-red-600 rounded-md hover:bg-red-50"
-          aria-label={`${person.name}を削除`}
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-            />
-          </svg>
-        </button>
       </div>
     );
   };

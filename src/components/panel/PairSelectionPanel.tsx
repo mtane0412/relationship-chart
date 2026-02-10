@@ -311,10 +311,10 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
               <img
                 src={person1.imageDataUrl}
                 alt={person1.name}
-                className={`w-10 h-10 object-cover border border-gray-300 ${person1IsItem ? 'rounded-lg' : 'rounded-full'}`}
+                className={`w-16 h-16 object-cover border border-gray-300 ${person1IsItem ? 'rounded-lg' : 'rounded-full'}`}
               />
             ) : (
-              <div className={`w-10 h-10 bg-gray-300 flex items-center justify-center text-gray-700 font-semibold border border-gray-300 ${person1IsItem ? 'rounded-lg' : 'rounded-full'}`}>
+              <div className={`w-16 h-16 bg-gray-300 flex items-center justify-center text-gray-700 text-lg font-semibold border border-gray-300 ${person1IsItem ? 'rounded-lg' : 'rounded-full'}`}>
                 {person1Initial}
               </div>
             )}
@@ -333,11 +333,11 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
               data-toggle="relationship-type"
             >
               {relationshipType === 'one-way' && (
-                isReversed ? <ArrowLeft className="w-5 h-5" /> : <ArrowRight className="w-5 h-5" />
+                isReversed ? <ArrowLeft className="w-6 h-6" /> : <ArrowRight className="w-6 h-6" />
               )}
-              {relationshipType === 'bidirectional' && <BidirectionalArrow className="w-5 h-5" />}
-              {relationshipType === 'dual-directed' && <ArrowLeftRight className="w-5 h-5" />}
-              {relationshipType === 'undirected' && <Minus className="w-5 h-5" />}
+              {relationshipType === 'bidirectional' && <BidirectionalArrow className="w-6 h-6" />}
+              {relationshipType === 'dual-directed' && <ArrowLeftRight className="w-6 h-6" />}
+              {relationshipType === 'undirected' && <Minus className="w-6 h-6" />}
             </button>
 
             {/* 関係タイプ選択ドロップダウン */}
@@ -361,7 +361,7 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
                       : 'hover:bg-gray-100'
                   }`}
                 >
-                  <ArrowRight className="w-5 h-5" />
+                  <ArrowRight className="w-6 h-6" />
                 </button>
 
                 {/* 双方向 (bidirectional) */}
@@ -379,7 +379,7 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
                       : 'hover:bg-gray-100'
                   }`}
                 >
-                  <BidirectionalArrow className="w-5 h-5" />
+                  <BidirectionalArrow className="w-6 h-6" />
                 </button>
 
                 {/* 片方向×2 (dual-directed) */}
@@ -397,7 +397,7 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
                       : 'hover:bg-gray-100'
                   }`}
                 >
-                  <ArrowLeftRight className="w-5 h-5" />
+                  <ArrowLeftRight className="w-6 h-6" />
                 </button>
 
                 {/* 無方向 (undirected) */}
@@ -415,7 +415,7 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
                       : 'hover:bg-gray-100'
                   }`}
                 >
-                  <Minus className="w-5 h-5" />
+                  <Minus className="w-6 h-6" />
                 </button>
               </div>
             )}
@@ -439,10 +439,10 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
               <img
                 src={person2.imageDataUrl}
                 alt={person2.name}
-                className={`w-10 h-10 object-cover border border-gray-300 ${person2IsItem ? 'rounded-lg' : 'rounded-full'}`}
+                className={`w-16 h-16 object-cover border border-gray-300 ${person2IsItem ? 'rounded-lg' : 'rounded-full'}`}
               />
             ) : (
-              <div className={`w-10 h-10 bg-gray-300 flex items-center justify-center text-gray-700 font-semibold border border-gray-300 ${person2IsItem ? 'rounded-lg' : 'rounded-full'}`}>
+              <div className={`w-16 h-16 bg-gray-300 flex items-center justify-center text-gray-700 text-lg font-semibold border border-gray-300 ${person2IsItem ? 'rounded-lg' : 'rounded-full'}`}>
                 {person2Initial}
               </div>
             )}
