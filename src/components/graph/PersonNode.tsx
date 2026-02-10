@@ -120,8 +120,6 @@ export const PersonNode = memo(({ data, selected, id }: NodeProps) => {
       <div
         className="relative transition-transform duration-200"
         style={{ zIndex: 10 }}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
       >
         {personData.imageDataUrl ? (
           <img
