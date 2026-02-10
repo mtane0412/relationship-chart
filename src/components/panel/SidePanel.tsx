@@ -79,7 +79,7 @@ export function SidePanel() {
     <div className="w-80 h-screen bg-white border-r border-gray-200 flex flex-col">
       {/* ヘッダー */}
       <div className="p-4 border-b border-gray-200">
-        <h1 className="text-xl font-bold text-gray-900">人物相関図</h1>
+        <h1 className="text-xl font-bold text-gray-900">人物相関図作る君</h1>
 
         {/* 選択中の要素を中心に表示ボタン */}
         {selectedPersonIds.length > 0 && (

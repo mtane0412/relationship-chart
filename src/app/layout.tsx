@@ -7,7 +7,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: '人物相関図',
+  title: '人物相関図作る君',
   description: '画像をD&Dして人物間の関係を視覚化するWebアプリケーション',
 };
 
