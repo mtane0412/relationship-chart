@@ -117,19 +117,22 @@ export const PersonNode = memo(({ data, selected, id }: NodeProps) => {
 
       {/* 丸い画像またはデフォルトアバター */}
       {/* z-indexを上げて中央部分をドラッグ可能にする */}
-      <div className="relative transition-transform duration-200" style={{ zIndex: 10 }}>
+      <div
+        className="relative transition-transform duration-200"
+        style={{ zIndex: 10 }}
+      >
         {personData.imageDataUrl ? (
           <img
             src={personData.imageDataUrl}
             alt={personData.name}
             className={`w-20 h-20 rounded-full object-cover border-4 border-white shadow-xl transition-all duration-200 ${
-              selected ? 'ring-4 ring-blue-500' : 'ring-2 ring-gray-200'
+              selected || showSourceHandle || showTargetHandle ? 'ring-4 ring-blue-500' : 'ring-2 ring-gray-200'
             }`}
           />
         ) : (
           <div
             className={`w-20 h-20 rounded-full bg-gray-400 border-4 border-white shadow-xl transition-all duration-200 flex items-center justify-center ${
-              selected ? 'ring-4 ring-blue-500' : 'ring-2 ring-gray-200'
+              selected || showSourceHandle || showTargetHandle ? 'ring-4 ring-blue-500' : 'ring-2 ring-gray-200'
             }`}
           >
             <span className="text-white text-2xl font-bold">{initial}</span>
