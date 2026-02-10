@@ -44,6 +44,7 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
   const handleDeletePerson = async () => {
     const confirmed = await openConfirm({
       message: `「${person.name}」を削除してもよろしいですか？`,
+      confirmLabel: '削除',
       isDanger: true,
     });
     if (confirmed) {

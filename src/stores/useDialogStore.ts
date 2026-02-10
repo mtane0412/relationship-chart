@@ -109,6 +109,12 @@ export const useDialogStore = create<DialogStore>((set, get) => ({
 
   // アクション
   openConfirm: (options) => {
+    // 既存のダイアログが開いている場合、既存のPromiseをキャンセル（falseで解決）
+    const { resolve: existingResolve } = get();
+    if (existingResolve) {
+      existingResolve(false);
+    }
+
     return new Promise<boolean>((resolve) => {
       set({
         isOpen: true,
@@ -124,6 +130,12 @@ export const useDialogStore = create<DialogStore>((set, get) => ({
   },
 
   openAlert: (options) => {
+    // 既存のダイアログが開いている場合、既存のPromiseを解決
+    const { resolve: existingResolve } = get();
+    if (existingResolve) {
+      existingResolve(false);
+    }
+
     return new Promise<void>((resolve) => {
       set({
         isOpen: true,

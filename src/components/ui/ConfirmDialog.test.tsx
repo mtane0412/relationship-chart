@@ -129,11 +129,11 @@ describe('ConfirmDialog', () => {
 
       // オーバーレイをクリック（背景の黒い部分）
       const overlay = screen.getByRole('dialog').parentElement;
-      if (overlay) {
-        await user.click(overlay);
-        // ダイアログが閉じられている
-        expect(useDialogStore.getState().isOpen).toBe(false);
-      }
+      expect(overlay).not.toBeNull();
+
+      await user.click(overlay!);
+      // ダイアログが閉じられている
+      expect(useDialogStore.getState().isOpen).toBe(false);
     });
 
     it('ダイアログ内部をクリックしても閉じない', async () => {

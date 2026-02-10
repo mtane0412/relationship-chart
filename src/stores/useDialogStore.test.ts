@@ -13,10 +13,18 @@ import { useDialogStore } from './useDialogStore';
 
 describe('useDialogStore', () => {
   beforeEach(() => {
-    // 各テスト前にストアをリセット
-    const { closeDialog } = useDialogStore.getState();
+    // 各テスト前にストアを完全にリセット
     act(() => {
-      closeDialog(false);
+      useDialogStore.setState({
+        isOpen: false,
+        variant: 'confirm',
+        title: '',
+        message: '',
+        confirmLabel: 'OK',
+        cancelLabel: 'キャンセル',
+        isDanger: false,
+        resolve: null,
+      });
     });
   });
 
