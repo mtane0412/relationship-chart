@@ -7,6 +7,7 @@
 
 import { PersonEditForm } from './PersonEditForm';
 import { useGraphStore } from '@/stores/useGraphStore';
+import { useDialogStore } from '@/stores/useDialogStore';
 import { useReactFlow } from '@xyflow/react';
 import type { Person } from '@/types/person';
 import type { Relationship } from '@/types/relationship';
@@ -31,6 +32,7 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
   const removePerson = useGraphStore((state) => state.removePerson);
   const clearSelection = useGraphStore((state) => state.clearSelection);
   const setSelectedPersonIds = useGraphStore((state) => state.setSelectedPersonIds);
+  const openConfirm = useDialogStore((state) => state.openConfirm);
   const { getNode, setCenter } = useReactFlow();
 
   // 種別を取得
@@ -39,8 +41,13 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
   const kindLabel = isItem ? '物' : '人物';
 
   // 削除ハンドラ
-  const handleDeletePerson = () => {
-    if (confirm(`「${person.name}」を削除してもよろしいですか？`)) {
+  const handleDeletePerson = async () => {
+    const confirmed = await openConfirm({
+      message: `「${person.name}」を削除してもよろしいですか？`,
+      confirmLabel: '削除',
+      isDanger: true,
+    });
+    if (confirmed) {
       removePerson(person.id);
       clearSelection();
     }
