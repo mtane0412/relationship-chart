@@ -11,7 +11,7 @@ import { getRelationshipDisplayType } from './relationship-utils';
 /**
  * Person配列をGraphNode配列（PersonNodeまたはItemNode）に変換する
  * @param persons - 変換対象のPerson配列
- * @returns GraphNode配列。初期位置は(0, 0)に設定される
+ * @returns GraphNode配列。person.positionがある場合はそれを使用し、ない場合は(0, 0)に設定される
  */
 export function personsToNodes(persons: Person[]): GraphNode[] {
   return persons.map((person) => {
@@ -27,7 +27,7 @@ export function personsToNodes(persons: Person[]): GraphNode[] {
         imageDataUrl: person.imageDataUrl,
         kind,
       },
-      position: { x: 0, y: 0 },
+      position: person.position ?? { x: 0, y: 0 },
     };
   });
 }

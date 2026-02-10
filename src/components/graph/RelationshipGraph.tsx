@@ -188,13 +188,17 @@ export function RelationshipGraph() {
             selected: existingNode.selected,
           };
         }
-        // 新規ノードの場合はランダムな位置に配置（選択状態は未選択）
+        // 新規ノードの場合
+        // person.positionが設定されている場合（(0, 0)以外）はそれを使用し、未設定の場合はランダムな位置に配置
+        const shouldUseRandomPosition = newNode.position.x === 0 && newNode.position.y === 0;
         return {
           ...newNode,
-          position: {
-            x: Math.random() * 500 + 100,
-            y: Math.random() * 500 + 100,
-          },
+          position: shouldUseRandomPosition
+            ? {
+                x: Math.random() * 500 + 100,
+                y: Math.random() * 500 + 100,
+              }
+            : newNode.position,
           selected: false,
         };
       });
@@ -621,11 +625,12 @@ export function RelationshipGraph() {
     (name: string, croppedImageDataUrl: string | null, kind: NodeKind) => {
       if (!pendingRegistration) return;
 
-      // 人物を追加
+      // 人物を追加（位置情報も渡す）
       addPerson({
         name,
         imageDataUrl: croppedImageDataUrl ?? undefined,
         kind,
+        position: pendingRegistration.position,
       });
 
       // モーダルを閉じる
@@ -907,7 +912,7 @@ export function RelationshipGraph() {
     (flowPosition: { x: number; y: number }): ContextMenuItem[] => {
       const items: ContextMenuItem[] = [
         {
-          label: 'ここに人物を追加',
+          label: 'ここにノードを追加',
           icon: UserPlus,
           onClick: () => {
             setPendingRegistration({
@@ -1048,38 +1053,20 @@ export function RelationshipGraph() {
         </svg>
       </ReactFlow>
 
-      {/* 空状態UI */}
+      {/* 空状態UI: +ボタン（ノードが0個の時のみ表示） */}
       {persons.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md text-center border-2 border-gray-200">
-            <div className="mb-4">
-              <svg
-                className="w-20 h-20 mx-auto text-gray-300"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                />
-              </svg>
-            </div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">
-              人物相関図を作成
-            </h2>
-            <p className="text-gray-600 mb-4">
-              画像をキャンバスにドラッグ&ドロップまたはペーストして人物を追加しましょう
-            </p>
-            <div className="space-y-2 text-sm text-gray-500">
-              <p>📸 画像をD&D/ペーストして人物を追加</p>
-              <p>🔗 2人以上登録すると関係を追加できます</p>
-              <p>✨ 右上のトグルでForce Layoutを有効にして、自動レイアウトで整理できます</p>
-            </div>
-          </div>
+          <button
+            onClick={() => {
+              setPendingRegistration({
+                position: { x: 400, y: 300 }, // キャンバス中央の座標
+              });
+            }}
+            className="pointer-events-auto w-20 h-20 rounded-full bg-white border-2 border-gray-300 text-gray-700 text-5xl flex items-center justify-center shadow-md hover:bg-gray-50 hover:border-gray-400 transition-colors leading-none pb-1"
+            aria-label="人物を追加"
+          >
+            +
+          </button>
         </div>
       )}
 
