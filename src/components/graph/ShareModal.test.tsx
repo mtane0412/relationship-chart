@@ -15,14 +15,6 @@ describe('ShareModal', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-
-    // ClipboardItemのモックをグローバルに設定
-    global.ClipboardItem = vi.fn() as unknown as typeof ClipboardItem;
-
-    // fetchのモック（クリップボードコピー時に使用）
-    global.fetch = vi.fn().mockResolvedValue({
-      blob: () => Promise.resolve(new Blob(['test'], { type: 'image/png' })),
-    });
   });
 
   describe('表示/非表示', () => {
@@ -68,6 +60,34 @@ describe('ShareModal', () => {
     });
   });
 
+  describe('共有手順ガイド', () => {
+    it('共有手順のタイトルが表示されること', () => {
+      render(
+        <ShareModal
+          isOpen={true}
+          onClose={mockOnClose}
+          imageData={mockImageData}
+        />
+      );
+
+      expect(screen.getByText('Xでシェアする方法')).toBeInTheDocument();
+    });
+
+    it('3つのステップが表示されること', () => {
+      render(
+        <ShareModal
+          isOpen={true}
+          onClose={mockOnClose}
+          imageData={mockImageData}
+        />
+      );
+
+      expect(screen.getByText('画像をダウンロード')).toBeInTheDocument();
+      expect(screen.getByText('Xのポスト画面を開く')).toBeInTheDocument();
+      expect(screen.getByText('画像をアップロードして投稿')).toBeInTheDocument();
+    });
+  });
+
   describe('ボタン操作', () => {
     it('ダウンロードボタンがクリック可能であること', async () => {
       const user = userEvent.setup();
@@ -79,40 +99,13 @@ describe('ShareModal', () => {
         />
       );
 
-      const downloadButton = screen.getByRole('button', {
+      const downloadButton = screen.getAllByRole('button', {
         name: /ダウンロード/i,
-      });
+      })[0];
       expect(downloadButton).toBeInTheDocument();
 
       // ボタンをクリックしてもエラーが発生しないこと
       await user.click(downloadButton);
-    });
-
-    it('クリップボードにコピーボタンがクリック可能であること', async () => {
-      const user = userEvent.setup();
-      // navigator.clipboardのモック
-      Object.defineProperty(navigator, 'clipboard', {
-        value: {
-          write: vi.fn().mockResolvedValue(undefined),
-        },
-        writable: true,
-      });
-
-      render(
-        <ShareModal
-          isOpen={true}
-          onClose={mockOnClose}
-          imageData={mockImageData}
-        />
-      );
-
-      const copyButton = screen.getByRole('button', {
-        name: /クリップボードにコピー/i,
-      });
-      expect(copyButton).toBeInTheDocument();
-
-      // ボタンをクリックしてもエラーが発生しないこと
-      await user.click(copyButton);
     });
 
     it('Xにポストボタンがクリック可能であること', async () => {
@@ -136,8 +129,10 @@ describe('ShareModal', () => {
 
       await user.click(postButton);
 
-      // window.openが呼ばれていること
+      // window.openが呼ばれていること（ハッシュタグ付きの投稿画面）
       expect(windowOpenSpy).toHaveBeenCalled();
+      const url = windowOpenSpy.mock.calls[0][0] as string;
+      expect(url).toContain('twitter.com/intent/tweet');
 
       windowOpenSpy.mockRestore();
     });
@@ -191,38 +186,6 @@ describe('ShareModal', () => {
       await user.keyboard('{Escape}');
 
       expect(mockOnClose).toHaveBeenCalledOnce();
-    });
-  });
-
-  describe('クリップボードコピー成功フィードバック', () => {
-    it('クリップボードにコピー成功時、フィードバックメッセージが表示されること', async () => {
-      const user = userEvent.setup();
-      // navigator.clipboardのモック
-      Object.defineProperty(navigator, 'clipboard', {
-        value: {
-          write: vi.fn().mockResolvedValue(undefined),
-        },
-        writable: true,
-      });
-
-      render(
-        <ShareModal
-          isOpen={true}
-          onClose={mockOnClose}
-          imageData={mockImageData}
-        />
-      );
-
-      const copyButton = screen.getByRole('button', {
-        name: /クリップボードにコピー/i,
-      });
-      await user.click(copyButton);
-
-      // 成功メッセージが表示されること（非同期）
-      const feedbackMessage = await screen.findByText(
-        /クリップボードにコピーしました/i
-      );
-      expect(feedbackMessage).toBeInTheDocument();
     });
   });
 });

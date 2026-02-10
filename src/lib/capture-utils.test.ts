@@ -108,7 +108,7 @@ describe('capture-utils', () => {
 
     it('指定されたテキストとハッシュタグでX投稿画面を開くこと', () => {
       const text = '人物相関図を作成しました';
-      const hashtags = ['人物相関図', 'RelationshipChart'];
+      const hashtags = ['人物相関図作る君'];
 
       openXPost(text, hashtags);
 
@@ -118,9 +118,7 @@ describe('capture-utils', () => {
       expect(url).toContain('twitter.com/intent/tweet');
       expect(url).toContain('text=' + encodeURIComponent(text));
       // URLSearchParamsは日本語をエンコードするため、エンコード後の文字列を確認
-      expect(url).toContain(
-        'hashtags=' + encodeURIComponent('人物相関図') + '%2C' + 'RelationshipChart'
-      );
+      expect(url).toContain('hashtags=' + encodeURIComponent('人物相関図作る君'));
     });
 
     it('ハッシュタグが空の場合、ハッシュタグなしで投稿画面を開くこと', () => {
