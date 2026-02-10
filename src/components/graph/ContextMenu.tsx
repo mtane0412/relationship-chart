@@ -102,6 +102,9 @@ export function ContextMenu({
    * 次の項目にフォーカスを移動
    */
   const focusNextItem = useCallback(() => {
+    // フィルタリング結果が0件の場合は何もしない
+    if (interactiveItems.length === 0) return;
+
     const nextIndex = (focusedIndexRef.current + 1) % interactiveItems.length;
     itemRefs.current[nextIndex]?.focus();
     focusedIndexRef.current = nextIndex;
@@ -111,6 +114,9 @@ export function ContextMenu({
    * 前の項目にフォーカスを移動
    */
   const focusPreviousItem = useCallback(() => {
+    // フィルタリング結果が0件の場合は何もしない
+    if (interactiveItems.length === 0) return;
+
     const prevIndex =
       (focusedIndexRef.current - 1 + interactiveItems.length) %
       interactiveItems.length;
@@ -122,14 +128,20 @@ export function ContextMenu({
    * 最初の項目にフォーカスを移動
    */
   const focusFirstItem = useCallback(() => {
+    // フィルタリング結果が0件の場合は何もしない
+    if (interactiveItems.length === 0) return;
+
     itemRefs.current[0]?.focus();
     focusedIndexRef.current = 0;
-  }, []);
+  }, [interactiveItems.length]);
 
   /**
    * 最後の項目にフォーカスを移動
    */
   const focusLastItem = useCallback(() => {
+    // フィルタリング結果が0件の場合は何もしない
+    if (interactiveItems.length === 0) return;
+
     const lastIndex = interactiveItems.length - 1;
     itemRefs.current[lastIndex]?.focus();
     focusedIndexRef.current = lastIndex;
@@ -263,9 +275,9 @@ export function ContextMenu({
         top: `${position.y}px`,
       }}
     >
-      {/* 検索入力フィールド（filterable項目がある場合は常に最上部に表示） */}
+      {/* 検索入力フィールド（filterable項目がある場合は常に最上部に固定表示） */}
       {hasFilterableItems && (
-        <div className="px-2 py-2 border-b border-gray-200">
+        <div className="sticky top-0 z-10 bg-white px-2 py-2 border-b border-gray-200">
           <input
             ref={filterInputRef}
             type="text"
