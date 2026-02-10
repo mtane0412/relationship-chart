@@ -44,6 +44,7 @@ import { readFileAsDataUrl } from '@/lib/image-utils';
 import { getRelationshipDisplayType } from '@/lib/relationship-utils';
 import { findClosestTargetNode } from '@/lib/connection-target-detection';
 import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils';
+import { resolveCollisions, DEFAULT_COLLISION_OPTIONS } from '@/lib/collision-resolver';
 import { UserPlus, XCircle, Pencil, Trash2, Maximize2, Link, ArrowLeft } from 'lucide-react';
 import type {
   GraphNode,
@@ -194,6 +195,20 @@ export function RelationshipGraph() {
           selected: false,
         };
       });
+
+      // 新規ノードが追加された場合、Force Layout無効時は衝突解消を適用
+      const hasNewNodes = updatedNodes.length > prevNodes.length;
+      if (hasNewNodes && !forceEnabled) {
+        // レンダリング完了後に衝突解消を適用（measuredが設定されるまで待つ）
+        requestAnimationFrame(() => {
+          const currentNodes = getNodes();
+          const resolvedNodes = resolveCollisions(currentNodes, DEFAULT_COLLISION_OPTIONS);
+          if (resolvedNodes !== currentNodes) {
+            setNodes(resolvedNodes as GraphNode[]);
+          }
+        });
+      }
+
       return updatedNodes;
     });
 
@@ -949,7 +964,18 @@ export function RelationshipGraph() {
         onNodeDrag={(_, node) =>
           handleNodeDrag(node.id, node.position)
         }
-        onNodeDragStop={(_, node) => handleNodeDragEnd(node.id)}
+        onNodeDragStop={(_, node) => {
+          handleNodeDragEnd(node.id);
+          // Force Layout無効時は幾何学的衝突解消を適用
+          if (!forceEnabled) {
+            const currentNodes = getNodes();
+            const resolvedNodes = resolveCollisions(currentNodes, DEFAULT_COLLISION_OPTIONS);
+            // 位置が変更されたノードがあれば更新
+            if (resolvedNodes !== currentNodes) {
+              setNodes(resolvedNodes as GraphNode[]);
+            }
+          }
+        }}
         onSelectionChange={handleSelectionChange}
         onPaneClick={handlePaneClick}
         onEdgeClick={handleEdgeClick}
