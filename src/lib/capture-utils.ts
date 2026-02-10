@@ -8,17 +8,58 @@
 import { toPng, toBlob } from 'html-to-image';
 import { getNodesBounds, getViewportForBounds, Node } from '@xyflow/react';
 
-const IMAGE_WIDTH = 1024;
-const IMAGE_HEIGHT = 768;
+// 画像サイズの制約
+const MIN_IMAGE_WIDTH = 1024;
+const MIN_IMAGE_HEIGHT = 768;
+const MAX_IMAGE_WIDTH = 4096;
+const MAX_IMAGE_HEIGHT = 3072;
+const PADDING_RATIO = 0.2;
+
+/**
+ * ノード境界のサイズから出力画像のピクセルサイズを動的に計算する
+ *
+ * @param nodesBounds - ノード境界のサイズ
+ * @returns 出力画像の幅と高さ（ピクセル）
+ *
+ * @remarks
+ * - 最小サイズ (1024x768) を保証（ノードが少ない場合も小さくなりすぎない）
+ * - 最大サイズ (4096x3072) で上限を設定（メモリ保護）
+ * - パディングを20%追加してエッジラベルのはみ出しを防止
+ */
+export function calculateImageDimensions(nodesBounds: {
+  width: number;
+  height: number;
+}): { width: number; height: number } {
+  // パディングを含めたサイズを計算（切り上げ）
+  const paddedWidth = Math.ceil(nodesBounds.width * (1 + PADDING_RATIO * 2));
+  const paddedHeight = Math.ceil(nodesBounds.height * (1 + PADDING_RATIO * 2));
+
+  // 最小・最大サイズの制約を適用
+  const width = Math.max(
+    MIN_IMAGE_WIDTH,
+    Math.min(paddedWidth, MAX_IMAGE_WIDTH)
+  );
+  const height = Math.max(
+    MIN_IMAGE_HEIGHT,
+    Math.min(paddedHeight, MAX_IMAGE_HEIGHT)
+  );
+
+  return { width, height };
+}
 
 /**
  * React Flowのキャンバスを画像としてキャプチャする共通処理
  *
  * @param nodes - 全ノード（境界計算に使用）
- * @returns キャプチャ対象の要素とビューポート設定
+ * @returns キャプチャ対象の要素、ビューポート設定、動的に計算された画像サイズ
  * @throws ノードが存在しない場合やビューポート要素が見つからない場合にエラーをスロー
  */
-function getCaptureBounds(nodes: Node[]) {
+function getCaptureBounds(nodes: Node[]): {
+  viewport: HTMLElement;
+  viewportTransform: { x: number; y: number; zoom: number };
+  imageWidth: number;
+  imageHeight: number;
+} {
   // ノードが存在しない場合はエラー
   if (nodes.length === 0) {
     throw new Error('キャプチャするノードが存在しません');
@@ -35,17 +76,21 @@ function getCaptureBounds(nodes: Node[]) {
   // 全ノードの境界を計算
   const nodesBounds = getNodesBounds(nodes);
 
+  // 出力画像サイズを動的に計算
+  const { width: imageWidth, height: imageHeight } =
+    calculateImageDimensions(nodesBounds);
+
   // ビューポート設定を計算
   const viewportTransform = getViewportForBounds(
     nodesBounds,
-    IMAGE_WIDTH,
-    IMAGE_HEIGHT,
-    0.5, // 最小ズーム
+    imageWidth,
+    imageHeight,
+    0.01, // 最小ズーム（0.5 → 0.01に緩和）
     2, // 最大ズーム
-    0.1 // パディング
+    PADDING_RATIO // パディング（0.1 → 0.2）
   );
 
-  return { viewport, viewportTransform };
+  return { viewport, viewportTransform, imageWidth, imageHeight };
 }
 
 /**
@@ -55,16 +100,17 @@ function getCaptureBounds(nodes: Node[]) {
  * @returns PNG形式のData URL
  */
 export async function captureCanvasAsPng(nodes: Node[]): Promise<string> {
-  const { viewport, viewportTransform } = getCaptureBounds(nodes);
+  const { viewport, viewportTransform, imageWidth, imageHeight } =
+    getCaptureBounds(nodes);
 
   // html-to-imageでキャプチャ
   const dataUrl = await toPng(viewport, {
     backgroundColor: '#ffffff',
-    width: IMAGE_WIDTH,
-    height: IMAGE_HEIGHT,
+    width: imageWidth,
+    height: imageHeight,
     style: {
-      width: `${IMAGE_WIDTH}px`,
-      height: `${IMAGE_HEIGHT}px`,
+      width: `${imageWidth}px`,
+      height: `${imageHeight}px`,
       transform: `translate(${viewportTransform.x}px, ${viewportTransform.y}px) scale(${viewportTransform.zoom})`,
     },
   });
@@ -79,16 +125,17 @@ export async function captureCanvasAsPng(nodes: Node[]): Promise<string> {
  * @returns PNG形式のBlob
  */
 export async function captureCanvasAsBlob(nodes: Node[]): Promise<Blob> {
-  const { viewport, viewportTransform } = getCaptureBounds(nodes);
+  const { viewport, viewportTransform, imageWidth, imageHeight } =
+    getCaptureBounds(nodes);
 
   // html-to-imageでキャプチャ
   const blob = await toBlob(viewport, {
     backgroundColor: '#ffffff',
-    width: IMAGE_WIDTH,
-    height: IMAGE_HEIGHT,
+    width: imageWidth,
+    height: imageHeight,
     style: {
-      width: `${IMAGE_WIDTH}px`,
-      height: `${IMAGE_HEIGHT}px`,
+      width: `${imageWidth}px`,
+      height: `${imageHeight}px`,
       transform: `translate(${viewportTransform.x}px, ${viewportTransform.y}px) scale(${viewportTransform.zoom})`,
     },
   });
