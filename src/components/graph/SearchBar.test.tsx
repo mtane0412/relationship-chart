@@ -216,7 +216,7 @@ describe('SearchBar', () => {
       });
     });
 
-    it('物ノードには「物」というラベルが表示される', async () => {
+    it('物ノードにはPackageアイコンが表示される', async () => {
       const user = userEvent.setup();
 
       // 物ノードを追加
@@ -245,8 +245,51 @@ describe('SearchBar', () => {
         const option = screen.getByRole('option', { name: /テストアイテム/i });
         expect(option).toBeInTheDocument();
 
-        // 「物」ラベルが表示されることを確認
-        expect(option).toHaveTextContent('物');
+        // Packageアイコンのtitle属性が「物」であることを確認
+        const iconContainer = option.querySelector('span[title="物"]');
+        expect(iconContainer).toBeInTheDocument();
+      });
+    });
+
+    it('人物ノードにはUserアイコンが表示される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <SearchBar />
+        </ReactFlowProvider>
+      );
+
+      const combobox = screen.getByRole('combobox');
+      await user.type(combobox, '山田');
+
+      await waitFor(() => {
+        const option = screen.getByRole('option', { name: /山田太郎/i });
+        expect(option).toBeInTheDocument();
+
+        // Userアイコンのtitle属性が「人物」であることを確認
+        const iconContainer = option.querySelector('span[title="人物"]');
+        expect(iconContainer).toBeInTheDocument();
+      });
+    });
+
+    it('関係にはLinkアイコンが表示される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <SearchBar />
+        </ReactFlowProvider>
+      );
+
+      const combobox = screen.getByRole('combobox');
+      await user.type(combobox, '上司');
+
+      await waitFor(() => {
+        const option = screen.getByRole('option', { name: /上司/i });
+        expect(option).toBeInTheDocument();
+
+        // Linkアイコンのtitle属性が「関係」であることを確認
+        const iconContainer = option.querySelector('span[title="関係"]');
+        expect(iconContainer).toBeInTheDocument();
       });
     });
   });

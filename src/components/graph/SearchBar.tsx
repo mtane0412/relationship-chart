@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Panel, useReactFlow } from '@xyflow/react';
-import { Search } from 'lucide-react';
+import { Search, User, Package, Link } from 'lucide-react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { searchGraph, type SearchResult } from '@/lib/search-utils';
 import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils';
@@ -214,17 +214,28 @@ export default function SearchBar() {
               >
                 <div className="flex items-center gap-2">
                   <span
-                    className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                    className={`flex items-center justify-center p-1 rounded ${
                       result.kind === 'person'
                         ? 'bg-blue-100 text-blue-700'
                         : 'bg-green-100 text-green-700'
                     }`}
+                    title={
+                      result.kind === 'person'
+                        ? result.nodeKind === 'item'
+                          ? '物'
+                          : '人物'
+                        : '関係'
+                    }
                   >
-                    {result.kind === 'person'
-                      ? result.nodeKind === 'item'
-                        ? '物'
-                        : '人物'
-                      : '関係'}
+                    {result.kind === 'person' ? (
+                      result.nodeKind === 'item' ? (
+                        <Package size={14} />
+                      ) : (
+                        <User size={14} />
+                      )
+                    ) : (
+                      <Link size={14} />
+                    )}
                   </span>
                   <span>{result.label}</span>
                 </div>
