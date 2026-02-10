@@ -30,6 +30,7 @@ import { RelationshipEdge as RelationshipEdgeComponent } from './RelationshipEdg
 import { ConnectionLine } from './ConnectionLine';
 import { ForceLayoutPanel } from './ForceLayoutPanel';
 import ShareButton from './ShareButton';
+import SearchBar from './SearchBar';
 import { PersonRegistrationModal } from './PersonRegistrationModal';
 import { RelationshipRegistrationModal } from './RelationshipRegistrationModal';
 import { useForceLayout } from './useForceLayout';
@@ -970,6 +971,7 @@ export function RelationshipGraph() {
         <MiniMap />
         <ForceLayoutPanel />
         <ShareButton />
+        <SearchBar />
 
         {/* SVGマーカー定義（全エッジで共有） */}
         <svg>
