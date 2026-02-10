@@ -44,6 +44,7 @@ import { readFileAsDataUrl } from '@/lib/image-utils';
 import { getRelationshipDisplayType } from '@/lib/relationship-utils';
 import { findClosestTargetNode } from '@/lib/connection-target-detection';
 import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils';
+import { resolveCollisions, DEFAULT_COLLISION_OPTIONS } from '@/lib/collision-resolver';
 import { UserPlus, XCircle, Pencil, Trash2, Maximize2, Link, ArrowLeft } from 'lucide-react';
 import type {
   GraphNode,
@@ -130,6 +131,9 @@ export function RelationshipGraph() {
   // 接続元ノードIDを保存するref（onConnectEndで使用）
   const connectingFromNodeIdRef = useRef<string | null>(null);
 
+  // requestAnimationFrameのIDを保存するref（衝突解消のキャンセル用）
+  const collisionResolutionRafIdRef = useRef<number | null>(null);
+
   // ノード位置更新のコールバック（useForceLayout用）
   // d3-forceのtickイベントで頻繁に呼ばれるため、既存ノードの選択状態を保持する
   const handleNodesUpdate = useCallback(
@@ -194,6 +198,26 @@ export function RelationshipGraph() {
           selected: false,
         };
       });
+
+      // 新規ノードが追加された場合、Force Layout無効時は衝突解消を適用
+      const hasNewNodes = updatedNodes.length > prevNodes.length;
+      if (hasNewNodes && !forceEnabled) {
+        // 前回のrequestAnimationFrameをキャンセル（短時間に複数回変更された場合の対策）
+        if (collisionResolutionRafIdRef.current !== null) {
+          cancelAnimationFrame(collisionResolutionRafIdRef.current);
+        }
+        // レンダリング完了後に衝突解消を適用（measuredが設定されるまで待つ）
+        collisionResolutionRafIdRef.current = requestAnimationFrame(() => {
+          const currentNodes = getNodes();
+          const resolvedNodes = resolveCollisions(currentNodes, DEFAULT_COLLISION_OPTIONS);
+          // resolveCollisionsは変更がない場合に元の配列を返すため、参照等価性でチェック
+          if (resolvedNodes !== currentNodes) {
+            setNodes(resolvedNodes as GraphNode[]);
+          }
+          collisionResolutionRafIdRef.current = null;
+        });
+      }
+
       return updatedNodes;
     });
 
@@ -209,7 +233,15 @@ export function RelationshipGraph() {
       });
       return updatedEdges;
     });
-  }, [persons, relationships, setNodes, setEdges]);
+
+    // クリーンアップ: 未実行のrequestAnimationFrameをキャンセル
+    return () => {
+      if (collisionResolutionRafIdRef.current !== null) {
+        cancelAnimationFrame(collisionResolutionRafIdRef.current);
+        collisionResolutionRafIdRef.current = null;
+      }
+    };
+  }, [persons, relationships, setNodes, setEdges, forceEnabled, getNodes]);
 
   // 選択状態の変更時に既存ノード/エッジのselectedプロパティのみ更新
   // 配列参照を変更しないようにhasChangedフラグで最適化
@@ -949,7 +981,18 @@ export function RelationshipGraph() {
         onNodeDrag={(_, node) =>
           handleNodeDrag(node.id, node.position)
         }
-        onNodeDragStop={(_, node) => handleNodeDragEnd(node.id)}
+        onNodeDragStop={(_, node) => {
+          handleNodeDragEnd(node.id);
+          // Force Layout無効時は幾何学的衝突解消を適用
+          if (!forceEnabled) {
+            const currentNodes = getNodes();
+            const resolvedNodes = resolveCollisions(currentNodes, DEFAULT_COLLISION_OPTIONS);
+            // 位置が変更されたノードがあれば更新
+            if (resolvedNodes !== currentNodes) {
+              setNodes(resolvedNodes as GraphNode[]);
+            }
+          }
+        }}
         onSelectionChange={handleSelectionChange}
         onPaneClick={handlePaneClick}
         onEdgeClick={handleEdgeClick}

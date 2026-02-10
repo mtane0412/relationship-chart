@@ -9,11 +9,17 @@ import {
   forceLink,
   forceManyBody,
   forceCenter,
+  forceCollide,
   type SimulationNodeDatum,
   type SimulationLinkDatum,
 } from 'd3-force';
 import type { Node, Edge } from '@xyflow/react';
 import type { ForceParams } from '@/stores/useGraphStore';
+import {
+  COLLISION_MARGIN,
+  DEFAULT_NODE_WIDTH,
+  DEFAULT_NODE_HEIGHT,
+} from '@/lib/collision-resolver';
 
 /**
  * d3-force用のノード型
@@ -158,6 +164,22 @@ export function useForceLayout({
           'charge',
           forceManyBody<ForceNode>()
             .strength(forceParamsRef.current.chargeStrength) // 反発力の強さ（負の値）
+        )
+        // ノード間の衝突防止（物理的なサイズを考慮）
+        .force(
+          'collide',
+          forceCollide<ForceNode>()
+            .radius((d) => {
+              // ノードの実際のサイズを取得（measured があれば優先、なければデフォルト値）
+              const node = d as Node;
+              const width = node.measured?.width ?? DEFAULT_NODE_WIDTH;
+              const height = node.measured?.height ?? DEFAULT_NODE_HEIGHT;
+              // 半径として最大辺を使用し、COLLISION_MARGINを追加
+              // 注意: forceCollideは円形の衝突判定のため、矩形ノードの短辺方向には余分な余白が生じる
+              return Math.max(width, height) / 2 + COLLISION_MARGIN;
+            })
+            .strength(0.7) // 衝突解消の強さ
+            .iterations(2) // 各tick内での反復回数
         )
         // 中心への引力
         .force('center', forceCenter(400, 400))
