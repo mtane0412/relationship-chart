@@ -189,8 +189,10 @@ export function RelationshipGraph() {
           };
         }
         // 新規ノードの場合
-        // person.positionが設定されている場合（(0, 0)以外）はそれを使用し、未設定の場合はランダムな位置に配置
-        const shouldUseRandomPosition = newNode.position.x === 0 && newNode.position.y === 0;
+        // person.positionが未設定（undefined）の場合のみランダムな位置に配置
+        // person.positionが設定されている場合は、(0,0)であってもその座標を使用
+        const person = persons.find((p) => p.id === newNode.id);
+        const shouldUseRandomPosition = !person?.position;
         return {
           ...newNode,
           position: shouldUseRandomPosition
@@ -1058,12 +1060,30 @@ export function RelationshipGraph() {
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <button
             onClick={() => {
-              setPendingRegistration({
-                position: { x: 400, y: 300 }, // キャンバス中央の座標
-              });
+              // 現在のビューポート中央（画面座標）を求めてからFlow座標に変換する
+              const reactFlowElement = document.querySelector('.react-flow') as HTMLElement | null;
+              let position: { x: number; y: number };
+
+              if (reactFlowElement && typeof reactFlowElement.getBoundingClientRect === 'function') {
+                const rect = reactFlowElement.getBoundingClientRect();
+                const centerScreenPos = {
+                  x: rect.left + rect.width / 2,
+                  y: rect.top + rect.height / 2,
+                };
+                position = screenToFlowPosition(centerScreenPos);
+              } else {
+                // フォールバック: ウィンドウ中央を使用
+                const fallbackCenter = {
+                  x: window.innerWidth / 2,
+                  y: window.innerHeight / 2,
+                };
+                position = screenToFlowPosition(fallbackCenter);
+              }
+
+              setPendingRegistration({ position });
             }}
             className="pointer-events-auto w-20 h-20 rounded-full bg-white border-2 border-gray-300 text-gray-700 text-5xl flex items-center justify-center shadow-md hover:bg-gray-50 hover:border-gray-400 transition-colors leading-none pb-1"
-            aria-label="人物を追加"
+            aria-label="ノードを追加"
           >
             +
           </button>

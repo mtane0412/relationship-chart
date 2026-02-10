@@ -73,19 +73,19 @@ export function PersonRegistrationModal({
     }
   }, [croppedImageDataUrl, showCropper]);
 
-  // Escapeキーでキャンセル
+  // Escapeキーでキャンセル（メニュー表示中は抑止）
   useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !showCropper) {
+      if (event.key === 'Escape' && !showCropper && !showMenu) {
         onCancel();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onCancel, showCropper]);
+  }, [isOpen, onCancel, showCropper, showMenu]);
 
   // メニューの外側をクリックした時にメニューを閉じる
   useEffect(() => {
@@ -160,11 +160,11 @@ export function PersonRegistrationModal({
   const handleCropCancel = useCallback(() => {
     setShowCropper(false);
     setRawImageForCrop(null);
-    // 初回のクロップキャンセル時は親モーダルも閉じる
-    if (!croppedImageDataUrl) {
+    // 初回表示でrawImageSrc由来のクロップをキャンセルした場合のみ親モーダルを閉じる
+    if (!croppedImageDataUrl && rawImageSrc) {
       onCancel();
     }
-  }, [croppedImageDataUrl, onCancel]);
+  }, [croppedImageDataUrl, onCancel, rawImageSrc]);
 
   // アイコンクリックハンドラ
   const handleIconClick = (e: React.MouseEvent<HTMLDivElement>) => {
