@@ -15,6 +15,42 @@ import { searchGraph, type SearchResult } from '@/lib/search-utils';
 import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils';
 
 /**
+ * ノードアイコンコンポーネント
+ * 人物/物ノードの画像またはアイコンを表示する
+ */
+function NodeIcon({
+  imageDataUrl,
+  nodeKind = 'person',
+  alt,
+  size = 'md',
+}: {
+  imageDataUrl?: string;
+  nodeKind?: 'person' | 'item';
+  alt: string;
+  size?: 'sm' | 'md';
+}) {
+  const sizeClass = size === 'sm' ? 'w-6 h-6' : 'w-8 h-8';
+  const iconSize = size === 'sm' ? 12 : 16;
+  const rounded = nodeKind === 'item' ? 'rounded' : 'rounded-full';
+
+  if (imageDataUrl) {
+    return (
+      <img src={imageDataUrl} alt={alt} className={`${sizeClass} object-cover ${rounded}`} />
+    );
+  }
+
+  return (
+    <div className={`${sizeClass} bg-gray-200 flex items-center justify-center ${rounded}`}>
+      {nodeKind === 'item' ? (
+        <Package size={iconSize} className="text-gray-600" />
+      ) : (
+        <User size={iconSize} className="text-gray-600" />
+      )}
+    </div>
+  );
+}
+
+/**
  * 検索バーコンポーネント
  *
  * Cmd+K / Ctrl+K で検索入力にフォーカスします。
@@ -265,53 +301,23 @@ export default function SearchBar() {
                   {result.kind === 'person' ? (
                     // 人物/物の場合: ノード画像またはアイコン
                     <div className="flex-shrink-0">
-                      {result.imageDataUrl ? (
-                        <img
-                          src={result.imageDataUrl}
-                          alt={result.label}
-                          className={`w-8 h-8 object-cover ${
-                            result.nodeKind === 'item' ? 'rounded' : 'rounded-full'
-                          }`}
-                        />
-                      ) : (
-                        <div
-                          className={`w-8 h-8 bg-gray-200 flex items-center justify-center ${
-                            result.nodeKind === 'item' ? 'rounded' : 'rounded-full'
-                          }`}
-                        >
-                          {result.nodeKind === 'item' ? (
-                            <Package size={16} className="text-gray-600" />
-                          ) : (
-                            <User size={16} className="text-gray-600" />
-                          )}
-                        </div>
-                      )}
+                      <NodeIcon
+                        imageDataUrl={result.imageDataUrl}
+                        nodeKind={result.nodeKind}
+                        alt={result.label}
+                        size="md"
+                      />
                     </div>
                   ) : (
                     // 関係の場合: 2つのノード画像 + 関係アイコン
                     <div className="flex items-center gap-1 flex-shrink-0">
                       {/* 起点人物 */}
-                      {result.sourceImageDataUrl ? (
-                        <img
-                          src={result.sourceImageDataUrl}
-                          alt="起点"
-                          className={`w-6 h-6 object-cover ${
-                            result.sourceNodeKind === 'item' ? 'rounded' : 'rounded-full'
-                          }`}
-                        />
-                      ) : (
-                        <div
-                          className={`w-6 h-6 bg-gray-200 flex items-center justify-center ${
-                            result.sourceNodeKind === 'item' ? 'rounded' : 'rounded-full'
-                          }`}
-                        >
-                          {result.sourceNodeKind === 'item' ? (
-                            <Package size={12} className="text-gray-600" />
-                          ) : (
-                            <User size={12} className="text-gray-600" />
-                          )}
-                        </div>
-                      )}
+                      <NodeIcon
+                        imageDataUrl={result.sourceImageDataUrl}
+                        nodeKind={result.sourceNodeKind}
+                        alt="起点"
+                        size="sm"
+                      />
 
                       {/* 関係アイコン */}
                       {result.relationshipType === 'bidirectional' ? (
@@ -323,27 +329,12 @@ export default function SearchBar() {
                       )}
 
                       {/* 終点人物 */}
-                      {result.targetImageDataUrl ? (
-                        <img
-                          src={result.targetImageDataUrl}
-                          alt="終点"
-                          className={`w-6 h-6 object-cover ${
-                            result.targetNodeKind === 'item' ? 'rounded' : 'rounded-full'
-                          }`}
-                        />
-                      ) : (
-                        <div
-                          className={`w-6 h-6 bg-gray-200 flex items-center justify-center ${
-                            result.targetNodeKind === 'item' ? 'rounded' : 'rounded-full'
-                          }`}
-                        >
-                          {result.targetNodeKind === 'item' ? (
-                            <Package size={12} className="text-gray-600" />
-                          ) : (
-                            <User size={12} className="text-gray-600" />
-                          )}
-                        </div>
-                      )}
+                      <NodeIcon
+                        imageDataUrl={result.targetImageDataUrl}
+                        nodeKind={result.targetNodeKind}
+                        alt="終点"
+                        size="sm"
+                      />
                     </div>
                   )}
                   <span className="truncate">{result.label}</span>
