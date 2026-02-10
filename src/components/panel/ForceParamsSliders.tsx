@@ -22,12 +22,12 @@ export function ForceParamsSliders() {
   const resetForceParams = useGraphStore((state) => state.resetForceParams);
 
   return (
-    <div className="space-y-4 pt-2">
+    <div className="space-y-2">
       {/* リンク距離スライダー */}
       <div className="space-y-1">
-        <div className="flex items-center justify-between text-sm font-medium">
+        <div className="flex items-center justify-between text-xs font-medium">
           <label htmlFor="linkDistance">リンク距離</label>
-          <span className="text-xs text-gray-500">{forceParams.linkDistance}</span>
+          <span className="text-[10px] text-gray-500">{forceParams.linkDistance}</span>
         </div>
         <input
           id="linkDistance"
@@ -43,9 +43,9 @@ export function ForceParamsSliders() {
 
       {/* リンク強度スライダー */}
       <div className="space-y-1">
-        <div className="flex items-center justify-between text-sm font-medium">
+        <div className="flex items-center justify-between text-xs font-medium">
           <label htmlFor="linkStrength">リンク強度</label>
-          <span className="text-xs text-gray-500">{forceParams.linkStrength}</span>
+          <span className="text-[10px] text-gray-500">{forceParams.linkStrength}</span>
         </div>
         <input
           id="linkStrength"
@@ -61,9 +61,9 @@ export function ForceParamsSliders() {
 
       {/* 反発力スライダー */}
       <div className="space-y-1">
-        <div className="flex items-center justify-between text-sm font-medium">
+        <div className="flex items-center justify-between text-xs font-medium">
           <label htmlFor="chargeStrength">反発力</label>
-          <span className="text-xs text-gray-500">{forceParams.chargeStrength}</span>
+          <span className="text-[10px] text-gray-500">{forceParams.chargeStrength}</span>
         </div>
         <input
           id="chargeStrength"
@@ -80,7 +80,7 @@ export function ForceParamsSliders() {
       {/* デフォルトに戻すボタン */}
       <button
         onClick={resetForceParams}
-        className="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+        className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
       >
         デフォルトに戻す
       </button>

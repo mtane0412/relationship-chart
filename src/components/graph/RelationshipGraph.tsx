@@ -28,6 +28,7 @@ import { PersonNode } from './PersonNode';
 import { ItemNode } from './ItemNode';
 import { RelationshipEdge as RelationshipEdgeComponent } from './RelationshipEdge';
 import { ConnectionLine } from './ConnectionLine';
+import { ForceLayoutPanel } from './ForceLayoutPanel';
 import { PersonRegistrationModal } from './PersonRegistrationModal';
 import { RelationshipRegistrationModal } from './RelationshipRegistrationModal';
 import { useForceLayout } from './useForceLayout';
@@ -94,6 +95,7 @@ export function RelationshipGraph() {
   const removeRelationship = useGraphStore((state) => state.removeRelationship);
   const setSelectedPersonIds = useGraphStore((state) => state.setSelectedPersonIds);
   const clearSelection = useGraphStore((state) => state.clearSelection);
+  const setSidePanelOpen = useGraphStore((state) => state.setSidePanelOpen);
 
   // React Flowのノードとエッジの状態
   const [nodes, setNodes, onNodesChange] = useNodesState<GraphNode>([]);
@@ -710,6 +712,7 @@ export function RelationshipGraph() {
           icon: Pencil,
           onClick: () => {
             setSelectedPersonIds([nodeId]);
+            setSidePanelOpen(true); // サイドパネルを開く
             closeContextMenu();
           },
         },
@@ -742,6 +745,7 @@ export function RelationshipGraph() {
       contextMenu,
       setSelectedPersonIds,
       removePerson,
+      setSidePanelOpen,
     ]
   );
 
@@ -815,6 +819,7 @@ export function RelationshipGraph() {
           onClick: () => {
             if (edge) {
               setSelectedPersonIds([edge.source, edge.target]);
+              setSidePanelOpen(true); // サイドパネルを開く
             }
             closeContextMenu();
           },
@@ -836,7 +841,7 @@ export function RelationshipGraph() {
         },
       ];
     },
-    [edges, setSelectedPersonIds, closeContextMenu, removeRelationship]
+    [edges, setSelectedPersonIds, closeContextMenu, removeRelationship, setSidePanelOpen]
   );
 
   // 背景右クリックメニュー項目を構築
@@ -938,6 +943,7 @@ export function RelationshipGraph() {
         <Background />
         <Controls />
         <MiniMap />
+        <ForceLayoutPanel />
 
         {/* SVGマーカー定義（全エッジで共有） */}
         <svg>
