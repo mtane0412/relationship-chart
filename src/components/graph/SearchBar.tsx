@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Panel, useReactFlow } from '@xyflow/react';
 import { Search, User, Package, ArrowRight, ArrowLeftRight, Minus } from 'lucide-react';
 import { useGraphStore } from '@/stores/useGraphStore';
@@ -39,8 +39,11 @@ export default function SearchBar() {
   // React Flowのフック
   const { getNode, setCenter } = useReactFlow();
 
-  // 検索結果
-  const results = searchGraph(query, persons, relationships);
+  // 検索結果（メモ化して不要な再計算を防ぐ）
+  const results = useMemo(
+    () => searchGraph(query, persons, relationships),
+    [query, persons, relationships]
+  );
 
   /**
    * キーボードショートカット（Cmd+K / Ctrl+K）で入力フィールドにフォーカス
@@ -227,7 +230,7 @@ export default function SearchBar() {
           ) : (
             results.map((result, index) => (
               <button
-                key={`${result.kind}-${result.id}`}
+                key={`${result.kind}-${result.id}-${index}`}
                 id={`search-result-${index}`}
                 role="option"
                 aria-selected={index === selectedIndex}

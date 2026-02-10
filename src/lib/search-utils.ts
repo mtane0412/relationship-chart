@@ -74,12 +74,15 @@ export function searchGraph(
       imageDataUrl: person.imageDataUrl,
     }));
 
+  // 人物IDからPersonへのマップを作成（パフォーマンス最適化）
+  const personMap = new Map(persons.map((p) => [p.id, p]));
+
   // 関係を検索
   const relationshipResults: SearchResult[] = [];
   for (const rel of relationships) {
     // 起点と終点の人物を検索
-    const sourcePerson = persons.find((p) => p.id === rel.sourcePersonId);
-    const targetPerson = persons.find((p) => p.id === rel.targetPersonId);
+    const sourcePerson = personMap.get(rel.sourcePersonId);
+    const targetPerson = personMap.get(rel.targetPersonId);
 
     const matchedLabels = new Set<string>();
 
