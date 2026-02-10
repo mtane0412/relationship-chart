@@ -141,6 +141,12 @@ type GraphActions = {
    * サイドパネルの開閉状態をトグルする
    */
   toggleSidePanel: () => void;
+
+  /**
+   * すべてのデータと状態を初期値にリセットする
+   * LocalStorageのデータもクリアされ、Undo/Redo履歴もクリアされます
+   */
+  resetAll: () => void;
 };
 
 /**
@@ -358,6 +364,21 @@ export const useGraphStore = create<GraphStore>()(
           set((state) => ({
             sidePanelOpen: !state.sidePanelOpen,
           })),
+
+        resetAll: () => {
+          // 全状態を初期値にリセット
+          set(() => ({
+            persons: [],
+            relationships: [],
+            selectedPersonIds: [],
+            forceEnabled: true,
+            forceParams: DEFAULT_FORCE_PARAMS,
+            sidePanelOpen: true,
+          }));
+
+          // Undo/Redo履歴をクリア
+          useGraphStore.temporal.getState().clear();
+        },
       }),
       {
         // UI状態（selectedPersonIds, forceEnabled, sidePanelOpen）はundo対象外

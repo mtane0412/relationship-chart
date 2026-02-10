@@ -6,6 +6,7 @@
 'use client';
 
 import { useReactFlow } from '@xyflow/react';
+import { RotateCcw } from 'lucide-react';
 import { DefaultPanel } from './DefaultPanel';
 import { SingleSelectionPanel } from './SingleSelectionPanel';
 import { PairSelectionPanel } from './PairSelectionPanel';
@@ -19,6 +20,7 @@ import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils
 export function SidePanel() {
   const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
   const persons = useGraphStore((state) => state.persons);
+  const resetAll = useGraphStore((state) => state.resetAll);
 
   const { setCenter, getNode } = useReactFlow();
 
@@ -55,6 +57,16 @@ export function SidePanel() {
     }
   };
 
+  // リセット処理
+  const handleReset = () => {
+    const confirmed = window.confirm(
+      'すべてのデータを削除してリセットしてもよろしいですか？この操作は元に戻せません。'
+    );
+    if (confirmed) {
+      resetAll();
+    }
+  };
+
   // 選択数によってコンテンツを切り替え（selectedPersons.lengthを使用）
   let content;
   if (selectedPersons.length === 0) {
@@ -79,7 +91,18 @@ export function SidePanel() {
     <div className="w-80 h-screen bg-white border-r border-gray-200 flex flex-col">
       {/* ヘッダー */}
       <div className="p-4 border-b border-gray-200">
-        <h1 className="text-xl font-bold text-gray-900">人物相関図作る君</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold text-gray-900">人物相関図作る君</h1>
+          {/* リセットボタン */}
+          <button
+            onClick={handleReset}
+            className="rounded p-1.5 text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+            aria-label="すべてのデータをリセット"
+            title="すべてのデータをリセット"
+          >
+            <RotateCcw size={20} />
+          </button>
+        </div>
 
         {/* 選択中の要素を中心に表示ボタン */}
         {selectedPersonIds.length > 0 && (
