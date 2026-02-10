@@ -80,7 +80,9 @@ describe('SearchBar', () => {
       // 検索入力フィールドが表示される
       const combobox = screen.getByRole('combobox');
       expect(combobox).toBeInTheDocument();
-      expect(combobox).toHaveAttribute('placeholder', '⌘K');
+      // プレースホルダーはプラットフォームに応じて表示される
+      const placeholder = combobox.getAttribute('placeholder');
+      expect(placeholder).toMatch(/^(⌘K|Ctrl\+K)$/);
     });
   });
 

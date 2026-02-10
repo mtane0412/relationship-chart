@@ -30,6 +30,16 @@ export default function SearchBar() {
 
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // プラットフォームに応じたキーボードショートカットを表示
+  const shortcutLabel = useMemo(() => {
+    // SSR対応: ブラウザ環境でのみ判定
+    if (typeof window === 'undefined') return 'Ctrl+K';
+
+    // macOSの判定（navigator.platformは非推奨だがnavigator.userAgentDataはまだ実験的）
+    const isMac = /Mac|iPhone|iPod|iPad/i.test(navigator.userAgent);
+    return isMac ? '⌘K' : 'Ctrl+K';
+  }, []);
+
   // ストアから必要なデータを取得
   const persons = useGraphStore((state) => state.persons);
   const relationships = useGraphStore((state) => state.relationships);
@@ -178,6 +188,18 @@ export default function SearchBar() {
   }, [query]);
 
   /**
+   * 選択中の項目を画面内にスクロール
+   */
+  useEffect(() => {
+    if (selectedIndex >= 0) {
+      const element = document.getElementById(`search-result-${selectedIndex}`);
+      if (element && typeof element.scrollIntoView === 'function') {
+        element.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }
+  }, [selectedIndex]);
+
+  /**
    * 検索結果が変更されたら、手動選択中でなければ最初の候補を自動的に選択
    */
   useEffect(() => {
@@ -205,7 +227,7 @@ export default function SearchBar() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="⌘K"
+              placeholder={shortcutLabel}
               className="flex-1 outline-none text-sm"
               role="combobox"
               aria-expanded={results.length > 0}
