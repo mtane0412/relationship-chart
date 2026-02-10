@@ -83,7 +83,7 @@ export default function SearchBar() {
   const setSelectedPersonIds = useGraphStore((state) => state.setSelectedPersonIds);
 
   // React Flowのフック
-  const { getNode, setCenter } = useReactFlow();
+  const { getNode, setCenter, fitView } = useReactFlow();
 
   // 検索結果（メモ化して不要な再計算を防ぐ）
   const results = useMemo(
@@ -137,25 +137,19 @@ export default function SearchBar() {
     (sourcePersonId: string, targetPersonId: string) => {
       setSelectedPersonIds([sourcePersonId, targetPersonId]);
 
-      // 2つのノードの中点を計算
-      const sourceNode = getNode(sourcePersonId);
-      const targetNode = getNode(targetPersonId);
-
-      if (sourceNode && targetNode) {
-        const sourceCenter = getNodeCenter(sourceNode);
-        const targetCenter = getNodeCenter(targetNode);
-
-        const midX = (sourceCenter.x + targetCenter.x) / 2;
-        const midY = (sourceCenter.y + targetCenter.y) / 2;
-
-        setCenter(midX, midY, { duration: VIEWPORT_ANIMATION_DURATION });
-      }
+      // ビューポートを2つのノードにフィット（両ノードが画面内に収まるようズーム調整）
+      fitView({
+        nodes: [{ id: sourcePersonId }, { id: targetPersonId }],
+        padding: 0.3,
+        maxZoom: 1,
+        duration: VIEWPORT_ANIMATION_DURATION,
+      });
 
       // 検索クエリをクリア
       setQuery('');
       setSelectedIndex(-1);
     },
-    [setSelectedPersonIds, getNode, setCenter]
+    [setSelectedPersonIds, fitView]
   );
 
   /**

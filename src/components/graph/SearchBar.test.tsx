@@ -25,6 +25,7 @@ vi.mock('@xyflow/react', async () => {
         measured: { width: 80, height: 120 },
       })),
       setCenter: vi.fn(),
+      fitView: vi.fn(),
     })),
   };
 });

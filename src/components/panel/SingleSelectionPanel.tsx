@@ -12,7 +12,7 @@ import { useReactFlow } from '@xyflow/react';
 import type { Person } from '@/types/person';
 import type { Relationship } from '@/types/relationship';
 import { getRelationshipFromPerspective } from '@/lib/relationship-utils';
-import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils';
+import { VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils';
 
 /**
  * SingleSelectionPanelのプロパティ
@@ -33,7 +33,7 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
   const clearSelection = useGraphStore((state) => state.clearSelection);
   const setSelectedPersonIds = useGraphStore((state) => state.setSelectedPersonIds);
   const openConfirm = useDialogStore((state) => state.openConfirm);
-  const { getNode, setCenter } = useReactFlow();
+  const { fitView } = useReactFlow();
 
   // 種別を取得
   const kind = person.kind ?? 'person';
@@ -104,22 +104,13 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
               const handleRelationshipClick = () => {
                 setSelectedPersonIds([person.id, otherPerson.id]);
 
-                // ビューポートを2つのノードの中間点に移動
-                const node1 = getNode(person.id);
-                const node2 = getNode(otherPerson.id);
-
-                if (node1 && node2) {
-                  // 各ノードの中心座標を計算
-                  const node1Center = getNodeCenter(node1);
-                  const node2Center = getNodeCenter(node2);
-
-                  // 2つのノードの中間点を計算
-                  const midX = (node1Center.x + node2Center.x) / 2;
-                  const midY = (node1Center.y + node2Center.y) / 2;
-
-                  // ビューポートを中間点に移動（アニメーション付き）
-                  setCenter(midX, midY, { duration: VIEWPORT_ANIMATION_DURATION });
-                }
+                // ビューポートを2つのノードにフィット（両ノードが画面内に収まるようズーム調整）
+                fitView({
+                  nodes: [{ id: person.id }, { id: otherPerson.id }],
+                  padding: 0.3,
+                  maxZoom: 1,
+                  duration: VIEWPORT_ANIMATION_DURATION,
+                });
               };
 
               // キーボードハンドラ: Enter/Spaceで遷移
