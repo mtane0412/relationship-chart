@@ -9,6 +9,7 @@ import {
   downloadImage,
   copyImageToClipboard,
   openXPost,
+  calculateImageDimensions,
 } from './capture-utils';
 
 describe('capture-utils', () => {
@@ -163,6 +164,54 @@ describe('capture-utils', () => {
         '_blank',
         'noopener,noreferrer'
       );
+    });
+  });
+
+  describe('calculateImageDimensions', () => {
+    it('ノードが狭い範囲にある場合、最小サイズ (1024x768) を返すこと', () => {
+      // ノード境界が 500x400（パディング込みで 700x560）の場合
+      const nodesBounds = { width: 500, height: 400 };
+
+      const result = calculateImageDimensions(nodesBounds);
+
+      // 最小サイズが適用されること
+      expect(result.width).toBe(1024);
+      expect(result.height).toBe(768);
+    });
+
+    it('ノードが広範囲にある場合、パディング付きサイズを返すこと', () => {
+      // ノード境界が 1500x1000（パディング込みで 2100x1400）の場合
+      const nodesBounds = { width: 1500, height: 1000 };
+
+      const result = calculateImageDimensions(nodesBounds);
+
+      // パディング20%を含むサイズが返されること
+      // width: 1500 * (1 + 0.2 * 2) = 1500 * 1.4 = 2100
+      // height: 1000 * (1 + 0.2 * 2) = 1000 * 1.4 = 1400
+      expect(result.width).toBe(2100);
+      expect(result.height).toBe(1400);
+    });
+
+    it('ノードが非常に広範囲にある場合、最大サイズ (4096x3072) を超えないこと', () => {
+      // ノード境界が 5000x4000（パディング込みで 7000x5600）の場合
+      const nodesBounds = { width: 5000, height: 4000 };
+
+      const result = calculateImageDimensions(nodesBounds);
+
+      // 最大サイズが適用されること
+      expect(result.width).toBe(4096);
+      expect(result.height).toBe(3072);
+    });
+
+    it('パディング付きサイズが切り上げられること', () => {
+      // ノード境界が 1001x801（パディング込みで 1401.4x1121.4）の場合
+      const nodesBounds = { width: 1001, height: 801 };
+
+      const result = calculateImageDimensions(nodesBounds);
+
+      // Math.ceilで切り上げられること
+      expect(result.width).toBe(1402); // 1001 * 1.4 = 1401.4 → 1402
+      expect(result.height).toBe(1122); // 801 * 1.4 = 1121.4 → 1122
     });
   });
 });
