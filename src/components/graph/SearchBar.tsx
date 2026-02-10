@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Panel, useReactFlow } from '@xyflow/react';
-import { Search, User, Package, ArrowRight, Minus } from 'lucide-react';
+import { Search, User, Package, ArrowRight, ArrowLeftRight, Minus } from 'lucide-react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { searchGraph, type SearchResult } from '@/lib/search-utils';
 import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils';
@@ -265,10 +265,12 @@ export default function SearchBar() {
                       )}
 
                       {/* 関係アイコン */}
-                      {result.isDirected ? (
-                        <ArrowRight size={12} className="text-gray-400" />
-                      ) : (
+                      {result.relationshipType === 'bidirectional' ? (
+                        <ArrowLeftRight size={12} className="text-gray-400" />
+                      ) : result.relationshipType === 'undirected' ? (
                         <Minus size={12} className="text-gray-400" />
+                      ) : (
+                        <ArrowRight size={12} className="text-gray-400" />
                       )}
 
                       {/* 終点人物 */}

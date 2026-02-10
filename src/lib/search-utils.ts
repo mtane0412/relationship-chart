@@ -4,7 +4,8 @@
  */
 
 import type { Person } from '@/types/person';
-import type { Relationship } from '@/types/relationship';
+import type { Relationship, RelationshipType } from '@/types/relationship';
+import { getRelationshipDisplayType } from './relationship-utils';
 
 /**
  * 検索結果の型
@@ -15,7 +16,7 @@ import type { Relationship } from '@/types/relationship';
  * @property imageDataUrl - 人物/物の画像URL
  * @property sourcePersonId - 関係の場合の起点人物ID
  * @property targetPersonId - 関係の場合の終点人物ID
- * @property isDirected - 関係の場合の方向性
+ * @property relationshipType - 関係の表示タイプ
  * @property sourceImageDataUrl - 関係の場合の起点人物の画像URL
  * @property targetImageDataUrl - 関係の場合の終点人物の画像URL
  * @property sourceNodeKind - 関係の場合の起点人物のノード種別
@@ -29,7 +30,7 @@ export type SearchResult = {
   imageDataUrl?: string;
   sourcePersonId?: string;
   targetPersonId?: string;
-  isDirected?: boolean;
+  relationshipType?: RelationshipType;
   sourceImageDataUrl?: string;
   targetImageDataUrl?: string;
   sourceNodeKind?: 'person' | 'item';
@@ -82,6 +83,8 @@ export function searchGraph(
 
     const matchedLabels = new Set<string>();
 
+    const displayType = getRelationshipDisplayType(rel);
+
     // sourceToTargetLabelを検索
     if (rel.sourceToTargetLabel && rel.sourceToTargetLabel.toLowerCase().includes(lowerQuery)) {
       matchedLabels.add(rel.sourceToTargetLabel);
@@ -91,7 +94,7 @@ export function searchGraph(
         label: rel.sourceToTargetLabel,
         sourcePersonId: rel.sourcePersonId,
         targetPersonId: rel.targetPersonId,
-        isDirected: rel.isDirected,
+        relationshipType: displayType,
         sourceImageDataUrl: sourcePerson?.imageDataUrl,
         targetImageDataUrl: targetPerson?.imageDataUrl,
         sourceNodeKind: (sourcePerson?.kind ?? 'person') as 'person' | 'item',
@@ -112,7 +115,7 @@ export function searchGraph(
         label: rel.targetToSourceLabel,
         sourcePersonId: rel.targetPersonId,
         targetPersonId: rel.sourcePersonId,
-        isDirected: rel.isDirected,
+        relationshipType: displayType,
         sourceImageDataUrl: targetPerson?.imageDataUrl,
         targetImageDataUrl: sourcePerson?.imageDataUrl,
         sourceNodeKind: (targetPerson?.kind ?? 'person') as 'person' | 'item',
