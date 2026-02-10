@@ -32,6 +32,18 @@ export const DEFAULT_FORCE_PARAMS: ForceParams = {
 };
 
 /**
+ * グラフストアの初期状態
+ */
+const INITIAL_STATE: GraphState = {
+  persons: [],
+  relationships: [],
+  forceEnabled: true,
+  selectedPersonIds: [],
+  forceParams: DEFAULT_FORCE_PARAMS,
+  sidePanelOpen: true,
+};
+
+/**
  * グラフストアの状態型
  */
 type GraphState = {
@@ -220,12 +232,7 @@ export const useGraphStore = create<GraphStore>()(
     temporal(
       (set) => ({
         // 初期状態
-        persons: [],
-        relationships: [],
-        forceEnabled: true, // デフォルトでforce-directedレイアウトを有効
-        selectedPersonIds: [], // 初期状態では何も選択されていない
-        forceParams: DEFAULT_FORCE_PARAMS, // デフォルトのforceパラメータ
-        sidePanelOpen: true, // デフォルトでサイドパネルを開く
+        ...INITIAL_STATE,
 
         // アクション
         addPerson: (person) =>
@@ -366,7 +373,7 @@ export const useGraphStore = create<GraphStore>()(
           })),
 
         resetAll: () => {
-          // 全状態を初期値にリセット
+          // 全状態を初期値にリセット（INITIAL_STATEと一致させること）
           set(() => ({
             persons: [],
             relationships: [],

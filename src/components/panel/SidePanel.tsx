@@ -95,6 +95,7 @@ export function SidePanel() {
           <h1 className="text-xl font-bold text-gray-900">人物相関図作る君</h1>
           {/* リセットボタン */}
           <button
+            type="button"
             onClick={handleReset}
             className="rounded p-1.5 text-gray-600 hover:bg-gray-100 hover:text-gray-900"
             aria-label="すべてのデータをリセット"

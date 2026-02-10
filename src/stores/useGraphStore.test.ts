@@ -1890,6 +1890,16 @@ describe('useGraphStore', () => {
       });
       expect(result.current.sidePanelOpen).toBe(true);
 
+      // LocalStorageも初期値に更新されることを確認
+      const storedData = localStorage.getItem('relationship-chart-storage');
+      expect(storedData).toBeTruthy();
+      const parsedData = JSON.parse(storedData!);
+      expect(parsedData.state.persons).toEqual([]);
+      expect(parsedData.state.relationships).toEqual([]);
+      expect(parsedData.state.selectedPersonIds).toEqual([]);
+      expect(parsedData.state.forceEnabled).toBe(true);
+      expect(parsedData.state.sidePanelOpen).toBe(true);
+
       // Undo/Redo履歴もクリアされることを確認
       // リセット後にundoしても何も起こらない
       act(() => {
@@ -1920,6 +1930,13 @@ describe('useGraphStore', () => {
       expect(result.current.selectedPersonIds).toEqual([]);
       expect(result.current.forceEnabled).toBe(true);
       expect(result.current.sidePanelOpen).toBe(true);
+
+      // LocalStorageも初期値であることを確認
+      const storedData = localStorage.getItem('relationship-chart-storage');
+      expect(storedData).toBeTruthy();
+      const parsedData = JSON.parse(storedData!);
+      expect(parsedData.state.persons).toEqual([]);
+      expect(parsedData.state.relationships).toEqual([]);
     });
   });
 });
