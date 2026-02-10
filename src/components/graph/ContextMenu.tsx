@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 
 /**
  * メニュー項目の型定義
@@ -27,6 +27,8 @@ export type ContextMenuItem = {
   separator?: boolean;
   /** クリック後にメニューを閉じるかどうか（デフォルト: true） */
   closeOnClick?: boolean;
+  /** 検索フィルター対象の項目かどうか（デフォルト: false） */
+  filterable?: boolean;
 };
 
 /**
@@ -39,23 +41,70 @@ type ContextMenuProps = {
   position: { x: number; y: number };
   /** メニューを閉じるコールバック */
   onClose: () => void;
+  /** 検索フィルターのプレースホルダー（デフォルト: '名前で絞り込み...'） */
+  filterPlaceholder?: string;
 };
 
 /**
  * コンテキストメニューコンポーネント
  */
-export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
+export function ContextMenu({
+  items,
+  position,
+  onClose,
+  filterPlaceholder = '名前で絞り込み...',
+}: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const filterInputRef = useRef<HTMLInputElement>(null);
   const focusedIndexRef = useRef<number>(0);
 
+  const [filterQuery, setFilterQuery] = useState(''); // フィルタリングに使用する確定された値
+  const [inputValue, setInputValue] = useState(''); // 入力フィールドの表示値
+  const [isComposing, setIsComposing] = useState(false);
+
+  // filterable項目が存在するかどうか
+  const hasFilterableItems = items.some((item) => item.filterable);
+
+  // フィルタリング処理
+  const filteredItems = items.map((item) => {
+    // filterable項目以外はそのまま表示
+    if (!item.filterable) {
+      return item;
+    }
+
+    // 検索クエリがない場合はすべて表示
+    if (!filterQuery.trim()) {
+      return item;
+    }
+
+    // 部分一致（大文字小文字無視）でフィルタリング
+    const normalizedLabel = item.label.toLowerCase();
+    const normalizedQuery = filterQuery.toLowerCase();
+
+    if (normalizedLabel.includes(normalizedQuery)) {
+      return item;
+    }
+
+    // フィルタリングで除外
+    return null;
+  }).filter((item): item is ContextMenuItem => item !== null);
+
+  // フィルタリング後のfilterable項目数
+  const filteredFilterableCount = filteredItems.filter(
+    (item) => item.filterable
+  ).length;
+
   // セパレーター以外の項目のみを対象にする
-  const interactiveItems = items.filter((item) => !item.separator);
+  const interactiveItems = filteredItems.filter((item) => !item.separator);
 
   /**
    * 次の項目にフォーカスを移動
    */
   const focusNextItem = useCallback(() => {
+    // フィルタリング結果が0件の場合は何もしない
+    if (interactiveItems.length === 0) return;
+
     const nextIndex = (focusedIndexRef.current + 1) % interactiveItems.length;
     itemRefs.current[nextIndex]?.focus();
     focusedIndexRef.current = nextIndex;
@@ -65,6 +114,9 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
    * 前の項目にフォーカスを移動
    */
   const focusPreviousItem = useCallback(() => {
+    // フィルタリング結果が0件の場合は何もしない
+    if (interactiveItems.length === 0) return;
+
     const prevIndex =
       (focusedIndexRef.current - 1 + interactiveItems.length) %
       interactiveItems.length;
@@ -76,14 +128,20 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
    * 最初の項目にフォーカスを移動
    */
   const focusFirstItem = useCallback(() => {
+    // フィルタリング結果が0件の場合は何もしない
+    if (interactiveItems.length === 0) return;
+
     itemRefs.current[0]?.focus();
     focusedIndexRef.current = 0;
-  }, []);
+  }, [interactiveItems.length]);
 
   /**
    * 最後の項目にフォーカスを移動
    */
   const focusLastItem = useCallback(() => {
+    // フィルタリング結果が0件の場合は何もしない
+    if (interactiveItems.length === 0) return;
+
     const lastIndex = interactiveItems.length - 1;
     itemRefs.current[lastIndex]?.focus();
     focusedIndexRef.current = lastIndex;
@@ -94,17 +152,39 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
    */
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // IME変換中のEnterキーは無視
+      if (event.key === 'Enter' && isComposing) {
+        return;
+      }
+
       switch (event.key) {
         case 'Escape':
           onClose();
           break;
         case 'ArrowDown':
           event.preventDefault();
-          focusNextItem();
+          // 検索入力がフォーカスされている場合は最初のリスト項目へ
+          if (
+            hasFilterableItems &&
+            document.activeElement === filterInputRef.current
+          ) {
+            focusFirstItem();
+          } else {
+            focusNextItem();
+          }
           break;
         case 'ArrowUp':
           event.preventDefault();
-          focusPreviousItem();
+          // 最初のリスト項目がフォーカスされている場合は検索入力へ戻る
+          if (
+            hasFilterableItems &&
+            focusedIndexRef.current === 0 &&
+            filterInputRef.current
+          ) {
+            filterInputRef.current.focus();
+          } else {
+            focusPreviousItem();
+          }
           break;
         case 'Home':
           event.preventDefault();
@@ -116,8 +196,16 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
           break;
         case 'Enter':
           event.preventDefault();
-          // フォーカス中の項目を実行
-          itemRefs.current[focusedIndexRef.current]?.click();
+          // 検索入力がフォーカスされている場合はメニューを閉じる
+          if (
+            hasFilterableItems &&
+            document.activeElement === filterInputRef.current
+          ) {
+            onClose();
+          } else {
+            // フォーカス中の項目を実行
+            itemRefs.current[focusedIndexRef.current]?.click();
+          }
           break;
       }
     };
@@ -126,7 +214,15 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [onClose, focusNextItem, focusPreviousItem, focusFirstItem, focusLastItem]);
+  }, [
+    onClose,
+    focusNextItem,
+    focusPreviousItem,
+    focusFirstItem,
+    focusLastItem,
+    hasFilterableItems,
+    isComposing,
+  ]);
 
   /**
    * メニュー外クリックでメニューを閉じる
@@ -145,11 +241,16 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
   }, [onClose]);
 
   /**
-   * マウント時に最初の項目にフォーカス
+   * マウント時のフォーカス制御
+   * filterable項目がある場合は検索入力にフォーカス、ない場合は最初のメニュー項目にフォーカス
    */
   useEffect(() => {
-    focusFirstItem();
-  }, [focusFirstItem]);
+    if (hasFilterableItems && filterInputRef.current) {
+      filterInputRef.current.focus();
+    } else {
+      focusFirstItem();
+    }
+  }, [focusFirstItem, hasFilterableItems]);
 
   /**
    * メニュー項目クリックハンドラ
@@ -174,10 +275,40 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
         top: `${position.y}px`,
       }}
     >
-      {items.map((item, index) => {
+      {/* 検索入力フィールド（filterable項目がある場合は常に最上部に固定表示） */}
+      {hasFilterableItems && (
+        <div className="sticky top-0 z-10 bg-white px-2 py-2 border-b border-gray-200">
+          <input
+            ref={filterInputRef}
+            type="text"
+            placeholder={filterPlaceholder}
+            value={inputValue}
+            onChange={(e) => {
+              const newValue = e.target.value;
+              setInputValue(newValue);
+
+              // IME変換中はフィルタリングを実行しない
+              const isComposingNow = (e.nativeEvent as InputEvent).isComposing;
+              if (!isComposingNow) {
+                setFilterQuery(newValue);
+              }
+            }}
+            onCompositionStart={() => setIsComposing(true)}
+            onCompositionEnd={(e) => {
+              setIsComposing(false);
+              // IME変換確定時にフィルタリングを実行
+              const finalValue = (e.target as HTMLInputElement).value;
+              setFilterQuery(finalValue);
+            }}
+            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      )}
+
+      {filteredItems.map((item, index) => {
         // セパレーターの場合
         if (item.separator) {
-          return <div key={index} className="border-t border-gray-200 my-1" />;
+          return <div key={`separator-${index}`} className="border-t border-gray-200 my-1" />;
         }
 
         // 通常のメニュー項目
@@ -188,7 +319,7 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
 
         return (
           <button
-            key={index}
+            key={`item-${index}`}
             ref={(el) => {
               itemRefs.current[currentInteractiveIndex] = el;
             }}
@@ -217,6 +348,15 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
           </button>
         );
       })}
+
+      {/* フィルタリング結果が0件の場合のメッセージ */}
+      {hasFilterableItems &&
+        filterQuery.trim() &&
+        filteredFilterableCount === 0 && (
+          <div className="px-3 py-2 text-sm text-gray-500 text-center">
+            一致する人物がいません
+          </div>
+        )}
     </div>
   );
 }
