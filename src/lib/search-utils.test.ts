@@ -154,6 +154,8 @@ describe('searchGraph', () => {
         isDirected: true,
         sourceImageDataUrl: undefined,
         targetImageDataUrl: undefined,
+        sourceNodeKind: 'person',
+        targetNodeKind: 'person',
       });
     });
 
@@ -170,6 +172,8 @@ describe('searchGraph', () => {
         isDirected: true,
         sourceImageDataUrl: undefined,
         targetImageDataUrl: undefined,
+        sourceNodeKind: 'person',
+        targetNodeKind: 'person',
       });
     });
 
@@ -225,6 +229,8 @@ describe('searchGraph', () => {
         isDirected: true,
         sourceImageDataUrl: 'data:image/png;base64,image1',
         targetImageDataUrl: 'data:image/png;base64,image2',
+        sourceNodeKind: 'person',
+        targetNodeKind: 'person',
       });
     });
 
@@ -266,6 +272,8 @@ describe('searchGraph', () => {
         isDirected: false,
         sourceImageDataUrl: undefined,
         targetImageDataUrl: undefined,
+        sourceNodeKind: 'person',
+        targetNodeKind: 'person',
       });
     });
 
@@ -307,6 +315,8 @@ describe('searchGraph', () => {
         isDirected: true,
         sourceImageDataUrl: undefined,
         targetImageDataUrl: undefined,
+        sourceNodeKind: 'person',
+        targetNodeKind: 'person',
       });
 
       // 逆方向のラベルを検索（起点と終点が入れ替わる）
@@ -321,6 +331,8 @@ describe('searchGraph', () => {
         isDirected: true,
         sourceImageDataUrl: undefined,
         targetImageDataUrl: undefined,
+        sourceNodeKind: 'person',
+        targetNodeKind: 'person',
       });
     });
   });

@@ -220,10 +220,16 @@ export default function SearchBar() {
                         <img
                           src={result.imageDataUrl}
                           alt={result.label}
-                          className="w-8 h-8 rounded-full object-cover"
+                          className={`w-8 h-8 object-cover ${
+                            result.nodeKind === 'item' ? 'rounded' : 'rounded-full'
+                          }`}
                         />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                        <div
+                          className={`w-8 h-8 bg-gray-200 flex items-center justify-center ${
+                            result.nodeKind === 'item' ? 'rounded' : 'rounded-full'
+                          }`}
+                        >
                           {result.nodeKind === 'item' ? (
                             <Package size={16} className="text-gray-600" />
                           ) : (
@@ -240,11 +246,21 @@ export default function SearchBar() {
                         <img
                           src={result.sourceImageDataUrl}
                           alt="起点"
-                          className="w-6 h-6 rounded-full object-cover"
+                          className={`w-6 h-6 object-cover ${
+                            result.sourceNodeKind === 'item' ? 'rounded' : 'rounded-full'
+                          }`}
                         />
                       ) : (
-                        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
-                          <User size={12} className="text-gray-600" />
+                        <div
+                          className={`w-6 h-6 bg-gray-200 flex items-center justify-center ${
+                            result.sourceNodeKind === 'item' ? 'rounded' : 'rounded-full'
+                          }`}
+                        >
+                          {result.sourceNodeKind === 'item' ? (
+                            <Package size={12} className="text-gray-600" />
+                          ) : (
+                            <User size={12} className="text-gray-600" />
+                          )}
                         </div>
                       )}
 
@@ -260,11 +276,21 @@ export default function SearchBar() {
                         <img
                           src={result.targetImageDataUrl}
                           alt="終点"
-                          className="w-6 h-6 rounded-full object-cover"
+                          className={`w-6 h-6 object-cover ${
+                            result.targetNodeKind === 'item' ? 'rounded' : 'rounded-full'
+                          }`}
                         />
                       ) : (
-                        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
-                          <User size={12} className="text-gray-600" />
+                        <div
+                          className={`w-6 h-6 bg-gray-200 flex items-center justify-center ${
+                            result.targetNodeKind === 'item' ? 'rounded' : 'rounded-full'
+                          }`}
+                        >
+                          {result.targetNodeKind === 'item' ? (
+                            <Package size={12} className="text-gray-600" />
+                          ) : (
+                            <User size={12} className="text-gray-600" />
+                          )}
                         </div>
                       )}
                     </div>

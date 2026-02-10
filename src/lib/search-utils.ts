@@ -18,6 +18,8 @@ import type { Relationship } from '@/types/relationship';
  * @property isDirected - 関係の場合の方向性
  * @property sourceImageDataUrl - 関係の場合の起点人物の画像URL
  * @property targetImageDataUrl - 関係の場合の終点人物の画像URL
+ * @property sourceNodeKind - 関係の場合の起点人物のノード種別
+ * @property targetNodeKind - 関係の場合の終点人物のノード種別
  */
 export type SearchResult = {
   kind: 'person' | 'relationship';
@@ -30,6 +32,8 @@ export type SearchResult = {
   isDirected?: boolean;
   sourceImageDataUrl?: string;
   targetImageDataUrl?: string;
+  sourceNodeKind?: 'person' | 'item';
+  targetNodeKind?: 'person' | 'item';
 };
 
 /**
@@ -90,6 +94,8 @@ export function searchGraph(
         isDirected: rel.isDirected,
         sourceImageDataUrl: sourcePerson?.imageDataUrl,
         targetImageDataUrl: targetPerson?.imageDataUrl,
+        sourceNodeKind: (sourcePerson?.kind ?? 'person') as 'person' | 'item',
+        targetNodeKind: (targetPerson?.kind ?? 'person') as 'person' | 'item',
       });
     }
 
@@ -109,6 +115,8 @@ export function searchGraph(
         isDirected: rel.isDirected,
         sourceImageDataUrl: targetPerson?.imageDataUrl,
         targetImageDataUrl: sourcePerson?.imageDataUrl,
+        sourceNodeKind: (targetPerson?.kind ?? 'person') as 'person' | 'item',
+        targetNodeKind: (sourcePerson?.kind ?? 'person') as 'person' | 'item',
       });
     }
   }

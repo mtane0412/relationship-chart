@@ -273,7 +273,7 @@ describe('SearchBar', () => {
       });
     });
 
-    it('物ノードにはPackageアイコンが表示される', async () => {
+    it('物ノードには角丸正方形のアイコンが表示される', async () => {
       const user = userEvent.setup();
 
       // 物ノードを追加
@@ -302,9 +302,12 @@ describe('SearchBar', () => {
         const option = screen.getByRole('option', { name: /テストアイテム/i });
         expect(option).toBeInTheDocument();
 
-        // アイコンコンテナが表示されることを確認
-        const iconContainer = option.querySelector('div.rounded-full');
+        // 角丸正方形（rounded）のアイコンコンテナが表示されることを確認
+        const iconContainer = option.querySelector('div.rounded');
         expect(iconContainer).toBeInTheDocument();
+        // 円形（rounded-full）ではないことを確認
+        const circleContainer = option.querySelector('div.rounded-full');
+        expect(circleContainer).not.toBeInTheDocument();
       });
     });
 
