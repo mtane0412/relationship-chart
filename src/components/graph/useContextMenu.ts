@@ -30,7 +30,7 @@ export type ContextMenuState =
  * メニューサイズの定数（位置補正用）
  */
 const MENU_WIDTH = 200;
-const MENU_HEIGHT = 200;
+const MAX_MENU_HEIGHT = 400; // スクロール可能な最大高さ
 
 /**
  * コンテキストメニューの状態管理フック
@@ -64,8 +64,8 @@ export function useContextMenu(
       }
 
       // 画面下端でメニューがはみ出す場合は上に補正
-      if (adjustedY + MENU_HEIGHT > window.innerHeight) {
-        adjustedY = window.innerHeight - MENU_HEIGHT;
+      if (adjustedY + MAX_MENU_HEIGHT > window.innerHeight) {
+        adjustedY = window.innerHeight - MAX_MENU_HEIGHT;
       }
 
       return { x: adjustedX, y: adjustedY };
@@ -137,13 +137,14 @@ export function useContextMenu(
    */
   const switchToAddRelationshipMode = useCallback(
     (sourceNodeId: string, position: { x: number; y: number }) => {
+      const adjustedPosition = adjustPosition(position.x, position.y);
       setContextMenu({
         type: 'add-relationship',
         sourceNodeId,
-        position,
+        position: adjustedPosition,
       });
     },
-    []
+    [adjustPosition]
   );
 
   return {

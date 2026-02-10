@@ -168,7 +168,7 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
     <div
       ref={menuRef}
       role="menu"
-      className="fixed z-50 bg-white border border-gray-300 rounded-md shadow-lg min-w-[200px]"
+      className="fixed z-50 bg-white border border-gray-300 rounded-md shadow-lg min-w-[200px] max-h-[400px] overflow-y-auto"
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
@@ -199,6 +199,9 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
                 : 'text-gray-700 hover:bg-gray-100'
             }`}
             onClick={() => handleItemClick(item)}
+            onFocus={() => {
+              focusedIndexRef.current = currentInteractiveIndex;
+            }}
           >
             {/* 画像がある場合は画像を表示 */}
             {item.imageUrl ? (

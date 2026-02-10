@@ -30,7 +30,9 @@ describe('ContextMenu', () => {
 
   beforeEach(() => {
     mockOnClose.mockClear();
-    defaultItems.forEach((item) => (item.onClick as ReturnType<typeof vi.fn>).mockClear());
+    for (const item of defaultItems) {
+      (item.onClick as ReturnType<typeof vi.fn>).mockClear();
+    }
   });
 
   it('指定された位置にメニューを表示する', () => {

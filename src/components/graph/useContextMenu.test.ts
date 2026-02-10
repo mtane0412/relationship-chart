@@ -4,7 +4,7 @@
  * コンテキストメニューの状態管理と位置計算が正しく動作することを検証します。
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useContextMenu } from './useContextMenu';
 import type { Node, Edge } from '@xyflow/react';
@@ -21,6 +21,10 @@ describe('useContextMenu', () => {
     vi.stubGlobal('innerWidth', 1024);
     vi.stubGlobal('innerHeight', 768);
     mockScreenToFlowPosition.mockClear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('初期状態はnullである', () => {
@@ -111,11 +115,11 @@ describe('useContextMenu', () => {
         result.current.handleNodeContextMenu(mockEvent, mockNode);
       });
 
-      // y座標が補正される（768 - 200 = 568）
+      // y座標が補正される（768 - 400 = 368）
       expect(result.current.contextMenu).toEqual({
         type: 'node',
         nodeId: 'node-1',
-        position: { x: 100, y: 568 },
+        position: { x: 100, y: 368 },
       });
     });
   });
@@ -208,6 +212,47 @@ describe('useContextMenu', () => {
       });
 
       expect(result.current.contextMenu).toBeNull();
+    });
+  });
+
+  describe('switchToAddRelationshipMode', () => {
+    it('関係追加モードに切り替える', () => {
+      const { result } = renderHook(() =>
+        useContextMenu(mockScreenToFlowPosition)
+      );
+
+      const sourceNodeId = 'node-1';
+      const position = { x: 150, y: 250 };
+
+      act(() => {
+        result.current.switchToAddRelationshipMode(sourceNodeId, position);
+      });
+
+      expect(result.current.contextMenu).toEqual({
+        type: 'add-relationship',
+        sourceNodeId,
+        position,
+      });
+    });
+
+    it('関係追加モードでも位置補正が適用される', () => {
+      const { result } = renderHook(() =>
+        useContextMenu(mockScreenToFlowPosition)
+      );
+
+      const sourceNodeId = 'node-1';
+      const position = { x: 900, y: 700 };
+
+      act(() => {
+        result.current.switchToAddRelationshipMode(sourceNodeId, position);
+      });
+
+      // 位置が補正される（768 - 400 = 368）
+      expect(result.current.contextMenu).toEqual({
+        type: 'add-relationship',
+        sourceNodeId,
+        position: { x: 824, y: 368 }, // 補正後の位置
+      });
     });
   });
 });
