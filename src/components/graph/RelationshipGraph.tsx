@@ -95,6 +95,7 @@ export function RelationshipGraph() {
   const removeRelationship = useGraphStore((state) => state.removeRelationship);
   const setSelectedPersonIds = useGraphStore((state) => state.setSelectedPersonIds);
   const clearSelection = useGraphStore((state) => state.clearSelection);
+  const setSidePanelOpen = useGraphStore((state) => state.setSidePanelOpen);
 
   // React Flowのノードとエッジの状態
   const [nodes, setNodes, onNodesChange] = useNodesState<GraphNode>([]);
@@ -711,6 +712,7 @@ export function RelationshipGraph() {
           icon: Pencil,
           onClick: () => {
             setSelectedPersonIds([nodeId]);
+            setSidePanelOpen(true); // サイドパネルを開く
             closeContextMenu();
           },
         },
@@ -816,6 +818,7 @@ export function RelationshipGraph() {
           onClick: () => {
             if (edge) {
               setSelectedPersonIds([edge.source, edge.target]);
+              setSidePanelOpen(true); // サイドパネルを開く
             }
             closeContextMenu();
           },
