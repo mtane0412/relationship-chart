@@ -20,27 +20,27 @@ describe('ForceParamsSliders', () => {
   it('3つのスライダーが表示される', () => {
     render(<ForceParamsSliders />);
 
-    expect(screen.getByLabelText('リンク距離')).toBeInTheDocument();
-    expect(screen.getByLabelText('リンク強度')).toBeInTheDocument();
-    expect(screen.getByLabelText('反発力')).toBeInTheDocument();
+    expect(screen.getByLabelText('Link Distance')).toBeInTheDocument();
+    expect(screen.getByLabelText('Link Strength')).toBeInTheDocument();
+    expect(screen.getByLabelText('Charge Strength')).toBeInTheDocument();
   });
 
   it('各スライダーの初期値がデフォルト値である', () => {
     render(<ForceParamsSliders />);
 
-    const linkDistanceSlider = screen.getByLabelText('リンク距離') as HTMLInputElement;
-    const linkStrengthSlider = screen.getByLabelText('リンク強度') as HTMLInputElement;
-    const chargeStrengthSlider = screen.getByLabelText('反発力') as HTMLInputElement;
+    const linkDistanceSlider = screen.getByLabelText('Link Distance') as HTMLInputElement;
+    const linkStrengthSlider = screen.getByLabelText('Link Strength') as HTMLInputElement;
+    const chargeStrengthSlider = screen.getByLabelText('Charge Strength') as HTMLInputElement;
 
     expect(linkDistanceSlider.value).toBe('150');
     expect(linkStrengthSlider.value).toBe('0.5');
     expect(chargeStrengthSlider.value).toBe('-300');
   });
 
-  it('リンク距離スライダーを変更するとストアが更新される', () => {
+  it('Link Distanceスライダーを変更するとストアが更新される', () => {
     render(<ForceParamsSliders />);
 
-    const linkDistanceSlider = screen.getByLabelText('リンク距離');
+    const linkDistanceSlider = screen.getByLabelText('Link Distance');
 
     // スライダーを変更
     fireEvent.change(linkDistanceSlider, { target: { value: '250' } });
@@ -50,10 +50,10 @@ describe('ForceParamsSliders', () => {
     expect(store.forceParams.linkDistance).toBe(250);
   });
 
-  it('リンク強度スライダーを変更するとストアが更新される', () => {
+  it('Link Strengthスライダーを変更するとストアが更新される', () => {
     render(<ForceParamsSliders />);
 
-    const linkStrengthSlider = screen.getByLabelText('リンク強度');
+    const linkStrengthSlider = screen.getByLabelText('Link Strength');
 
     // スライダーを変更
     fireEvent.change(linkStrengthSlider, { target: { value: '0.8' } });
@@ -63,10 +63,10 @@ describe('ForceParamsSliders', () => {
     expect(store.forceParams.linkStrength).toBe(0.8);
   });
 
-  it('反発力スライダーを変更するとストアが更新される', () => {
+  it('Charge Strengthスライダーを変更するとストアが更新される', () => {
     render(<ForceParamsSliders />);
 
-    const chargeStrengthSlider = screen.getByLabelText('反発力');
+    const chargeStrengthSlider = screen.getByLabelText('Charge Strength');
 
     // スライダーを変更
     fireEvent.change(chargeStrengthSlider, { target: { value: '-500' } });
@@ -76,25 +76,25 @@ describe('ForceParamsSliders', () => {
     expect(store.forceParams.chargeStrength).toBe(-500);
   });
 
-  it('デフォルトに戻すボタンが表示される', () => {
+  it('Reset to Defaultボタンが表示される', () => {
     render(<ForceParamsSliders />);
 
-    expect(screen.getByRole('button', { name: /デフォルトに戻す/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Reset to Default/i })).toBeInTheDocument();
   });
 
-  it('デフォルトに戻すボタンをクリックするとパラメータがリセットされる', async () => {
+  it('Reset to Defaultボタンをクリックするとパラメータがリセットされる', async () => {
     const user = userEvent.setup();
     render(<ForceParamsSliders />);
 
     // まずパラメータを変更
-    const linkDistanceSlider = screen.getByLabelText('リンク距離');
+    const linkDistanceSlider = screen.getByLabelText('Link Distance');
     fireEvent.change(linkDistanceSlider, { target: { value: '400' } });
 
     const store = useGraphStore.getState();
     expect(store.forceParams.linkDistance).toBe(400);
 
-    // デフォルトに戻すボタンをクリック
-    const resetButton = screen.getByRole('button', { name: /デフォルトに戻す/i });
+    // Reset to Defaultボタンをクリック
+    const resetButton = screen.getByRole('button', { name: /Reset to Default/i });
     await user.click(resetButton);
 
     // パラメータがデフォルト値に戻っていることを確認

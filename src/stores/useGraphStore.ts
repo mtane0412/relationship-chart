@@ -37,7 +37,7 @@ export const DEFAULT_FORCE_PARAMS: ForceParams = {
 const INITIAL_STATE: GraphState = {
   persons: [],
   relationships: [],
-  forceEnabled: true,
+  forceEnabled: false,
   selectedPersonIds: [],
   forceParams: DEFAULT_FORCE_PARAMS,
   sidePanelOpen: true,
@@ -378,7 +378,7 @@ export const useGraphStore = create<GraphStore>()(
             persons: [],
             relationships: [],
             selectedPersonIds: [],
-            forceEnabled: true,
+            forceEnabled: false,
             forceParams: DEFAULT_FORCE_PARAMS,
             sidePanelOpen: true,
           }));

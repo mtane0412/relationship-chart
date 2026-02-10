@@ -102,7 +102,7 @@ src/
 2. **ストア更新**: `useGraphStore`のアクションで状態を更新（自動でLocalStorageに保存）
 3. **変換**: `graph-utils.ts`が`Person[]`と`Relationship[]`を`Node[]`と`Edge[]`に変換
 4. **描画**: React Flowが受け取ったノードとエッジをキャンバスに描画
-5. **自動配置**: `useForceLayout`がd3-forceで物理シミュレーションを実行し、ノード位置を更新
+5. **Force Layout**: `useForceLayout`がd3-forceで物理シミュレーションを実行し、ノード位置を更新（デフォルト: オフ）
 
 ---
 
@@ -257,9 +257,9 @@ test: <テスト追加・修正の説明>
 localStorage.removeItem('relationship-chart-storage');
 ```
 
-### force-directedレイアウトが動かない
+### Force Layoutが動かない
 
-`useGraphStore`の`forceEnabled`が`false`になっている可能性があります。初期値は`true`ですが、ユーザーが無効化できる設計になっています。
+`useGraphStore`の`forceEnabled`が`false`になっている可能性があります。初期値は`false`（デフォルト: オフ）です。キャンバス右上のトグルスイッチで有効化できます。
 
 ### 型エラーが発生する
 
