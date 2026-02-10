@@ -157,15 +157,16 @@ describe('searchGraph', () => {
       });
     });
 
-    it('targetToSourceLabelで検索できる', () => {
+    it('targetToSourceLabelで検索すると起点と終点が入れ替わる', () => {
       const result = searchGraph('部下', persons, relationships);
       expect(result).toHaveLength(1);
+      // 逆方向のラベルなので、起点と終点が入れ替わる
       expect(result[0]).toEqual({
         kind: 'relationship',
         id: 'rel1',
         label: '部下',
-        sourcePersonId: 'person1',
-        targetPersonId: 'person2',
+        sourcePersonId: 'person2', // 元のtargetPersonId
+        targetPersonId: 'person1', // 元のsourcePersonId
         isDirected: true,
         sourceImageDataUrl: undefined,
         targetImageDataUrl: undefined,
@@ -263,6 +264,61 @@ describe('searchGraph', () => {
         sourcePersonId: 'p1',
         targetPersonId: 'p2',
         isDirected: false,
+        sourceImageDataUrl: undefined,
+        targetImageDataUrl: undefined,
+      });
+    });
+
+    it('片方向×2で逆方向のラベルを検索すると起点と終点が入れ替わる', () => {
+      const dualDirectedPersons: Person[] = [
+        {
+          id: 'conan',
+          name: '江戸川コナン',
+          createdAt: '2024-01-01T00:00:00Z',
+        },
+        {
+          id: 'ran',
+          name: '毛利蘭',
+          createdAt: '2024-01-02T00:00:00Z',
+        },
+      ];
+
+      const dualDirectedRelationships: Relationship[] = [
+        {
+          id: 'r1',
+          sourcePersonId: 'conan',
+          targetPersonId: 'ran',
+          isDirected: true,
+          sourceToTargetLabel: '正体を隠している',
+          targetToSourceLabel: '新一?',
+          createdAt: '2024-01-01T00:00:00Z',
+        },
+      ];
+
+      // 順方向のラベルを検索
+      const forwardResult = searchGraph('正体を隠している', dualDirectedPersons, dualDirectedRelationships);
+      expect(forwardResult).toHaveLength(1);
+      expect(forwardResult[0]).toEqual({
+        kind: 'relationship',
+        id: 'r1',
+        label: '正体を隠している',
+        sourcePersonId: 'conan',
+        targetPersonId: 'ran',
+        isDirected: true,
+        sourceImageDataUrl: undefined,
+        targetImageDataUrl: undefined,
+      });
+
+      // 逆方向のラベルを検索（起点と終点が入れ替わる）
+      const reverseResult = searchGraph('新一?', dualDirectedPersons, dualDirectedRelationships);
+      expect(reverseResult).toHaveLength(1);
+      expect(reverseResult[0]).toEqual({
+        kind: 'relationship',
+        id: 'r1',
+        label: '新一?',
+        sourcePersonId: 'ran', // 入れ替わる
+        targetPersonId: 'conan', // 入れ替わる
+        isDirected: true,
         sourceImageDataUrl: undefined,
         targetImageDataUrl: undefined,
       });

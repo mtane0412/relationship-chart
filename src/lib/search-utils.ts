@@ -99,15 +99,16 @@ export function searchGraph(
       rel.targetToSourceLabel.toLowerCase().includes(lowerQuery) &&
       !matchedLabels.has(rel.targetToSourceLabel)
     ) {
+      // 逆方向のラベルなので、起点と終点を入れ替えて表示
       relationshipResults.push({
         kind: 'relationship',
         id: rel.id,
         label: rel.targetToSourceLabel,
-        sourcePersonId: rel.sourcePersonId,
-        targetPersonId: rel.targetPersonId,
+        sourcePersonId: rel.targetPersonId,
+        targetPersonId: rel.sourcePersonId,
         isDirected: rel.isDirected,
-        sourceImageDataUrl: sourcePerson?.imageDataUrl,
-        targetImageDataUrl: targetPerson?.imageDataUrl,
+        sourceImageDataUrl: targetPerson?.imageDataUrl,
+        targetImageDataUrl: sourcePerson?.imageDataUrl,
       });
     }
   }
