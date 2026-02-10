@@ -811,6 +811,7 @@ export function RelationshipGraph() {
         items.push({
           label: targetPerson.name,
           imageUrl: targetPerson.imageDataUrl,
+          filterable: true, // 検索フィルター対象
           onClick: () => {
             setPendingConnection({
               sourcePersonId: sourceNodeId,
@@ -1091,6 +1092,11 @@ export function RelationshipGraph() {
           items={contextMenuItems}
           position={contextMenu.position}
           onClose={closeContextMenu}
+          filterPlaceholder={
+            contextMenu.type === 'add-relationship'
+              ? '名前で絞り込み...'
+              : undefined
+          }
         />
       )}
     </div>

@@ -336,4 +336,232 @@ describe('ContextMenu', () => {
       expect(firstItem).toHaveFocus();
     });
   });
+
+  describe('検索フィルター', () => {
+    const filterableItems = [
+      {
+        label: '戻る',
+        onClick: vi.fn(),
+      },
+      {
+        label: '',
+        separator: true,
+        onClick: vi.fn(),
+      },
+      {
+        label: '山田太郎',
+        filterable: true,
+        onClick: vi.fn(),
+      },
+      {
+        label: '鈴木花子',
+        filterable: true,
+        onClick: vi.fn(),
+      },
+      {
+        label: 'John Smith',
+        filterable: true,
+        onClick: vi.fn(),
+      },
+    ];
+
+    beforeEach(() => {
+      for (const item of filterableItems) {
+        (item.onClick as ReturnType<typeof vi.fn>).mockClear();
+      }
+    });
+
+    it('filterable項目がある場合に検索入力フィールドが表示される', () => {
+      render(
+        <ContextMenu
+          items={filterableItems}
+          position={defaultPosition}
+          onClose={mockOnClose}
+        />
+      );
+
+      const searchInput = screen.getByPlaceholderText('名前で絞り込み...');
+      expect(searchInput).toBeInTheDocument();
+    });
+
+    it('filterable項目がない場合は検索入力フィールドが表示されない', () => {
+      render(
+        <ContextMenu
+          items={defaultItems}
+          position={defaultPosition}
+          onClose={mockOnClose}
+        />
+      );
+
+      const searchInput = screen.queryByPlaceholderText('名前で絞り込み...');
+      expect(searchInput).not.toBeInTheDocument();
+    });
+
+    it('検索文字列でfilterable項目のみがフィルタリングされる', () => {
+      render(
+        <ContextMenu
+          items={filterableItems}
+          position={defaultPosition}
+          onClose={mockOnClose}
+        />
+      );
+
+      const searchInput = screen.getByPlaceholderText('名前で絞り込み...');
+      fireEvent.change(searchInput, { target: { value: '山田' } });
+
+      // 「戻る」は常に表示される
+      expect(screen.getByText('戻る')).toBeInTheDocument();
+      // 「山田太郎」のみ表示される
+      expect(screen.getByText('山田太郎')).toBeInTheDocument();
+      // 他は表示されない
+      expect(screen.queryByText('鈴木花子')).not.toBeInTheDocument();
+      expect(screen.queryByText('John Smith')).not.toBeInTheDocument();
+    });
+
+    it('大文字小文字を区別せずにフィルタリングする', () => {
+      render(
+        <ContextMenu
+          items={filterableItems}
+          position={defaultPosition}
+          onClose={mockOnClose}
+        />
+      );
+
+      const searchInput = screen.getByPlaceholderText('名前で絞り込み...');
+      // 小文字で検索
+      fireEvent.change(searchInput, { target: { value: 'john' } });
+
+      // 「John Smith」が表示される（大文字小文字を区別しない）
+      expect(screen.getByText('John Smith')).toBeInTheDocument();
+      // 他は表示されない
+      expect(screen.queryByText('山田太郎')).not.toBeInTheDocument();
+      expect(screen.queryByText('鈴木花子')).not.toBeInTheDocument();
+    });
+
+    it('フィルタリング結果が0件の場合「一致する人物がいません」を表示', () => {
+      render(
+        <ContextMenu
+          items={filterableItems}
+          position={defaultPosition}
+          onClose={mockOnClose}
+        />
+      );
+
+      const searchInput = screen.getByPlaceholderText('名前で絞り込み...');
+      fireEvent.change(searchInput, { target: { value: '存在しない名前' } });
+
+      expect(screen.getByText('一致する人物がいません')).toBeInTheDocument();
+      // 「戻る」は常に表示される
+      expect(screen.getByText('戻る')).toBeInTheDocument();
+    });
+
+    it('filterable項目がある場合は検索入力に自動フォーカス', () => {
+      render(
+        <ContextMenu
+          items={filterableItems}
+          position={defaultPosition}
+          onClose={mockOnClose}
+        />
+      );
+
+      const searchInput = screen.getByPlaceholderText('名前で絞り込み...');
+      expect(searchInput).toHaveFocus();
+    });
+
+    it('検索入力からArrowDownでリスト項目へフォーカス移動', () => {
+      render(
+        <ContextMenu
+          items={filterableItems}
+          position={defaultPosition}
+          onClose={mockOnClose}
+        />
+      );
+
+      const searchInput = screen.getByPlaceholderText('名前で絞り込み...');
+      expect(searchInput).toHaveFocus();
+
+      fireEvent.keyDown(searchInput, { key: 'ArrowDown' });
+
+      const firstItem = screen.getByText('戻る').closest('button');
+      expect(firstItem).toHaveFocus();
+    });
+
+    it('リスト最上部からArrowUpで検索入力へ戻る', () => {
+      render(
+        <ContextMenu
+          items={filterableItems}
+          position={defaultPosition}
+          onClose={mockOnClose}
+        />
+      );
+
+      const searchInput = screen.getByPlaceholderText('名前で絞り込み...');
+      fireEvent.keyDown(searchInput, { key: 'ArrowDown' });
+
+      const firstItem = screen.getByText('戻る').closest('button');
+      expect(firstItem).toHaveFocus();
+
+      fireEvent.keyDown(firstItem!, { key: 'ArrowUp' });
+      expect(searchInput).toHaveFocus();
+    });
+
+    it('検索入力でEscapeを押すとメニューを閉じる', () => {
+      render(
+        <ContextMenu
+          items={filterableItems}
+          position={defaultPosition}
+          onClose={mockOnClose}
+        />
+      );
+
+      const searchInput = screen.getByPlaceholderText('名前で絞り込み...');
+      fireEvent.keyDown(searchInput, { key: 'Escape' });
+
+      expect(mockOnClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('filterPlaceholderが反映される', () => {
+      render(
+        <ContextMenu
+          items={filterableItems}
+          position={defaultPosition}
+          onClose={mockOnClose}
+          filterPlaceholder="カスタムプレースホルダー"
+        />
+      );
+
+      const searchInput = screen.getByPlaceholderText('カスタムプレースホルダー');
+      expect(searchInput).toBeInTheDocument();
+    });
+
+    it('IME変換中（isComposing）のEnterキーは無視される', () => {
+      render(
+        <ContextMenu
+          items={filterableItems}
+          position={defaultPosition}
+          onClose={mockOnClose}
+        />
+      );
+
+      const searchInput = screen.getByPlaceholderText('名前で絞り込み...');
+
+      // IME変換開始
+      fireEvent.compositionStart(searchInput);
+
+      // Enter押下（変換確定）
+      fireEvent.keyDown(searchInput, { key: 'Enter', isComposing: true });
+
+      // メニューは閉じない
+      expect(mockOnClose).not.toHaveBeenCalled();
+
+      // IME変換終了
+      fireEvent.compositionEnd(searchInput);
+
+      // 通常のEnter押下
+      fireEvent.keyDown(searchInput, { key: 'Enter', isComposing: false });
+
+      // メニューが閉じる
+      expect(mockOnClose).toHaveBeenCalledTimes(1);
+    });
+  });
 });

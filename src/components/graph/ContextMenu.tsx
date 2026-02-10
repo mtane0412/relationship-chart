@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 
 /**
  * メニュー項目の型定義
@@ -27,6 +27,8 @@ export type ContextMenuItem = {
   separator?: boolean;
   /** クリック後にメニューを閉じるかどうか（デフォルト: true） */
   closeOnClick?: boolean;
+  /** 検索フィルター対象の項目かどうか（デフォルト: false） */
+  filterable?: boolean;
 };
 
 /**
@@ -39,18 +41,61 @@ type ContextMenuProps = {
   position: { x: number; y: number };
   /** メニューを閉じるコールバック */
   onClose: () => void;
+  /** 検索フィルターのプレースホルダー（デフォルト: '名前で絞り込み...'） */
+  filterPlaceholder?: string;
 };
 
 /**
  * コンテキストメニューコンポーネント
  */
-export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
+export function ContextMenu({
+  items,
+  position,
+  onClose,
+  filterPlaceholder = '名前で絞り込み...',
+}: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const filterInputRef = useRef<HTMLInputElement>(null);
   const focusedIndexRef = useRef<number>(0);
 
+  const [filterQuery, setFilterQuery] = useState('');
+  const [isComposing, setIsComposing] = useState(false);
+
+  // filterable項目が存在するかどうか
+  const hasFilterableItems = items.some((item) => item.filterable);
+
+  // フィルタリング処理
+  const filteredItems = items.map((item) => {
+    // filterable項目以外はそのまま表示
+    if (!item.filterable) {
+      return item;
+    }
+
+    // 検索クエリがない場合はすべて表示
+    if (!filterQuery.trim()) {
+      return item;
+    }
+
+    // 部分一致（大文字小文字無視）でフィルタリング
+    const normalizedLabel = item.label.toLowerCase();
+    const normalizedQuery = filterQuery.toLowerCase();
+
+    if (normalizedLabel.includes(normalizedQuery)) {
+      return item;
+    }
+
+    // フィルタリングで除外
+    return null;
+  }).filter((item): item is ContextMenuItem => item !== null);
+
+  // フィルタリング後のfilterable項目数
+  const filteredFilterableCount = filteredItems.filter(
+    (item) => item.filterable
+  ).length;
+
   // セパレーター以外の項目のみを対象にする
-  const interactiveItems = items.filter((item) => !item.separator);
+  const interactiveItems = filteredItems.filter((item) => !item.separator);
 
   /**
    * 次の項目にフォーカスを移動
@@ -94,17 +139,39 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
    */
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // IME変換中のEnterキーは無視
+      if (event.key === 'Enter' && isComposing) {
+        return;
+      }
+
       switch (event.key) {
         case 'Escape':
           onClose();
           break;
         case 'ArrowDown':
           event.preventDefault();
-          focusNextItem();
+          // 検索入力がフォーカスされている場合は最初のリスト項目へ
+          if (
+            hasFilterableItems &&
+            document.activeElement === filterInputRef.current
+          ) {
+            focusFirstItem();
+          } else {
+            focusNextItem();
+          }
           break;
         case 'ArrowUp':
           event.preventDefault();
-          focusPreviousItem();
+          // 最初のリスト項目がフォーカスされている場合は検索入力へ戻る
+          if (
+            hasFilterableItems &&
+            focusedIndexRef.current === 0 &&
+            filterInputRef.current
+          ) {
+            filterInputRef.current.focus();
+          } else {
+            focusPreviousItem();
+          }
           break;
         case 'Home':
           event.preventDefault();
@@ -116,8 +183,16 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
           break;
         case 'Enter':
           event.preventDefault();
-          // フォーカス中の項目を実行
-          itemRefs.current[focusedIndexRef.current]?.click();
+          // 検索入力がフォーカスされている場合はメニューを閉じる
+          if (
+            hasFilterableItems &&
+            document.activeElement === filterInputRef.current
+          ) {
+            onClose();
+          } else {
+            // フォーカス中の項目を実行
+            itemRefs.current[focusedIndexRef.current]?.click();
+          }
           break;
       }
     };
@@ -126,7 +201,15 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [onClose, focusNextItem, focusPreviousItem, focusFirstItem, focusLastItem]);
+  }, [
+    onClose,
+    focusNextItem,
+    focusPreviousItem,
+    focusFirstItem,
+    focusLastItem,
+    hasFilterableItems,
+    isComposing,
+  ]);
 
   /**
    * メニュー外クリックでメニューを閉じる
@@ -145,11 +228,16 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
   }, [onClose]);
 
   /**
-   * マウント時に最初の項目にフォーカス
+   * マウント時のフォーカス制御
+   * filterable項目がある場合は検索入力にフォーカス、ない場合は最初のメニュー項目にフォーカス
    */
   useEffect(() => {
-    focusFirstItem();
-  }, [focusFirstItem]);
+    if (hasFilterableItems && filterInputRef.current) {
+      filterInputRef.current.focus();
+    } else {
+      focusFirstItem();
+    }
+  }, [focusFirstItem, hasFilterableItems]);
 
   /**
    * メニュー項目クリックハンドラ
@@ -163,6 +251,7 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
   };
 
   let interactiveItemIndex = 0;
+  let hasRenderedSearchInput = false;
 
   return (
     <div
@@ -174,10 +263,36 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
         top: `${position.y}px`,
       }}
     >
-      {items.map((item, index) => {
+      {filteredItems.map((item, index) => {
+        // 最初のfilterable項目の前に検索入力を挿入
+        const shouldRenderSearchInput =
+          hasFilterableItems && !hasRenderedSearchInput && item.filterable;
+
+        if (shouldRenderSearchInput) {
+          hasRenderedSearchInput = true;
+        }
+
         // セパレーターの場合
         if (item.separator) {
-          return <div key={index} className="border-t border-gray-200 my-1" />;
+          return (
+            <div key={`separator-${index}`}>
+              {shouldRenderSearchInput && (
+                <div className="px-2 py-2">
+                  <input
+                    ref={filterInputRef}
+                    type="text"
+                    placeholder={filterPlaceholder}
+                    value={filterQuery}
+                    onChange={(e) => setFilterQuery(e.target.value)}
+                    onCompositionStart={() => setIsComposing(true)}
+                    onCompositionEnd={() => setIsComposing(false)}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              )}
+              <div className="border-t border-gray-200 my-1" />
+            </div>
+          );
         }
 
         // 通常のメニュー項目
@@ -187,36 +302,60 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
         const Icon = item.icon;
 
         return (
-          <button
-            key={index}
-            ref={(el) => {
-              itemRefs.current[currentInteractiveIndex] = el;
-            }}
-            role="menuitem"
-            className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${
-              item.danger
-                ? 'text-red-600 hover:bg-red-50'
-                : 'text-gray-700 hover:bg-gray-100'
-            }`}
-            onClick={() => handleItemClick(item)}
-            onFocus={() => {
-              focusedIndexRef.current = currentInteractiveIndex;
-            }}
-          >
-            {/* 画像がある場合は画像を表示 */}
-            {item.imageUrl ? (
-              <img
-                src={item.imageUrl}
-                alt=""
-                className="w-6 h-6 rounded-full object-cover flex-shrink-0"
-              />
-            ) : (
-              Icon && <Icon className="w-4 h-4 flex-shrink-0" />
+          <div key={`item-${index}`}>
+            {shouldRenderSearchInput && (
+              <div className="px-2 py-2">
+                <input
+                  ref={filterInputRef}
+                  type="text"
+                  placeholder={filterPlaceholder}
+                  value={filterQuery}
+                  onChange={(e) => setFilterQuery(e.target.value)}
+                  onCompositionStart={() => setIsComposing(true)}
+                  onCompositionEnd={() => setIsComposing(false)}
+                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
             )}
-            <span>{item.label}</span>
-          </button>
+            <button
+              ref={(el) => {
+                itemRefs.current[currentInteractiveIndex] = el;
+              }}
+              role="menuitem"
+              className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${
+                item.danger
+                  ? 'text-red-600 hover:bg-red-50'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+              onClick={() => handleItemClick(item)}
+              onFocus={() => {
+                focusedIndexRef.current = currentInteractiveIndex;
+              }}
+            >
+              {/* 画像がある場合は画像を表示 */}
+              {item.imageUrl ? (
+                <img
+                  src={item.imageUrl}
+                  alt=""
+                  className="w-6 h-6 rounded-full object-cover flex-shrink-0"
+                />
+              ) : (
+                Icon && <Icon className="w-4 h-4 flex-shrink-0" />
+              )}
+              <span>{item.label}</span>
+            </button>
+          </div>
         );
       })}
+
+      {/* フィルタリング結果が0件の場合のメッセージ */}
+      {hasFilterableItems &&
+        filterQuery.trim() &&
+        filteredFilterableCount === 0 && (
+          <div className="px-3 py-2 text-sm text-gray-500 text-center">
+            一致する人物がいません
+          </div>
+        )}
     </div>
   );
 }
