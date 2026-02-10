@@ -10,6 +10,7 @@ import { ChevronLeft } from 'lucide-react';
 import { RelationshipGraph } from '@/components/graph/RelationshipGraph';
 import { SidePanel } from '@/components/panel/SidePanel';
 import { MiniSidebar } from '@/components/panel/MiniSidebar';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useGraphStore } from '@/stores/useGraphStore';
 
 export default function Home() {
@@ -63,6 +64,9 @@ export default function Home() {
           💡 タブレット以上の画面でご利用ください
         </div>
       </main>
+
+      {/* グローバル確認ダイアログ */}
+      <ConfirmDialog />
     </ReactFlowProvider>
   );
 }

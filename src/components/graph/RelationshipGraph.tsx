@@ -37,6 +37,7 @@ import { useContextMenu } from './useContextMenu';
 import { ContextMenu } from './ContextMenu';
 import type { ContextMenuItem } from './ContextMenu';
 import { useGraphStore } from '@/stores/useGraphStore';
+import { useDialogStore } from '@/stores/useDialogStore';
 import { personsToNodes, relationshipsToEdges } from '@/lib/graph-utils';
 import { readFileAsDataUrl } from '@/lib/image-utils';
 import { getRelationshipDisplayType } from '@/lib/relationship-utils';
@@ -97,6 +98,9 @@ export function RelationshipGraph() {
   const setSelectedPersonIds = useGraphStore((state) => state.setSelectedPersonIds);
   const clearSelection = useGraphStore((state) => state.clearSelection);
   const setSidePanelOpen = useGraphStore((state) => state.setSidePanelOpen);
+
+  // ダイアログストアから確認ダイアログを取得
+  const openConfirm = useDialogStore((state) => state.openConfirm);
 
   // React Flowのノードとエッジの状態
   const [nodes, setNodes, onNodesChange] = useNodesState<GraphNode>([]);
@@ -523,40 +527,58 @@ export function RelationshipGraph() {
     [screenToFlowPosition, getNodes, persons, relationships]
   );
 
-  // ノード削除ハンドラ（確認ダイアログ付き）
+  // Delete/Backspaceキーでの削除前確認ハンドラ
+  const handleBeforeDelete = useCallback(
+    async ({ nodes: nodesToDelete, edges: edgesToDelete }: { nodes: Node[]; edges: Edge[] }) => {
+      // 削除対象がない場合は削除を拒否
+      if (nodesToDelete.length === 0 && edgesToDelete.length === 0) {
+        return false;
+      }
+
+      // 確認メッセージを構築
+      const messages: string[] = [];
+      if (nodesToDelete.length > 0) {
+        const count = nodesToDelete.length;
+        const firstNode = nodesToDelete[0] as GraphNode;
+        messages.push(
+          count === 1
+            ? `「${firstNode.data?.name || '不明な人物'}」を削除してもよろしいですか？`
+            : `${count}個の人物を削除してもよろしいですか？`
+        );
+      }
+      if (edgesToDelete.length > 0) {
+        const count = edgesToDelete.length;
+        const firstEdge = edgesToDelete[0] as RelationshipEdge;
+        messages.push(
+          count === 1 && firstEdge
+            ? `「${firstEdge.data?.sourceToTargetLabel || '不明な関係'}」を削除してもよろしいですか？`
+            : `${count}個の関係を削除してもよろしいですか？`
+        );
+      }
+
+      // 確認ダイアログを表示
+      const confirmed = await openConfirm({
+        message: messages.join('\n'),
+        isDanger: true,
+      });
+
+      return confirmed;
+    },
+    [openConfirm]
+  );
+
+  // ノード削除ハンドラ（確認はonBeforeDeleteで実行済み）
   const handleNodesDelete = useCallback(
     (nodesToDelete: Node[]) => {
-      if (nodesToDelete.length === 0) return;
-
-      const count = nodesToDelete.length;
-      const firstNode = nodesToDelete[0] as GraphNode;
-      const message =
-        count === 1
-          ? `「${firstNode.data?.name || '不明な人物'}」を削除してもよろしいですか？`
-          : `${count}個の人物を削除してもよろしいですか？`;
-
-      if (confirm(message)) {
-        nodesToDelete.forEach((node) => removePerson(node.id));
-      }
+      nodesToDelete.forEach((node) => removePerson(node.id));
     },
     [removePerson]
   );
 
-  // エッジ削除ハンドラ（確認ダイアログ付き）
+  // エッジ削除ハンドラ（確認はonBeforeDeleteで実行済み）
   const handleEdgesDelete = useCallback(
     (edgesToDelete: RelationshipEdge[]) => {
-      if (edgesToDelete.length === 0) return;
-
-      const count = edgesToDelete.length;
-      const firstEdge = edgesToDelete[0];
-      const message =
-        count === 1 && firstEdge
-          ? `「${firstEdge.data?.sourceToTargetLabel || '不明な関係'}」を削除してもよろしいですか？`
-          : `${count}個の関係を削除してもよろしいですか？`;
-
-      if (confirm(message)) {
-        edgesToDelete.forEach((edge) => removeRelationship(edge.id));
-      }
+      edgesToDelete.forEach((edge) => removeRelationship(edge.id));
     },
     [removeRelationship]
   );
@@ -721,15 +743,15 @@ export function RelationshipGraph() {
           label: '削除',
           icon: Trash2,
           danger: true,
-          onClick: () => {
-            if (
-              confirm(
-                `「${person?.name || '不明な人物'}」を削除してもよろしいですか？`
-              )
-            ) {
+          onClick: async () => {
+            closeContextMenu();
+            const confirmed = await openConfirm({
+              message: `「${person?.name || '不明な人物'}」を削除してもよろしいですか？`,
+              isDanger: true,
+            });
+            if (confirmed) {
               removePerson(nodeId);
             }
-            closeContextMenu();
           },
         }
       );
@@ -747,6 +769,7 @@ export function RelationshipGraph() {
       setSelectedPersonIds,
       removePerson,
       setSidePanelOpen,
+      openConfirm,
     ]
   );
 
@@ -829,20 +852,20 @@ export function RelationshipGraph() {
           label: '関係を削除',
           icon: Trash2,
           danger: true,
-          onClick: () => {
-            if (
-              confirm(
-                `「${edge?.data?.sourceToTargetLabel || '不明な関係'}」を削除してもよろしいですか？`
-              )
-            ) {
+          onClick: async () => {
+            closeContextMenu();
+            const confirmed = await openConfirm({
+              message: `「${edge?.data?.sourceToTargetLabel || '不明な関係'}」を削除してもよろしいですか？`,
+              isDanger: true,
+            });
+            if (confirmed) {
               removeRelationship(edgeId);
             }
-            closeContextMenu();
           },
         },
       ];
     },
-    [edges, setSelectedPersonIds, closeContextMenu, removeRelationship, setSidePanelOpen]
+    [edges, setSelectedPersonIds, closeContextMenu, removeRelationship, setSidePanelOpen, openConfirm]
   );
 
   // 背景右クリックメニュー項目を構築
@@ -935,6 +958,7 @@ export function RelationshipGraph() {
         onConnectStart={handleConnectStart}
         onConnect={handleConnect}
         onConnectEnd={handleConnectEnd}
+        onBeforeDelete={handleBeforeDelete}
         onNodesDelete={handleNodesDelete}
         onEdgesDelete={handleEdgesDelete}
         deleteKeyCode={['Backspace', 'Delete']}

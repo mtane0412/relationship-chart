@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { Panel, useReactFlow } from '@xyflow/react';
 import { Share2 } from 'lucide-react';
 import { captureCanvasAsPng } from '@/lib/capture-utils';
+import { useDialogStore } from '@/stores/useDialogStore';
 import ShareModal from './ShareModal';
 
 /**
@@ -21,6 +22,7 @@ import ShareModal from './ShareModal';
  */
 export default function ShareButton() {
   const { getNodes } = useReactFlow();
+  const openAlert = useDialogStore((state) => state.openAlert);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [imageData, setImageData] = useState<string>('');
   const [isCapturing, setIsCapturing] = useState(false);
@@ -35,9 +37,10 @@ export default function ShareButton() {
       setIsModalOpen(true);
     } catch (error) {
       console.error('キャンバスのキャプチャに失敗しました:', error);
-      alert(
-        'キャンバスのキャプチャに失敗しました。人物が登録されているか確認してください。'
-      );
+      await openAlert({
+        title: 'エラー',
+        message: 'キャンバスのキャプチャに失敗しました。\n人物が登録されているか確認してください。',
+      });
     } finally {
       setIsCapturing(false);
     }

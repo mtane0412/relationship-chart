@@ -12,6 +12,7 @@ import { SingleSelectionPanel } from './SingleSelectionPanel';
 import { PairSelectionPanel } from './PairSelectionPanel';
 import { MultipleSelectionInfo } from './MultipleSelectionInfo';
 import { useGraphStore } from '@/stores/useGraphStore';
+import { useDialogStore } from '@/stores/useDialogStore';
 import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils';
 
 /**
@@ -21,6 +22,7 @@ export function SidePanel() {
   const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
   const persons = useGraphStore((state) => state.persons);
   const resetAll = useGraphStore((state) => state.resetAll);
+  const openConfirm = useDialogStore((state) => state.openConfirm);
 
   const { setCenter, getNode } = useReactFlow();
 
@@ -58,10 +60,13 @@ export function SidePanel() {
   };
 
   // リセット処理
-  const handleReset = () => {
-    const confirmed = window.confirm(
-      'すべてのデータを削除してリセットしてもよろしいですか？この操作は元に戻せません。'
-    );
+  const handleReset = async () => {
+    const confirmed = await openConfirm({
+      title: 'データをリセット',
+      message: 'すべてのデータを削除してリセットしてもよろしいですか？\nこの操作は元に戻せません。',
+      confirmLabel: 'リセット',
+      isDanger: true,
+    });
     if (confirmed) {
       resetAll();
     }
