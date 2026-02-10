@@ -78,6 +78,7 @@ describe('searchGraph', () => {
         kind: 'person',
         id: 'person1',
         label: '山田太郎',
+        nodeKind: 'person',
       });
     });
 
@@ -98,6 +99,24 @@ describe('searchGraph', () => {
       expect(result).toHaveLength(2);
       expect(result.map((r: SearchResult) => r.label)).toContain('山田太郎');
       expect(result.map((r: SearchResult) => r.label)).toContain('田中花子');
+    });
+
+    it('物ノードも検索できる', () => {
+      const itemPerson: Person = {
+        id: 'item1',
+        name: 'テストアイテム',
+        kind: 'item',
+        createdAt: '2024-01-04T00:00:00Z',
+      };
+
+      const result = searchGraph('テストアイテム', [itemPerson], []);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        kind: 'person',
+        id: 'item1',
+        label: 'テストアイテム',
+        nodeKind: 'item',
+      });
     });
   });
 

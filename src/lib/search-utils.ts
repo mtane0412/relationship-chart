@@ -11,6 +11,7 @@ import type { Relationship } from '@/types/relationship';
  * @property kind - 'person': 人物、'relationship': 関係
  * @property id - 人物または関係のID
  * @property label - 表示用ラベル（人物名または関係ラベル）
+ * @property nodeKind - 人物の場合のノード種別（'person' or 'item'）
  * @property sourcePersonId - 関係の場合の起点人物ID
  * @property targetPersonId - 関係の場合の終点人物ID
  */
@@ -18,6 +19,7 @@ export type SearchResult = {
   kind: 'person' | 'relationship';
   id: string;
   label: string;
+  nodeKind?: 'person' | 'item';
   sourcePersonId?: string;
   targetPersonId?: string;
 };
@@ -55,6 +57,7 @@ export function searchGraph(
       kind: 'person' as const,
       id: person.id,
       label: person.name,
+      nodeKind: (person.kind ?? 'person') as 'person' | 'item',
     }));
 
   // 関係を検索

@@ -17,12 +17,10 @@ import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils
 /**
  * 検索バーコンポーネント
  *
- * Cmd+K / Ctrl+K で開閉できる検索ウィンドウを提供します。
+ * Cmd+K / Ctrl+K で検索入力にフォーカスします。
  * 人物名と関係ラベルを部分一致検索し、選択した要素にキャンバスをフォーカスします。
  */
 export default function SearchBar() {
-  // 開閉状態
-  const [isOpen, setIsOpen] = useState(false);
   // 検索クエリ
   const [query, setQuery] = useState('');
   // キーボードナビゲーション用のハイライト位置
@@ -43,43 +41,17 @@ export default function SearchBar() {
   const results = searchGraph(query, persons, relationships);
 
   /**
-   * 検索ウィンドウを開く
-   */
-  const openSearch = useCallback(() => {
-    setIsOpen(true);
-    setQuery('');
-    setSelectedIndex(-1);
-  }, []);
-
-  /**
-   * 検索ウィンドウを閉じる
-   */
-  const closeSearch = useCallback(() => {
-    setIsOpen(false);
-    setQuery('');
-    setSelectedIndex(-1);
-  }, []);
-
-  /**
-   * 検索ウィンドウの開閉をトグル
-   */
-  const toggleSearch = useCallback(() => {
-    if (isOpen) {
-      closeSearch();
-    } else {
-      openSearch();
-    }
-  }, [isOpen, openSearch, closeSearch]);
-
-  /**
-   * キーボードショートカット（Cmd+K / Ctrl+K）のハンドラ
+   * キーボードショートカット（Cmd+K / Ctrl+K）で入力フィールドにフォーカス
    */
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       // Cmd+K (Mac) または Ctrl+K (Windows/Linux)
       if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
         event.preventDefault();
-        toggleSearch();
+        if (inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.select();
+        }
       }
     }
 
@@ -87,16 +59,7 @@ export default function SearchBar() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [toggleSearch]);
-
-  /**
-   * 検索ウィンドウが開いたら入力フィールドにフォーカス
-   */
-  useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isOpen]);
+  }, []);
 
   /**
    * 人物を選択してフォーカス
@@ -109,9 +72,11 @@ export default function SearchBar() {
         const center = getNodeCenter(node);
         setCenter(center.x, center.y, { duration: VIEWPORT_ANIMATION_DURATION });
       }
-      closeSearch();
+      // 検索クエリをクリア
+      setQuery('');
+      setSelectedIndex(-1);
     },
-    [selectPerson, getNode, setCenter, closeSearch]
+    [selectPerson, getNode, setCenter]
   );
 
   /**
@@ -135,9 +100,11 @@ export default function SearchBar() {
         setCenter(midX, midY, { duration: VIEWPORT_ANIMATION_DURATION });
       }
 
-      closeSearch();
+      // 検索クエリをクリア
+      setQuery('');
+      setSelectedIndex(-1);
     },
-    [setSelectedPersonIds, getNode, setCenter, closeSearch]
+    [setSelectedPersonIds, getNode, setCenter]
   );
 
   /**
@@ -161,7 +128,13 @@ export default function SearchBar() {
     (event: React.KeyboardEvent<HTMLInputElement>) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        closeSearch();
+        // 検索クエリをクリア
+        setQuery('');
+        setSelectedIndex(-1);
+        // 入力フィールドからフォーカスを外す
+        if (inputRef.current) {
+          inputRef.current.blur();
+        }
       } else if (event.key === 'ArrowDown') {
         event.preventDefault();
         setSelectedIndex((prev) => {
@@ -181,7 +154,7 @@ export default function SearchBar() {
         }
       }
     },
-    [closeSearch, results, selectedIndex, selectResult]
+    [results, selectedIndex, selectResult]
   );
 
   /**
@@ -191,27 +164,7 @@ export default function SearchBar() {
     setSelectedIndex(-1);
   }, [query]);
 
-  // 閉じている状態では検索ボタンのみ表示
-  if (!isOpen) {
-    return (
-      <Panel position="top-center">
-        <button
-          onClick={openSearch}
-          className="flex items-center gap-2 rounded-md bg-white px-3 py-2 text-sm font-medium shadow-md hover:bg-gray-50"
-          title="検索 (⌘K)"
-          aria-label="検索"
-        >
-          <Search size={16} />
-          <span className="hidden sm:inline">検索</span>
-          <kbd className="hidden sm:inline rounded bg-gray-100 px-1.5 py-0.5 text-xs font-mono">
-            ⌘K
-          </kbd>
-        </button>
-      </Panel>
-    );
-  }
-
-  // 開いている状態では検索入力フィールドと結果リストを表示
+  // 常時展開済みの見た目で表示
   return (
     <Panel position="top-center">
       <div className="w-96 rounded-lg bg-white shadow-xl">
@@ -225,7 +178,7 @@ export default function SearchBar() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="人物名または関係を検索..."
+              placeholder="⌘K"
               className="flex-1 outline-none text-sm"
               role="combobox"
               aria-expanded={results.length > 0}
@@ -234,7 +187,6 @@ export default function SearchBar() {
                 selectedIndex >= 0 ? `search-result-${selectedIndex}` : undefined
               }
             />
-            <kbd className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-mono">ESC</kbd>
           </div>
         </div>
 
@@ -268,7 +220,11 @@ export default function SearchBar() {
                         : 'bg-green-100 text-green-700'
                     }`}
                   >
-                    {result.kind === 'person' ? '人物' : '関係'}
+                    {result.kind === 'person'
+                      ? result.nodeKind === 'item'
+                        ? '物'
+                        : '人物'
+                      : '関係'}
                   </span>
                   <span>{result.label}</span>
                 </div>

@@ -70,41 +70,22 @@ describe('SearchBar', () => {
   });
 
   describe('初期表示', () => {
-    it('閉じている状態では検索ボタンのみ表示する', () => {
+    it('検索入力フィールドが常時表示される', () => {
       render(
         <ReactFlowProvider>
           <SearchBar />
         </ReactFlowProvider>
       );
-
-      // 検索ボタンが表示される
-      const button = screen.getByRole('button', { name: /検索/i });
-      expect(button).toBeInTheDocument();
-
-      // 検索入力フィールドは表示されない
-      expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
-    });
-  });
-
-  describe('開閉操作', () => {
-    it('検索ボタンをクリックすると検索ウィンドウが開く', async () => {
-      const user = userEvent.setup();
-      render(
-        <ReactFlowProvider>
-          <SearchBar />
-        </ReactFlowProvider>
-      );
-
-      const button = screen.getByRole('button', { name: /検索/i });
-      await user.click(button);
 
       // 検索入力フィールドが表示される
       const combobox = screen.getByRole('combobox');
       expect(combobox).toBeInTheDocument();
-      expect(combobox).toHaveFocus();
+      expect(combobox).toHaveAttribute('placeholder', '⌘K');
     });
+  });
 
-    it('Escapeキーで検索ウィンドウが閉じる', async () => {
+  describe('フォーカス操作', () => {
+    it('Escapeキーで検索クエリがクリアされる', async () => {
       const user = userEvent.setup();
       render(
         <ReactFlowProvider>
@@ -112,77 +93,74 @@ describe('SearchBar', () => {
         </ReactFlowProvider>
       );
 
-      // 検索ウィンドウを開く
-      const button = screen.getByRole('button', { name: /検索/i });
-      await user.click(button);
+      const combobox = screen.getByRole('combobox') as HTMLInputElement;
 
-      const combobox = screen.getByRole('combobox');
-      expect(combobox).toBeInTheDocument();
+      // 検索クエリを入力
+      await user.type(combobox, '山田');
+      expect(combobox.value).toBe('山田');
 
-      // Escapeキーで閉じる
+      // Escapeキーでクリア
       await user.keyboard('{Escape}');
 
       await waitFor(() => {
-        expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+        expect(combobox.value).toBe('');
       });
     });
   });
 
   describe('キーボードショートカット', () => {
-    it('Cmd+Kで検索ウィンドウが開く（Mac）', async () => {
+    it('Cmd+Kで検索入力フィールドにフォーカスして全選択（Mac）', async () => {
       const user = userEvent.setup();
       render(
         <ReactFlowProvider>
           <SearchBar />
         </ReactFlowProvider>
       );
+
+      const combobox = screen.getByRole('combobox') as HTMLInputElement;
+
+      // 事前に入力しておく
+      await user.type(combobox, 'テスト');
+      expect(combobox.value).toBe('テスト');
+
+      // フォーカスを外す
+      combobox.blur();
 
       // Cmd+K
       await user.keyboard('{Meta>}k{/Meta}');
 
       await waitFor(() => {
-        const combobox = screen.getByRole('combobox');
-        expect(combobox).toBeInTheDocument();
         expect(combobox).toHaveFocus();
+        // 全選択されていることを確認（selectionStart === 0 && selectionEnd === value.length）
+        expect(combobox.selectionStart).toBe(0);
+        expect(combobox.selectionEnd).toBe(combobox.value.length);
       });
     });
 
-    it('Ctrl+Kで検索ウィンドウが開く（Windows/Linux）', async () => {
+    it('Ctrl+Kで検索入力フィールドにフォーカスして全選択（Windows/Linux）', async () => {
       const user = userEvent.setup();
       render(
         <ReactFlowProvider>
           <SearchBar />
         </ReactFlowProvider>
       );
+
+      const combobox = screen.getByRole('combobox') as HTMLInputElement;
+
+      // 事前に入力しておく
+      await user.type(combobox, 'テスト');
+      expect(combobox.value).toBe('テスト');
+
+      // フォーカスを外す
+      combobox.blur();
 
       // Ctrl+K
       await user.keyboard('{Control>}k{/Control}');
 
       await waitFor(() => {
-        const combobox = screen.getByRole('combobox');
-        expect(combobox).toBeInTheDocument();
         expect(combobox).toHaveFocus();
-      });
-    });
-
-    it('開いている状態でCmd+Kを押すと閉じる', async () => {
-      const user = userEvent.setup();
-      render(
-        <ReactFlowProvider>
-          <SearchBar />
-        </ReactFlowProvider>
-      );
-
-      // 開く
-      await user.keyboard('{Meta>}k{/Meta}');
-      await waitFor(() => {
-        expect(screen.getByRole('combobox')).toBeInTheDocument();
-      });
-
-      // もう一度押すと閉じる
-      await user.keyboard('{Meta>}k{/Meta}');
-      await waitFor(() => {
-        expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+        expect(combobox.selectionStart).toBe(0);
+        expect(combobox.selectionEnd).toBe(combobox.value.length);
       });
     });
   });
@@ -195,9 +173,6 @@ describe('SearchBar', () => {
           <SearchBar />
         </ReactFlowProvider>
       );
-
-      // 検索ウィンドウを開く
-      await user.keyboard('{Meta>}k{/Meta}');
 
       const combobox = screen.getByRole('combobox');
       await user.type(combobox, '山田');
@@ -216,9 +191,6 @@ describe('SearchBar', () => {
         </ReactFlowProvider>
       );
 
-      // 検索ウィンドウを開く
-      await user.keyboard('{Meta>}k{/Meta}');
-
       const combobox = screen.getByRole('combobox');
       await user.type(combobox, '上司');
 
@@ -236,14 +208,45 @@ describe('SearchBar', () => {
         </ReactFlowProvider>
       );
 
-      // 検索ウィンドウを開く
-      await user.keyboard('{Meta>}k{/Meta}');
-
       const combobox = screen.getByRole('combobox');
       await user.type(combobox, '存在しない名前');
 
       await waitFor(() => {
         expect(screen.getByText(/一致する結果がありません/i)).toBeInTheDocument();
+      });
+    });
+
+    it('物ノードには「物」というラベルが表示される', async () => {
+      const user = userEvent.setup();
+
+      // 物ノードを追加
+      const itemPerson: Person = {
+        id: 'item1',
+        name: 'テストアイテム',
+        kind: 'item',
+        createdAt: '2024-01-03T00:00:00Z',
+      };
+
+      useGraphStore.setState({
+        persons: [itemPerson],
+        relationships: [],
+      });
+
+      render(
+        <ReactFlowProvider>
+          <SearchBar />
+        </ReactFlowProvider>
+      );
+
+      const combobox = screen.getByRole('combobox');
+      await user.type(combobox, 'テストアイテム');
+
+      await waitFor(() => {
+        const option = screen.getByRole('option', { name: /テストアイテム/i });
+        expect(option).toBeInTheDocument();
+
+        // 「物」ラベルが表示されることを確認
+        expect(option).toHaveTextContent('物');
       });
     });
   });
@@ -256,9 +259,6 @@ describe('SearchBar', () => {
           <SearchBar />
         </ReactFlowProvider>
       );
-
-      // 検索ウィンドウを開く
-      await user.keyboard('{Meta>}k{/Meta}');
 
       const combobox = screen.getByRole('combobox');
       await user.type(combobox, '田');
@@ -284,9 +284,6 @@ describe('SearchBar', () => {
         </ReactFlowProvider>
       );
 
-      // 検索ウィンドウを開く
-      await user.keyboard('{Meta>}k{/Meta}');
-
       const combobox = screen.getByRole('combobox');
       await user.type(combobox, '田');
 
@@ -309,7 +306,7 @@ describe('SearchBar', () => {
   });
 
   describe('結果選択', () => {
-    it('人物をクリックすると選択される', async () => {
+    it('人物をクリックすると選択され、検索クエリがクリアされる', async () => {
       const user = userEvent.setup();
       const selectPerson = vi.fn();
       useGraphStore.setState({ selectPerson });
@@ -320,10 +317,7 @@ describe('SearchBar', () => {
         </ReactFlowProvider>
       );
 
-      // 検索ウィンドウを開く
-      await user.keyboard('{Meta>}k{/Meta}');
-
-      const combobox = screen.getByRole('combobox');
+      const combobox = screen.getByRole('combobox') as HTMLInputElement;
       await user.type(combobox, '山田');
 
       await waitFor(() => {
@@ -337,9 +331,9 @@ describe('SearchBar', () => {
       // selectPersonが呼ばれることを確認
       expect(selectPerson).toHaveBeenCalledWith('person1');
 
-      // 検索ウィンドウが閉じることを確認
+      // 検索クエリがクリアされることを確認
       await waitFor(() => {
-        expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+        expect(combobox.value).toBe('');
       });
     });
 
@@ -354,10 +348,7 @@ describe('SearchBar', () => {
         </ReactFlowProvider>
       );
 
-      // 検索ウィンドウを開く
-      await user.keyboard('{Meta>}k{/Meta}');
-
-      const combobox = screen.getByRole('combobox');
+      const combobox = screen.getByRole('combobox') as HTMLInputElement;
       await user.type(combobox, '山田');
 
       await waitFor(() => {
@@ -373,13 +364,13 @@ describe('SearchBar', () => {
       // selectPersonが呼ばれることを確認
       expect(selectPerson).toHaveBeenCalledWith('person1');
 
-      // 検索ウィンドウが閉じることを確認
+      // 検索クエリがクリアされることを確認
       await waitFor(() => {
-        expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+        expect(combobox.value).toBe('');
       });
     });
 
-    it('関係を選択すると両端の人物が選択される', async () => {
+    it('関係を選択すると両端の人物が選択され、検索クエリがクリアされる', async () => {
       const user = userEvent.setup();
       const setSelectedPersonIds = vi.fn();
       useGraphStore.setState({ setSelectedPersonIds });
@@ -390,10 +381,7 @@ describe('SearchBar', () => {
         </ReactFlowProvider>
       );
 
-      // 検索ウィンドウを開く
-      await user.keyboard('{Meta>}k{/Meta}');
-
-      const combobox = screen.getByRole('combobox');
+      const combobox = screen.getByRole('combobox') as HTMLInputElement;
       await user.type(combobox, '上司');
 
       await waitFor(() => {
@@ -407,9 +395,9 @@ describe('SearchBar', () => {
       // setSelectedPersonIdsが呼ばれることを確認
       expect(setSelectedPersonIds).toHaveBeenCalledWith(['person1', 'person2']);
 
-      // 検索ウィンドウが閉じることを確認
+      // 検索クエリがクリアされることを確認
       await waitFor(() => {
-        expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+        expect(combobox.value).toBe('');
       });
     });
   });
