@@ -11,6 +11,11 @@ import SearchBar from './SearchBar';
 import { useGraphStore } from '@/stores/useGraphStore';
 import type { Person } from '@/types/person';
 import type { Relationship } from '@/types/relationship';
+import {
+  VIEWPORT_ANIMATION_DURATION,
+  VIEWPORT_FIT_PADDING,
+  VIEWPORT_MAX_ZOOM,
+} from '@/lib/viewport-utils';
 
 // React Flowのモック
 vi.mock('@xyflow/react', async () => {
@@ -29,6 +34,9 @@ vi.mock('@xyflow/react', async () => {
     })),
   };
 });
+
+// 動的importのため型をimport
+import { useReactFlow } from '@xyflow/react';
 
 describe('SearchBar', () => {
   // テスト用データ
@@ -578,7 +586,20 @@ describe('SearchBar', () => {
     it('関係を選択すると両端の人物が選択され、検索クエリがクリアされる', async () => {
       const user = userEvent.setup();
       const setSelectedPersonIds = vi.fn();
+      const mockFitView = vi.fn();
       useGraphStore.setState({ setSelectedPersonIds });
+
+      // useReactFlowモックにfitViewを追加
+      vi.mocked(useReactFlow).mockReturnValue({
+        getNode: vi.fn((id: string) => ({
+          id,
+          position: { x: 100, y: 100 },
+          data: {},
+          measured: { width: 80, height: 120 },
+        })),
+        setCenter: vi.fn(),
+        fitView: mockFitView,
+      } as unknown as ReturnType<typeof useReactFlow>);
 
       render(
         <ReactFlowProvider>
@@ -599,6 +620,14 @@ describe('SearchBar', () => {
 
       // setSelectedPersonIdsが呼ばれることを確認
       expect(setSelectedPersonIds).toHaveBeenCalledWith(['person1', 'person2']);
+
+      // fitViewが正しいパラメータで呼ばれることを確認
+      expect(mockFitView).toHaveBeenCalledWith({
+        nodes: [{ id: 'person1' }, { id: 'person2' }],
+        padding: VIEWPORT_FIT_PADDING,
+        maxZoom: VIEWPORT_MAX_ZOOM,
+        duration: VIEWPORT_ANIMATION_DURATION,
+      });
 
       // 検索クエリがクリアされることを確認
       await waitFor(() => {

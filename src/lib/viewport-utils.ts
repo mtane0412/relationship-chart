@@ -20,6 +20,16 @@ export const DEFAULT_NODE_HEIGHT = 120;
 export const VIEWPORT_ANIMATION_DURATION = 500;
 
 /**
+ * fitViewのパディング（ノード周囲の余白比率）
+ */
+export const VIEWPORT_FIT_PADDING = 0.3;
+
+/**
+ * fitViewの最大ズーム倍率
+ */
+export const VIEWPORT_MAX_ZOOM = 1;
+
+/**
  * ノードの中心座標を計算する
  * @param node - React Flowのノード
  * @returns ノードの中心座標 { x, y }

@@ -12,7 +12,12 @@ import { Panel, useReactFlow } from '@xyflow/react';
 import { Search, User, Package, ArrowRight, ArrowLeftRight, Minus } from 'lucide-react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { searchGraph, type SearchResult } from '@/lib/search-utils';
-import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils';
+import {
+  getNodeCenter,
+  VIEWPORT_ANIMATION_DURATION,
+  VIEWPORT_FIT_PADDING,
+  VIEWPORT_MAX_ZOOM,
+} from '@/lib/viewport-utils';
 
 /**
  * ノードアイコンコンポーネント
@@ -140,8 +145,8 @@ export default function SearchBar() {
       // ビューポートを2つのノードにフィット（両ノードが画面内に収まるようズーム調整）
       fitView({
         nodes: [{ id: sourcePersonId }, { id: targetPersonId }],
-        padding: 0.3,
-        maxZoom: 1,
+        padding: VIEWPORT_FIT_PADDING,
+        maxZoom: VIEWPORT_MAX_ZOOM,
         duration: VIEWPORT_ANIMATION_DURATION,
       });
 

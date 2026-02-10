@@ -27,6 +27,11 @@ vi.mock('@xyflow/react', () => ({
 // 動的importのため型をimport
 import { useGraphStore } from '@/stores/useGraphStore';
 import { useReactFlow } from '@xyflow/react';
+import {
+  VIEWPORT_ANIMATION_DURATION,
+  VIEWPORT_FIT_PADDING,
+  VIEWPORT_MAX_ZOOM,
+} from '@/lib/viewport-utils';
 
 describe('SingleSelectionPanel - 関係クリック遷移', () => {
   const mockSetSelectedPersonIds = vi.fn();
@@ -164,48 +169,12 @@ describe('SingleSelectionPanel - 関係クリック遷移', () => {
     // fitViewが両ノードIDで呼ばれることを確認
     expect(mockFitView).toHaveBeenCalledWith({
       nodes: [{ id: 'person-1' }, { id: 'person-2' }],
-      padding: 0.3,
-      maxZoom: 1,
-      duration: 500,
+      padding: VIEWPORT_FIT_PADDING,
+      maxZoom: VIEWPORT_MAX_ZOOM,
+      duration: VIEWPORT_ANIMATION_DURATION,
     });
   });
 
-  it('ノードが見つからない場合、ビューポート移動は呼ばれない', async () => {
-    const user = userEvent.setup();
-
-    // ノードが見つからない
-    mockGetNode.mockReturnValue(undefined);
-
-    render(<SingleSelectionPanel person={testPerson} />);
-
-    // 関係行をクリック
-    const relationshipRow = screen.getByText('親友').closest('div[role="button"]') as HTMLElement;
-    await user.click(relationshipRow);
-
-    // setSelectedPersonIdsは呼ばれる
-    expect(mockSetSelectedPersonIds).toHaveBeenCalledWith(['person-1', 'person-2']);
-
-    // ビューポート移動は呼ばれない
-    expect(mockSetCenter).not.toHaveBeenCalled();
-  });
-
-  it('ノード位置に関わらずfitViewが正しく呼ばれる', async () => {
-    const user = userEvent.setup();
-
-    render(<SingleSelectionPanel person={testPerson} />);
-
-    // 関係行をクリック
-    const relationshipRow = screen.getByText('親友').closest('div[role="button"]') as HTMLElement;
-    await user.click(relationshipRow);
-
-    // fitViewが両ノードIDで呼ばれることを確認（ノード位置は関係なし）
-    expect(mockFitView).toHaveBeenCalledWith({
-      nodes: [{ id: 'person-1' }, { id: 'person-2' }],
-      padding: 0.3,
-      maxZoom: 1,
-      duration: 500,
-    });
-  });
 
   it('キーボード操作でもビューポートが2ノードにフィットする', async () => {
     const user = userEvent.setup();
@@ -222,9 +191,9 @@ describe('SingleSelectionPanel - 関係クリック遷移', () => {
     // fitViewが呼ばれることを確認
     expect(mockFitView).toHaveBeenCalledWith({
       nodes: [{ id: 'person-1' }, { id: 'person-2' }],
-      padding: 0.3,
-      maxZoom: 1,
-      duration: 500,
+      padding: VIEWPORT_FIT_PADDING,
+      maxZoom: VIEWPORT_MAX_ZOOM,
+      duration: VIEWPORT_ANIMATION_DURATION,
     });
   });
 });

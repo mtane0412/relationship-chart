@@ -12,7 +12,11 @@ import { useReactFlow } from '@xyflow/react';
 import type { Person } from '@/types/person';
 import type { Relationship } from '@/types/relationship';
 import { getRelationshipFromPerspective } from '@/lib/relationship-utils';
-import { VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils';
+import {
+  VIEWPORT_ANIMATION_DURATION,
+  VIEWPORT_FIT_PADDING,
+  VIEWPORT_MAX_ZOOM,
+} from '@/lib/viewport-utils';
 
 /**
  * SingleSelectionPanelのプロパティ
@@ -107,8 +111,8 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
                 // ビューポートを2つのノードにフィット（両ノードが画面内に収まるようズーム調整）
                 fitView({
                   nodes: [{ id: person.id }, { id: otherPerson.id }],
-                  padding: 0.3,
-                  maxZoom: 1,
+                  padding: VIEWPORT_FIT_PADDING,
+                  maxZoom: VIEWPORT_MAX_ZOOM,
                   duration: VIEWPORT_ANIMATION_DURATION,
                 });
               };
