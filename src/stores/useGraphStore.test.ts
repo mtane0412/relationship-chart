@@ -1826,4 +1826,117 @@ describe('useGraphStore', () => {
       expect(result.current.forceEnabled).toBe(false);
     });
   });
+
+  describe('resetAll', () => {
+    it('データが存在する状態からリセットすると全状態が初期値に戻る', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+        result.current.addPerson({
+          name: '佐藤花子',
+          imageDataUrl: 'data:image/jpeg;base64,def',
+        });
+      });
+
+      const personId1 = result.current.persons[0].id;
+      const personId2 = result.current.persons[1].id;
+
+      // 関係を追加
+      act(() => {
+        result.current.addRelationship({
+          sourcePersonId: personId1,
+          targetPersonId: personId2,
+          isDirected: false,
+          sourceToTargetLabel: '友人',
+          targetToSourceLabel: '友人',
+        });
+      });
+
+      // UI状態を変更
+      act(() => {
+        result.current.setSelectedPersonIds([personId1]);
+        result.current.setForceEnabled(false);
+        result.current.setForceParams({ linkDistance: 300 });
+        result.current.setSidePanelOpen(false);
+      });
+
+      // リセット前の状態を確認
+      expect(result.current.persons).toHaveLength(2);
+      expect(result.current.relationships).toHaveLength(1);
+      expect(result.current.selectedPersonIds).toEqual([personId1]);
+      expect(result.current.forceEnabled).toBe(false);
+      expect(result.current.forceParams.linkDistance).toBe(300);
+      expect(result.current.sidePanelOpen).toBe(false);
+
+      // リセット実行
+      act(() => {
+        result.current.resetAll();
+      });
+
+      // 全状態が初期値に戻ることを確認
+      expect(result.current.persons).toEqual([]);
+      expect(result.current.relationships).toEqual([]);
+      expect(result.current.selectedPersonIds).toEqual([]);
+      expect(result.current.forceEnabled).toBe(true);
+      expect(result.current.forceParams).toEqual({
+        linkDistance: 150,
+        linkStrength: 0.5,
+        chargeStrength: -300,
+      });
+      expect(result.current.sidePanelOpen).toBe(true);
+
+      // LocalStorageも初期値に更新されることを確認
+      const storedData = localStorage.getItem('relationship-chart-storage');
+      expect(storedData).toBeTruthy();
+      const parsedData = JSON.parse(storedData!);
+      expect(parsedData.state.persons).toEqual([]);
+      expect(parsedData.state.relationships).toEqual([]);
+      expect(parsedData.state.selectedPersonIds).toEqual([]);
+      expect(parsedData.state.forceEnabled).toBe(true);
+      expect(parsedData.state.sidePanelOpen).toBe(true);
+
+      // Undo/Redo履歴もクリアされることを確認
+      // リセット後にundoしても何も起こらない
+      act(() => {
+        useGraphStore.temporal.getState().undo();
+      });
+
+      expect(result.current.persons).toEqual([]);
+      expect(result.current.relationships).toEqual([]);
+    });
+
+    it('空の状態でリセットしてもエラーにならない', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 初期状態（空）を確認
+      expect(result.current.persons).toEqual([]);
+      expect(result.current.relationships).toEqual([]);
+
+      // リセット実行（エラーが発生しないことを確認）
+      expect(() => {
+        act(() => {
+          result.current.resetAll();
+        });
+      }).not.toThrow();
+
+      // 初期状態のまま
+      expect(result.current.persons).toEqual([]);
+      expect(result.current.relationships).toEqual([]);
+      expect(result.current.selectedPersonIds).toEqual([]);
+      expect(result.current.forceEnabled).toBe(true);
+      expect(result.current.sidePanelOpen).toBe(true);
+
+      // LocalStorageも初期値であることを確認
+      const storedData = localStorage.getItem('relationship-chart-storage');
+      expect(storedData).toBeTruthy();
+      const parsedData = JSON.parse(storedData!);
+      expect(parsedData.state.persons).toEqual([]);
+      expect(parsedData.state.relationships).toEqual([]);
+    });
+  });
 });
