@@ -174,7 +174,7 @@ export function useForceLayout({
               const node = d as Node;
               const width = node.measured?.width ?? DEFAULT_NODE_WIDTH;
               const height = node.measured?.height ?? DEFAULT_NODE_HEIGHT;
-              // 半径として最大辺を使用し、COLLISIONMARGINを追加
+              // 半径として最大辺を使用し、COLLISION_MARGINを追加
               // 注意: forceCollideは円形の衝突判定のため、矩形ノードの短辺方向には余分な余白が生じる
               return Math.max(width, height) / 2 + COLLISION_MARGIN;
             })
