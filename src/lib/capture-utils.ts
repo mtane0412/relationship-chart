@@ -16,8 +16,14 @@ const IMAGE_HEIGHT = 768;
  *
  * @param nodes - 全ノード（境界計算に使用）
  * @returns キャプチャ対象の要素とビューポート設定
+ * @throws ノードが存在しない場合やビューポート要素が見つからない場合にエラーをスロー
  */
 function getCaptureBounds(nodes: Node[]) {
+  // ノードが存在しない場合はエラー
+  if (nodes.length === 0) {
+    throw new Error('キャプチャするノードが存在しません');
+  }
+
   // .react-flow__viewport 要素を取得
   const viewport = document.querySelector(
     '.react-flow__viewport'
@@ -107,7 +113,12 @@ export function downloadImage(
   const anchor = document.createElement('a');
   anchor.href = dataUrl;
   anchor.download = filename;
+  anchor.style.display = 'none';
+
+  // DOMに追加してクリック、その後削除
+  document.body.appendChild(anchor);
   anchor.click();
+  document.body.removeChild(anchor);
 }
 
 /**

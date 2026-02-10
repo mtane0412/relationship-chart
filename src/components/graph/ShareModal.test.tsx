@@ -167,10 +167,10 @@ describe('ShareModal', () => {
 
       // 背景要素をクリック
       const backdrop = screen.getByRole('dialog').parentElement;
-      if (backdrop) {
-        await user.click(backdrop);
-        expect(mockOnClose).toHaveBeenCalled();
-      }
+      expect(backdrop).not.toBeNull();
+
+      await user.click(backdrop!);
+      expect(mockOnClose).toHaveBeenCalled();
     });
 
     it('Escキーを押すとonCloseが呼ばれること', async () => {

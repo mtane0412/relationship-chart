@@ -55,8 +55,17 @@ describe('capture-utils', () => {
   describe('copyImageToClipboard', () => {
     let writeToClipboardSpy: ReturnType<typeof vi.fn>;
     let ClipboardItemMock: ReturnType<typeof vi.fn>;
+    let originalClipboard: PropertyDescriptor | undefined;
+    let originalClipboardItem: typeof ClipboardItem | undefined;
 
     beforeEach(() => {
+      // オリジナルを保存
+      originalClipboard = Object.getOwnPropertyDescriptor(
+        navigator,
+        'clipboard'
+      );
+      originalClipboardItem = global.ClipboardItem;
+
       // ClipboardItemのモックを作成
       ClipboardItemMock = vi.fn();
       global.ClipboardItem = ClipboardItemMock as unknown as typeof ClipboardItem;
@@ -69,6 +78,16 @@ describe('capture-utils', () => {
         },
         writable: true,
       });
+    });
+
+    afterEach(() => {
+      // オリジナルを復元
+      if (originalClipboard) {
+        Object.defineProperty(navigator, 'clipboard', originalClipboard);
+      }
+      if (originalClipboardItem) {
+        global.ClipboardItem = originalClipboardItem;
+      }
     });
 
     it('画像をクリップボードにコピーすること', async () => {

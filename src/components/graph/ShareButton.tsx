@@ -35,6 +35,9 @@ export default function ShareButton() {
       setIsModalOpen(true);
     } catch (error) {
       console.error('キャンバスのキャプチャに失敗しました:', error);
+      alert(
+        'キャンバスのキャプチャに失敗しました。人物が登録されているか確認してください。'
+      );
     } finally {
       setIsCapturing(false);
     }
@@ -43,6 +46,7 @@ export default function ShareButton() {
   // モーダルを閉じるハンドラ
   function handleCloseModal() {
     setIsModalOpen(false);
+    setImageData(''); // メモリクリーンアップ
   }
 
   return (
