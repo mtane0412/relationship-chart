@@ -59,7 +59,8 @@ export function ContextMenu({
   const filterInputRef = useRef<HTMLInputElement>(null);
   const focusedIndexRef = useRef<number>(0);
 
-  const [filterQuery, setFilterQuery] = useState('');
+  const [filterQuery, setFilterQuery] = useState(''); // フィルタリングに使用する確定された値
+  const [inputValue, setInputValue] = useState(''); // 入力フィールドの表示値
   const [isComposing, setIsComposing] = useState(false);
 
   // filterable項目が存在するかどうか
@@ -269,10 +270,24 @@ export function ContextMenu({
             ref={filterInputRef}
             type="text"
             placeholder={filterPlaceholder}
-            value={filterQuery}
-            onChange={(e) => setFilterQuery(e.target.value)}
+            value={inputValue}
+            onChange={(e) => {
+              const newValue = e.target.value;
+              setInputValue(newValue);
+
+              // IME変換中はフィルタリングを実行しない
+              const isComposingNow = (e.nativeEvent as InputEvent).isComposing;
+              if (!isComposingNow) {
+                setFilterQuery(newValue);
+              }
+            }}
             onCompositionStart={() => setIsComposing(true)}
-            onCompositionEnd={() => setIsComposing(false)}
+            onCompositionEnd={(e) => {
+              setIsComposing(false);
+              // IME変換確定時にフィルタリングを実行
+              const finalValue = (e.target as HTMLInputElement).value;
+              setFilterQuery(finalValue);
+            }}
             className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>

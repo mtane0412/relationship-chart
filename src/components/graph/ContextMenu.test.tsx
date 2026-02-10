@@ -563,5 +563,34 @@ describe('ContextMenu', () => {
       // メニューが閉じる
       expect(mockOnClose).toHaveBeenCalledTimes(1);
     });
+
+    it('通常の入力でフィルタリングが動作する', () => {
+      render(
+        <ContextMenu
+          items={filterableItems}
+          position={defaultPosition}
+          onClose={mockOnClose}
+        />
+      );
+
+      const searchInput = screen.getByPlaceholderText(
+        '名前で絞り込み...'
+      ) as HTMLInputElement;
+
+      // 通常の入力（英字）でフィルタリングが動作することを確認
+      fireEvent.change(searchInput, { target: { value: 'john' } });
+
+      // 「John Smith」のみ表示される
+      expect(screen.getByText('John Smith')).toBeInTheDocument();
+      expect(screen.queryByText('山田太郎')).not.toBeInTheDocument();
+
+      // 入力をクリア
+      fireEvent.change(searchInput, { target: { value: '' } });
+
+      // 全員表示される
+      expect(screen.getByText('山田太郎')).toBeInTheDocument();
+      expect(screen.getByText('鈴木花子')).toBeInTheDocument();
+      expect(screen.getByText('John Smith')).toBeInTheDocument();
+    });
   });
 });
