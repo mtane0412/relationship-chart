@@ -153,6 +153,11 @@ export default function SearchBar() {
           return nextIndex >= 0 ? nextIndex : -1;
         });
       } else if (event.key === 'Enter') {
+        // IME変換中のEnterは無視（日本語入力の変換確定時の誤動作を防ぐ）
+        if (event.nativeEvent.isComposing) {
+          return;
+        }
+
         event.preventDefault();
         if (selectedIndex >= 0 && selectedIndex < results.length) {
           selectResult(results[selectedIndex]);

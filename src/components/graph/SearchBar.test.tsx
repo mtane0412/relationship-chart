@@ -406,6 +406,77 @@ describe('SearchBar', () => {
     });
   });
 
+  describe('日本語入力', () => {
+    it('IME変換中のEnterキーは無視される', async () => {
+      const user = userEvent.setup();
+      const selectPerson = vi.fn();
+      useGraphStore.setState({ selectPerson });
+
+      render(
+        <ReactFlowProvider>
+          <SearchBar />
+        </ReactFlowProvider>
+      );
+
+      const combobox = screen.getByRole('combobox') as HTMLInputElement;
+      await user.type(combobox, '山田');
+
+      await waitFor(() => {
+        expect(screen.getByRole('option', { name: /山田太郎/i })).toBeInTheDocument();
+      });
+
+      // IME変換中のEnterキーイベントをシミュレート
+      const composingEnterEvent = new KeyboardEvent('keydown', {
+        key: 'Enter',
+        bubbles: true,
+        cancelable: true,
+        isComposing: true,
+      });
+
+      combobox.dispatchEvent(composingEnterEvent);
+
+      // selectPersonが呼ばれないことを確認
+      expect(selectPerson).not.toHaveBeenCalled();
+
+      // 検索クエリもクリアされないことを確認
+      expect(combobox.value).toBe('山田');
+    });
+
+    it('IME変換確定後のEnterキーで選択できる', async () => {
+      const user = userEvent.setup();
+      const selectPerson = vi.fn();
+      useGraphStore.setState({ selectPerson });
+
+      render(
+        <ReactFlowProvider>
+          <SearchBar />
+        </ReactFlowProvider>
+      );
+
+      const combobox = screen.getByRole('combobox') as HTMLInputElement;
+      await user.type(combobox, '山田');
+
+      await waitFor(() => {
+        expect(screen.getByRole('option', { name: /山田太郎/i })).toBeInTheDocument();
+      });
+
+      // IME変換確定後のEnterキーイベントをシミュレート
+      const normalEnterEvent = new KeyboardEvent('keydown', {
+        key: 'Enter',
+        bubbles: true,
+        cancelable: true,
+        isComposing: false,
+      });
+
+      combobox.dispatchEvent(normalEnterEvent);
+
+      // selectPersonが呼ばれることを確認
+      await waitFor(() => {
+        expect(selectPerson).toHaveBeenCalledWith('person1');
+      });
+    });
+  });
+
   describe('結果選択', () => {
     it('人物をクリックすると選択され、検索クエリがクリアされる', async () => {
       const user = userEvent.setup();
