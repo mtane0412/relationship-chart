@@ -24,17 +24,17 @@ describe('ForceLayoutPanel', () => {
     });
     store.clearSelection();
     store.resetForceParams();
-    store.setForceEnabled(true);
+    store.setForceEnabled(false);
   });
 
-  it('「自動配置」ラベルが表示される', () => {
+  it('「Force Layout」ラベルが表示される', () => {
     render(
       <ReactFlowProvider>
         <ForceLayoutPanel />
       </ReactFlowProvider>
     );
 
-    expect(screen.getByText('自動配置')).toBeInTheDocument();
+    expect(screen.getByText('Force Layout')).toBeInTheDocument();
   });
 
   it('「(Experimental)」表記が表示される', () => {
@@ -58,8 +58,8 @@ describe('ForceLayoutPanel', () => {
     expect(toggle).toBeInTheDocument();
   });
 
-  it('forceEnabled: trueの場合、トグルがON状態である', () => {
-    // 初期状態でforceEnabled: true
+  it('forceEnabled: falseの場合、トグルがOFF状態である', () => {
+    // 初期状態でforceEnabled: false
     render(
       <ReactFlowProvider>
         <ForceLayoutPanel />
@@ -67,7 +67,7 @@ describe('ForceLayoutPanel', () => {
     );
 
     const toggle = screen.getByRole('switch');
-    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
   });
 
   it('トグルクリックでforceEnabledが切り替わる', async () => {
@@ -81,33 +81,22 @@ describe('ForceLayoutPanel', () => {
 
     const toggle = screen.getByRole('switch');
 
-    // 初期状態: true
-    expect(toggle).toHaveAttribute('aria-checked', 'true');
-    expect(useGraphStore.getState().forceEnabled).toBe(true);
-
-    // クリックしてfalseに
-    await user.click(toggle);
+    // 初期状態: false
     expect(toggle).toHaveAttribute('aria-checked', 'false');
     expect(useGraphStore.getState().forceEnabled).toBe(false);
 
-    // もう一度クリックしてtrueに
+    // クリックしてtrueに
     await user.click(toggle);
     expect(toggle).toHaveAttribute('aria-checked', 'true');
     expect(useGraphStore.getState().forceEnabled).toBe(true);
+
+    // もう一度クリックしてfalseに
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    expect(useGraphStore.getState().forceEnabled).toBe(false);
   });
 
-  it('forceEnabled: trueの場合、スライダーが表示される', () => {
-    render(
-      <ReactFlowProvider>
-        <ForceLayoutPanel />
-      </ReactFlowProvider>
-    );
-
-    // linkDistanceスライダーがあることを確認
-    expect(screen.getByLabelText(/リンク距離/)).toBeInTheDocument();
-  });
-
-  it('forceEnabled: falseの場合、スライダーが非表示である', async () => {
+  it('forceEnabled: trueの場合、スライダーが表示される', async () => {
     const user = userEvent.setup();
 
     render(
@@ -116,11 +105,25 @@ describe('ForceLayoutPanel', () => {
       </ReactFlowProvider>
     );
 
-    // トグルをクリックしてfalseに
+    // 初期状態ではスライダーは非表示（forceEnabled: false）
+    expect(screen.queryByLabelText(/Link Distance/)).not.toBeInTheDocument();
+
+    // トグルをクリックしてtrueに
     const toggle = screen.getByRole('switch');
     await user.click(toggle);
 
-    // スライダーが非表示
-    expect(screen.queryByLabelText(/リンク距離/)).not.toBeInTheDocument();
+    // linkDistanceスライダーがあることを確認
+    expect(screen.getByLabelText(/Link Distance/)).toBeInTheDocument();
+  });
+
+  it('forceEnabled: falseの場合、スライダーが非表示である', () => {
+    render(
+      <ReactFlowProvider>
+        <ForceLayoutPanel />
+      </ReactFlowProvider>
+    );
+
+    // 初期状態でforceEnabled: false なので、スライダーが非表示
+    expect(screen.queryByLabelText(/Link Distance/)).not.toBeInTheDocument();
   });
 });

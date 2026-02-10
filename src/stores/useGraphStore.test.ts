@@ -1882,7 +1882,7 @@ describe('useGraphStore', () => {
       expect(result.current.persons).toEqual([]);
       expect(result.current.relationships).toEqual([]);
       expect(result.current.selectedPersonIds).toEqual([]);
-      expect(result.current.forceEnabled).toBe(true);
+      expect(result.current.forceEnabled).toBe(false);
       expect(result.current.forceParams).toEqual({
         linkDistance: 150,
         linkStrength: 0.5,
@@ -1897,7 +1897,7 @@ describe('useGraphStore', () => {
       expect(parsedData.state.persons).toEqual([]);
       expect(parsedData.state.relationships).toEqual([]);
       expect(parsedData.state.selectedPersonIds).toEqual([]);
-      expect(parsedData.state.forceEnabled).toBe(true);
+      expect(parsedData.state.forceEnabled).toBe(false);
       expect(parsedData.state.sidePanelOpen).toBe(true);
 
       // Undo/Redo履歴もクリアされることを確認
@@ -1928,7 +1928,7 @@ describe('useGraphStore', () => {
       expect(result.current.persons).toEqual([]);
       expect(result.current.relationships).toEqual([]);
       expect(result.current.selectedPersonIds).toEqual([]);
-      expect(result.current.forceEnabled).toBe(true);
+      expect(result.current.forceEnabled).toBe(false);
       expect(result.current.sidePanelOpen).toBe(true);
 
       // LocalStorageも初期値であることを確認

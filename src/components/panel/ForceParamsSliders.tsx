@@ -23,10 +23,10 @@ export function ForceParamsSliders() {
 
   return (
     <div className="space-y-2">
-      {/* リンク距離スライダー */}
+      {/* Link Distanceスライダー */}
       <div className="space-y-1">
         <div className="flex items-center justify-between text-xs font-medium">
-          <label htmlFor="linkDistance">リンク距離</label>
+          <label htmlFor="linkDistance">Link Distance</label>
           <span className="text-[10px] text-gray-500">{forceParams.linkDistance}</span>
         </div>
         <input
@@ -41,10 +41,10 @@ export function ForceParamsSliders() {
         />
       </div>
 
-      {/* リンク強度スライダー */}
+      {/* Link Strengthスライダー */}
       <div className="space-y-1">
         <div className="flex items-center justify-between text-xs font-medium">
-          <label htmlFor="linkStrength">リンク強度</label>
+          <label htmlFor="linkStrength">Link Strength</label>
           <span className="text-[10px] text-gray-500">{forceParams.linkStrength}</span>
         </div>
         <input
@@ -59,10 +59,10 @@ export function ForceParamsSliders() {
         />
       </div>
 
-      {/* 反発力スライダー */}
+      {/* Charge Strengthスライダー */}
       <div className="space-y-1">
         <div className="flex items-center justify-between text-xs font-medium">
-          <label htmlFor="chargeStrength">反発力</label>
+          <label htmlFor="chargeStrength">Charge Strength</label>
           <span className="text-[10px] text-gray-500">{forceParams.chargeStrength}</span>
         </div>
         <input
@@ -77,12 +77,12 @@ export function ForceParamsSliders() {
         />
       </div>
 
-      {/* デフォルトに戻すボタン */}
+      {/* Reset to Defaultボタン */}
       <button
         onClick={resetForceParams}
         className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
       >
-        デフォルトに戻す
+        Reset to Default
       </button>
     </div>
   );

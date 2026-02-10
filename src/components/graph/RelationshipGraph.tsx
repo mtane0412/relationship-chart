@@ -1031,7 +1031,7 @@ export function RelationshipGraph() {
             <div className="space-y-2 text-sm text-gray-500">
               <p>📸 画像をD&D/ペーストして人物を追加</p>
               <p>🔗 2人以上登録すると関係を追加できます</p>
-              <p>✨ 自動配置で見やすいレイアウトに整理</p>
+              <p>✨ 右上のトグルでForce Layoutを有効にして、自動レイアウトで整理できます</p>
             </div>
           </div>
         </div>

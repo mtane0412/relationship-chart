@@ -37,7 +37,7 @@ export const DEFAULT_FORCE_PARAMS: ForceParams = {
 const INITIAL_STATE: GraphState = {
   persons: [],
   relationships: [],
-  forceEnabled: true,
+  forceEnabled: false,
   selectedPersonIds: [],
   forceParams: DEFAULT_FORCE_PARAMS,
   sidePanelOpen: true,
@@ -373,15 +373,8 @@ export const useGraphStore = create<GraphStore>()(
           })),
 
         resetAll: () => {
-          // 全状態を初期値にリセット（INITIAL_STATEと一致させること）
-          set(() => ({
-            persons: [],
-            relationships: [],
-            selectedPersonIds: [],
-            forceEnabled: true,
-            forceParams: DEFAULT_FORCE_PARAMS,
-            sidePanelOpen: true,
-          }));
+          // 全状態を初期値にリセット（INITIAL_STATEを使用）
+          set(() => ({ ...INITIAL_STATE }));
 
           // Undo/Redo履歴をクリア
           useGraphStore.temporal.getState().clear();
