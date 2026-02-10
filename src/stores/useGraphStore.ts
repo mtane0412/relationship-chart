@@ -360,7 +360,7 @@ export const useGraphStore = create<GraphStore>()(
           })),
       }),
       {
-        // UI状態（selectedPersonIds, forceEnabled）はundo対象外
+        // UI状態（selectedPersonIds, forceEnabled, sidePanelOpen）はundo対象外
         // データ状態（persons, relationships）のみをundo履歴に保存
         partialize: (state) => ({
           persons: state.persons,

@@ -745,6 +745,7 @@ export function RelationshipGraph() {
       contextMenu,
       setSelectedPersonIds,
       removePerson,
+      setSidePanelOpen,
     ]
   );
 
@@ -840,7 +841,7 @@ export function RelationshipGraph() {
         },
       ];
     },
-    [edges, setSelectedPersonIds, closeContextMenu, removeRelationship]
+    [edges, setSelectedPersonIds, closeContextMenu, removeRelationship, setSidePanelOpen]
   );
 
   // 背景右クリックメニュー項目を構築

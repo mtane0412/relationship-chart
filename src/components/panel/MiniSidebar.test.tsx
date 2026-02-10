@@ -15,15 +15,13 @@ describe('MiniSidebar', () => {
     // 各テスト前にLocalStorageをクリア
     localStorage.clear();
 
-    // ストアをリセット
-    const store = useGraphStore.getState();
-    store.persons.forEach((person) => {
-      store.removePerson(person.id);
+    // ストアを初期状態にリセット
+    useGraphStore.setState({
+      persons: [],
+      relationships: [],
+      selectedPersonIds: [],
+      sidePanelOpen: true,
     });
-    store.relationships.forEach((relationship) => {
-      store.removeRelationship(relationship.id);
-    });
-    store.clearSelection();
   });
 
   describe('無選択時', () => {

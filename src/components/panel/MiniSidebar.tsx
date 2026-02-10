@@ -32,6 +32,11 @@ export function MiniSidebar() {
   const { setCenter, getNode } = useReactFlow();
 
   /**
+   * 選択されたノードのIDセット（パフォーマンス最適化用）
+   */
+  const selectedSet = useMemo(() => new Set(selectedPersonIds), [selectedPersonIds]);
+
+  /**
    * 表示するノードのリストを計算
    * - 無選択時: すべてのノード
    * - 選択時: 選択ノード + 関係ノード
@@ -41,9 +46,6 @@ export function MiniSidebar() {
       // 無選択時: すべてのノードを表示
       return persons;
     }
-
-    // 選択されたノードのIDセット
-    const selectedSet = new Set(selectedPersonIds);
 
     // 関係ノードのIDを収集
     const relatedIds = new Set<string>();
@@ -60,7 +62,7 @@ export function MiniSidebar() {
     return persons.filter(
       (p) => selectedSet.has(p.id) || relatedIds.has(p.id)
     );
-  }, [persons, relationships, selectedPersonIds]);
+  }, [persons, relationships, selectedPersonIds, selectedSet]);
 
   /**
    * ノードアイコンをクリックしたときの処理
@@ -87,7 +89,7 @@ export function MiniSidebar() {
   };
 
   return (
-    <div className="w-16 h-screen bg-gray-50 border-r border-gray-200 flex flex-col">
+    <div className="w-16 h-full bg-gray-50 border-r border-gray-200 flex flex-col">
       {/* 開閉ボタン */}
       <button
         onClick={handleToggle}
@@ -107,7 +109,7 @@ export function MiniSidebar() {
             title={person.name}
             className={`
               flex h-14 w-full items-center justify-center hover:bg-gray-100 transition-colors
-              ${selectedPersonIds.includes(person.id) ? 'bg-blue-50' : ''}
+              ${selectedSet.has(person.id) ? 'bg-blue-50' : ''}
             `}
           >
             {person.imageDataUrl ? (

@@ -25,6 +25,8 @@ describe('useGraphStore', () => {
     store.clearSelection();
     // forceParamsもリセット
     store.resetForceParams();
+    // sidePanelOpenもリセット
+    store.setSidePanelOpen(true);
   });
 
   describe('初期状態', () => {

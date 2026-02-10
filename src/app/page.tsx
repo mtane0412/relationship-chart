@@ -20,27 +20,37 @@ export default function Home() {
     <ReactFlowProvider>
       <main className="flex flex-col md:flex-row w-full h-screen overflow-hidden">
         {/* サイドパネル（タブレット以上で表示） */}
-        <div className="hidden md:flex shrink-0">
-          {sidePanelOpen ? (
-            // パネル開いた状態: フルパネル + 閉じるボタン
-            <div className="relative">
-              <div className="w-80 h-screen overflow-hidden transition-all duration-300 ease-in-out">
-                <SidePanel />
-              </div>
+        <div className="hidden md:flex shrink-0 relative h-screen">
+          {/* フルパネル: sidePanelOpenに応じてwidth/opacityをトランジション */}
+          <div
+            className={`
+              overflow-hidden transition-all duration-300 ease-in-out h-full
+              ${sidePanelOpen ? 'w-80 opacity-100' : 'w-0 opacity-0 pointer-events-none'}
+            `}
+          >
+            <SidePanel />
+          </div>
 
-              {/* 閉じるボタン */}
-              <button
-                onClick={toggleSidePanel}
-                aria-label="サイドパネルを閉じる"
-                className="absolute top-4 -right-3 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-white border border-gray-200 shadow-md hover:bg-gray-50 transition-colors"
-              >
-                <ChevronLeft className="h-4 w-4 text-gray-600" />
-              </button>
-            </div>
-          ) : (
-            // パネル閉じた状態: ミニサイドバー
-            <MiniSidebar />
+          {/* 閉じるボタン（パネル開いた状態でのみ表示） */}
+          {sidePanelOpen && (
+            <button
+              onClick={toggleSidePanel}
+              aria-label="サイドパネルを閉じる"
+              className="absolute top-4 left-[calc(320px-12px)] z-10 flex h-6 w-6 items-center justify-center rounded-full bg-white border border-gray-200 shadow-md hover:bg-gray-50 transition-colors"
+            >
+              <ChevronLeft className="h-4 w-4 text-gray-600" />
+            </button>
           )}
+
+          {/* ミニサイドバー: sidePanelOpenに応じてwidth/opacityをトランジション */}
+          <div
+            className={`
+              transition-all duration-300 ease-in-out h-full
+              ${!sidePanelOpen ? 'w-16 opacity-100' : 'w-0 opacity-0 pointer-events-none'}
+            `}
+          >
+            <MiniSidebar />
+          </div>
         </div>
 
         {/* グラフ表示エリア */}
