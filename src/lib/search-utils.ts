@@ -76,8 +76,11 @@ export function searchGraph(
     const sourcePerson = persons.find((p) => p.id === rel.sourcePersonId);
     const targetPerson = persons.find((p) => p.id === rel.targetPersonId);
 
+    const matchedLabels = new Set<string>();
+
     // sourceToTargetLabelを検索
     if (rel.sourceToTargetLabel && rel.sourceToTargetLabel.toLowerCase().includes(lowerQuery)) {
+      matchedLabels.add(rel.sourceToTargetLabel);
       relationshipResults.push({
         kind: 'relationship',
         id: rel.id,
@@ -90,8 +93,12 @@ export function searchGraph(
       });
     }
 
-    // targetToSourceLabelを検索
-    if (rel.targetToSourceLabel && rel.targetToSourceLabel.toLowerCase().includes(lowerQuery)) {
+    // targetToSourceLabelを検索（sourceToTargetLabelと異なる場合のみ追加）
+    if (
+      rel.targetToSourceLabel &&
+      rel.targetToSourceLabel.toLowerCase().includes(lowerQuery) &&
+      !matchedLabels.has(rel.targetToSourceLabel)
+    ) {
       relationshipResults.push({
         kind: 'relationship',
         id: rel.id,

@@ -226,6 +226,47 @@ describe('searchGraph', () => {
         targetImageDataUrl: 'data:image/png;base64,image2',
       });
     });
+
+    it('双方向関係（同じラベル）は重複せず1件のみ返す', () => {
+      const bidirectionalPersons: Person[] = [
+        {
+          id: 'p1',
+          name: '親',
+          createdAt: '2024-01-01T00:00:00Z',
+        },
+        {
+          id: 'p2',
+          name: '子',
+          createdAt: '2024-01-02T00:00:00Z',
+        },
+      ];
+
+      const bidirectionalRelationships: Relationship[] = [
+        {
+          id: 'r1',
+          sourcePersonId: 'p1',
+          targetPersonId: 'p2',
+          isDirected: false,
+          sourceToTargetLabel: '親子',
+          targetToSourceLabel: '親子',
+          createdAt: '2024-01-01T00:00:00Z',
+        },
+      ];
+
+      const result = searchGraph('親子', bidirectionalPersons, bidirectionalRelationships);
+      // 双方向関係でsourceToTargetLabelとtargetToSourceLabelが同じ場合は1件のみ
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        kind: 'relationship',
+        id: 'r1',
+        label: '親子',
+        sourcePersonId: 'p1',
+        targetPersonId: 'p2',
+        isDirected: false,
+        sourceImageDataUrl: undefined,
+        targetImageDataUrl: undefined,
+      });
+    });
   });
 
   describe('結果の順序', () => {
