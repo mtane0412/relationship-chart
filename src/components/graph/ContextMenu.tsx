@@ -251,7 +251,6 @@ export function ContextMenu({
   };
 
   let interactiveItemIndex = 0;
-  let hasRenderedSearchInput = false;
 
   return (
     <div
@@ -263,36 +262,26 @@ export function ContextMenu({
         top: `${position.y}px`,
       }}
     >
+      {/* 検索入力フィールド（filterable項目がある場合は常に最上部に表示） */}
+      {hasFilterableItems && (
+        <div className="px-2 py-2 border-b border-gray-200">
+          <input
+            ref={filterInputRef}
+            type="text"
+            placeholder={filterPlaceholder}
+            value={filterQuery}
+            onChange={(e) => setFilterQuery(e.target.value)}
+            onCompositionStart={() => setIsComposing(true)}
+            onCompositionEnd={() => setIsComposing(false)}
+            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      )}
+
       {filteredItems.map((item, index) => {
-        // 最初のfilterable項目の前に検索入力を挿入
-        const shouldRenderSearchInput =
-          hasFilterableItems && !hasRenderedSearchInput && item.filterable;
-
-        if (shouldRenderSearchInput) {
-          hasRenderedSearchInput = true;
-        }
-
         // セパレーターの場合
         if (item.separator) {
-          return (
-            <div key={`separator-${index}`}>
-              {shouldRenderSearchInput && (
-                <div className="px-2 py-2">
-                  <input
-                    ref={filterInputRef}
-                    type="text"
-                    placeholder={filterPlaceholder}
-                    value={filterQuery}
-                    onChange={(e) => setFilterQuery(e.target.value)}
-                    onCompositionStart={() => setIsComposing(true)}
-                    onCompositionEnd={() => setIsComposing(false)}
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              )}
-              <div className="border-t border-gray-200 my-1" />
-            </div>
-          );
+          return <div key={`separator-${index}`} className="border-t border-gray-200 my-1" />;
         }
 
         // 通常のメニュー項目
@@ -302,49 +291,34 @@ export function ContextMenu({
         const Icon = item.icon;
 
         return (
-          <div key={`item-${index}`}>
-            {shouldRenderSearchInput && (
-              <div className="px-2 py-2">
-                <input
-                  ref={filterInputRef}
-                  type="text"
-                  placeholder={filterPlaceholder}
-                  value={filterQuery}
-                  onChange={(e) => setFilterQuery(e.target.value)}
-                  onCompositionStart={() => setIsComposing(true)}
-                  onCompositionEnd={() => setIsComposing(false)}
-                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+          <button
+            key={`item-${index}`}
+            ref={(el) => {
+              itemRefs.current[currentInteractiveIndex] = el;
+            }}
+            role="menuitem"
+            className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${
+              item.danger
+                ? 'text-red-600 hover:bg-red-50'
+                : 'text-gray-700 hover:bg-gray-100'
+            }`}
+            onClick={() => handleItemClick(item)}
+            onFocus={() => {
+              focusedIndexRef.current = currentInteractiveIndex;
+            }}
+          >
+            {/* 画像がある場合は画像を表示 */}
+            {item.imageUrl ? (
+              <img
+                src={item.imageUrl}
+                alt=""
+                className="w-6 h-6 rounded-full object-cover flex-shrink-0"
+              />
+            ) : (
+              Icon && <Icon className="w-4 h-4 flex-shrink-0" />
             )}
-            <button
-              ref={(el) => {
-                itemRefs.current[currentInteractiveIndex] = el;
-              }}
-              role="menuitem"
-              className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${
-                item.danger
-                  ? 'text-red-600 hover:bg-red-50'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-              onClick={() => handleItemClick(item)}
-              onFocus={() => {
-                focusedIndexRef.current = currentInteractiveIndex;
-              }}
-            >
-              {/* 画像がある場合は画像を表示 */}
-              {item.imageUrl ? (
-                <img
-                  src={item.imageUrl}
-                  alt=""
-                  className="w-6 h-6 rounded-full object-cover flex-shrink-0"
-                />
-              ) : (
-                Icon && <Icon className="w-4 h-4 flex-shrink-0" />
-              )}
-              <span>{item.label}</span>
-            </button>
-          </div>
+            <span>{item.label}</span>
+          </button>
         );
       })}
 
