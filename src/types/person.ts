@@ -16,6 +16,7 @@ export type NodeKind = 'person' | 'item';
  * @property name - 人物の名前
  * @property imageDataUrl - 200x200pxにリサイズされた画像のData URL（JPEG形式）。省略可能
  * @property kind - ノードの種別（'person' or 'item'）。省略時は'person'として扱う
+ * @property position - ノードの初期位置（Flow座標系）。省略時はランダムな位置に配置される
  * @property createdAt - 作成日時（ISO 8601形式の文字列）
  */
 export type Person = {
@@ -23,5 +24,6 @@ export type Person = {
   name: string;
   imageDataUrl?: string;
   kind?: NodeKind;
+  position?: { x: number; y: number };
   createdAt: string;
 };

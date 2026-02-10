@@ -193,6 +193,56 @@ describe('graph-utils', () => {
       expect(nodes[1].type).toBe('item');
       expect(nodes[1].data.kind).toBe('item');
     });
+
+    it('position指定がある場合にその座標がNodeに反映される', () => {
+      const persons: Person[] = [
+        {
+          id: 'person-1',
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+          position: { x: 100, y: 200 },
+          createdAt: '2026-02-05T00:00:00.000Z',
+        },
+      ];
+
+      const nodes = personsToNodes(persons);
+
+      expect(nodes).toHaveLength(1);
+      expect(nodes[0].position).toEqual({ x: 100, y: 200 });
+    });
+
+    it('position指定がない場合は(0, 0)がNodeに設定される', () => {
+      const persons: Person[] = [
+        {
+          id: 'person-1',
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+          createdAt: '2026-02-05T00:00:00.000Z',
+        },
+      ];
+
+      const nodes = personsToNodes(persons);
+
+      expect(nodes).toHaveLength(1);
+      expect(nodes[0].position).toEqual({ x: 0, y: 0 });
+    });
+
+    it('position指定が(0, 0)の場合もそのままNodeに反映される', () => {
+      const persons: Person[] = [
+        {
+          id: 'person-1',
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+          position: { x: 0, y: 0 },
+          createdAt: '2026-02-05T00:00:00.000Z',
+        },
+      ];
+
+      const nodes = personsToNodes(persons);
+
+      expect(nodes).toHaveLength(1);
+      expect(nodes[0].position).toEqual({ x: 0, y: 0 });
+    });
   });
 
   describe('relationshipsToEdges', () => {

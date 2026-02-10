@@ -103,12 +103,12 @@ describe('PersonRegistrationModal - 種別選択', () => {
     );
 
     // クロップ後の画面に遷移するためのモック操作（実際はskipなので実行されない）
-    // 名前入力画面でタイトルが「人物を登録」であることを確認
-    expect(await screen.findByText('人物を登録')).toBeInTheDocument();
+    // 名前入力画面でタイトルが「ノードを登録」であることを確認
+    expect(await screen.findByText('ノードを登録')).toBeInTheDocument();
   });
 
   // rawImageSrc=""のため、ImageCropperがレンダリングされず、Canvas APIに依存しない
-  it('「物」を選択してタイトルが「物を登録」になる', async () => {
+  it('「物」を選択してもタイトルは「ノードを登録」のまま', async () => {
     const user = userEvent.setup();
     const { container } = render(
       <PersonRegistrationModal
@@ -124,8 +124,8 @@ describe('PersonRegistrationModal - 種別選択', () => {
     expect(itemToggle).toBeInTheDocument();
     await user.click(itemToggle!);
 
-    // タイトルが「物を登録」になることを確認
-    expect(screen.getByText('物を登録')).toBeInTheDocument();
+    // タイトルが「ノードを登録」のままであることを確認
+    expect(screen.getByText('ノードを登録')).toBeInTheDocument();
   });
 
   // rawImageSrc=""のため、ImageCropperがレンダリングされず、Canvas APIに依存しない
