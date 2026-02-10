@@ -334,6 +334,25 @@ describe('SearchBar', () => {
   });
 
   describe('キーボードナビゲーション', () => {
+    it('検索結果が表示されたら最初の候補が自動的に選択される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <SearchBar />
+        </ReactFlowProvider>
+      );
+
+      const combobox = screen.getByRole('combobox');
+      await user.type(combobox, '山田');
+
+      await waitFor(() => {
+        const firstOption = screen.getByRole('option', { name: /山田太郎/i });
+        expect(firstOption).toBeInTheDocument();
+        // 最初の候補が自動的に選択される
+        expect(firstOption).toHaveAttribute('aria-selected', 'true');
+      });
+    });
+
     it('ArrowDownで次の結果にフォーカスが移動する', async () => {
       const user = userEvent.setup();
       render(
@@ -353,8 +372,8 @@ describe('SearchBar', () => {
       await user.keyboard('{ArrowDown}');
 
       await waitFor(() => {
-        const firstOption = screen.getByRole('option', { name: /山田太郎/i });
-        expect(firstOption).toHaveAttribute('aria-selected', 'true');
+        const secondOption = screen.getByRole('option', { name: /田中花子/i });
+        expect(secondOption).toHaveAttribute('aria-selected', 'true');
       });
     });
 
@@ -419,7 +438,7 @@ describe('SearchBar', () => {
       });
     });
 
-    it('Enterキーで選択中の結果を選択できる', async () => {
+    it('Enterキーで自動選択された最初の候補を選択できる', async () => {
       const user = userEvent.setup();
       const selectPerson = vi.fn();
       useGraphStore.setState({ selectPerson });
@@ -437,14 +456,44 @@ describe('SearchBar', () => {
         expect(screen.getByRole('option', { name: /山田太郎/i })).toBeInTheDocument();
       });
 
-      // ArrowDownで選択
+      // ArrowDownを押さずに、Enterだけで確定
+      await user.keyboard('{Enter}');
+
+      // selectPersonが呼ばれることを確認
+      expect(selectPerson).toHaveBeenCalledWith('person1');
+
+      // 検索クエリがクリアされることを確認
+      await waitFor(() => {
+        expect(combobox.value).toBe('');
+      });
+    });
+
+    it('ArrowDownで次の結果に移動してからEnterで選択できる', async () => {
+      const user = userEvent.setup();
+      const selectPerson = vi.fn();
+      useGraphStore.setState({ selectPerson });
+
+      render(
+        <ReactFlowProvider>
+          <SearchBar />
+        </ReactFlowProvider>
+      );
+
+      const combobox = screen.getByRole('combobox') as HTMLInputElement;
+      await user.type(combobox, '田');
+
+      await waitFor(() => {
+        expect(screen.getByRole('option', { name: /山田太郎/i })).toBeInTheDocument();
+      });
+
+      // ArrowDownで2番目の結果へ移動
       await user.keyboard('{ArrowDown}');
 
       // Enterで確定
       await user.keyboard('{Enter}');
 
-      // selectPersonが呼ばれることを確認
-      expect(selectPerson).toHaveBeenCalledWith('person1');
+      // selectPersonが呼ばれることを確認（2番目の結果）
+      expect(selectPerson).toHaveBeenCalledWith('person2');
 
       // 検索クエリがクリアされることを確認
       await waitFor(() => {

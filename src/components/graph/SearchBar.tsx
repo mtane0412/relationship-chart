@@ -25,6 +25,8 @@ export default function SearchBar() {
   const [query, setQuery] = useState('');
   // キーボードナビゲーション用のハイライト位置
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  // ユーザーが手動で候補を選択したかどうか
+  const [isManualSelection, setIsManualSelection] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -131,18 +133,21 @@ export default function SearchBar() {
         // 検索クエリをクリア
         setQuery('');
         setSelectedIndex(-1);
+        setIsManualSelection(false);
         // 入力フィールドからフォーカスを外す
         if (inputRef.current) {
           inputRef.current.blur();
         }
       } else if (event.key === 'ArrowDown') {
         event.preventDefault();
+        setIsManualSelection(true);
         setSelectedIndex((prev) => {
           const nextIndex = prev + 1;
           return nextIndex < results.length ? nextIndex : prev;
         });
       } else if (event.key === 'ArrowUp') {
         event.preventDefault();
+        setIsManualSelection(true);
         setSelectedIndex((prev) => {
           const nextIndex = prev - 1;
           return nextIndex >= 0 ? nextIndex : -1;
@@ -158,11 +163,25 @@ export default function SearchBar() {
   );
 
   /**
-   * 検索クエリが変更されたらハイライト位置をリセット
+   * 検索クエリが変更されたら手動選択フラグをリセット
    */
   useEffect(() => {
-    setSelectedIndex(-1);
+    setIsManualSelection(false);
   }, [query]);
+
+  /**
+   * 検索結果が変更されたら、手動選択中でなければ最初の候補を自動的に選択
+   */
+  useEffect(() => {
+    // 手動選択中は自動リセットしない
+    if (isManualSelection) return;
+
+    if (results.length > 0) {
+      setSelectedIndex(0);
+    } else {
+      setSelectedIndex(-1);
+    }
+  }, [results, isManualSelection]);
 
   // 常時展開済みの見た目で表示
   return (
