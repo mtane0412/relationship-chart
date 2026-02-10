@@ -203,6 +203,7 @@ export function RelationshipGraph() {
         requestAnimationFrame(() => {
           const currentNodes = getNodes();
           const resolvedNodes = resolveCollisions(currentNodes, DEFAULT_COLLISION_OPTIONS);
+          // resolveCollisionsは変更がない場合に元の配列を返すため、参照等価性でチェック
           if (resolvedNodes !== currentNodes) {
             setNodes(resolvedNodes as GraphNode[]);
           }
@@ -224,7 +225,7 @@ export function RelationshipGraph() {
       });
       return updatedEdges;
     });
-  }, [persons, relationships, setNodes, setEdges]);
+  }, [persons, relationships, setNodes, setEdges, forceEnabled, getNodes]);
 
   // 選択状態の変更時に既存ノード/エッジのselectedプロパティのみ更新
   // 配列参照を変更しないようにhasChangedフラグで最適化

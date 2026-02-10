@@ -140,6 +140,7 @@ export function resolveCollisions(
 
           // 最小重なり軸を選択（移動距離を最小化）
           // 重なり量（margin含む）を等分割して押し出し
+          // 注意: overlapX == overlapYの場合は常にY方向へ押し出し（完全重複時の一貫した動作）
           if (collision.overlapX < collision.overlapY) {
             // X方向に押し出し
             const pushX = collision.overlapX / 2;
@@ -166,6 +167,24 @@ export function resolveCollisions(
     }
 
     iteration++;
+  }
+
+  // 位置が変更されたノードがあるかチェック
+  let hasChanges = false;
+  for (let i = 0; i < nodes.length; i++) {
+    const bbox = bboxes[i];
+    const originalX = nodes[i].position.x;
+    const originalY = nodes[i].position.y;
+
+    if (Math.abs(bbox.x - originalX) >= 0.01 || Math.abs(bbox.y - originalY) >= 0.01) {
+      hasChanges = true;
+      break;
+    }
+  }
+
+  // 変更がない場合は元の配列をそのまま返す（参照同一性を保持）
+  if (!hasChanges) {
+    return nodes;
   }
 
   // 移動したノードのみpositionを更新
