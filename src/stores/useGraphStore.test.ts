@@ -1558,6 +1558,63 @@ describe('useGraphStore', () => {
     });
   });
 
+  describe('sidePanelOpen', () => {
+    it('初期状態でsidePanelOpenがtrueである', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      expect(result.current.sidePanelOpen).toBe(true);
+    });
+
+    it('setSidePanelOpenでfalseに変更できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      act(() => {
+        result.current.setSidePanelOpen(false);
+      });
+
+      expect(result.current.sidePanelOpen).toBe(false);
+    });
+
+    it('setSidePanelOpenでtrueに変更できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // まずfalseにする
+      act(() => {
+        result.current.setSidePanelOpen(false);
+      });
+
+      expect(result.current.sidePanelOpen).toBe(false);
+
+      // trueに戻す
+      act(() => {
+        result.current.setSidePanelOpen(true);
+      });
+
+      expect(result.current.sidePanelOpen).toBe(true);
+    });
+
+    it('toggleSidePanelで値が反転する', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 初期値はtrue
+      expect(result.current.sidePanelOpen).toBe(true);
+
+      // トグルでfalseになる
+      act(() => {
+        result.current.toggleSidePanel();
+      });
+
+      expect(result.current.sidePanelOpen).toBe(false);
+
+      // もう一度トグルでtrueに戻る
+      act(() => {
+        result.current.toggleSidePanel();
+      });
+
+      expect(result.current.sidePanelOpen).toBe(true);
+    });
+  });
+
   describe('Undo/Redo (temporal middleware)', () => {
     it('人物追加のundo/redoができる', () => {
       const { result } = renderHook(() => useGraphStore());

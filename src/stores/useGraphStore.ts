@@ -45,6 +45,8 @@ type GraphState = {
   selectedPersonIds: string[];
   /** force-directedレイアウトのパラメータ */
   forceParams: ForceParams;
+  /** サイドパネルが開いているかどうか */
+  sidePanelOpen: boolean;
 };
 
 /**
@@ -128,6 +130,17 @@ type GraphActions = {
    * force-directedレイアウトのパラメータをデフォルト値にリセットする
    */
   resetForceParams: () => void;
+
+  /**
+   * サイドパネルの開閉状態を設定する
+   * @param open - 開く場合はtrue、閉じる場合はfalse
+   */
+  setSidePanelOpen: (open: boolean) => void;
+
+  /**
+   * サイドパネルの開閉状態をトグルする
+   */
+  toggleSidePanel: () => void;
 };
 
 /**
@@ -206,6 +219,7 @@ export const useGraphStore = create<GraphStore>()(
         forceEnabled: true, // デフォルトでforce-directedレイアウトを有効
         selectedPersonIds: [], // 初期状態では何も選択されていない
         forceParams: DEFAULT_FORCE_PARAMS, // デフォルトのforceパラメータ
+        sidePanelOpen: true, // デフォルトでサイドパネルを開く
 
         // アクション
         addPerson: (person) =>
@@ -334,6 +348,16 @@ export const useGraphStore = create<GraphStore>()(
           set(() => ({
             forceParams: DEFAULT_FORCE_PARAMS,
           })),
+
+        setSidePanelOpen: (open) =>
+          set(() => ({
+            sidePanelOpen: open,
+          })),
+
+        toggleSidePanel: () =>
+          set((state) => ({
+            sidePanelOpen: !state.sidePanelOpen,
+          })),
       }),
       {
         // UI状態（selectedPersonIds, forceEnabled）はundo対象外
@@ -346,11 +370,11 @@ export const useGraphStore = create<GraphStore>()(
     ),
     {
       name: 'relationship-chart-storage', // LocalStorageのキー名
-      version: 4, // バージョン管理（v3→v4に更新）
+      version: 5, // バージョン管理（v4→v5に更新）
       // マイグレーション関数
       migrate: (persistedState: unknown, version: number) => {
-        // v4以降は変換不要
-        if (version >= 4) {
+        // v5以降は変換不要
+        if (version >= 5) {
           return persistedState as GraphState;
         }
 
@@ -459,6 +483,19 @@ export const useGraphStore = create<GraphStore>()(
             state = {
               ...v3State,
               forceParams: DEFAULT_FORCE_PARAMS,
+            };
+          }
+        }
+
+        // v4からv5への変換（sidePanelOpenを補完）
+        // v0/v1/v2/v3からの変換後も必ずここを通るため、すべてのバージョンでsidePanelOpenが補完される
+        if (version <= 4) {
+          const v4State = state as Partial<GraphState>;
+          // sidePanelOpenがない場合はデフォルト値（true）を追加
+          if (v4State.sidePanelOpen === undefined) {
+            state = {
+              ...v4State,
+              sidePanelOpen: true,
             };
           }
         }

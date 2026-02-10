@@ -10,7 +10,6 @@ import { DefaultPanel } from './DefaultPanel';
 import { SingleSelectionPanel } from './SingleSelectionPanel';
 import { PairSelectionPanel } from './PairSelectionPanel';
 import { MultipleSelectionInfo } from './MultipleSelectionInfo';
-import { ForceParamsSliders } from './ForceParamsSliders';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils';
 
@@ -18,8 +17,6 @@ import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils
  * サイドパネルコンポーネント
  */
 export function SidePanel() {
-  const forceEnabled = useGraphStore((state) => state.forceEnabled);
-  const setForceEnabled = useGraphStore((state) => state.setForceEnabled);
   const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
   const persons = useGraphStore((state) => state.persons);
 
@@ -93,37 +90,6 @@ export function SidePanel() {
             選択中の要素を中心に表示
           </button>
         )}
-
-        {/* Force-directedレイアウトトグル */}
-        <div className="mt-3 flex items-center justify-between">
-          <label
-            htmlFor="forceToggle"
-            className="text-sm font-medium text-gray-700"
-          >
-            自動配置
-          </label>
-          <button
-            id="forceToggle"
-            type="button"
-            role="switch"
-            aria-checked={forceEnabled}
-            onClick={() => setForceEnabled(!forceEnabled)}
-            className={`
-              relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-              ${forceEnabled ? 'bg-blue-600' : 'bg-gray-200'}
-            `}
-          >
-            <span
-              className={`
-                inline-block h-4 w-4 transform rounded-full bg-white transition-transform
-                ${forceEnabled ? 'translate-x-6' : 'translate-x-1'}
-              `}
-            />
-          </button>
-        </div>
-
-        {/* Force-directedレイアウトのパラメータスライダー */}
-        {forceEnabled && <ForceParamsSliders />}
       </div>
 
       {/* コンテンツエリア */}
