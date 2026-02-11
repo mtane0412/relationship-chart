@@ -706,6 +706,18 @@ export const useGraphStore = create<GraphStore>()(
               sidePanelOpen: true,
             }));
 
+            // chartMetasを「相関図 1」に更新
+            const now = new Date().toISOString();
+            const updatedMetas = currentMetas.map((meta) => ({
+              ...meta,
+              name: '相関図 1',
+              personCount: 0,
+              relationshipCount: 0,
+              updatedAt: now,
+            }));
+
+            set(() => ({ chartMetas: updatedMetas }));
+
             // IndexedDBに保存（リセット状態で）
             await saveCurrentChart(get);
 

@@ -2316,6 +2316,13 @@ describe('useGraphStore', () => {
 
         const chartId = result.current.activeChartId!;
 
+        // チャート名を変更
+        await act(async () => {
+          await result.current.renameChart(chartId, 'カスタム名前');
+        });
+
+        expect(result.current.chartMetas[0].name).toBe('カスタム名前');
+
         // 人物を追加
         act(() => {
           result.current.addPerson({ name: '田中太郎' });
@@ -2332,6 +2339,11 @@ describe('useGraphStore', () => {
         expect(result.current.chartMetas).toHaveLength(1);
         // データはリセットされている
         expect(result.current.persons).toHaveLength(0);
+        // チャート名は「相関図 1」にリセットされている
+        expect(result.current.chartMetas[0].name).toBe('相関図 1');
+        // 人物数と関係数もリセットされている
+        expect(result.current.chartMetas[0].personCount).toBe(0);
+        expect(result.current.chartMetas[0].relationshipCount).toBe(0);
       });
     });
 
