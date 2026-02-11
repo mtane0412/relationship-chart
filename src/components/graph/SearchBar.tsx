@@ -72,13 +72,13 @@ export default function SearchBar() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   // プラットフォームに応じたキーボードショートカットを表示
-  const shortcutLabel = useMemo(() => {
-    // SSR対応: ブラウザ環境でのみ判定
-    if (typeof window === 'undefined') return 'Ctrl+K';
+  // Hydration Error回避のため、初期値は固定値を使用
+  const [shortcutLabel, setShortcutLabel] = useState('Ctrl+K');
 
-    // macOSの判定（navigator.platformは非推奨だがnavigator.userAgentDataはまだ実験的）
+  // クライアントサイドマウント後にプラットフォームを判定して更新
+  useEffect(() => {
     const isMac = /Mac|iPhone|iPod|iPad/i.test(navigator.userAgent);
-    return isMac ? '⌘K' : 'Ctrl+K';
+    setShortcutLabel(isMac ? '⌘K' : 'Ctrl+K');
   }, []);
 
   // ストアから必要なデータを取得
