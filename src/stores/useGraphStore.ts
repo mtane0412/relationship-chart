@@ -247,7 +247,7 @@ type GraphActions = {
    * 新しい相関図を作成する
    * @param name - 相関図の名前
    */
-  createChart: (name: string) => Promise<void>;
+  createChart: (name?: string) => Promise<void>;
 
   /**
    * 相関図を切り替える
@@ -585,16 +585,33 @@ export const useGraphStore = create<GraphStore>()(
           await setLastActiveChartId(chart.id);
         },
 
-        createChart: async (name: string) => {
+        createChart: async (name?: string) => {
           // 1. 現在のチャートをIndexedDBに保存
           await saveCurrentChart(get);
 
-          // 2. 新しいChartオブジェクトを作成
+          // 2. nameが指定されていない場合はデフォルト名を生成
+          const currentMetas = get().chartMetas;
+          const chartName =
+            name ||
+            (() => {
+              // 既存のチャート名から「相関図 X」のパターンを探して最大値を取得
+              const chartNumbers = currentMetas
+                .map((meta) => {
+                  const match = meta.name.match(/^相関図 (\d+)$/);
+                  return match ? parseInt(match[1], 10) : 0;
+                })
+                .filter((num) => num > 0);
+
+              const maxNumber = chartNumbers.length > 0 ? Math.max(...chartNumbers) : 0;
+              return `相関図 ${maxNumber + 1}`;
+            })();
+
+          // 3. 新しいChartオブジェクトを作成
           const chartId = nanoid();
           const now = new Date().toISOString();
           const newChart: Chart = {
             id: chartId,
-            name,
+            name: chartName,
             persons: [],
             relationships: [],
             forceEnabled: false,
@@ -604,25 +621,24 @@ export const useGraphStore = create<GraphStore>()(
             updatedAt: now,
           };
 
-          // 3. IndexedDBに保存
+          // 4. IndexedDBに保存
           await saveChart(newChart);
 
-          // 4. chartMetasを更新
+          // 5. chartMetasを更新
           const newMeta: ChartMeta = {
             id: chartId,
-            name,
+            name: chartName,
             personCount: 0,
             relationshipCount: 0,
             createdAt: now,
             updatedAt: now,
           };
 
-          const currentMetas = get().chartMetas;
           const updatedMetas = [newMeta, ...currentMetas];
           // updatedAtの降順にソート（最新のものが先頭）
           updatedMetas.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
-          // 5. ストアを更新
+          // 6. ストアを更新
           set(() => ({
             activeChartId: chartId,
             persons: [],
@@ -634,10 +650,10 @@ export const useGraphStore = create<GraphStore>()(
             chartMetas: updatedMetas,
           }));
 
-          // 6. lastActiveChartIdを更新
+          // 7. lastActiveChartIdを更新
           await setLastActiveChartId(chartId);
 
-          // 7. Undo/Redo履歴をクリア
+          // 8. Undo/Redo履歴をクリア
           useGraphStore.temporal.getState().clear();
         },
 
