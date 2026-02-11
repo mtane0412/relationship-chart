@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useReactFlow } from '@xyflow/react';
 import { ArrowRight, ArrowLeft, ArrowLeftRight, Minus } from 'lucide-react';
 import { BidirectionalArrow } from '@/components/icons/BidirectionalArrow';
@@ -120,45 +120,48 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
   // 物が含まれているかチェック
   const hasItem = (person1.kind === 'item') || (person2.kind === 'item');
 
-  // 2人の間の既存関係を取得（方向問わず）
-  const existingRelationship = relationships.find(
-    (r) =>
-      (r.sourcePersonId === person1.id && r.targetPersonId === person2.id) ||
-      (r.sourcePersonId === person2.id && r.targetPersonId === person1.id)
+  // 2人の間の既存関係を取得（方向問わず）- メモ化して無限ループを防止
+  const existingRelationship = useMemo(
+    () =>
+      relationships.find(
+        (r) =>
+          (r.sourcePersonId === person1.id && r.targetPersonId === person2.id) ||
+          (r.sourcePersonId === person2.id && r.targetPersonId === person1.id)
+      ),
+    [relationships, person1.id, person2.id]
   );
 
-  // 既存関係の向きを判定（person1がsourceかどうか）
-  const isReversed = existingRelationship
-    ? existingRelationship.sourcePersonId === person2.id
-    : false;
+  // 既存関係の向きを判定（person1がsourceかどうか）- メモ化して無限ループを防止
+  const isReversed = useMemo(
+    () => (existingRelationship ? existingRelationship.sourcePersonId === person2.id : false),
+    [existingRelationship, person2.id]
+  );
 
-  // フォーム状態
-  const [relationshipType, setRelationshipType] = useState<RelationshipType>('bidirectional');
-  const [sourceToTargetLabel, setSourceToTargetLabel] = useState('');
-  const [targetToSourceLabel, setTargetToSourceLabel] = useState('');
-  const [isTypePickerOpen, setIsTypePickerOpen] = useState(false);
-
-  // 初期値設定
-  useEffect(() => {
+  // フォーム状態（初期値を関数で設定）
+  const [relationshipType, setRelationshipType] = useState<RelationshipType>(() => {
+    if (existingRelationship) {
+      return getRelationshipDisplayType(existingRelationship);
+    }
+    return 'bidirectional';
+  });
+  const [sourceToTargetLabel, setSourceToTargetLabel] = useState(() => {
+    if (existingRelationship) {
+      return isReversed
+        ? existingRelationship.targetToSourceLabel || existingRelationship.sourceToTargetLabel || ''
+        : existingRelationship.sourceToTargetLabel || '';
+    }
+    return '';
+  });
+  const [targetToSourceLabel, setTargetToSourceLabel] = useState(() => {
     if (existingRelationship) {
       const displayType = getRelationshipDisplayType(existingRelationship);
-      setRelationshipType(displayType);
-      setSourceToTargetLabel(
-        isReversed
-          ? existingRelationship.targetToSourceLabel || existingRelationship.sourceToTargetLabel || ''
-          : existingRelationship.sourceToTargetLabel || ''
-      );
-      setTargetToSourceLabel(
-        isReversed
-          ? (displayType === 'dual-directed' ? existingRelationship.sourceToTargetLabel || '' : '')
-          : (existingRelationship.targetToSourceLabel || '')
-      );
-    } else {
-      setRelationshipType('bidirectional');
-      setSourceToTargetLabel('');
-      setTargetToSourceLabel('');
+      return isReversed
+        ? (displayType === 'dual-directed' ? existingRelationship.sourceToTargetLabel || '' : '')
+        : (existingRelationship.targetToSourceLabel || '');
     }
-  }, [existingRelationship, isReversed]);
+    return '';
+  });
+  const [isTypePickerOpen, setIsTypePickerOpen] = useState(false);
 
   // 外部クリックでドロップダウンを閉じる
   useEffect(() => {
