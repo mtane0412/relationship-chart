@@ -11,6 +11,7 @@ import { SingleSelectionPanel } from './SingleSelectionPanel';
 import { PairSelectionPanel } from './PairSelectionPanel';
 import { MultipleSelectionInfo } from './MultipleSelectionInfo';
 import { AuthorAttribution } from '@/components/graph/AuthorAttribution';
+import Footer from '@/components/layout/Footer';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { useDialogStore } from '@/stores/useDialogStore';
 
@@ -88,6 +89,9 @@ export function SidePanel() {
 
       {/* コンテンツエリア */}
       <div className="flex-1 overflow-y-auto flex flex-col">{content}</div>
+
+      {/* フッター */}
+      <Footer />
     </div>
   );
 }
