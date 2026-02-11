@@ -427,7 +427,9 @@ export function useGraphInteractions({
   // ノード削除ハンドラ（確認はonBeforeDeleteで実行済み）
   const handleNodesDelete = useCallback(
     (nodesToDelete: Node[]) => {
-      nodesToDelete.forEach((node) => removePerson(node.id));
+      nodesToDelete.forEach((node) => {
+        removePerson(node.id);
+      });
     },
     [removePerson]
   );
@@ -435,7 +437,9 @@ export function useGraphInteractions({
   // エッジ削除ハンドラ（確認はonBeforeDeleteで実行済み）
   const handleEdgesDelete = useCallback(
     (edgesToDelete: RelationshipEdge[]) => {
-      edgesToDelete.forEach((edge) => removeRelationship(edge.id));
+      edgesToDelete.forEach((edge) => {
+        removeRelationship(edge.id);
+      });
     },
     [removeRelationship]
   );

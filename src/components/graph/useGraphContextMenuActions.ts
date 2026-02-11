@@ -96,6 +96,9 @@ export function useGraphContextMenuActions({
       const person = persons.find((p) => p.id === nodeId);
       const unconnectedNodes = getUnconnectedNodes(nodeId);
 
+      // contextMenuの位置をビルド時にキャプチャ（クリック時のnull参照を防ぐ）
+      const menuPosition = contextMenu?.position;
+
       const items: ContextMenuItem[] = [
         {
           label: '中心に表示',
@@ -113,14 +116,14 @@ export function useGraphContextMenuActions({
       ];
 
       // まだ繋がっていないノードが存在する場合は「関係を追加」を追加
-      if (unconnectedNodes.length > 0) {
+      if (unconnectedNodes.length > 0 && menuPosition) {
         items.push({
           label: '関係を追加',
           icon: Link,
           closeOnClick: false, // モード切り替えなのでメニューを閉じない
           onClick: () => {
             // 関係追加モードに切り替え
-            switchToAddRelationshipMode(nodeId, contextMenu!.position);
+            switchToAddRelationshipMode(nodeId, menuPosition);
           },
         });
       }
@@ -179,6 +182,9 @@ export function useGraphContextMenuActions({
     (sourceNodeId: string): ContextMenuItem[] => {
       const unconnectedNodes = getUnconnectedNodes(sourceNodeId);
 
+      // contextMenuの位置をビルド時にキャプチャ（クリック時のnull参照を防ぐ）
+      const menuPosition = contextMenu?.position;
+
       const items: ContextMenuItem[] = [
         {
           label: '戻る',
@@ -189,9 +195,9 @@ export function useGraphContextMenuActions({
             // 注: handleNodeContextMenuを再利用するため、最小限のMouseEventを構築
             // position.x/yは既に補正済みのため、adjustPositionは冪等（再補正しても同じ結果）
             const node = getNode(sourceNodeId);
-            if (node) {
+            if (node && menuPosition) {
               handleNodeContextMenu(
-                { preventDefault: () => {}, clientX: contextMenu!.position.x, clientY: contextMenu!.position.y } as React.MouseEvent,
+                { preventDefault: () => {}, clientX: menuPosition.x, clientY: menuPosition.y } as React.MouseEvent,
                 node
               );
             } else {
