@@ -408,7 +408,8 @@ describe('migrateGraphState', () => {
 
     it('egoLayoutParamsがある場合はそのまま維持する', () => {
       const customEgoLayoutParams = {
-        radiusRange: [100, 150, 200],
+        ringSpacing: 300,
+        firstRingRadius: 150,
       };
 
       const v5State = {

@@ -32,11 +32,18 @@ describe('chart-db', () => {
 
     // fake-indexeddbをリセット
     const databases = await indexedDB.databases();
-    for (const db of databases) {
-      if (db.name) {
-        indexedDB.deleteDatabase(db.name);
-      }
-    }
+    await Promise.all(
+      databases
+        .filter((db) => db.name)
+        .map(
+          (db) =>
+            new Promise<void>((resolve, reject) => {
+              const req = indexedDB.deleteDatabase(db.name!);
+              req.onsuccess = () => resolve();
+              req.onerror = () => reject(req.error);
+            })
+        )
+    );
   });
 
   describe('initDB', () => {

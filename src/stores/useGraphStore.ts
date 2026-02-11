@@ -184,7 +184,7 @@ type GraphActions = {
 
   /**
    * すべてのデータと状態を初期値にリセットする
-   * LocalStorageのデータもクリアされ、Undo/Redo履歴もクリアされます
+   * Undo/Redo履歴もクリアされます
    */
   resetAll: () => void;
 
@@ -229,7 +229,10 @@ type GraphStore = GraphState & GraphActions;
  * グラフストア
  * 人物と関係を管理するグローバルストア
  * temporalミドルウェアでUndo/Redo機能を提供
- * IndexedDBで永続化（自動保存はauto-save.tsで実装）
+ *
+ * ⚠️ 注意: persistミドルウェアは削除済み
+ * IndexedDB永続化と自動保存はPhase 2.4以降で実装予定
+ * 現在はページリロードでデータが失われます
  */
 export const useGraphStore = create<GraphStore>()(
   temporal(

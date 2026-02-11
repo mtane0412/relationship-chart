@@ -9,9 +9,10 @@ import { DEFAULT_FORCE_PARAMS, type ForceParams } from '@/stores/useGraphStore';
 import { DEFAULT_EGO_LAYOUT_PARAMS, type EgoLayoutParams } from './ego-layout';
 
 /**
- * グラフストアの現在の状態型
+ * マイグレーション対象のグラフストア状態型
+ * （永続化されたデータの最新形式）
  */
-export type GraphState = {
+export type PersistedGraphState = {
   persons: Person[];
   relationships: Relationship[];
   forceEnabled: boolean;
@@ -187,7 +188,7 @@ export function migrateGraphState(persistedState: unknown, version: number): unk
   // v3からv4への変換（forceParamsを補完）
   // v0/v1/v2からの変換後も必ずここを通るため、すべてのバージョンでforceParamsが補完される
   if (version <= 3) {
-    const v3State = state as Partial<GraphState>;
+    const v3State = state as Partial<PersistedGraphState>;
     // forceParamsがない場合はデフォルト値を追加
     if (!v3State.forceParams) {
       state = {
@@ -200,7 +201,7 @@ export function migrateGraphState(persistedState: unknown, version: number): unk
   // v4からv5への変換（sidePanelOpenを補完）
   // v0/v1/v2/v3からの変換後も必ずここを通るため、すべてのバージョンでsidePanelOpenが補完される
   if (version <= 4) {
-    const v4State = state as Partial<GraphState>;
+    const v4State = state as Partial<PersistedGraphState>;
     // sidePanelOpenがない場合はデフォルト値（true）を追加
     if (v4State.sidePanelOpen === undefined) {
       state = {
@@ -213,7 +214,7 @@ export function migrateGraphState(persistedState: unknown, version: number): unk
   // v5からv6への変換（egoLayoutParamsを補完）
   // v0/v1/v2/v3/v4からの変換後も必ずここを通るため、すべてのバージョンでegoLayoutParamsが補完される
   if (version <= 5) {
-    const v5State = state as Partial<GraphState>;
+    const v5State = state as Partial<PersistedGraphState>;
     // egoLayoutParamsがない場合はデフォルト値を追加
     if (!v5State.egoLayoutParams) {
       state = {
