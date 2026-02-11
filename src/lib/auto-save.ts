@@ -119,12 +119,13 @@ export function startAutoSave(): void {
   }
 
   // 前回の状態を保持（変更検出用）
+  const initialState = useGraphStore.getState();
   let previousState = JSON.stringify({
-    persons: useGraphStore.getState().persons,
-    relationships: useGraphStore.getState().relationships,
-    forceEnabled: useGraphStore.getState().forceEnabled,
-    forceParams: useGraphStore.getState().forceParams,
-    egoLayoutParams: useGraphStore.getState().egoLayoutParams,
+    persons: initialState.persons,
+    relationships: initialState.relationships,
+    forceEnabled: initialState.forceEnabled,
+    forceParams: initialState.forceParams,
+    egoLayoutParams: initialState.egoLayoutParams,
   });
 
   // ストアの変更を監視

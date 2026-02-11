@@ -279,9 +279,8 @@ type GraphStore = GraphState & GraphActions;
  * 人物と関係を管理するグローバルストア
  * temporalミドルウェアでUndo/Redo機能を提供
  *
- * ⚠️ 注意: persistミドルウェアは削除済み
- * IndexedDB永続化と自動保存はPhase 2.4以降で実装予定
- * 現在はページリロードでデータが失われます
+ * IndexedDBへの永続化はauto-saveモジュール（auto-save.ts）と
+ * チャート管理アクション（initializeApp, createChart等）で実現
  */
 export const useGraphStore = create<GraphStore>()(
   temporal(
@@ -456,7 +455,9 @@ export const useGraphStore = create<GraphStore>()(
           useGraphStore.temporal.getState().clear();
 
           // 即座にIndexedDBに保存（チャート管理状態が保持されているため）
-          void saveCurrentChart(get);
+          void saveCurrentChart(get).catch((error) => {
+            console.error('Failed to save chart after resetAll:', error);
+          });
         },
 
         // チャート管理アクション（Phase 2）
@@ -479,6 +480,12 @@ export const useGraphStore = create<GraphStore>()(
                   state: unknown;
                   version: number;
                 };
+
+                // バリデーション: パース結果が期待する構造かチェック
+                if (!parsed || typeof parsed.version !== 'number' || !parsed.state) {
+                  throw new Error('Invalid LocalStorage data format');
+                }
+
                 const migratedState = migrateGraphState(parsed.state, parsed.version) as GraphState;
 
                 // Chartとして保存
