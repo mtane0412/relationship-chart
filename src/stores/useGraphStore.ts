@@ -10,7 +10,17 @@ import type { Person } from '@/types/person';
 import type { Relationship } from '@/types/relationship';
 import type { EgoLayoutParams } from '@/lib/ego-layout';
 import { DEFAULT_EGO_LAYOUT_PARAMS } from '@/lib/ego-layout';
-import type { ChartMeta } from '@/types/chart';
+import type { ChartMeta, Chart } from '@/types/chart';
+import {
+  initDB,
+  saveChart,
+  getChart,
+  getAllChartMetas,
+  deleteChart as deleteChartFromDB,
+  getLastActiveChartId,
+  setLastActiveChartId,
+} from '@/lib/chart-db';
+import { migrateGraphState } from '@/lib/migration';
 
 /**
  * force-directedレイアウトのパラメータ型
@@ -77,6 +87,45 @@ const INITIAL_STATE: GraphState = {
   isInitialized: false,
   isLoading: false,
 };
+
+/**
+ * 現在のストア状態からChartオブジェクトを構築する
+ * @param state - ストアの状態
+ * @returns Chartオブジェクト（activeChartIdがnullの場合はnull）
+ */
+function buildChartFromState(state: GraphState): Chart | null {
+  if (!state.activeChartId) {
+    return null;
+  }
+
+  const meta = state.chartMetas.find((m) => m.id === state.activeChartId);
+  if (!meta) {
+    return null;
+  }
+
+  return {
+    id: state.activeChartId,
+    name: meta.name,
+    persons: state.persons,
+    relationships: state.relationships,
+    forceEnabled: state.forceEnabled,
+    forceParams: state.forceParams,
+    egoLayoutParams: state.egoLayoutParams,
+    createdAt: meta.createdAt,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * 現在のチャートをIndexedDBに保存する
+ * @param get - Zustandのgetトラ
+ */
+async function saveCurrentChart(get: () => GraphStore): Promise<void> {
+  const chart = buildChartFromState(get());
+  if (chart) {
+    await saveChart(chart);
+  }
+}
 
 /**
  * グラフストアのアクション型
@@ -236,7 +285,7 @@ type GraphStore = GraphState & GraphActions;
  */
 export const useGraphStore = create<GraphStore>()(
   temporal(
-    (set) => ({
+    (set, get) => ({
         // 初期状態
         ...INITIAL_STATE,
 
@@ -392,47 +441,322 @@ export const useGraphStore = create<GraphStore>()(
           })),
 
         resetAll: () => {
-          // 全状態を初期値にリセット（INITIAL_STATEを使用）
-          // 注意: isInitialized も false に戻るため、Phase 3以降は再度 initializeApp() が必要
-          set(() => ({ ...INITIAL_STATE }));
+          // データフィールドのみリセット（チャート管理状態は保持）
+          set(() => ({
+            persons: [],
+            relationships: [],
+            forceEnabled: false,
+            forceParams: DEFAULT_FORCE_PARAMS,
+            egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+            selectedPersonIds: [],
+            sidePanelOpen: true,
+          }));
 
           // Undo/Redo履歴をクリア
           useGraphStore.temporal.getState().clear();
+
+          // 即座にIndexedDBに保存（チャート管理状態が保持されているため）
+          void saveCurrentChart(get);
         },
 
         // チャート管理アクション（Phase 2）
         initializeApp: async () => {
-          // TODO: Phase 3で実装
-          // 暫定実装: テスト用に isInitialized のみ true にする
-          set(() => ({ isInitialized: true }));
+          // 1. IndexedDBを初期化
+          await initDB();
+
+          // 2. チャート一覧を取得
+          let chartMetas = await getAllChartMetas();
+
+          // 3. チャートが0件の場合
+          if (chartMetas.length === 0) {
+            const localStorageKey = 'relationship-chart-storage';
+            const localStorageData = localStorage.getItem(localStorageKey);
+
+            if (localStorageData) {
+              // 3a. LocalStorageからマイグレーション
+              try {
+                const parsed = JSON.parse(localStorageData) as {
+                  state: unknown;
+                  version: number;
+                };
+                const migratedState = migrateGraphState(parsed.state, parsed.version) as GraphState;
+
+                // Chartとして保存
+                const chartId = nanoid();
+                const now = new Date().toISOString();
+                const chart: Chart = {
+                  id: chartId,
+                  name: '相関図 1',
+                  persons: migratedState.persons,
+                  relationships: migratedState.relationships,
+                  forceEnabled: migratedState.forceEnabled,
+                  forceParams: migratedState.forceParams,
+                  egoLayoutParams: migratedState.egoLayoutParams,
+                  createdAt: now,
+                  updatedAt: now,
+                };
+
+                await saveChart(chart);
+
+                // LocalStorageを削除
+                localStorage.removeItem(localStorageKey);
+
+                // chartMetasを再取得
+                chartMetas = await getAllChartMetas();
+              } catch (error) {
+                console.error('Failed to migrate from LocalStorage:', error);
+                // マイグレーション失敗時はデフォルトチャートを作成
+                const chartId = nanoid();
+                const now = new Date().toISOString();
+                const chart: Chart = {
+                  id: chartId,
+                  name: '相関図 1',
+                  persons: [],
+                  relationships: [],
+                  forceEnabled: false,
+                  forceParams: DEFAULT_FORCE_PARAMS,
+                  egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+                  createdAt: now,
+                  updatedAt: now,
+                };
+
+                await saveChart(chart);
+                chartMetas = await getAllChartMetas();
+              }
+            } else {
+              // 3b. デフォルト空チャート「相関図 1」を作成
+              const chartId = nanoid();
+              const now = new Date().toISOString();
+              const chart: Chart = {
+                id: chartId,
+                name: '相関図 1',
+                persons: [],
+                relationships: [],
+                forceEnabled: false,
+                forceParams: DEFAULT_FORCE_PARAMS,
+                egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+                createdAt: now,
+                updatedAt: now,
+              };
+
+              await saveChart(chart);
+              chartMetas = await getAllChartMetas();
+            }
+          }
+
+          // 4. lastActiveChartIdを取得
+          const lastActiveChartId = await getLastActiveChartId();
+
+          // 5. ロードするチャートを決定
+          let targetChartId: string;
+          if (lastActiveChartId && chartMetas.some((m) => m.id === lastActiveChartId)) {
+            targetChartId = lastActiveChartId;
+          } else {
+            // 最新のチャート（updatedAtが最新）
+            targetChartId = chartMetas[0].id;
+          }
+
+          // 6. チャートをロード
+          const chart = await getChart(targetChartId);
+          if (!chart) {
+            throw new Error(`Chart not found: ${targetChartId}`);
+          }
+
+          // 7. ストアを更新
+          set(() => ({
+            activeChartId: chart.id,
+            chartMetas,
+            persons: chart.persons,
+            relationships: chart.relationships,
+            forceEnabled: chart.forceEnabled,
+            forceParams: chart.forceParams,
+            egoLayoutParams: chart.egoLayoutParams,
+            isInitialized: true,
+          }));
+
+          // 8. lastActiveChartIdを保存
+          await setLastActiveChartId(chart.id);
         },
 
-        createChart: async (_name: string) => {
-          // TODO: Phase 2.3で実装
-          if (process.env.NODE_ENV === 'development') {
-            console.warn('createChart is not yet implemented (Phase 2.3)');
+        createChart: async (name: string) => {
+          // 1. 現在のチャートをIndexedDBに保存
+          await saveCurrentChart(get);
+
+          // 2. 新しいChartオブジェクトを作成
+          const chartId = nanoid();
+          const now = new Date().toISOString();
+          const newChart: Chart = {
+            id: chartId,
+            name,
+            persons: [],
+            relationships: [],
+            forceEnabled: false,
+            forceParams: DEFAULT_FORCE_PARAMS,
+            egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+            createdAt: now,
+            updatedAt: now,
+          };
+
+          // 3. IndexedDBに保存
+          await saveChart(newChart);
+
+          // 4. chartMetasを更新
+          const newMeta: ChartMeta = {
+            id: chartId,
+            name,
+            personCount: 0,
+            relationshipCount: 0,
+            createdAt: now,
+            updatedAt: now,
+          };
+
+          const currentMetas = get().chartMetas;
+          const updatedMetas = [newMeta, ...currentMetas];
+          // updatedAtの降順にソート（最新のものが先頭）
+          updatedMetas.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+
+          // 5. ストアを更新
+          set(() => ({
+            activeChartId: chartId,
+            persons: [],
+            relationships: [],
+            forceEnabled: false,
+            forceParams: DEFAULT_FORCE_PARAMS,
+            egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+            selectedPersonIds: [],
+            chartMetas: updatedMetas,
+          }));
+
+          // 6. lastActiveChartIdを更新
+          await setLastActiveChartId(chartId);
+
+          // 7. Undo/Redo履歴をクリア
+          useGraphStore.temporal.getState().clear();
+        },
+
+        switchChart: async (chartId: string) => {
+          // 1. 現在のチャートをIndexedDBに保存
+          await saveCurrentChart(get);
+
+          // 2. 対象チャートをロード
+          const chart = await getChart(chartId);
+          if (!chart) {
+            throw new Error(`Chart not found: ${chartId}`);
+          }
+
+          // 3. ストアを更新
+          set(() => ({
+            activeChartId: chart.id,
+            persons: chart.persons,
+            relationships: chart.relationships,
+            forceEnabled: chart.forceEnabled,
+            forceParams: chart.forceParams,
+            egoLayoutParams: chart.egoLayoutParams,
+            selectedPersonIds: [], // 選択状態をクリア
+          }));
+
+          // 4. lastActiveChartIdを更新
+          await setLastActiveChartId(chartId);
+
+          // 5. Undo/Redo履歴をクリア
+          useGraphStore.temporal.getState().clear();
+        },
+
+        deleteChart: async (chartId: string) => {
+          const currentMetas = get().chartMetas;
+
+          // 1. 最後の1つは削除できない（空チャートに置換）
+          if (currentMetas.length === 1) {
+            // 現在のチャートのデータをリセット
+            set(() => ({
+              persons: [],
+              relationships: [],
+              selectedPersonIds: [],
+            }));
+
+            // IndexedDBに保存（リセット状態で）
+            await saveCurrentChart(get);
+
+            // Undo/Redo履歴をクリア
+            useGraphStore.temporal.getState().clear();
+
+            return;
+          }
+
+          // 2. IndexedDBから削除
+          await deleteChartFromDB(chartId);
+
+          // 3. chartMetasを更新
+          const updatedMetas = currentMetas.filter((m) => m.id !== chartId);
+
+          // 4. 削除したのがアクティブチャートの場合 → 次のチャートに切り替え
+          if (get().activeChartId === chartId) {
+            // 次のチャート（最新のもの）
+            const nextChartId = updatedMetas[0].id;
+            const nextChart = await getChart(nextChartId);
+            if (!nextChart) {
+              throw new Error(`Chart not found: ${nextChartId}`);
+            }
+
+            set(() => ({
+              activeChartId: nextChart.id,
+              chartMetas: updatedMetas,
+              persons: nextChart.persons,
+              relationships: nextChart.relationships,
+              forceEnabled: nextChart.forceEnabled,
+              forceParams: nextChart.forceParams,
+              egoLayoutParams: nextChart.egoLayoutParams,
+              selectedPersonIds: [],
+            }));
+
+            await setLastActiveChartId(nextChart.id);
+
+            // Undo/Redo履歴をクリア
+            useGraphStore.temporal.getState().clear();
+          } else {
+            // 5. 削除したのが非アクティブの場合 → chartMetasのみ更新
+            set(() => ({
+              chartMetas: updatedMetas,
+            }));
           }
         },
 
-        switchChart: async (_chartId: string) => {
-          // TODO: Phase 2.3で実装
-          if (process.env.NODE_ENV === 'development') {
-            console.warn('switchChart is not yet implemented (Phase 2.3)');
+        renameChart: async (chartId: string, newName: string) => {
+          // 1. 対象チャートを取得
+          const chart = await getChart(chartId);
+          if (!chart) {
+            throw new Error(`Chart not found: ${chartId}`);
           }
-        },
 
-        deleteChart: async (_chartId: string) => {
-          // TODO: Phase 2.3で実装
-          if (process.env.NODE_ENV === 'development') {
-            console.warn('deleteChart is not yet implemented (Phase 2.3)');
-          }
-        },
+          // 2. name, updatedAtを更新
+          const updatedChart: Chart = {
+            ...chart,
+            name: newName,
+            updatedAt: new Date().toISOString(),
+          };
 
-        renameChart: async (_chartId: string, _newName: string) => {
-          // TODO: Phase 2.3で実装
-          if (process.env.NODE_ENV === 'development') {
-            console.warn('renameChart is not yet implemented (Phase 2.3)');
-          }
+          // 3. IndexedDBに保存
+          await saveChart(updatedChart);
+
+          // 4. chartMetasを更新
+          const currentMetas = get().chartMetas;
+          const updatedMetas = currentMetas.map((meta) => {
+            if (meta.id === chartId) {
+              return {
+                ...meta,
+                name: newName,
+                updatedAt: updatedChart.updatedAt,
+              };
+            }
+            return meta;
+          });
+
+          // updatedAtの降順にソート（最新のものが先頭）
+          updatedMetas.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+
+          set(() => ({
+            chartMetas: updatedMetas,
+          }));
         },
       }),
       {

@@ -3,10 +3,11 @@
  * Zustandストアの状態管理とアクションの振る舞いを検証
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useGraphStore } from './useGraphStore';
 import type { Person } from '@/types/person';
+import { initDB, closeDB } from '@/lib/chart-db';
 
 describe('useGraphStore', () => {
   beforeEach(() => {
@@ -2009,6 +2010,28 @@ describe('useGraphStore', () => {
 
   // チャート管理機能のテスト（Phase 2）
   describe('チャート管理', () => {
+    beforeEach(async () => {
+      await initDB();
+    });
+
+    afterEach(async () => {
+      closeDB();
+      // IndexedDBをクリアする
+      const dbs = await indexedDB.databases();
+      await Promise.all(
+        dbs.map((db) => {
+          if (db.name && typeof db.name === 'string') {
+            return new Promise<void>((resolve, reject) => {
+              const request = indexedDB.deleteDatabase(db.name as string);
+              request.onsuccess = () => resolve();
+              request.onerror = () => reject(request.error);
+            });
+          }
+          return Promise.resolve();
+        })
+      );
+    });
+
     describe('初期状態', () => {
       it('activeChartIdはnullである', () => {
         const { result } = renderHook(() => useGraphStore());
@@ -2032,7 +2055,7 @@ describe('useGraphStore', () => {
     });
 
     describe('initializeApp', () => {
-      it.skip('アプリを初期化できる', async () => {
+      it('アプリを初期化できる', async () => {
         const { result } = renderHook(() => useGraphStore());
 
         await act(async () => {
@@ -2041,24 +2064,175 @@ describe('useGraphStore', () => {
 
         expect(result.current.isInitialized).toBe(true);
       });
+
+      it('IndexedDB空 + LocalStorage空の場合、デフォルトチャートが作成される', async () => {
+        // LocalStorageをクリア
+        localStorage.clear();
+
+        const { result } = renderHook(() => useGraphStore());
+
+        await act(async () => {
+          await result.current.initializeApp();
+        });
+
+        // デフォルトチャート「相関図 1」が作成されている
+        expect(result.current.chartMetas).toHaveLength(1);
+        expect(result.current.chartMetas[0].name).toBe('相関図 1');
+        expect(result.current.activeChartId).toBe(result.current.chartMetas[0].id);
+      });
+
+      it('IndexedDB空 + LocalStorageありの場合、マイグレーションされてIndexedDBに保存、LocalStorage削除', async () => {
+        // LocalStorageに旧データを保存
+        localStorage.setItem(
+          'relationship-chart-storage',
+          JSON.stringify({
+            state: {
+              persons: [{ id: '1', name: '山田太郎', createdAt: '2024-01-01T00:00:00Z' }],
+              relationships: [],
+              forceEnabled: false,
+              selectedPersonIds: [],
+              forceParams: {
+                linkDistance: 150,
+                linkStrength: 0.5,
+                chargeStrength: -300,
+              },
+              egoLayoutParams: {
+                ringSpacing: 200,
+                firstRingRadius: 200,
+              },
+              sidePanelOpen: true,
+            },
+            version: 1,
+          })
+        );
+
+        const { result } = renderHook(() => useGraphStore());
+
+        await act(async () => {
+          await result.current.initializeApp();
+        });
+
+        // マイグレーションされたチャートが作成されている
+        expect(result.current.chartMetas).toHaveLength(1);
+        expect(result.current.persons).toHaveLength(1);
+        expect(result.current.persons[0].name).toBe('山田太郎');
+
+        // LocalStorageが削除されている
+        expect(localStorage.getItem('relationship-chart-storage')).toBeNull();
+      });
+
+      it('IndexedDBにチャートがある場合、最新のチャートがロードされる', async () => {
+        // 事前にIndexedDBにチャートを保存
+        const { saveChart } = await import('@/lib/chart-db');
+        await saveChart({
+          id: 'chart-1',
+          name: 'テストチャート',
+          persons: [{ id: '1', name: '田中太郎', createdAt: '2024-01-01T00:00:00Z' }],
+          relationships: [],
+          forceEnabled: false,
+          forceParams: {
+            linkDistance: 150,
+            linkStrength: 0.5,
+            chargeStrength: -300,
+          },
+          egoLayoutParams: {
+            ringSpacing: 200,
+            firstRingRadius: 200,
+          },
+          createdAt: '2024-01-01T00:00:00Z',
+          updatedAt: '2024-01-01T00:00:00Z',
+        });
+
+        const { result } = renderHook(() => useGraphStore());
+
+        await act(async () => {
+          await result.current.initializeApp();
+        });
+
+        // チャートがロードされている
+        expect(result.current.activeChartId).toBe('chart-1');
+        expect(result.current.persons).toHaveLength(1);
+        expect(result.current.persons[0].name).toBe('田中太郎');
+      });
+
+      it('lastActiveChartIdが設定済みの場合、そのチャートがロードされる', async () => {
+        // 2つのチャートを保存
+        const { saveChart, setLastActiveChartId } = await import('@/lib/chart-db');
+        await saveChart({
+          id: 'chart-1',
+          name: 'チャート1',
+          persons: [],
+          relationships: [],
+          forceEnabled: false,
+          forceParams: {
+            linkDistance: 150,
+            linkStrength: 0.5,
+            chargeStrength: -300,
+          },
+          egoLayoutParams: {
+            ringSpacing: 200,
+            firstRingRadius: 200,
+          },
+          createdAt: '2024-01-01T00:00:00Z',
+          updatedAt: '2024-01-01T00:00:00Z',
+        });
+
+        await saveChart({
+          id: 'chart-2',
+          name: 'チャート2',
+          persons: [{ id: '1', name: '鈴木次郎', createdAt: '2024-01-02T00:00:00Z' }],
+          relationships: [],
+          forceEnabled: false,
+          forceParams: {
+            linkDistance: 150,
+            linkStrength: 0.5,
+            chargeStrength: -300,
+          },
+          egoLayoutParams: {
+            ringSpacing: 200,
+            firstRingRadius: 200,
+          },
+          createdAt: '2024-01-02T00:00:00Z',
+          updatedAt: '2024-01-02T00:00:00Z',
+        });
+
+        // lastActiveChartIdを設定
+        await setLastActiveChartId('chart-1');
+
+        const { result } = renderHook(() => useGraphStore());
+
+        await act(async () => {
+          await result.current.initializeApp();
+        });
+
+        // chart-1がロードされている（updatedAtは新しいがlastActiveChartIdを優先）
+        expect(result.current.activeChartId).toBe('chart-1');
+      });
     });
 
     describe('createChart', () => {
-      it.skip('新しい相関図を作成できる', async () => {
+      it('新しい相関図を作成できる', async () => {
         const { result } = renderHook(() => useGraphStore());
 
+        // アプリを初期化（デフォルトチャートが作成される）
+        await act(async () => {
+          await result.current.initializeApp();
+        });
+
+        // 新しいチャートを作成
         await act(async () => {
           await result.current.createChart('新しい相関図');
         });
 
-        expect(result.current.chartMetas).toHaveLength(1);
+        // 2つのチャートが存在する（デフォルト + 新規）
+        expect(result.current.chartMetas).toHaveLength(2);
         expect(result.current.chartMetas[0].name).toBe('新しい相関図');
         expect(result.current.activeChartId).toBe(result.current.chartMetas[0].id);
       });
     });
 
     describe('switchChart', () => {
-      it.skip('相関図を切り替えられる', async () => {
+      it('相関図を切り替えられる', async () => {
         const { result } = renderHook(() => useGraphStore());
 
         // 2つの相関図を作成
@@ -2084,8 +2258,13 @@ describe('useGraphStore', () => {
     });
 
     describe('deleteChart', () => {
-      it.skip('相関図を削除できる', async () => {
+      it('相関図を削除できる', async () => {
         const { result } = renderHook(() => useGraphStore());
+
+        // アプリを初期化
+        await act(async () => {
+          await result.current.initializeApp();
+        });
 
         // 相関図を作成
         await act(async () => {
@@ -2104,17 +2283,20 @@ describe('useGraphStore', () => {
           await result.current.deleteChart(chartId);
         });
 
-        expect(result.current.chartMetas).toHaveLength(1);
+        // 2つのチャートが残る（デフォルト + '残る相関図'）
+        expect(result.current.chartMetas).toHaveLength(2);
         expect(result.current.chartMetas[0].name).toBe('残る相関図');
       });
 
-      it.skip('最後の1つは削除できない（空チャートに置換）', async () => {
+      it('最後の1つは削除できない（空チャートに置換）', async () => {
         const { result } = renderHook(() => useGraphStore());
 
-        // 相関図を作成
+        // アプリを初期化（デフォルトチャートが作成される）
         await act(async () => {
-          await result.current.createChart('唯一の相関図');
+          await result.current.initializeApp();
         });
+
+        const chartId = result.current.activeChartId!;
 
         // 人物を追加
         act(() => {
@@ -2122,8 +2304,6 @@ describe('useGraphStore', () => {
         });
 
         expect(result.current.persons).toHaveLength(1);
-
-        const chartId = result.current.activeChartId!;
 
         // 削除を試みる
         await act(async () => {
@@ -2138,7 +2318,7 @@ describe('useGraphStore', () => {
     });
 
     describe('renameChart', () => {
-      it.skip('相関図の名前を変更できる', async () => {
+      it('相関図の名前を変更できる', async () => {
         const { result } = renderHook(() => useGraphStore());
 
         // 相関図を作成
