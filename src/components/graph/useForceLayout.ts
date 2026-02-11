@@ -3,7 +3,7 @@
  * d3-forceを使ったforce-directedレイアウトアニメーション
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import {
   forceSimulation,
   forceLink,
@@ -92,6 +92,9 @@ export function useForceLayout({
   // ノードIDとエッジIDの構成を追跡するref
   const nodeIdsRef = useRef<string>('');
   const edgeIdsRef = useRef<string>('');
+
+  // requestAnimationFrameのIDを保存するref（バッチ更新用）
+  const rafIdRef = useRef<number | null>(null);
 
   // ノードとエッジをrefで保持（依存配列から除外するため）
   const nodesRef = useRef<Node[]>(nodes);
@@ -187,17 +190,27 @@ export function useForceLayout({
         .alphaDecay(0.02);
 
       // tickイベント: シミュレーションの各ステップで実行
+      // requestAnimationFrameでバッチ化して、1フレームに最大1回の状態更新に制限
       simulation.on('tick', () => {
-        // ノード位置を更新
-        const updatedNodes = simulation.nodes().map((forceNode) => ({
-          ...forceNode,
-          position: {
-            x: forceNode.x ?? 0,
-            y: forceNode.y ?? 0,
-          },
-        }));
+        // 既にrequestAnimationFrameが予約されている場合はスキップ
+        if (rafIdRef.current !== null) {
+          return;
+        }
 
-        onNodesChange(updatedNodes);
+        // 次のフレームで状態更新を実行
+        rafIdRef.current = requestAnimationFrame(() => {
+          // ノード位置を更新
+          const updatedNodes = simulation.nodes().map((forceNode) => ({
+            ...forceNode,
+            position: {
+              x: forceNode.x ?? 0,
+              y: forceNode.y ?? 0,
+            },
+          }));
+
+          onNodesChange(updatedNodes);
+          rafIdRef.current = null;
+        });
       });
 
       // refに保存
@@ -209,6 +222,12 @@ export function useForceLayout({
     // クリーンアップ: enabledがfalseになった時とアンマウント時のみシミュレーションを停止
     // 構造変化によるeffect再実行時は停止しない（新しいシミュレーションが既に作成されているため）
     return () => {
+      // 未実行のrequestAnimationFrameをキャンセル
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+
       // enabledがfalseになる場合はシミュレーションを停止
       if (!enabled && simulationRef.current) {
         simulationRef.current.stop();
@@ -241,7 +260,7 @@ export function useForceLayout({
   }, [enabled, forceParams]);
 
   // ノードドラッグ開始時のハンドラ
-  const handleNodeDragStart = (nodeId: string) => {
+  const handleNodeDragStart = useCallback((nodeId: string) => {
     if (!simulationRef.current) return;
 
     // シミュレーションを再加熱（アニメーションを再開）
@@ -253,10 +272,10 @@ export function useForceLayout({
       node.fx = node.x;
       node.fy = node.y;
     }
-  };
+  }, []);
 
   // ノードドラッグ中のハンドラ
-  const handleNodeDrag = (nodeId: string, position: { x: number; y: number }) => {
+  const handleNodeDrag = useCallback((nodeId: string, position: { x: number; y: number }) => {
     if (!simulationRef.current) return;
 
     // ドラッグ中のノードの位置を更新
@@ -265,10 +284,10 @@ export function useForceLayout({
       node.fx = position.x;
       node.fy = position.y;
     }
-  };
+  }, []);
 
   // ノードドラッグ終了時のハンドラ
-  const handleNodeDragEnd = (nodeId: string) => {
+  const handleNodeDragEnd = useCallback((nodeId: string) => {
     if (!simulationRef.current) return;
 
     // シミュレーションを冷却（アニメーションを減速）
@@ -280,7 +299,7 @@ export function useForceLayout({
       node.fx = null;
       node.fy = null;
     }
-  };
+  }, []);
 
   return {
     handleNodeDragStart,

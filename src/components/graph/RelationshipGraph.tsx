@@ -135,6 +135,10 @@ export function RelationshipGraph() {
   // requestAnimationFrameのIDを保存するref（衝突解消のキャンセル用）
   const collisionResolutionRafIdRef = useRef<number | null>(null);
 
+  // getNodesをrefに退避（useEffectの依存配列から除外するため）
+  const getNodesRef = useRef(getNodes);
+  getNodesRef.current = getNodes;
+
   // ノード位置更新のコールバック（useForceLayout用）
   // d3-forceのtickイベントで頻繁に呼ばれるため、既存ノードの選択状態を保持する
   const handleNodesUpdate = useCallback(
@@ -215,7 +219,7 @@ export function RelationshipGraph() {
         }
         // レンダリング完了後に衝突解消を適用（measuredが設定されるまで待つ）
         collisionResolutionRafIdRef.current = requestAnimationFrame(() => {
-          const currentNodes = getNodes();
+          const currentNodes = getNodesRef.current();
           const resolvedNodes = resolveCollisions(currentNodes, DEFAULT_COLLISION_OPTIONS);
           // resolveCollisionsは変更がない場合に元の配列を返すため、参照等価性でチェック
           if (resolvedNodes !== currentNodes) {
@@ -248,7 +252,7 @@ export function RelationshipGraph() {
         collisionResolutionRafIdRef.current = null;
       }
     };
-  }, [persons, relationships, setNodes, setEdges, forceEnabled, getNodes]);
+  }, [persons, relationships, setNodes, setEdges, forceEnabled]);
 
   // 選択状態の変更時に既存ノード/エッジのselectedプロパティのみ更新
   // 配列参照を変更しないようにhasChangedフラグで最適化
@@ -984,6 +988,39 @@ export function RelationshipGraph() {
     buildPaneMenuItems,
   ]);
 
+  // ノードドラッグ開始ハンドラ
+  const onNodeDragStartHandler = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      handleNodeDragStart(node.id);
+    },
+    [handleNodeDragStart]
+  );
+
+  // ノードドラッグ中ハンドラ
+  const onNodeDragHandler = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      handleNodeDrag(node.id, node.position);
+    },
+    [handleNodeDrag]
+  );
+
+  // ノードドラッグ終了ハンドラ
+  const onNodeDragStopHandler = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      handleNodeDragEnd(node.id);
+      // Force Layout無効時は幾何学的衝突解消を適用
+      if (!forceEnabled) {
+        const currentNodes = getNodes();
+        const resolvedNodes = resolveCollisions(currentNodes, DEFAULT_COLLISION_OPTIONS);
+        // 位置が変更されたノードがあれば更新
+        if (resolvedNodes !== currentNodes) {
+          setNodes(resolvedNodes as GraphNode[]);
+        }
+      }
+    },
+    [handleNodeDragEnd, forceEnabled, getNodes, setNodes]
+  );
+
   return (
     <div className="w-full h-screen relative" onDrop={handleDrop} onDragOver={handleDragOver}>
       <ReactFlow
@@ -997,22 +1034,9 @@ export function RelationshipGraph() {
         connectionLineType={ConnectionLineType.Straight}
         connectionLineComponent={ConnectionLine}
         connectionRadius={60}
-        onNodeDragStart={(_, node) => handleNodeDragStart(node.id)}
-        onNodeDrag={(_, node) =>
-          handleNodeDrag(node.id, node.position)
-        }
-        onNodeDragStop={(_, node) => {
-          handleNodeDragEnd(node.id);
-          // Force Layout無効時は幾何学的衝突解消を適用
-          if (!forceEnabled) {
-            const currentNodes = getNodes();
-            const resolvedNodes = resolveCollisions(currentNodes, DEFAULT_COLLISION_OPTIONS);
-            // 位置が変更されたノードがあれば更新
-            if (resolvedNodes !== currentNodes) {
-              setNodes(resolvedNodes as GraphNode[]);
-            }
-          }
-        }}
+        onNodeDragStart={onNodeDragStartHandler}
+        onNodeDrag={onNodeDragHandler}
+        onNodeDragStop={onNodeDragStopHandler}
         onSelectionChange={handleSelectionChange}
         onPaneClick={handlePaneClick}
         onEdgeClick={handleEdgeClick}
