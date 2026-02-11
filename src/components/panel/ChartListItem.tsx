@@ -31,6 +31,7 @@ export function ChartListItem({ meta, isActive, onClick }: ChartListItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(meta.name);
   const inputRef = useRef<HTMLInputElement>(null);
+  const isSavingRef = useRef(false);
 
   // 編集モードに切り替わった時に入力フィールドにフォーカス
   useEffect(() => {
@@ -62,11 +63,19 @@ export function ChartListItem({ meta, isActive, onClick }: ChartListItemProps) {
    * 名前変更を保存する
    */
   const saveName = () => {
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
+
     const trimmedName = editName.trim();
     if (trimmedName && trimmedName !== meta.name) {
       void renameChart(meta.id, trimmedName);
     }
     setIsEditing(false);
+
+    // Reset on next tick after React has processed the state update
+    setTimeout(() => {
+      isSavingRef.current = false;
+    }, 0);
   };
 
   /**
@@ -135,6 +144,7 @@ export function ChartListItem({ meta, isActive, onClick }: ChartListItemProps) {
               onChange={(e) => setEditName(e.target.value)}
               onKeyDown={handleKeyDown}
               onBlur={handleBlur}
+              maxLength={50}
               className="w-full px-2 py-1 text-sm font-medium text-gray-900 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               onClick={(e) => e.stopPropagation()}
             />
@@ -142,6 +152,16 @@ export function ChartListItem({ meta, isActive, onClick }: ChartListItemProps) {
             <div
               className="font-medium text-sm text-gray-900"
               onDoubleClick={handleDoubleClick}
+              tabIndex={0}
+              role="button"
+              aria-label="相関図名を編集（ダブルクリックまたはEnterキーで編集）"
+              title="相関図名を編集（ダブルクリックまたはEnterキーで編集）"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === 'F2') {
+                  e.preventDefault();
+                  handleDoubleClick(e as unknown as React.MouseEvent);
+                }
+              }}
             >
               {meta.name}
             </div>

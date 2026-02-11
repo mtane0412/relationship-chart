@@ -2229,6 +2229,24 @@ describe('useGraphStore', () => {
         expect(result.current.chartMetas[0].name).toBe('新しい相関図');
         expect(result.current.activeChartId).toBe(result.current.chartMetas[0].id);
       });
+
+      it('50文字を超える名前でエラーをスローする', async () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        // アプリを初期化
+        await act(async () => {
+          await result.current.initializeApp();
+        });
+
+        // 51文字の名前で作成を試みる
+        const longName = 'あ'.repeat(51);
+
+        await expect(
+          act(async () => {
+            await result.current.createChart(longName);
+          })
+        ).rejects.toThrow('チャート名は50文字以内で指定してください');
+      });
     });
 
     describe('switchChart', () => {

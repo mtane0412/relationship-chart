@@ -589,7 +589,12 @@ export const useGraphStore = create<GraphStore>()(
           // 1. 現在のチャートをIndexedDBに保存
           await saveCurrentChart(get);
 
-          // 2. nameが指定されていない場合はデフォルト名を生成
+          // 2. nameが指定されている場合は長さをバリデーション
+          if (name && name.length > 50) {
+            throw new Error('チャート名は50文字以内で指定してください');
+          }
+
+          // 3. nameが指定されていない場合はデフォルト名を生成
           const currentMetas = get().chartMetas;
           const chartName =
             name ||
@@ -606,7 +611,7 @@ export const useGraphStore = create<GraphStore>()(
               return `相関図 ${maxNumber + 1}`;
             })();
 
-          // 3. 新しいChartオブジェクトを作成
+          // 4. 新しいChartオブジェクトを作成
           const chartId = nanoid();
           const now = new Date().toISOString();
           const newChart: Chart = {
@@ -621,10 +626,10 @@ export const useGraphStore = create<GraphStore>()(
             updatedAt: now,
           };
 
-          // 4. IndexedDBに保存
+          // 5. IndexedDBに保存
           await saveChart(newChart);
 
-          // 5. chartMetasを更新
+          // 6. chartMetasを更新
           const newMeta: ChartMeta = {
             id: chartId,
             name: chartName,
@@ -638,7 +643,7 @@ export const useGraphStore = create<GraphStore>()(
           // updatedAtの降順にソート（最新のものが先頭）
           updatedMetas.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
-          // 6. ストアを更新
+          // 7. ストアを更新
           set(() => ({
             activeChartId: chartId,
             persons: [],
@@ -650,10 +655,10 @@ export const useGraphStore = create<GraphStore>()(
             chartMetas: updatedMetas,
           }));
 
-          // 7. lastActiveChartIdを更新
+          // 8. lastActiveChartIdを更新
           await setLastActiveChartId(chartId);
 
-          // 8. Undo/Redo履歴をクリア
+          // 9. Undo/Redo履歴をクリア
           useGraphStore.temporal.getState().clear();
         },
 
