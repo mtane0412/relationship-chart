@@ -306,7 +306,9 @@ export function RelationshipGraph() {
         // モーダルを開く
         setPendingRegistration({ rawImageSrc, position });
       } catch (error) {
-        console.error('画像処理に失敗しました:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('画像処理に失敗しました:', error);
+        }
       }
     },
     [screenToFlowPosition]
@@ -343,7 +345,9 @@ export function RelationshipGraph() {
         // モーダルを開く
         setPendingRegistration({ rawImageSrc, position });
       } catch (error) {
-        console.error('画像処理に失敗しました:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('画像処理に失敗しました:', error);
+        }
       }
     };
 

@@ -36,7 +36,9 @@ export default function ShareButton() {
       setImageData(dataUrl);
       setIsModalOpen(true);
     } catch (error) {
-      console.error('キャンバスのキャプチャに失敗しました:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('キャンバスのキャプチャに失敗しました:', error);
+      }
       await openAlert({
         title: 'エラー',
         message: 'キャンバスのキャプチャに失敗しました。\n人物が登録されているか確認してください。',
