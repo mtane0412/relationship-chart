@@ -9,6 +9,8 @@ import { temporal } from 'zundo';
 import { nanoid } from 'nanoid';
 import type { Person } from '@/types/person';
 import type { Relationship } from '@/types/relationship';
+import type { EgoLayoutParams } from '@/lib/ego-layout';
+import { DEFAULT_EGO_LAYOUT_PARAMS } from '@/lib/ego-layout';
 
 /**
  * force-directedレイアウトのパラメータ型
@@ -40,6 +42,7 @@ const INITIAL_STATE: GraphState = {
   forceEnabled: false,
   selectedPersonIds: [],
   forceParams: DEFAULT_FORCE_PARAMS,
+  egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
   sidePanelOpen: true,
 };
 
@@ -57,6 +60,8 @@ type GraphState = {
   selectedPersonIds: string[];
   /** force-directedレイアウトのパラメータ */
   forceParams: ForceParams;
+  /** EGO Layoutのパラメータ */
+  egoLayoutParams: EgoLayoutParams;
   /** サイドパネルが開いているかどうか */
   sidePanelOpen: boolean;
 };
@@ -142,6 +147,17 @@ type GraphActions = {
    * force-directedレイアウトのパラメータをデフォルト値にリセットする
    */
   resetForceParams: () => void;
+
+  /**
+   * EGO Layoutのパラメータを設定する（部分更新）
+   * @param params - 更新するパラメータ（指定したもののみ更新）
+   */
+  setEgoLayoutParams: (params: Partial<EgoLayoutParams>) => void;
+
+  /**
+   * EGO Layoutのパラメータをデフォルト値にリセットする
+   */
+  resetEgoLayoutParams: () => void;
 
   /**
    * サイドパネルの開閉状態を設定する
@@ -362,6 +378,19 @@ export const useGraphStore = create<GraphStore>()(
             forceParams: DEFAULT_FORCE_PARAMS,
           })),
 
+        setEgoLayoutParams: (params) =>
+          set((state) => ({
+            egoLayoutParams: {
+              ...state.egoLayoutParams,
+              ...params,
+            },
+          })),
+
+        resetEgoLayoutParams: () =>
+          set(() => ({
+            egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+          })),
+
         setSidePanelOpen: (open) =>
           set(() => ({
             sidePanelOpen: open,
@@ -381,7 +410,7 @@ export const useGraphStore = create<GraphStore>()(
         },
       }),
       {
-        // UI状態（selectedPersonIds, forceEnabled, sidePanelOpen）はundo対象外
+        // UI状態（selectedPersonIds, forceEnabled, egoLayoutParams, sidePanelOpen）はundo対象外
         // データ状態（persons, relationships）のみをundo履歴に保存
         partialize: (state) => ({
           persons: state.persons,
@@ -391,11 +420,11 @@ export const useGraphStore = create<GraphStore>()(
     ),
     {
       name: 'relationship-chart-storage', // LocalStorageのキー名
-      version: 5, // バージョン管理（v4→v5に更新）
+      version: 6, // バージョン管理（v5→v6に更新）
       // マイグレーション関数
       migrate: (persistedState: unknown, version: number) => {
-        // v5以降は変換不要
-        if (version >= 5) {
+        // v6以降は変換不要
+        if (version >= 6) {
           return persistedState as GraphState;
         }
 
@@ -517,6 +546,19 @@ export const useGraphStore = create<GraphStore>()(
             state = {
               ...v4State,
               sidePanelOpen: true,
+            };
+          }
+        }
+
+        // v5からv6への変換（egoLayoutParamsを補完）
+        // v0/v1/v2/v3/v4からの変換後も必ずここを通るため、すべてのバージョンでegoLayoutParamsが補完される
+        if (version <= 5) {
+          const v5State = state as Partial<GraphState>;
+          // egoLayoutParamsがない場合はデフォルト値を追加
+          if (!v5State.egoLayoutParams) {
+            state = {
+              ...v5State,
+              egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
             };
           }
         }

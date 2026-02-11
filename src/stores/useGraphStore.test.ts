@@ -25,6 +25,8 @@ describe('useGraphStore', () => {
     store.clearSelection();
     // forceParamsもリセット
     store.resetForceParams();
+    // egoLayoutParamsもリセット
+    store.resetEgoLayoutParams();
     // sidePanelOpenもリセット
     store.setSidePanelOpen(true);
   });
@@ -1937,6 +1939,88 @@ describe('useGraphStore', () => {
       const parsedData = JSON.parse(storedData!);
       expect(parsedData.state.persons).toEqual([]);
       expect(parsedData.state.relationships).toEqual([]);
+    });
+  });
+
+  describe('EGO Layoutパラメータ', () => {
+    it('egoLayoutParamsの初期値がデフォルト値である', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      expect(result.current.egoLayoutParams).toEqual({
+        ringSpacing: 200,
+        firstRingRadius: 200,
+      });
+    });
+
+    it('setEgoLayoutParamsでパラメータを部分更新できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // ringSpacingのみ更新
+      act(() => {
+        result.current.setEgoLayoutParams({
+          ringSpacing: 300,
+        });
+      });
+
+      expect(result.current.egoLayoutParams).toEqual({
+        ringSpacing: 300,
+        firstRingRadius: 200, // 変更されていない
+      });
+
+      // firstRingRadiusを更新
+      act(() => {
+        result.current.setEgoLayoutParams({
+          firstRingRadius: 150,
+        });
+      });
+
+      expect(result.current.egoLayoutParams).toEqual({
+        ringSpacing: 300, // 前の変更が維持されている
+        firstRingRadius: 150,
+      });
+    });
+
+    it('setEgoLayoutParamsで複数のパラメータを同時に更新できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      act(() => {
+        result.current.setEgoLayoutParams({
+          ringSpacing: 250,
+          firstRingRadius: 180,
+        });
+      });
+
+      expect(result.current.egoLayoutParams).toEqual({
+        ringSpacing: 250,
+        firstRingRadius: 180,
+      });
+    });
+
+    it('resetEgoLayoutParamsでデフォルト値にリセットできる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // まずパラメータを変更
+      act(() => {
+        result.current.setEgoLayoutParams({
+          ringSpacing: 350,
+          firstRingRadius: 120,
+        });
+      });
+
+      expect(result.current.egoLayoutParams).toEqual({
+        ringSpacing: 350,
+        firstRingRadius: 120,
+      });
+
+      // リセット
+      act(() => {
+        result.current.resetEgoLayoutParams();
+      });
+
+      expect(result.current.egoLayoutParams).toEqual({
+        ringSpacing: 200,
+        firstRingRadius: 200,
+      });
     });
   });
 });
