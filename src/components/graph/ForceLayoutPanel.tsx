@@ -8,6 +8,8 @@
 import { Panel } from '@xyflow/react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { ForceParamsSliders } from '@/components/panel/ForceParamsSliders';
+import { EgoLayoutParamsSliders } from '@/components/panel/EgoLayoutParamsSliders';
+import { useEgoLayout } from './useEgoLayout';
 
 /**
  * ForceLayoutPanelコンポーネント
@@ -22,6 +24,16 @@ import { ForceParamsSliders } from '@/components/panel/ForceParamsSliders';
 export function ForceLayoutPanel() {
   const forceEnabled = useGraphStore((state) => state.forceEnabled);
   const setForceEnabled = useGraphStore((state) => state.setForceEnabled);
+  const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
+  const persons = useGraphStore((state) => state.persons);
+
+  const { applyEgoLayout } = useEgoLayout();
+
+  // 選択中の人物名を取得（1人選択時のみ）
+  const selectedPerson =
+    selectedPersonIds.length === 1
+      ? persons.find((p) => p.id === selectedPersonIds[0])
+      : undefined;
 
   return (
     <Panel position="top-right" className="m-2">
@@ -59,6 +71,40 @@ export function ForceLayoutPanel() {
           <div className="mt-2">
             <ForceParamsSliders />
           </div>
+        )}
+
+        {/* 単一ノード選択時のみEGO Layoutセクションを表示 */}
+        {selectedPersonIds.length === 1 && selectedPerson && (
+          <>
+            {/* 区切り線 */}
+            <div className="my-4 border-t border-gray-200" />
+
+            {/* EGO Layoutセクション */}
+            <div>
+              {/* ヘッダー: EGO Layoutラベル + Applyボタン */}
+              <div className="flex items-center justify-end gap-2 mb-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-medium text-gray-700">EGO Layout</span>
+                  <span className="text-[10px] text-amber-600">(Experimental)</span>
+                </div>
+
+                {/* Applyボタン */}
+                <button
+                  type="button"
+                  onClick={() => applyEgoLayout(selectedPerson.id)}
+                  className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-200"
+                  aria-label={`EGO Layoutを${selectedPerson.name}に適用`}
+                >
+                  Apply
+                </button>
+              </div>
+
+              {/* パラメータスライダー */}
+              <div className="mt-2">
+                <EgoLayoutParamsSliders />
+              </div>
+            </div>
+          </>
         )}
       </div>
     </Panel>

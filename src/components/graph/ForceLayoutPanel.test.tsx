@@ -44,6 +44,7 @@ describe('ForceLayoutPanel', () => {
       </ReactFlowProvider>
     );
 
+    // EGO Layoutセクションはノード未選択時に非表示のため、Force Layoutの1つのみ
     expect(screen.getByText('(Experimental)')).toBeInTheDocument();
   });
 
