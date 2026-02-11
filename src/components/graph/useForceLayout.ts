@@ -100,11 +100,13 @@ export function useForceLayout({
   const nodesRef = useRef<Node[]>(nodes);
   const edgesRef = useRef<Edge[]>(edges);
   const forceParamsRef = useRef<ForceParams>(forceParams);
+  const onNodesChangeRef = useRef(onNodesChange);
 
   // 最新の値をrefに保存
   nodesRef.current = nodes;
   edgesRef.current = edges;
   forceParamsRef.current = forceParams;
+  onNodesChangeRef.current = onNodesChange;
 
   useEffect(() => {
     // forceレイアウトが無効な場合はシミュレーションを停止
@@ -208,7 +210,7 @@ export function useForceLayout({
             },
           }));
 
-          onNodesChange(updatedNodes);
+          onNodesChangeRef.current(updatedNodes);
           rafIdRef.current = null;
         });
       });
@@ -234,7 +236,7 @@ export function useForceLayout({
         simulationRef.current = null;
       }
     };
-  }, [enabled, onNodesChange]);
+  }, [enabled]);
 
   // forceParamsが変更された時にシミュレーションを動的更新
   useEffect(() => {

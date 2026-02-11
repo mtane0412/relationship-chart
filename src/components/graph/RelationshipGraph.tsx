@@ -136,6 +136,10 @@ export function RelationshipGraph() {
   // 接続元ノードIDを保存するref（onConnectEndで使用）
   const connectingFromNodeIdRef = useRef<string | null>(null);
 
+  // getNodesをrefに退避（onNodeDragStopHandlerの依存配列から除外するため）
+  const getNodesRef = useRef(getNodes);
+  getNodesRef.current = getNodes;
+
   // force-directedレイアウトの適用
   const { handleNodeDragStart, handleNodeDrag, handleNodeDragEnd } =
     useForceLayout({
@@ -869,7 +873,7 @@ export function RelationshipGraph() {
       handleNodeDragEnd(node.id);
       // Force Layout無効時は幾何学的衝突解消を適用
       if (!forceEnabled) {
-        const currentNodes = getNodes();
+        const currentNodes = getNodesRef.current();
         const resolvedNodes = resolveCollisions(currentNodes, DEFAULT_COLLISION_OPTIONS);
         // 位置が変更されたノードがあれば更新
         if (resolvedNodes !== currentNodes) {
@@ -877,7 +881,7 @@ export function RelationshipGraph() {
         }
       }
     },
-    [handleNodeDragEnd, forceEnabled, getNodes, setNodes]
+    [handleNodeDragEnd, forceEnabled, setNodes]
   );
 
   return (

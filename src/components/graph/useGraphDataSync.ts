@@ -70,9 +70,14 @@ export function useGraphDataSync() {
     const newNodes = personsToNodes(persons);
     const newEdges = relationshipsToEdges(relationships);
 
+    // setNodesの関数型アップデータ内からRAFをスケジュールしています
+    // React 18 StrictModeではアップデータが2回呼ばれる可能性がありますが、
+    // RAFキャンセルロジック（Line 109-111）により最終的に1つのRAFだけが残ります
     setNodes((prevNodes) => {
       // 既存ノードをid -> nodeのマップに変換して高速に参照する（O(n²) → O(n)）
       const prevNodeMap = new Map(prevNodes.map((node) => [node.id, node]));
+      // personsもMapに変換してO(n²)を回避
+      const personMap = new Map(persons.map((p) => [p.id, p]));
 
       // 既存のノード位置を保持しながら更新（選択状態は既存ノードから引き継ぐ）
       const updatedNodes = newNodes.map((newNode) => {
@@ -88,7 +93,7 @@ export function useGraphDataSync() {
         // 新規ノードの場合
         // person.positionが未設定（undefined）の場合のみランダムな位置に配置
         // person.positionが設定されている場合は、(0,0)であってもその座標を使用
-        const person = persons.find((p) => p.id === newNode.id);
+        const person = personMap.get(newNode.id);
         const shouldUseRandomPosition = !person?.position;
         return {
           ...newNode,
@@ -103,7 +108,8 @@ export function useGraphDataSync() {
       });
 
       // 新規ノードが追加された場合、Force Layout無効時は衝突解消を適用
-      const hasNewNodes = updatedNodes.length > prevNodes.length;
+      // idベースで新規ノードを検出（prevNodesに存在しないノードがあるか）
+      const hasNewNodes = updatedNodes.some((node) => !prevNodeMap.has(node.id));
       if (hasNewNodes && !forceEnabled) {
         // 前回のrequestAnimationFrameをキャンセル（短時間に複数回変更された場合の対策）
         if (collisionResolutionRafIdRef.current !== null) {
@@ -111,12 +117,13 @@ export function useGraphDataSync() {
         }
         // レンダリング完了後に衝突解消を適用（measuredが設定されるまで待つ）
         collisionResolutionRafIdRef.current = requestAnimationFrame(() => {
-          const currentNodes = getNodesRef.current();
-          const resolvedNodes = resolveCollisions(currentNodes, DEFAULT_COLLISION_OPTIONS);
-          // resolveCollisionsは変更がない場合に元の配列を返すため、参照等価性でチェック
-          if (resolvedNodes !== currentNodes) {
-            setNodes(resolvedNodes as GraphNode[]);
-          }
+          // 関数型アップデータを使用して同時更新を上書きしないようにする
+          setNodes((prev) => {
+            const currentNodes = getNodesRef.current();
+            const resolvedNodes = resolveCollisions(currentNodes, DEFAULT_COLLISION_OPTIONS);
+            // resolveCollisionsは変更がない場合に元の配列を返すため、参照等価性でチェック
+            return resolvedNodes !== currentNodes ? (resolvedNodes as GraphNode[]) : prev;
+          });
           collisionResolutionRafIdRef.current = null;
         });
       }
@@ -131,7 +138,7 @@ export function useGraphDataSync() {
         const existingEdge = prevEdgeMap.get(newEdge.id);
         return {
           ...newEdge,
-          selected: existingEdge?.selected || false,
+          selected: existingEdge?.selected ?? false,
         };
       });
       return updatedEdges;
