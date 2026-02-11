@@ -88,6 +88,38 @@ export function useGraphInteractions({
   // 接続元ノードIDを保存するref（onConnectEndで使用）
   const connectingFromNodeIdRef = useRef<string | null>(null);
 
+  // getNodesをrefに退避（依存配列から除外するため）
+  const getNodesRef = useRef(getNodes);
+  getNodesRef.current = getNodes;
+
+  // 2人のperson間の接続を処理するヘルパー関数
+  const tryStartConnection = useCallback(
+    (sourcePersonId: string, targetPersonId: string) => {
+      // 自己接続を防止
+      if (sourcePersonId === targetPersonId) return;
+
+      // 両方の人物が実際に存在することを確認
+      const sourcePerson = persons.find((p) => p.id === sourcePersonId);
+      const targetPerson = persons.find((p) => p.id === targetPersonId);
+      if (!sourcePerson || !targetPerson) return;
+
+      // 同じペアの関係が既に存在するかチェック（方向問わず）
+      const existingRelationship = relationships.find(
+        (r) =>
+          (r.sourcePersonId === sourcePersonId && r.targetPersonId === targetPersonId) ||
+          (r.sourcePersonId === targetPersonId && r.targetPersonId === sourcePersonId)
+      );
+
+      // pendingConnectionをセット（既存関係がある場合は編集モード）
+      setPendingConnection({
+        sourcePersonId,
+        targetPersonId,
+        ...(existingRelationship ? { existingRelationshipId: existingRelationship.id } : {}),
+      });
+    },
+    [persons, relationships]
+  );
+
   // キャンバスへの画像ドロップハンドラ
   const handleDrop = useCallback(
     async (event: React.DragEvent<HTMLDivElement>) => {
@@ -259,38 +291,12 @@ export function useGraphInteractions({
       // onConnectが呼ばれたことを記録
       onConnectCalledRef.current = true;
 
-      // sourceとtargetが存在し、異なることを確認（自己接続を防止）
-      if (connection.source && connection.target && connection.source !== connection.target) {
-        // 両方の人物が実際に存在することを確認
-        const sourcePerson = persons.find((p) => p.id === connection.source);
-        const targetPerson = persons.find((p) => p.id === connection.target);
-
-        if (sourcePerson && targetPerson) {
-          // 同じペアの関係が既に存在するかチェック（方向問わず）
-          const existingRelationship = relationships.find(
-            (r) =>
-              (r.sourcePersonId === connection.source && r.targetPersonId === connection.target) ||
-              (r.sourcePersonId === connection.target && r.targetPersonId === connection.source)
-          );
-
-          if (existingRelationship) {
-            // 既に関係が存在する場合は編集モーダルを開く
-            setPendingConnection({
-              sourcePersonId: connection.source,
-              targetPersonId: connection.target,
-              existingRelationshipId: existingRelationship.id,
-            });
-            return;
-          }
-
-          setPendingConnection({
-            sourcePersonId: connection.source,
-            targetPersonId: connection.target,
-          });
-        }
+      // sourceとtargetが存在することを確認
+      if (connection.source && connection.target) {
+        tryStartConnection(connection.source, connection.target);
       }
     },
-    [persons, relationships]
+    [tryStartConnection]
   );
 
   // エッジ接続終了ハンドラ（プレビューラインがターゲットノードとつながっている場合の接続）
@@ -335,7 +341,7 @@ export function useGraphInteractions({
       const flowPosition = screenToFlowPosition({ x: clientX, y: clientY });
 
       // マウス位置から最も近いノードを検出
-      const allNodes = getNodes();
+      const allNodes = getNodesRef.current();
       const targetNode = findClosestTargetNode(
         flowPosition.x,
         flowPosition.y,
@@ -349,39 +355,10 @@ export function useGraphInteractions({
 
       // ターゲットノードが見つかった場合、接続を作成
       if (targetNode && targetNode.id !== fromNodeId) {
-        const sourcePersonId = fromNodeId;
-        const targetPersonId = targetNode.id;
-
-        // 両方の人物が実際に存在することを確認
-        const sourcePerson = persons.find((p) => p.id === sourcePersonId);
-        const targetPerson = persons.find((p) => p.id === targetPersonId);
-
-        if (sourcePerson && targetPerson) {
-          // 同じペアの関係が既に存在するかチェック（方向問わず）
-          const existingRelationship = relationships.find(
-            (r) =>
-              (r.sourcePersonId === sourcePersonId && r.targetPersonId === targetPersonId) ||
-              (r.sourcePersonId === targetPersonId && r.targetPersonId === sourcePersonId)
-          );
-
-          if (existingRelationship) {
-            // 既に関係が存在する場合は編集モーダルを開く
-            setPendingConnection({
-              sourcePersonId,
-              targetPersonId,
-              existingRelationshipId: existingRelationship.id,
-            });
-            return;
-          }
-
-          setPendingConnection({
-            sourcePersonId,
-            targetPersonId,
-          });
-        }
+        tryStartConnection(fromNodeId, targetNode.id);
       }
     },
-    [screenToFlowPosition, getNodes, persons, relationships]
+    [screenToFlowPosition, tryStartConnection]
   );
 
   // Delete/Backspaceキーでの削除前確認ハンドラ
