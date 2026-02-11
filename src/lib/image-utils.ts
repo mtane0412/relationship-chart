@@ -3,6 +3,8 @@
  * 画像のリサイズとData URL変換を行う
  */
 
+import { MAX_IMAGE_FILE_SIZE_BYTES } from './validation-constants';
+
 /**
  * クロップ領域を表す型
  * react-easy-cropのonCropCompleteコールバックから受け取るcroppedAreaPixelsと同じ形状
@@ -25,6 +27,11 @@ export async function readFileAsDataUrl(file: File): Promise<string> {
   // 画像ファイルかチェック
   if (!file.type.startsWith('image/')) {
     throw new Error('画像ファイルを選択してください');
+  }
+
+  // ファイルサイズチェック（10MB以下）
+  if (file.size > MAX_IMAGE_FILE_SIZE_BYTES) {
+    throw new Error('画像ファイルのサイズは10MB以下にしてください');
   }
 
   return new Promise((resolve, reject) => {
@@ -53,6 +60,11 @@ export async function processImage(file: File): Promise<string> {
   // 画像ファイルかチェック
   if (!file.type.startsWith('image/')) {
     throw new Error('画像ファイルを選択してください');
+  }
+
+  // ファイルサイズチェック（10MB以下）
+  if (file.size > MAX_IMAGE_FILE_SIZE_BYTES) {
+    throw new Error('画像ファイルのサイズは10MB以下にしてください');
   }
 
   return new Promise((resolve, reject) => {
