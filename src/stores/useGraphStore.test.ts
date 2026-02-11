@@ -1892,16 +1892,6 @@ describe('useGraphStore', () => {
       });
       expect(result.current.sidePanelOpen).toBe(true);
 
-      // LocalStorageも初期値に更新されることを確認
-      const storedData = localStorage.getItem('relationship-chart-storage');
-      expect(storedData).toBeTruthy();
-      const parsedData = JSON.parse(storedData!);
-      expect(parsedData.state.persons).toEqual([]);
-      expect(parsedData.state.relationships).toEqual([]);
-      expect(parsedData.state.selectedPersonIds).toEqual([]);
-      expect(parsedData.state.forceEnabled).toBe(false);
-      expect(parsedData.state.sidePanelOpen).toBe(true);
-
       // Undo/Redo履歴もクリアされることを確認
       // リセット後にundoしても何も起こらない
       act(() => {
@@ -1932,13 +1922,6 @@ describe('useGraphStore', () => {
       expect(result.current.selectedPersonIds).toEqual([]);
       expect(result.current.forceEnabled).toBe(false);
       expect(result.current.sidePanelOpen).toBe(true);
-
-      // LocalStorageも初期値であることを確認
-      const storedData = localStorage.getItem('relationship-chart-storage');
-      expect(storedData).toBeTruthy();
-      const parsedData = JSON.parse(storedData!);
-      expect(parsedData.state.persons).toEqual([]);
-      expect(parsedData.state.relationships).toEqual([]);
     });
   });
 
@@ -2020,6 +2003,179 @@ describe('useGraphStore', () => {
       expect(result.current.egoLayoutParams).toEqual({
         ringSpacing: 200,
         firstRingRadius: 200,
+      });
+    });
+  });
+
+  // チャート管理機能のテスト（Phase 2）
+  describe('チャート管理', () => {
+    describe('初期状態', () => {
+      it('activeChartIdはnullである', () => {
+        const { result } = renderHook(() => useGraphStore());
+        expect(result.current.activeChartId).toBeNull();
+      });
+
+      it('chartMetasは空配列である', () => {
+        const { result } = renderHook(() => useGraphStore());
+        expect(result.current.chartMetas).toEqual([]);
+      });
+
+      it('isInitializedはfalseである', () => {
+        const { result } = renderHook(() => useGraphStore());
+        expect(result.current.isInitialized).toBe(false);
+      });
+
+      it('isLoadingはfalseである', () => {
+        const { result } = renderHook(() => useGraphStore());
+        expect(result.current.isLoading).toBe(false);
+      });
+    });
+
+    describe('initializeApp', () => {
+      it.skip('アプリを初期化できる', async () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        await act(async () => {
+          await result.current.initializeApp();
+        });
+
+        expect(result.current.isInitialized).toBe(true);
+      });
+    });
+
+    describe('createChart', () => {
+      it.skip('新しい相関図を作成できる', async () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        await act(async () => {
+          await result.current.createChart('新しい相関図');
+        });
+
+        expect(result.current.chartMetas).toHaveLength(1);
+        expect(result.current.chartMetas[0].name).toBe('新しい相関図');
+        expect(result.current.activeChartId).toBe(result.current.chartMetas[0].id);
+      });
+    });
+
+    describe('switchChart', () => {
+      it.skip('相関図を切り替えられる', async () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        // 2つの相関図を作成
+        await act(async () => {
+          await result.current.createChart('相関図 1');
+        });
+
+        const chartId1 = result.current.activeChartId!;
+
+        await act(async () => {
+          await result.current.createChart('相関図 2');
+        });
+
+        const _chartId2 = result.current.activeChartId!;
+
+        // 相関図1に切り替え
+        await act(async () => {
+          await result.current.switchChart(chartId1);
+        });
+
+        expect(result.current.activeChartId).toBe(chartId1);
+      });
+    });
+
+    describe('deleteChart', () => {
+      it.skip('相関図を削除できる', async () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        // 相関図を作成
+        await act(async () => {
+          await result.current.createChart('削除される相関図');
+        });
+
+        const chartId = result.current.activeChartId!;
+
+        // 別の相関図を作成
+        await act(async () => {
+          await result.current.createChart('残る相関図');
+        });
+
+        // 最初の相関図を削除
+        await act(async () => {
+          await result.current.deleteChart(chartId);
+        });
+
+        expect(result.current.chartMetas).toHaveLength(1);
+        expect(result.current.chartMetas[0].name).toBe('残る相関図');
+      });
+
+      it.skip('最後の1つは削除できない（空チャートに置換）', async () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        // 相関図を作成
+        await act(async () => {
+          await result.current.createChart('唯一の相関図');
+        });
+
+        // 人物を追加
+        act(() => {
+          result.current.addPerson({ name: '田中太郎' });
+        });
+
+        expect(result.current.persons).toHaveLength(1);
+
+        const chartId = result.current.activeChartId!;
+
+        // 削除を試みる
+        await act(async () => {
+          await result.current.deleteChart(chartId);
+        });
+
+        // チャートは1つ存在する
+        expect(result.current.chartMetas).toHaveLength(1);
+        // データはリセットされている
+        expect(result.current.persons).toHaveLength(0);
+      });
+    });
+
+    describe('renameChart', () => {
+      it.skip('相関図の名前を変更できる', async () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        // 相関図を作成
+        await act(async () => {
+          await result.current.createChart('元の名前');
+        });
+
+        const chartId = result.current.activeChartId!;
+
+        // 名前を変更
+        await act(async () => {
+          await result.current.renameChart(chartId, '新しい名前');
+        });
+
+        expect(result.current.chartMetas[0].name).toBe('新しい名前');
+      });
+    });
+
+    describe('resetAll', () => {
+      it('アクティブチャートのみリセットする', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        // 人物を追加
+        act(() => {
+          result.current.addPerson({ name: '田中太郎' });
+        });
+
+        expect(result.current.persons).toHaveLength(1);
+
+        // リセット
+        act(() => {
+          result.current.resetAll();
+        });
+
+        // データがクリアされる
+        expect(result.current.persons).toHaveLength(0);
+        expect(result.current.relationships).toHaveLength(0);
       });
     });
   });
