@@ -18,3 +18,6 @@ export const HOVER_ZONE_SIZE = 168;
 
 /** ハンドルの中心Y座標（px） */
 export const HANDLE_CENTER_Y = 40;
+
+/** 中央ターゲットハンドルのサイズ（px） */
+export const CENTER_TARGET_SIZE = 88;

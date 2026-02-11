@@ -8,7 +8,7 @@ import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { Package } from 'lucide-react';
 import type { PersonNodeData } from '@/types/graph';
 import { useHandleHover } from './useHandleHover';
-import { HANDLE_SIZE, HANDLE_BORDER_WIDTH, HOVER_ZONE_SIZE, HANDLE_CENTER_Y } from './node-constants';
+import { HANDLE_SIZE, HANDLE_BORDER_WIDTH, HOVER_ZONE_SIZE, HANDLE_CENTER_Y, CENTER_TARGET_SIZE } from './node-constants';
 
 /**
  * 物ノードコンポーネント
@@ -108,8 +108,8 @@ export const ItemNode = memo(({ data, selected, id }: NodeProps) => {
           left: '50%',
           top: `${HANDLE_CENTER_Y}px`,
           transform: 'translate(-50%, -50%)',
-          width: '88px',
-          height: '88px',
+          width: `${CENTER_TARGET_SIZE}px`,
+          height: `${CENTER_TARGET_SIZE}px`,
           opacity: 0,
           pointerEvents: isConnectingToThisNode ? 'auto' : 'none',
           zIndex: isConnectingToThisNode ? 15 : 2,
@@ -124,13 +124,13 @@ export const ItemNode = memo(({ data, selected, id }: NodeProps) => {
             src={itemData.imageDataUrl}
             alt={itemData.name}
             className={`w-20 h-20 rounded-xl object-cover border-4 border-white shadow-xl transition-all duration-200 ${
-              selected ? 'ring-4 ring-blue-500' : 'ring-2 ring-gray-200'
+              selected || showSourceHandle || showTargetHandle ? 'ring-4 ring-blue-500' : 'ring-2 ring-gray-200'
             }`}
           />
         ) : (
           <div
             className={`w-20 h-20 rounded-xl bg-gray-400 border-4 border-white shadow-xl transition-all duration-200 flex items-center justify-center ${
-              selected ? 'ring-4 ring-blue-500' : 'ring-2 ring-gray-200'
+              selected || showSourceHandle || showTargetHandle ? 'ring-4 ring-blue-500' : 'ring-2 ring-gray-200'
             }`}
           >
             <Package className="w-10 h-10 text-white" />

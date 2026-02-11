@@ -7,7 +7,7 @@ import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import type { PersonNodeData } from '@/types/graph';
 import { useHandleHover } from './useHandleHover';
-import { HANDLE_SIZE, HANDLE_BORDER_WIDTH, HOVER_ZONE_SIZE, HANDLE_CENTER_Y } from './node-constants';
+import { HANDLE_SIZE, HANDLE_BORDER_WIDTH, HOVER_ZONE_SIZE, HANDLE_CENTER_Y, CENTER_TARGET_SIZE } from './node-constants';
 
 /**
  * 人物ノードコンポーネント
@@ -110,8 +110,8 @@ export const PersonNode = memo(({ data, selected, id }: NodeProps) => {
           left: '50%',
           top: `${HANDLE_CENTER_Y}px`,
           transform: 'translate(-50%, -50%)',
-          width: '88px',
-          height: '88px',
+          width: `${CENTER_TARGET_SIZE}px`,
+          height: `${CENTER_TARGET_SIZE}px`,
           opacity: 0,
           pointerEvents: isConnectingToThisNode ? 'auto' : 'none',
           zIndex: isConnectingToThisNode ? 15 : 2,
