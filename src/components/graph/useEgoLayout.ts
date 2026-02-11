@@ -3,7 +3,7 @@
  * EGO Network放射状レイアウトを適用する
  */
 
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useReactFlow } from '@xyflow/react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { computeGraphDistances, computeRadialPositions } from '@/lib/ego-layout';
@@ -54,8 +54,16 @@ export function useEgoLayout(): UseEgoLayoutResult {
   const forceEnabled = useGraphStore((state) => state.forceEnabled);
   const setForceEnabled = useGraphStore((state) => state.setForceEnabled);
 
+  // アニメーションフレームIDを保持（連続クリック時のキャンセル用）
+  const animationFrameRef = useRef<number | null>(null);
+
   const applyEgoLayout = useCallback(
     (centerNodeId: string) => {
+      // 前回のアニメーションをキャンセル
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
       // Force Layout有効中は一旦無効化
       if (forceEnabled) {
         setForceEnabled(false);
@@ -117,12 +125,14 @@ export function useEgoLayout(): UseEgoLayoutResult {
 
         // アニメーション継続判定
         if (progress < 1) {
-          requestAnimationFrame(animate);
+          animationFrameRef.current = requestAnimationFrame(animate);
+        } else {
+          animationFrameRef.current = null;
         }
       };
 
       // アニメーション開始
-      requestAnimationFrame(animate);
+      animationFrameRef.current = requestAnimationFrame(animate);
     },
     [
       persons,

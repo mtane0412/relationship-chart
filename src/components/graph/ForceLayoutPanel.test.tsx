@@ -44,9 +44,8 @@ describe('ForceLayoutPanel', () => {
       </ReactFlowProvider>
     );
 
-    // Force LayoutとEGO Layoutの両方に"(Experimental)"が存在するため、getAllByTextを使用
-    const experimentalLabels = screen.getAllByText('(Experimental)');
-    expect(experimentalLabels.length).toBeGreaterThanOrEqual(1);
+    // EGO Layoutセクションはノード未選択時に非表示のため、Force Layoutの1つのみ
+    expect(screen.getByText('(Experimental)')).toBeInTheDocument();
   });
 
   it('トグルスイッチが表示される', () => {
