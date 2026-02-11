@@ -5,8 +5,14 @@
 import '@testing-library/jest-dom/vitest';
 
 /**
+ * IndexedDBのポリフィル
+ * すべてのテストでIndexedDBが利用可能になる
+ */
+import 'fake-indexeddb/auto';
+
+/**
  * LocalStorageのモック
- * Zustandのpersistミドルウェアがテスト環境で動作するために必要
+ * マイグレーションテスト用に必要
  */
 class LocalStorageMock {
   private store: Map<string, string> = new Map();
