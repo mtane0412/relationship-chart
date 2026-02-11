@@ -4,13 +4,13 @@
  */
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { temporal } from 'zundo';
 import { nanoid } from 'nanoid';
 import type { Person } from '@/types/person';
 import type { Relationship } from '@/types/relationship';
 import type { EgoLayoutParams } from '@/lib/ego-layout';
 import { DEFAULT_EGO_LAYOUT_PARAMS } from '@/lib/ego-layout';
+import type { ChartMeta } from '@/types/chart';
 
 /**
  * force-directedレイアウトのパラメータ型
@@ -34,19 +34,6 @@ export const DEFAULT_FORCE_PARAMS: ForceParams = {
 };
 
 /**
- * グラフストアの初期状態
- */
-const INITIAL_STATE: GraphState = {
-  persons: [],
-  relationships: [],
-  forceEnabled: false,
-  selectedPersonIds: [],
-  forceParams: DEFAULT_FORCE_PARAMS,
-  egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
-  sidePanelOpen: true,
-};
-
-/**
  * グラフストアの状態型
  */
 type GraphState = {
@@ -64,6 +51,31 @@ type GraphState = {
   egoLayoutParams: EgoLayoutParams;
   /** サイドパネルが開いているかどうか */
   sidePanelOpen: boolean;
+  /** アクティブな相関図ID */
+  activeChartId: string | null;
+  /** 相関図のメタデータリスト */
+  chartMetas: ChartMeta[];
+  /** アプリ初期化完了フラグ */
+  isInitialized: boolean;
+  /** チャート切り替え中フラグ */
+  isLoading: boolean;
+};
+
+/**
+ * グラフストアの初期状態
+ */
+const INITIAL_STATE: GraphState = {
+  persons: [],
+  relationships: [],
+  forceEnabled: false,
+  selectedPersonIds: [],
+  forceParams: DEFAULT_FORCE_PARAMS,
+  egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+  sidePanelOpen: true,
+  activeChartId: null,
+  chartMetas: [],
+  isInitialized: false,
+  isLoading: false,
 };
 
 /**
@@ -172,9 +184,40 @@ type GraphActions = {
 
   /**
    * すべてのデータと状態を初期値にリセットする
-   * LocalStorageのデータもクリアされ、Undo/Redo履歴もクリアされます
+   * Undo/Redo履歴もクリアされます
    */
   resetAll: () => void;
+
+  /**
+   * アプリケーションを初期化する
+   * IndexedDBからチャート一覧を読み込み、LocalStorageからのマイグレーションを実行する
+   */
+  initializeApp: () => Promise<void>;
+
+  /**
+   * 新しい相関図を作成する
+   * @param name - 相関図の名前
+   */
+  createChart: (name: string) => Promise<void>;
+
+  /**
+   * 相関図を切り替える
+   * @param chartId - 切り替え先の相関図ID
+   */
+  switchChart: (chartId: string) => Promise<void>;
+
+  /**
+   * 相関図を削除する（最後の1つは削除不可、空チャートに置換）
+   * @param chartId - 削除する相関図ID
+   */
+  deleteChart: (chartId: string) => Promise<void>;
+
+  /**
+   * 相関図の名前を変更する
+   * @param chartId - 変更する相関図ID
+   * @param newName - 新しい名前
+   */
+  renameChart: (chartId: string, newName: string) => Promise<void>;
 };
 
 /**
@@ -183,70 +226,17 @@ type GraphActions = {
 type GraphStore = GraphState & GraphActions;
 
 /**
- * LocalStorageに保存される古い形式の状態（v0）
- */
-type GraphStateV0 = {
-  persons: Person[];
-  relationships: Relationship[];
-  forceEnabled: boolean;
-  selectedPersonId: string | null;
-};
-
-/**
- * v1形式のRelationship（label, isDirectedを使用）
- */
-type RelationshipV1 = {
-  id: string;
-  sourcePersonId: string;
-  targetPersonId: string;
-  label: string;
-  isDirected: boolean;
-  createdAt: string;
-};
-
-/**
- * LocalStorageに保存される古い形式の状態（v1）
- */
-type GraphStateV1 = {
-  persons: Person[];
-  relationships: RelationshipV1[];
-  forceEnabled: boolean;
-  selectedPersonIds: string[];
-};
-
-/**
- * v2形式のRelationship（type, sourceToTargetLabel, targetToSourceLabelを使用）
- */
-type RelationshipV2 = {
-  id: string;
-  sourcePersonId: string;
-  targetPersonId: string;
-  type: 'bidirectional' | 'dual-directed' | 'one-way' | 'undirected';
-  sourceToTargetLabel: string;
-  targetToSourceLabel: string | null;
-  createdAt: string;
-};
-
-/**
- * LocalStorageに保存される古い形式の状態（v2）
- */
-type GraphStateV2 = {
-  persons: Person[];
-  relationships: RelationshipV2[];
-  forceEnabled: boolean;
-  selectedPersonIds: string[];
-};
-
-/**
  * グラフストア
  * 人物と関係を管理するグローバルストア
  * temporalミドルウェアでUndo/Redo機能を提供
- * persistミドルウェアでLocalStorageに自動保存
+ *
+ * ⚠️ 注意: persistミドルウェアは削除済み
+ * IndexedDB永続化と自動保存はPhase 2.4以降で実装予定
+ * 現在はページリロードでデータが失われます
  */
 export const useGraphStore = create<GraphStore>()(
-  persist(
-    temporal(
-      (set) => ({
+  temporal(
+    (set) => ({
         // 初期状態
         ...INITIAL_STATE,
 
@@ -403,168 +393,56 @@ export const useGraphStore = create<GraphStore>()(
 
         resetAll: () => {
           // 全状態を初期値にリセット（INITIAL_STATEを使用）
+          // 注意: isInitialized も false に戻るため、Phase 3以降は再度 initializeApp() が必要
           set(() => ({ ...INITIAL_STATE }));
 
           // Undo/Redo履歴をクリア
           useGraphStore.temporal.getState().clear();
         },
+
+        // チャート管理アクション（Phase 2）
+        initializeApp: async () => {
+          // TODO: Phase 3で実装
+          // 暫定実装: テスト用に isInitialized のみ true にする
+          set(() => ({ isInitialized: true }));
+        },
+
+        createChart: async (_name: string) => {
+          // TODO: Phase 2.3で実装
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('createChart is not yet implemented (Phase 2.3)');
+          }
+        },
+
+        switchChart: async (_chartId: string) => {
+          // TODO: Phase 2.3で実装
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('switchChart is not yet implemented (Phase 2.3)');
+          }
+        },
+
+        deleteChart: async (_chartId: string) => {
+          // TODO: Phase 2.3で実装
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('deleteChart is not yet implemented (Phase 2.3)');
+          }
+        },
+
+        renameChart: async (_chartId: string, _newName: string) => {
+          // TODO: Phase 2.3で実装
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('renameChart is not yet implemented (Phase 2.3)');
+          }
+        },
       }),
       {
-        // UI状態（selectedPersonIds, forceEnabled, egoLayoutParams, sidePanelOpen）はundo対象外
+        // UI状態（selectedPersonIds, forceEnabled, egoLayoutParams, sidePanelOpen, activeChartId, chartMetas, isInitialized, isLoading）はundo対象外
         // データ状態（persons, relationships）のみをundo履歴に保存
         partialize: (state) => ({
           persons: state.persons,
           relationships: state.relationships,
         }),
       }
-    ),
-    {
-      name: 'relationship-chart-storage', // LocalStorageのキー名
-      version: 6, // バージョン管理（v5→v6に更新）
-      // マイグレーション関数
-      migrate: (persistedState: unknown, version: number) => {
-        // v6以降は変換不要
-        if (version >= 6) {
-          return persistedState as GraphState;
-        }
+    )
+  );
 
-        // 初回ユーザー（永続化データがない場合）は変換不要
-        if (!persistedState || typeof persistedState !== 'object') {
-          return persistedState as GraphState;
-        }
-
-        let state = persistedState;
-
-        // v0からv1への変換
-        if (version === 0) {
-          const oldState = state as GraphStateV0;
-          // selectedPersonId を除外して selectedPersonIds に変換
-          const { selectedPersonId, ...rest } = oldState;
-          state = {
-            ...rest,
-            selectedPersonIds: selectedPersonId ? [selectedPersonId] : [],
-          };
-        }
-
-        // v1からv3への変換（v2を経由せず直接v3に変換）
-        if (version <= 1) {
-          const v1State = state as GraphStateV1;
-          const v3Relationships: Relationship[] = v1State.relationships.map((r) => ({
-            id: r.id,
-            sourcePersonId: r.sourcePersonId,
-            targetPersonId: r.targetPersonId,
-            isDirected: r.isDirected,
-            sourceToTargetLabel: r.label,
-            targetToSourceLabel: r.isDirected ? null : r.label, // undirectedの場合は同一ラベル
-            createdAt: r.createdAt,
-          }));
-
-          state = {
-            persons: v1State.persons,
-            relationships: v3Relationships,
-            forceEnabled: v1State.forceEnabled,
-            selectedPersonIds: v1State.selectedPersonIds,
-          };
-        }
-
-        // v2からv3への変換
-        if (version === 2) {
-          const v2State = state as GraphStateV2;
-          const v3Relationships: Relationship[] = v2State.relationships.map((r) => {
-            // typeフィールドから新しいisDirectedとラベルを導出
-            if (r.type === 'bidirectional') {
-              return {
-                id: r.id,
-                sourcePersonId: r.sourcePersonId,
-                targetPersonId: r.targetPersonId,
-                isDirected: true,
-                sourceToTargetLabel: r.sourceToTargetLabel,
-                targetToSourceLabel: r.sourceToTargetLabel, // 同一ラベルにする
-                createdAt: r.createdAt,
-              };
-            } else if (r.type === 'dual-directed') {
-              return {
-                id: r.id,
-                sourcePersonId: r.sourcePersonId,
-                targetPersonId: r.targetPersonId,
-                isDirected: true,
-                sourceToTargetLabel: r.sourceToTargetLabel,
-                targetToSourceLabel: r.targetToSourceLabel, // そのまま維持
-                createdAt: r.createdAt,
-              };
-            } else if (r.type === 'one-way') {
-              return {
-                id: r.id,
-                sourcePersonId: r.sourcePersonId,
-                targetPersonId: r.targetPersonId,
-                isDirected: true,
-                sourceToTargetLabel: r.sourceToTargetLabel,
-                targetToSourceLabel: null, // 片方向のみ
-                createdAt: r.createdAt,
-              };
-            } else {
-              // undirected
-              return {
-                id: r.id,
-                sourcePersonId: r.sourcePersonId,
-                targetPersonId: r.targetPersonId,
-                isDirected: false,
-                sourceToTargetLabel: r.sourceToTargetLabel,
-                targetToSourceLabel: r.sourceToTargetLabel, // 同一ラベルにする
-                createdAt: r.createdAt,
-              };
-            }
-          });
-
-          state = {
-            persons: v2State.persons,
-            relationships: v3Relationships,
-            forceEnabled: v2State.forceEnabled,
-            selectedPersonIds: v2State.selectedPersonIds,
-          };
-        }
-
-        // v3からv4への変換（forceParamsを補完）
-        // v0/v1/v2からの変換後も必ずここを通るため、すべてのバージョンでforceParamsが補完される
-        if (version <= 3) {
-          const v3State = state as Partial<GraphState>;
-          // forceParamsがない場合はデフォルト値を追加
-          if (!v3State.forceParams) {
-            state = {
-              ...v3State,
-              forceParams: DEFAULT_FORCE_PARAMS,
-            };
-          }
-        }
-
-        // v4からv5への変換（sidePanelOpenを補完）
-        // v0/v1/v2/v3からの変換後も必ずここを通るため、すべてのバージョンでsidePanelOpenが補完される
-        if (version <= 4) {
-          const v4State = state as Partial<GraphState>;
-          // sidePanelOpenがない場合はデフォルト値（true）を追加
-          if (v4State.sidePanelOpen === undefined) {
-            state = {
-              ...v4State,
-              sidePanelOpen: true,
-            };
-          }
-        }
-
-        // v5からv6への変換（egoLayoutParamsを補完）
-        // v0/v1/v2/v3/v4からの変換後も必ずここを通るため、すべてのバージョンでegoLayoutParamsが補完される
-        if (version <= 5) {
-          const v5State = state as Partial<GraphState>;
-          // egoLayoutParamsがない場合はデフォルト値を追加
-          if (!v5State.egoLayoutParams) {
-            state = {
-              ...v5State,
-              egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
-            };
-          }
-        }
-
-        return state as GraphState;
-      },
-    }
-  )
-);
