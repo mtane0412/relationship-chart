@@ -11,6 +11,7 @@ import { RelationshipGraph } from '@/components/graph/RelationshipGraph';
 import { SidePanel } from '@/components/panel/SidePanel';
 import { MiniSidebar } from '@/components/panel/MiniSidebar';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import LegalLinks from '@/components/layout/LegalLinks';
 import { useGraphStore } from '@/stores/useGraphStore';
 
 export default function Home() {
@@ -63,6 +64,11 @@ export default function Home() {
         <div className="md:hidden absolute bottom-4 left-1/2 -translate-x-1/2 bg-white rounded-full shadow-lg px-4 py-2 text-sm text-gray-700 border border-gray-200">
           💡 タブレット以上の画面でご利用ください
         </div>
+
+        {/* モバイル用フッターリンク（タブレット未満で表示） */}
+        <nav className="md:hidden absolute bottom-16 left-1/2 -translate-x-1/2 flex items-center gap-2 text-xs text-gray-500">
+          <LegalLinks />
+        </nav>
       </main>
 
       {/* グローバル確認ダイアログ */}
