@@ -5,13 +5,13 @@
 
 'use client';
 
-import Link from 'next/link';
 import { ReactFlowProvider } from '@xyflow/react';
 import { ChevronLeft } from 'lucide-react';
 import { RelationshipGraph } from '@/components/graph/RelationshipGraph';
 import { SidePanel } from '@/components/panel/SidePanel';
 import { MiniSidebar } from '@/components/panel/MiniSidebar';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import LegalLinks from '@/components/layout/LegalLinks';
 import { useGraphStore } from '@/stores/useGraphStore';
 
 export default function Home() {
@@ -67,19 +67,7 @@ export default function Home() {
 
         {/* モバイル用フッターリンク（タブレット未満で表示） */}
         <nav className="md:hidden absolute bottom-16 left-1/2 -translate-x-1/2 flex items-center gap-2 text-xs text-gray-500">
-          <Link
-            href="/privacy"
-            className="hover:text-gray-700 hover:underline transition-colors"
-          >
-            プライバシーポリシー
-          </Link>
-          <span className="text-gray-300">|</span>
-          <Link
-            href="/terms"
-            className="hover:text-gray-700 hover:underline transition-colors"
-          >
-            免責事項
-          </Link>
+          <LegalLinks />
         </nav>
       </main>
 

@@ -8,7 +8,7 @@
 
 'use client';
 
-import Link from 'next/link';
+import LegalLinks from './LegalLinks';
 
 export default function Footer() {
   return (
@@ -18,19 +18,7 @@ export default function Footer() {
 
       {/* 法的ドキュメントへのリンク */}
       <nav className="flex items-center gap-2">
-        <Link
-          href="/privacy"
-          className="hover:text-gray-700 hover:underline transition-colors"
-        >
-          プライバシーポリシー
-        </Link>
-        <span className="text-gray-300">|</span>
-        <Link
-          href="/terms"
-          className="hover:text-gray-700 hover:underline transition-colors"
-        >
-          免責事項
-        </Link>
+        <LegalLinks />
       </nav>
     </footer>
   );
