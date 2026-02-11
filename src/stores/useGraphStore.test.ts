@@ -2229,6 +2229,24 @@ describe('useGraphStore', () => {
         expect(result.current.chartMetas[0].name).toBe('新しい相関図');
         expect(result.current.activeChartId).toBe(result.current.chartMetas[0].id);
       });
+
+      it('50文字を超える名前でエラーをスローする', async () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        // アプリを初期化
+        await act(async () => {
+          await result.current.initializeApp();
+        });
+
+        // 51文字の名前で作成を試みる
+        const longName = 'あ'.repeat(51);
+
+        await expect(
+          act(async () => {
+            await result.current.createChart(longName);
+          })
+        ).rejects.toThrow('チャート名は50文字以内で指定してください');
+      });
     });
 
     describe('switchChart', () => {
@@ -2298,6 +2316,13 @@ describe('useGraphStore', () => {
 
         const chartId = result.current.activeChartId!;
 
+        // チャート名を変更
+        await act(async () => {
+          await result.current.renameChart(chartId, 'カスタム名前');
+        });
+
+        expect(result.current.chartMetas[0].name).toBe('カスタム名前');
+
         // 人物を追加
         act(() => {
           result.current.addPerson({ name: '田中太郎' });
@@ -2314,6 +2339,11 @@ describe('useGraphStore', () => {
         expect(result.current.chartMetas).toHaveLength(1);
         // データはリセットされている
         expect(result.current.persons).toHaveLength(0);
+        // チャート名は「相関図 1」にリセットされている
+        expect(result.current.chartMetas[0].name).toBe('相関図 1');
+        // 人物数と関係数もリセットされている
+        expect(result.current.chartMetas[0].personCount).toBe(0);
+        expect(result.current.chartMetas[0].relationshipCount).toBe(0);
       });
     });
 

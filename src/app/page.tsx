@@ -5,6 +5,7 @@
 
 'use client';
 
+import { useEffect } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { ChevronLeft } from 'lucide-react';
 import { RelationshipGraph } from '@/components/graph/RelationshipGraph';
@@ -13,10 +14,25 @@ import { MiniSidebar } from '@/components/panel/MiniSidebar';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import LegalLinks from '@/components/layout/LegalLinks';
 import { useGraphStore } from '@/stores/useGraphStore';
+import { startAutoSave, stopAutoSave } from '@/lib/auto-save';
 
 export default function Home() {
   const sidePanelOpen = useGraphStore((state) => state.sidePanelOpen);
   const toggleSidePanel = useGraphStore((state) => state.toggleSidePanel);
+  const initializeApp = useGraphStore((state) => state.initializeApp);
+
+  // アプリケーション初期化と自動保存の開始
+  useEffect(() => {
+    const initialize = async () => {
+      await initializeApp();
+    };
+    void initialize();
+    startAutoSave();
+
+    return () => {
+      stopAutoSave();
+    };
+  }, [initializeApp]);
 
   return (
     <ReactFlowProvider>
