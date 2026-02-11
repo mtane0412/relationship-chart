@@ -51,8 +51,10 @@ export function SidePanel() {
     content = <SingleSelectionPanel person={selectedPersons[0]} />;
   } else if (selectedPersons.length === 2) {
     // 2人選択時: 関係登録パネル
+    // keyを設定してペアが変わった時にコンポーネントをリセット
     content = (
       <PairSelectionPanel
+        key={`${selectedPersons[0].id}-${selectedPersons[1].id}`}
         persons={[selectedPersons[0], selectedPersons[1]]}
       />
     );

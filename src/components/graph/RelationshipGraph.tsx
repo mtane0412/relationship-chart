@@ -92,6 +92,7 @@ export function RelationshipGraph() {
     handleDrop,
     handleDragOver,
     handleSelectionChange,
+    handleNodeClick,
     handlePaneClick,
     handleEdgeClick,
     handleConnectStart,
@@ -184,6 +185,7 @@ export function RelationshipGraph() {
         onNodeDragStart={onNodeDragStartHandler}
         onNodeDrag={onNodeDragHandler}
         onNodeDragStop={onNodeDragStopHandler}
+        onNodeClick={handleNodeClick}
         onSelectionChange={handleSelectionChange}
         onPaneClick={handlePaneClick}
         onEdgeClick={handleEdgeClick}

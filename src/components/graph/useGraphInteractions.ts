@@ -244,13 +244,40 @@ export function useGraphInteractions({
   }, [pendingRegistration, pendingConnection, contextMenu]);
 
   // 選択変更ハンドラ（React Flowの選択状態をストアに同期）
+  // 注: 無限ループを避けるため、選択状態の同期は一方向（Zustand → React Flow）のみにする
+  // ユーザーによる選択はonNodeClickで処理する
   const handleSelectionChange = useCallback(
-    (params: OnSelectionChangeParams) => {
-      // 選択されたノードのIDを抽出
-      const selectedNodeIds = params.nodes.map((node) => node.id);
-      setSelectedPersonIds(selectedNodeIds);
+    (_params: OnSelectionChangeParams) => {
+      // 何もしない（一方向同期のため）
     },
-    [setSelectedPersonIds]
+    []
+  );
+
+  // ノードクリックハンドラ（選択状態を更新）
+  const handleNodeClick = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      // コンテキストメニューが開いている場合は閉じる
+      if (contextMenu) {
+        closeContextMenu();
+      }
+
+      // Shiftキーが押されている場合は複数選択（トグル）
+      if (event.shiftKey) {
+        const currentSelectedIds = useGraphStore.getState().selectedPersonIds;
+        const isSelected = currentSelectedIds.includes(node.id);
+        if (isSelected) {
+          // 選択解除
+          setSelectedPersonIds(currentSelectedIds.filter((id) => id !== node.id));
+        } else {
+          // 選択追加
+          setSelectedPersonIds([...currentSelectedIds, node.id]);
+        }
+      } else {
+        // 通常クリック：単一選択
+        setSelectedPersonIds([node.id]);
+      }
+    },
+    [contextMenu, closeContextMenu, setSelectedPersonIds]
   );
 
   // 背景クリックハンドラ
@@ -268,6 +295,11 @@ export function useGraphInteractions({
   // エッジクリックハンドラ（エッジに対応する2人を選択状態にする）
   const handleEdgeClick = useCallback(
     (_event: React.MouseEvent, edge: Edge) => {
+      // エッジのsourceとtargetが存在することを確認
+      if (!edge.source || !edge.target) {
+        return;
+      }
+
       // setTimeoutで遅延させることで、React FlowのonSelectionChangeとの競合を避ける
       setTimeout(() => {
         setSelectedPersonIds([edge.source, edge.target]);
@@ -516,6 +548,7 @@ export function useGraphInteractions({
     handleDrop,
     handleDragOver,
     handleSelectionChange,
+    handleNodeClick,
     handlePaneClick,
     handleEdgeClick,
     handleConnectStart,

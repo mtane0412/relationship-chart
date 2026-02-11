@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useReactFlow } from '@xyflow/react';
 import { ArrowRight, ArrowLeft, ArrowLeftRight, Minus } from 'lucide-react';
 import { BidirectionalArrow } from '@/components/icons/BidirectionalArrow';
@@ -121,39 +121,69 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
   const hasItem = (person1.kind === 'item') || (person2.kind === 'item');
 
   // 2人の間の既存関係を取得（方向問わず）
-  const existingRelationship = relationships.find(
-    (r) =>
-      (r.sourcePersonId === person1.id && r.targetPersonId === person2.id) ||
-      (r.sourcePersonId === person2.id && r.targetPersonId === person1.id)
+  // メモ化により、relationshipsまたはペアIDが変わった時のみ再計算
+  const existingRelationship = useMemo(
+    () =>
+      relationships.find(
+        (r) =>
+          (r.sourcePersonId === person1.id && r.targetPersonId === person2.id) ||
+          (r.sourcePersonId === person2.id && r.targetPersonId === person1.id)
+      ),
+    [relationships, person1.id, person2.id]
   );
 
   // 既存関係の向きを判定（person1がsourceかどうか）
-  const isReversed = existingRelationship
-    ? existingRelationship.sourcePersonId === person2.id
-    : false;
+  // メモ化により、existingRelationshipまたはperson2.idが変わった時のみ再計算
+  const isReversed = useMemo(
+    () => (existingRelationship ? existingRelationship.sourcePersonId === person2.id : false),
+    [existingRelationship, person2.id]
+  );
 
-  // フォーム状態
-  const [relationshipType, setRelationshipType] = useState<RelationshipType>('bidirectional');
-  const [sourceToTargetLabel, setSourceToTargetLabel] = useState('');
-  const [targetToSourceLabel, setTargetToSourceLabel] = useState('');
+  // フォーム状態（初期値を関数で設定）
+  const [relationshipType, setRelationshipType] = useState<RelationshipType>(() => {
+    if (existingRelationship) {
+      return getRelationshipDisplayType(existingRelationship);
+    }
+    return 'bidirectional';
+  });
+  const [sourceToTargetLabel, setSourceToTargetLabel] = useState(() => {
+    if (existingRelationship) {
+      return isReversed
+        ? existingRelationship.targetToSourceLabel || existingRelationship.sourceToTargetLabel || ''
+        : existingRelationship.sourceToTargetLabel || '';
+    }
+    return '';
+  });
+  const [targetToSourceLabel, setTargetToSourceLabel] = useState(() => {
+    if (existingRelationship) {
+      const displayType = getRelationshipDisplayType(existingRelationship);
+      return isReversed
+        ? (displayType === 'dual-directed' ? existingRelationship.sourceToTargetLabel || '' : '')
+        : (existingRelationship.targetToSourceLabel || '');
+    }
+    return '';
+  });
   const [isTypePickerOpen, setIsTypePickerOpen] = useState(false);
 
-  // 初期値設定
+  // existingRelationshipの変化に応じてフォーム状態を再同期
+  // (undo/redo、関係の削除/追加などで変化する)
   useEffect(() => {
     if (existingRelationship) {
       const displayType = getRelationshipDisplayType(existingRelationship);
       setRelationshipType(displayType);
-      setSourceToTargetLabel(
-        isReversed
-          ? existingRelationship.targetToSourceLabel || existingRelationship.sourceToTargetLabel || ''
-          : existingRelationship.sourceToTargetLabel || ''
-      );
-      setTargetToSourceLabel(
-        isReversed
-          ? (displayType === 'dual-directed' ? existingRelationship.sourceToTargetLabel || '' : '')
-          : (existingRelationship.targetToSourceLabel || '')
-      );
+
+      const nextSourceToTargetLabel = isReversed
+        ? existingRelationship.targetToSourceLabel || existingRelationship.sourceToTargetLabel || ''
+        : existingRelationship.sourceToTargetLabel || '';
+
+      const nextTargetToSourceLabel = isReversed
+        ? (displayType === 'dual-directed' ? existingRelationship.sourceToTargetLabel || '' : '')
+        : (existingRelationship.targetToSourceLabel || '');
+
+      setSourceToTargetLabel(nextSourceToTargetLabel);
+      setTargetToSourceLabel(nextTargetToSourceLabel);
     } else {
+      // 関係が削除された場合は新規作成用のデフォルトにリセット
       setRelationshipType('bidirectional');
       setSourceToTargetLabel('');
       setTargetToSourceLabel('');
