@@ -674,11 +674,15 @@ export const useGraphStore = create<GraphStore>()(
 
           // 1. 最後の1つは削除できない（空チャートに置換）
           if (currentMetas.length === 1) {
-            // 現在のチャートのデータをリセット
+            // 現在のチャートのデータをリセット（resetAllと同様の完全リセット）
             set(() => ({
               persons: [],
               relationships: [],
+              forceEnabled: false,
+              forceParams: DEFAULT_FORCE_PARAMS,
+              egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
               selectedPersonIds: [],
+              sidePanelOpen: true,
             }));
 
             // IndexedDBに保存（リセット状態で）
@@ -690,21 +694,22 @@ export const useGraphStore = create<GraphStore>()(
             return;
           }
 
-          // 2. IndexedDBから削除
-          await deleteChartFromDB(chartId);
-
-          // 3. chartMetasを更新
+          // 2. chartMetasを更新（削除後の状態を先に計算）
           const updatedMetas = currentMetas.filter((m) => m.id !== chartId);
 
-          // 4. 削除したのがアクティブチャートの場合 → 次のチャートに切り替え
+          // 3. 削除したのがアクティブチャートの場合 → 次のチャートを先にロード
           if (get().activeChartId === chartId) {
-            // 次のチャート（最新のもの）
+            // 次のチャート（最新のもの）を先にロード
             const nextChartId = updatedMetas[0].id;
             const nextChart = await getChart(nextChartId);
             if (!nextChart) {
               throw new Error(`Chart not found: ${nextChartId}`);
             }
 
+            // 4. 次のチャートのロードに成功したらIndexedDBから削除
+            await deleteChartFromDB(chartId);
+
+            // 5. ストアを更新
             set(() => ({
               activeChartId: nextChart.id,
               chartMetas: updatedMetas,
@@ -721,7 +726,9 @@ export const useGraphStore = create<GraphStore>()(
             // Undo/Redo履歴をクリア
             useGraphStore.temporal.getState().clear();
           } else {
-            // 5. 削除したのが非アクティブの場合 → chartMetasのみ更新
+            // 6. 削除したのが非アクティブの場合 → IndexedDBから削除してchartMetasのみ更新
+            await deleteChartFromDB(chartId);
+
             set(() => ({
               chartMetas: updatedMetas,
             }));
@@ -729,18 +736,33 @@ export const useGraphStore = create<GraphStore>()(
         },
 
         renameChart: async (chartId: string, newName: string) => {
-          // 1. 対象チャートを取得
-          const chart = await getChart(chartId);
-          if (!chart) {
-            throw new Error(`Chart not found: ${chartId}`);
-          }
+          let updatedChart: Chart;
 
-          // 2. name, updatedAtを更新
-          const updatedChart: Chart = {
-            ...chart,
-            name: newName,
-            updatedAt: new Date().toISOString(),
-          };
+          // 1. アクティブチャートの場合は、メモリ内の最新状態を使用
+          if (chartId === get().activeChartId) {
+            const currentChart = buildChartFromState(get());
+            if (!currentChart) {
+              throw new Error(`Active chart not found: ${chartId}`);
+            }
+
+            updatedChart = {
+              ...currentChart,
+              name: newName,
+              updatedAt: new Date().toISOString(),
+            };
+          } else {
+            // 2. 非アクティブチャートの場合は、IndexedDBから取得
+            const chart = await getChart(chartId);
+            if (!chart) {
+              throw new Error(`Chart not found: ${chartId}`);
+            }
+
+            updatedChart = {
+              ...chart,
+              name: newName,
+              updatedAt: new Date().toISOString(),
+            };
+          }
 
           // 3. IndexedDBに保存
           await saveChart(updatedChart);
