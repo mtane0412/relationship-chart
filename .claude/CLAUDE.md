@@ -80,7 +80,6 @@ src/
 │   │   ├── SingleSelectionPanel.tsx     # 1人選択時パネル
 │   │   ├── PairSelectionPanel.tsx       # 2人選択時パネル
 │   │   ├── MultipleSelectionInfo.tsx    # 3人以上選択時の案内
-│   │   ├── PersonForm.tsx               # 人物追加フォーム（未使用）
 │   │   ├── PersonEditForm.tsx           # 人物編集フォーム
 │   │   ├── PersonList.tsx               # 人物一覧
 │   │   └── RelationshipForm.tsx         # 関係追加フォーム（未使用）
@@ -95,7 +94,7 @@ src/
 │   └── graph.ts           # React Flow用の型定義
 └── lib/
     ├── graph-utils.ts        # Person/Relationship → Node/Edge変換
-    ├── image-utils.ts        # 画像リサイズ処理（200x200px JPEG）
+    ├── image-utils.ts        # 画像リサイズ処理（200x200px WebP）
     └── node-intersection.ts  # ノード境界との交点計算
 ```
 
@@ -113,7 +112,7 @@ src/
 
 ### 1. 画像処理
 
-画像はすべて**200x200px**にリサイズされ、**JPEG形式のData URL**としてストアに保存されます（`src/lib/image-utils.ts`）。これによりLocalStorageの容量制限に対応しています。
+新規に保存される画像は**200x200px**にリサイズされ、**WebP形式のData URL**としてストアに保存されます（`src/lib/image-utils.ts`）。既存データにはJPEGのData URLが残っている場合もあり、それらも表示対象として扱います。これによりLocalStorageの容量制限に対応しています。
 
 ### 2. IDの生成
 
@@ -224,7 +223,7 @@ Tailwind CSS v4のレスポンシブクラス（`md:`プレフィックス）を
 
 - **D&D**: `RelationshipGraph`コンポーネント全体がドロップゾーン
 - **ペースト**: `window`レベルで`paste`イベントをリッスン
-- **処理フロー**: 画像取得 → `processImage`でリサイズ → モーダル表示 → 名前入力 → ストアに追加
+- **処理フロー**: 画像取得 → `readFileAsDataUrl`でData URL変換 → `cropImage`でクロップ＆リサイズ → モーダル表示 → 名前入力 → ストアに追加
 
 ### 複数選択とコンテキスト依存パネル
 
