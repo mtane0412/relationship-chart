@@ -11,8 +11,6 @@ import {
   Background,
   Controls,
   MiniMap,
-  useNodesState,
-  useEdgesState,
   useReactFlow,
   ConnectionMode,
   ConnectionLineType,
@@ -34,12 +32,12 @@ import SearchBar from './SearchBar';
 import { PersonRegistrationModal } from './PersonRegistrationModal';
 import { RelationshipRegistrationModal } from './RelationshipRegistrationModal';
 import { useForceLayout } from './useForceLayout';
+import { useGraphDataSync } from './useGraphDataSync';
 import { useContextMenu } from './useContextMenu';
 import { ContextMenu } from './ContextMenu';
 import type { ContextMenuItem } from './ContextMenu';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { useDialogStore } from '@/stores/useDialogStore';
-import { personsToNodes, relationshipsToEdges } from '@/lib/graph-utils';
 import { readFileAsDataUrl } from '@/lib/image-utils';
 import { getRelationshipDisplayType } from '@/lib/relationship-utils';
 import { findClosestTargetNode } from '@/lib/connection-target-detection';
@@ -86,10 +84,9 @@ type PendingConnection = {
  * 相関図グラフコンポーネント
  */
 export function RelationshipGraph() {
-  // Zustandストアから人物と関係を取得
+  // Zustandストアからアクションと必要な状態を取得
   const persons = useGraphStore((state) => state.persons);
   const relationships = useGraphStore((state) => state.relationships);
-  const forceEnabled = useGraphStore((state) => state.forceEnabled);
   const forceParams = useGraphStore((state) => state.forceParams);
   const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
   const addPerson = useGraphStore((state) => state.addPerson);
@@ -105,9 +102,16 @@ export function RelationshipGraph() {
   const openConfirm = useDialogStore((state) => state.openConfirm);
   const openAlert = useDialogStore((state) => state.openAlert);
 
-  // React Flowのノードとエッジの状態
-  const [nodes, setNodes, onNodesChange] = useNodesState<GraphNode>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<RelationshipEdge>([]);
+  // グラフデータ同期（ストアデータ→ノード/エッジ変換、選択状態同期）
+  const {
+    nodes,
+    edges,
+    setNodes,
+    onNodesChange,
+    onEdgesChange,
+    handleNodesUpdate,
+    forceEnabled,
+  } = useGraphDataSync();
 
   // 登録モーダルの状態
   const [pendingRegistration, setPendingRegistration] = useState<PendingRegistration | null>(null);
@@ -132,31 +136,9 @@ export function RelationshipGraph() {
   // 接続元ノードIDを保存するref（onConnectEndで使用）
   const connectingFromNodeIdRef = useRef<string | null>(null);
 
-  // requestAnimationFrameのIDを保存するref（衝突解消のキャンセル用）
-  const collisionResolutionRafIdRef = useRef<number | null>(null);
-
-  // ノード位置更新のコールバック（useForceLayout用）
-  // d3-forceのtickイベントで頻繁に呼ばれるため、既存ノードの選択状態を保持する
-  const handleNodesUpdate = useCallback(
-    (updatedNodes: Node[]) => {
-      setNodes((prevNodes) => {
-        // 既存ノードをid -> nodeのマップに変換して高速に参照する
-        const prevNodeMap = new Map(prevNodes.map((node) => [node.id, node]));
-
-        // 位置は更新するが、選択状態は既存ノードから引き継ぐ
-        const nodesWithSelection = updatedNodes.map((node) => {
-          const prevNode = prevNodeMap.get(node.id);
-          return {
-            ...node,
-            selected: prevNode?.selected ?? false,
-          };
-        });
-
-        return nodesWithSelection as GraphNode[];
-      });
-    },
-    [setNodes]
-  );
+  // getNodesをrefに退避（onNodeDragStopHandlerの依存配列から除外するため）
+  const getNodesRef = useRef(getNodes);
+  getNodesRef.current = getNodes;
 
   // force-directedレイアウトの適用
   const { handleNodeDragStart, handleNodeDrag, handleNodeDragEnd } =
@@ -167,121 +149,6 @@ export function RelationshipGraph() {
       onNodesChange: handleNodesUpdate,
       forceParams,
     });
-
-  // ストアのデータ（persons, relationships）が変更されたらノードとエッジを更新
-  // 選択状態の変更ではシミュレーション再初期化を避けるため、selectedPersonIdsを依存配列から除外
-  useEffect(() => {
-    const newNodes = personsToNodes(persons);
-    const newEdges = relationshipsToEdges(relationships);
-
-    setNodes((prevNodes) => {
-      // 既存ノードをid -> nodeのマップに変換して高速に参照する（O(n²) → O(n)）
-      const prevNodeMap = new Map(prevNodes.map((node) => [node.id, node]));
-
-      // 既存のノード位置を保持しながら更新（選択状態は既存ノードから引き継ぐ）
-      const updatedNodes = newNodes.map((newNode) => {
-        const existingNode = prevNodeMap.get(newNode.id);
-        if (existingNode) {
-          // 既存ノードが存在する場合は位置と選択状態を保持
-          return {
-            ...newNode,
-            position: existingNode.position,
-            selected: existingNode.selected,
-          };
-        }
-        // 新規ノードの場合
-        // person.positionが未設定（undefined）の場合のみランダムな位置に配置
-        // person.positionが設定されている場合は、(0,0)であってもその座標を使用
-        const person = persons.find((p) => p.id === newNode.id);
-        const shouldUseRandomPosition = !person?.position;
-        return {
-          ...newNode,
-          position: shouldUseRandomPosition
-            ? {
-                x: Math.random() * 500 + 100,
-                y: Math.random() * 500 + 100,
-              }
-            : newNode.position,
-          selected: false,
-        };
-      });
-
-      // 新規ノードが追加された場合、Force Layout無効時は衝突解消を適用
-      const hasNewNodes = updatedNodes.length > prevNodes.length;
-      if (hasNewNodes && !forceEnabled) {
-        // 前回のrequestAnimationFrameをキャンセル（短時間に複数回変更された場合の対策）
-        if (collisionResolutionRafIdRef.current !== null) {
-          cancelAnimationFrame(collisionResolutionRafIdRef.current);
-        }
-        // レンダリング完了後に衝突解消を適用（measuredが設定されるまで待つ）
-        collisionResolutionRafIdRef.current = requestAnimationFrame(() => {
-          const currentNodes = getNodes();
-          const resolvedNodes = resolveCollisions(currentNodes, DEFAULT_COLLISION_OPTIONS);
-          // resolveCollisionsは変更がない場合に元の配列を返すため、参照等価性でチェック
-          if (resolvedNodes !== currentNodes) {
-            setNodes(resolvedNodes as GraphNode[]);
-          }
-          collisionResolutionRafIdRef.current = null;
-        });
-      }
-
-      return updatedNodes;
-    });
-
-    // エッジの選択状態は既存エッジから引き継ぐ
-    setEdges((prevEdges) => {
-      const prevEdgeMap = new Map(prevEdges.map((edge) => [edge.id, edge]));
-      const updatedEdges = newEdges.map((newEdge) => {
-        const existingEdge = prevEdgeMap.get(newEdge.id);
-        return {
-          ...newEdge,
-          selected: existingEdge?.selected || false,
-        };
-      });
-      return updatedEdges;
-    });
-
-    // クリーンアップ: 未実行のrequestAnimationFrameをキャンセル
-    return () => {
-      if (collisionResolutionRafIdRef.current !== null) {
-        cancelAnimationFrame(collisionResolutionRafIdRef.current);
-        collisionResolutionRafIdRef.current = null;
-      }
-    };
-  }, [persons, relationships, setNodes, setEdges, forceEnabled, getNodes]);
-
-  // 選択状態の変更時に既存ノード/エッジのselectedプロパティのみ更新
-  // 配列参照を変更しないようにhasChangedフラグで最適化
-  useEffect(() => {
-    setNodes((prevNodes) => {
-      let hasChanged = false;
-      const updatedNodes = prevNodes.map((node) => {
-        const shouldBeSelected = selectedPersonIds.includes(node.id);
-        if (node.selected !== shouldBeSelected) {
-          hasChanged = true;
-          return { ...node, selected: shouldBeSelected };
-        }
-        return node;
-      });
-      return hasChanged ? updatedNodes : prevNodes;
-    });
-
-    setEdges((prevEdges) => {
-      let hasChanged = false;
-      const updatedEdges = prevEdges.map((edge) => {
-        const isSelected =
-          selectedPersonIds.length === 2 &&
-          ((selectedPersonIds[0] === edge.source && selectedPersonIds[1] === edge.target) ||
-            (selectedPersonIds[0] === edge.target && selectedPersonIds[1] === edge.source));
-        if (edge.selected !== isSelected) {
-          hasChanged = true;
-          return { ...edge, selected: isSelected };
-        }
-        return edge;
-      });
-      return hasChanged ? updatedEdges : prevEdges;
-    });
-  }, [selectedPersonIds, setNodes, setEdges]);
 
   // キャンバスへの画像ドロップハンドラ
   const handleDrop = useCallback(
@@ -984,6 +851,39 @@ export function RelationshipGraph() {
     buildPaneMenuItems,
   ]);
 
+  // ノードドラッグ開始ハンドラ
+  const onNodeDragStartHandler = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      handleNodeDragStart(node.id);
+    },
+    [handleNodeDragStart]
+  );
+
+  // ノードドラッグ中ハンドラ
+  const onNodeDragHandler = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      handleNodeDrag(node.id, node.position);
+    },
+    [handleNodeDrag]
+  );
+
+  // ノードドラッグ終了ハンドラ
+  const onNodeDragStopHandler = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      handleNodeDragEnd(node.id);
+      // Force Layout無効時は幾何学的衝突解消を適用
+      if (!forceEnabled) {
+        const currentNodes = getNodesRef.current();
+        const resolvedNodes = resolveCollisions(currentNodes, DEFAULT_COLLISION_OPTIONS);
+        // 位置が変更されたノードがあれば更新
+        if (resolvedNodes !== currentNodes) {
+          setNodes(resolvedNodes as GraphNode[]);
+        }
+      }
+    },
+    [handleNodeDragEnd, forceEnabled, setNodes]
+  );
+
   return (
     <div className="w-full h-screen relative" onDrop={handleDrop} onDragOver={handleDragOver}>
       <ReactFlow
@@ -997,22 +897,9 @@ export function RelationshipGraph() {
         connectionLineType={ConnectionLineType.Straight}
         connectionLineComponent={ConnectionLine}
         connectionRadius={60}
-        onNodeDragStart={(_, node) => handleNodeDragStart(node.id)}
-        onNodeDrag={(_, node) =>
-          handleNodeDrag(node.id, node.position)
-        }
-        onNodeDragStop={(_, node) => {
-          handleNodeDragEnd(node.id);
-          // Force Layout無効時は幾何学的衝突解消を適用
-          if (!forceEnabled) {
-            const currentNodes = getNodes();
-            const resolvedNodes = resolveCollisions(currentNodes, DEFAULT_COLLISION_OPTIONS);
-            // 位置が変更されたノードがあれば更新
-            if (resolvedNodes !== currentNodes) {
-              setNodes(resolvedNodes as GraphNode[]);
-            }
-          }
-        }}
+        onNodeDragStart={onNodeDragStartHandler}
+        onNodeDrag={onNodeDragHandler}
+        onNodeDragStop={onNodeDragStopHandler}
         onSelectionChange={handleSelectionChange}
         onPaneClick={handlePaneClick}
         onEdgeClick={handleEdgeClick}

@@ -69,6 +69,7 @@ src/
 │   │   ├── PersonNode.tsx                    # 人物ノード（カスタムノード）
 │   │   ├── RelationshipEdge.tsx              # 関係エッジ（カスタムエッジ）
 │   │   ├── useForceLayout.ts                 # d3-forceフック
+│   │   ├── useGraphDataSync.ts               # グラフデータ同期フック
 │   │   ├── PersonRegistrationModal.tsx       # 人物登録モーダル
 │   │   └── RelationshipRegistrationModal.tsx # 関係登録モーダル（エッジ接続時）
 │   ├── panel/             # サイドパネルコンポーネント
