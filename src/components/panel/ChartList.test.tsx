@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { ChartList } from './ChartList';
 import { useGraphStore } from '@/stores/useGraphStore';
@@ -315,5 +315,103 @@ describe('ChartList', () => {
     await user.selectOptions(select, '__create_new__');
 
     expect(createChartSpy).toHaveBeenCalled();
+  });
+
+  it('入力フィールドからフォーカスが外れると名前が保存される', async () => {
+    const user = userEvent.setup();
+    const chartId = nanoid();
+    const now = new Date().toISOString();
+
+    const renameChartSpy = vi.spyOn(useGraphStore.getState(), 'renameChart');
+
+    useGraphStore.setState({
+      activeChartId: chartId,
+      chartMetas: [
+        {
+          id: chartId,
+          name: '相関図 1',
+          personCount: 0,
+          relationshipCount: 0,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    });
+
+    render(<ChartList />);
+
+    // 歯車アイコンをクリック
+    const settingsButton = screen.getByLabelText(/設定/i);
+    await user.click(settingsButton);
+
+    // 「名前を変更」をクリック
+    const renameButton = screen.getByText('名前を変更');
+    await user.click(renameButton);
+
+    // 入力フィールドが表示される
+    const input = screen.getByDisplayValue('相関図 1') as HTMLInputElement;
+
+    // 名前を変更
+    await user.clear(input);
+    await user.type(input, '変更後の名前');
+
+    // フォーカスを外す
+    await user.tab();
+
+    // renameChartが呼ばれたことを確認
+    expect(renameChartSpy).toHaveBeenCalledWith(chartId, '変更後の名前');
+  });
+
+  it('名前変更中にEscapeキーを押してblurが発火しても変更がキャンセルされる', async () => {
+    const user = userEvent.setup();
+    const chartId = nanoid();
+    const now = new Date().toISOString();
+
+    const renameChartSpy = vi.spyOn(useGraphStore.getState(), 'renameChart');
+
+    useGraphStore.setState({
+      activeChartId: chartId,
+      chartMetas: [
+        {
+          id: chartId,
+          name: '相関図 1',
+          personCount: 0,
+          relationshipCount: 0,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    });
+
+    render(<ChartList />);
+
+    // 歯車アイコンをクリック
+    const settingsButton = screen.getByLabelText(/設定/i);
+    await user.click(settingsButton);
+
+    // 「名前を変更」をクリック
+    const renameButton = screen.getByText('名前を変更');
+    await user.click(renameButton);
+
+    // 入力フィールドが表示される
+    const input = screen.getByDisplayValue('相関図 1') as HTMLInputElement;
+
+    // 名前を変更
+    await user.clear(input);
+    await user.type(input, '変更後の名前');
+
+    // Escapeキー前にspyをリセット（Escapeキー後の動作のみを確認）
+    renameChartSpy.mockClear();
+
+    // Escapeキーを押す（Reactが入力フィールドを削除する）
+    await user.keyboard('{Escape}');
+
+    // 入力フィールドがDOMから削除されることを待つ
+    await waitFor(() => {
+      expect(screen.queryByDisplayValue('変更後の名前')).not.toBeInTheDocument();
+    });
+
+    // renameChartが呼ばれていないことを確認（Escapeキー後）
+    expect(renameChartSpy).not.toHaveBeenCalled();
   });
 });

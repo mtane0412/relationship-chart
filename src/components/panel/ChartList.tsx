@@ -27,6 +27,7 @@ export function ChartList() {
   const [editName, setEditName] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const isSavingRef = useRef<boolean>(false);
 
   const activeChart = chartMetas.find((m) => m.id === activeChartId);
 
@@ -90,22 +91,42 @@ export function ChartList() {
    * 名前変更を保存
    */
   const handleRenameSave = () => {
+    // 既に保存処理中またはキャンセル済みの場合は何もしない
+    if (isSavingRef.current) return;
+
     if (!activeChart) return;
+
+    // 保存処理開始をマーク
+    isSavingRef.current = true;
+
     const trimmedName = editName.trim();
     if (trimmedName && trimmedName !== activeChart.name) {
       void renameChart(activeChart.id, trimmedName);
     }
     setIsRenaming(false);
+
+    // フラグをリセット
+    setTimeout(() => {
+      isSavingRef.current = false;
+    }, 0);
   };
 
   /**
    * 名前変更をキャンセル
    */
   const handleRenameCancel = () => {
+    // 保存処理をブロック
+    isSavingRef.current = true;
+
     setIsRenaming(false);
     if (activeChart) {
       setEditName(activeChart.name);
     }
+
+    // フラグをリセット
+    setTimeout(() => {
+      isSavingRef.current = false;
+    }, 0);
   };
 
   /**
@@ -113,8 +134,12 @@ export function ChartList() {
    */
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
       handleRenameSave();
     } else if (e.key === 'Escape') {
+      e.preventDefault();
+      // Escapeキーが押された時点で保存処理をブロック（blurより先に設定）
+      isSavingRef.current = true;
       handleRenameCancel();
     }
   };
