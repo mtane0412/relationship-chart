@@ -59,8 +59,10 @@ export default function PrivacyPage() {
               4. アナリティクスとトラッキング
             </h2>
             <p className="text-gray-700 leading-relaxed">
-              このアプリケーションは、Google
-              Analyticsをはじめとするトラッキングツールを一切使用していません。私たちは、あなたの利用状況やアクセスログを収集・分析することはありません。
+              このアプリケーションは、サービス改善のためにVercel
+              Analyticsを使用しています。Vercel
+              Analyticsは、ページビューや基本的な利用統計を収集しますが、個人を特定できる情報（氏名、メールアドレス等）は収集しません。本アプリケーションを利用することで、Vercel
+              Analyticsの使用に同意したものとみなします。
             </p>
           </section>
 
