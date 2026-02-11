@@ -101,8 +101,9 @@ export function RelationshipGraph() {
   const clearSelection = useGraphStore((state) => state.clearSelection);
   const setSidePanelOpen = useGraphStore((state) => state.setSidePanelOpen);
 
-  // ダイアログストアから確認ダイアログを取得
+  // ダイアログストアから確認ダイアログとアラートダイアログを取得
   const openConfirm = useDialogStore((state) => state.openConfirm);
+  const openAlert = useDialogStore((state) => state.openAlert);
 
   // React Flowのノードとエッジの状態
   const [nodes, setNodes, onNodesChange] = useNodesState<GraphNode>([]);
@@ -309,6 +310,10 @@ export function RelationshipGraph() {
         if (process.env.NODE_ENV === 'development') {
           console.error('画像処理に失敗しました:', error);
         }
+        await openAlert({
+          title: 'エラー',
+          message: '画像の処理に失敗しました。\n画像ファイルが正しいか、サイズが10MB以下か確認してください。',
+        });
       }
     },
     [screenToFlowPosition]
@@ -348,6 +353,10 @@ export function RelationshipGraph() {
         if (process.env.NODE_ENV === 'development') {
           console.error('画像処理に失敗しました:', error);
         }
+        await openAlert({
+          title: 'エラー',
+          message: '画像の処理に失敗しました。\n画像ファイルが正しいか、サイズが10MB以下か確認してください。',
+        });
       }
     };
 
