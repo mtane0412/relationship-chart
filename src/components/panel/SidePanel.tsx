@@ -10,6 +10,7 @@ import { DefaultPanel } from './DefaultPanel';
 import { SingleSelectionPanel } from './SingleSelectionPanel';
 import { PairSelectionPanel } from './PairSelectionPanel';
 import { MultipleSelectionInfo } from './MultipleSelectionInfo';
+import { AuthorAttribution } from '@/components/graph/AuthorAttribution';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { useDialogStore } from '@/stores/useDialogStore';
 
@@ -65,7 +66,11 @@ export function SidePanel() {
       {/* ヘッダー */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-900">人物相関図作る君</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-bold text-gray-900">人物相関図作る君</h1>
+            {/* 作者リンク */}
+            <AuthorAttribution />
+          </div>
           {/* リセットボタン */}
           <button
             type="button"
