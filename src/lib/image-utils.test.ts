@@ -5,6 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { processImage, readFileAsDataUrl, cropImage } from './image-utils';
+import { MAX_IMAGE_FILE_SIZE_BYTES } from './validation-constants';
 
 describe('image-utils', () => {
   describe('processImage', () => {
@@ -35,6 +36,17 @@ describe('image-utils', () => {
         '画像ファイルを選択してください'
       );
     });
+
+    it('10MBを超える画像ファイルでエラーを投げる', async () => {
+      // 10MBを超えるサイズのダミーデータを作成
+      const largeData = new Uint8Array(MAX_IMAGE_FILE_SIZE_BYTES + 1);
+      const largeBlob = new Blob([largeData], { type: 'image/png' });
+      const largeFile = new File([largeBlob], 'large.png', { type: 'image/png' });
+
+      await expect(processImage(largeFile)).rejects.toThrow(
+        '画像ファイルのサイズは10MB以下にしてください'
+      );
+    });
   });
 
   describe('readFileAsDataUrl', () => {
@@ -63,6 +75,17 @@ describe('image-utils', () => {
 
       await expect(readFileAsDataUrl(textFile)).rejects.toThrow(
         '画像ファイルを選択してください'
+      );
+    });
+
+    it('10MBを超える画像ファイルでエラーを投げる', async () => {
+      // 10MBを超えるサイズのダミーデータを作成
+      const largeData = new Uint8Array(MAX_IMAGE_FILE_SIZE_BYTES + 1);
+      const largeBlob = new Blob([largeData], { type: 'image/png' });
+      const largeFile = new File([largeBlob], 'large.png', { type: 'image/png' });
+
+      await expect(readFileAsDataUrl(largeFile)).rejects.toThrow(
+        '画像ファイルのサイズは10MB以下にしてください'
       );
     });
   });

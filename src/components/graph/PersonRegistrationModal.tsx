@@ -7,6 +7,7 @@
 import { useState, useEffect, useRef, useCallback, type ChangeEvent } from 'react';
 import ImageCropper from '@/components/ui/ImageCropper';
 import { readFileAsDataUrl } from '@/lib/image-utils';
+import { MAX_PERSON_NAME_LENGTH } from '@/lib/validation-constants';
 import type { NodeKind } from '@/types/person';
 
 /**
@@ -454,6 +455,7 @@ export function PersonRegistrationModal({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              maxLength={MAX_PERSON_NAME_LENGTH}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="名前を入力してください"
               required

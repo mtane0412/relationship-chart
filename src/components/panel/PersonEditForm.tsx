@@ -7,6 +7,7 @@ import { useState, useRef, useCallback, useEffect, type DragEvent, type ChangeEv
 import { ArrowLeft } from 'lucide-react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { readFileAsDataUrl } from '@/lib/image-utils';
+import { MAX_PERSON_NAME_LENGTH } from '@/lib/validation-constants';
 import ImageCropper from '@/components/ui/ImageCropper';
 import type { Person } from '@/types/person';
 
@@ -328,6 +329,7 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
           value={name}
           onChange={handleNameChange}
           onKeyDown={handleNameKeyDown}
+          maxLength={MAX_PERSON_NAME_LENGTH}
           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           placeholder="名前を入力"
         />

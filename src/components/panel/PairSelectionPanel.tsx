@@ -10,6 +10,7 @@ import { useReactFlow } from '@xyflow/react';
 import { ArrowRight, ArrowLeft, ArrowLeftRight, Minus } from 'lucide-react';
 import { BidirectionalArrow } from '@/components/icons/BidirectionalArrow';
 import { useGraphStore } from '@/stores/useGraphStore';
+import { MAX_RELATIONSHIP_LABEL_LENGTH } from '@/lib/validation-constants';
 import { getRelationshipDisplayType } from '@/lib/relationship-utils';
 import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils';
 import type { Person } from '@/types/person';
@@ -474,6 +475,7 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
                 type="text"
                 value={sourceToTargetLabel}
                 onChange={(e) => setSourceToTargetLabel(e.target.value)}
+                maxLength={MAX_RELATIONSHIP_LABEL_LENGTH}
                 placeholder={getPlaceholder('dual-directed', false, hasItem)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
@@ -496,6 +498,7 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
                 type="text"
                 value={targetToSourceLabel}
                 onChange={(e) => setTargetToSourceLabel(e.target.value)}
+                maxLength={MAX_RELATIONSHIP_LABEL_LENGTH}
                 placeholder={getPlaceholder('dual-directed', true, hasItem)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
@@ -523,6 +526,7 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
               type="text"
               value={sourceToTargetLabel}
               onChange={(e) => setSourceToTargetLabel(e.target.value)}
+              maxLength={MAX_RELATIONSHIP_LABEL_LENGTH}
               placeholder={getPlaceholder(relationshipType, false, hasItem)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
