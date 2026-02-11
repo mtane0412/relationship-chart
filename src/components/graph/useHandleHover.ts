@@ -6,6 +6,7 @@
  * この実装はRelationshipEdge.tsxのパターンを踏襲している。
  *
  * @param nodeId - 対象ノードのID
+ * @param selected - ノードが選択されているかどうか
  * @returns ホバー状態とイベントハンドラー、ハンドル表示フラグ
  */
 
