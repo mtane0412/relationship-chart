@@ -112,7 +112,7 @@ src/
 
 ### 1. 画像処理
 
-画像はすべて**200x200px**にリサイズされ、**WebP形式のData URL**としてストアに保存されます（`src/lib/image-utils.ts`）。これによりLocalStorageの容量制限に対応しています。
+新規に保存される画像は**200x200px**にリサイズされ、**WebP形式のData URL**としてストアに保存されます（`src/lib/image-utils.ts`）。既存データにはJPEGのData URLが残っている場合もあり、それらも表示対象として扱います。これによりLocalStorageの容量制限に対応しています。
 
 ### 2. IDの生成
 

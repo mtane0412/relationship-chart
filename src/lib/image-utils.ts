@@ -59,7 +59,7 @@ export async function readFileAsDataUrl(file: File): Promise<string> {
  * 画像をクロップして200x200pxにリサイズし、Data URLに変換する
  * @param imageSrc - 元画像のData URL
  * @param cropArea - クロップ領域（ピクセル単位）
- * @returns Data URL形式の画像文字列（WebP形式、品質0.8）
+ * @returns Data URL形式の画像文字列（WebP形式、品質0.8。環境によりWebP未サポートの場合はPNG等にフォールバック）
  * @throws {Error} 画像の読み込みまたは処理に失敗した場合
  */
 export async function cropImage(
