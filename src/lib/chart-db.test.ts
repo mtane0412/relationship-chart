@@ -19,6 +19,26 @@ import type { Chart } from '@/types/chart';
 import { DEFAULT_FORCE_PARAMS } from '@/stores/useGraphStore';
 import { DEFAULT_EGO_LAYOUT_PARAMS } from './ego-layout';
 
+/**
+ * テスト用のChartオブジェクトを生成するヘルパー関数
+ * @param overrides - 上書きするプロパティ
+ * @returns テスト用のChartオブジェクト
+ */
+function createTestChart(overrides: Partial<Chart> = {}): Chart {
+  return {
+    id: 'chart-1',
+    name: '相関図 1',
+    persons: [],
+    relationships: [],
+    forceEnabled: false,
+    forceParams: DEFAULT_FORCE_PARAMS,
+    egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+    createdAt: '2024-01-01T00:00:00.000Z',
+    updatedAt: '2024-01-01T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
 describe('chart-db', () => {
   // 各テストの前にDBを初期化
   beforeEach(async () => {
@@ -48,6 +68,8 @@ describe('chart-db', () => {
 
   describe('initDB', () => {
     it('DBを初期化できる', async () => {
+      // beforeEach で既に initDB() が呼ばれているが、
+      // ここでは冪等性（重複呼び出しが安全であること）を確認する
       const db = await initDB();
       expect(db).toBeDefined();
       expect(db.name).toBe('relationship-chart-db');
@@ -56,17 +78,7 @@ describe('chart-db', () => {
 
   describe('saveChart / getChart', () => {
     it('相関図を保存して取得できる', async () => {
-      const chart: Chart = {
-        id: 'chart-1',
-        name: '相関図 1',
-        persons: [],
-        relationships: [],
-        forceEnabled: false,
-        forceParams: DEFAULT_FORCE_PARAMS,
-        egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
-        createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z',
-      };
+      const chart = createTestChart();
 
       await saveChart(chart);
       const retrieved = await getChart('chart-1');
@@ -80,25 +92,14 @@ describe('chart-db', () => {
     });
 
     it('既存の相関図を上書き保存できる', async () => {
-      const chart: Chart = {
-        id: 'chart-1',
-        name: '相関図 1',
-        persons: [],
-        relationships: [],
-        forceEnabled: false,
-        forceParams: DEFAULT_FORCE_PARAMS,
-        egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
-        createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z',
-      };
+      const chart = createTestChart();
 
       await saveChart(chart);
 
-      const updatedChart: Chart = {
-        ...chart,
+      const updatedChart = createTestChart({
         name: '更新された相関図',
         updatedAt: '2024-01-02T00:00:00.000Z',
-      };
+      });
 
       await saveChart(updatedChart);
       const retrieved = await getChart('chart-1');
@@ -115,9 +116,7 @@ describe('chart-db', () => {
     });
 
     it('すべての相関図のメタデータを取得できる', async () => {
-      const chart1: Chart = {
-        id: 'chart-1',
-        name: '相関図 1',
+      const chart1 = createTestChart({
         persons: [
           {
             id: 'person-1',
@@ -125,15 +124,9 @@ describe('chart-db', () => {
             createdAt: '2024-01-01T00:00:00.000Z',
           },
         ],
-        relationships: [],
-        forceEnabled: false,
-        forceParams: DEFAULT_FORCE_PARAMS,
-        egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
-        createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z',
-      };
+      });
 
-      const chart2: Chart = {
+      const chart2 = createTestChart({
         id: 'chart-2',
         name: '相関図 2',
         persons: [
@@ -159,12 +152,9 @@ describe('chart-db', () => {
             createdAt: '2024-01-02T00:00:00.000Z',
           },
         ],
-        forceEnabled: false,
-        forceParams: DEFAULT_FORCE_PARAMS,
-        egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
         createdAt: '2024-01-02T00:00:00.000Z',
         updatedAt: '2024-01-02T00:00:00.000Z',
-      };
+      });
 
       await saveChart(chart1);
       await saveChart(chart2);
@@ -191,29 +181,14 @@ describe('chart-db', () => {
     });
 
     it('updatedAtの降順でソートされる', async () => {
-      const chart1: Chart = {
-        id: 'chart-1',
-        name: '相関図 1',
-        persons: [],
-        relationships: [],
-        forceEnabled: false,
-        forceParams: DEFAULT_FORCE_PARAMS,
-        egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
-        createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z',
-      };
+      const chart1 = createTestChart();
 
-      const chart2: Chart = {
+      const chart2 = createTestChart({
         id: 'chart-2',
         name: '相関図 2',
-        persons: [],
-        relationships: [],
-        forceEnabled: false,
-        forceParams: DEFAULT_FORCE_PARAMS,
-        egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
         createdAt: '2024-01-02T00:00:00.000Z',
         updatedAt: '2024-01-03T00:00:00.000Z', // より新しい
-      };
+      });
 
       await saveChart(chart1);
       await saveChart(chart2);
@@ -228,17 +203,7 @@ describe('chart-db', () => {
 
   describe('deleteChart', () => {
     it('相関図を削除できる', async () => {
-      const chart: Chart = {
-        id: 'chart-1',
-        name: '相関図 1',
-        persons: [],
-        relationships: [],
-        forceEnabled: false,
-        forceParams: DEFAULT_FORCE_PARAMS,
-        egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
-        createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z',
-      };
+      const chart = createTestChart();
 
       await saveChart(chart);
       await deleteChart('chart-1');

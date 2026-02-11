@@ -393,6 +393,7 @@ export const useGraphStore = create<GraphStore>()(
 
         resetAll: () => {
           // 全状態を初期値にリセット（INITIAL_STATEを使用）
+          // 注意: isInitialized も false に戻るため、Phase 3以降は再度 initializeApp() が必要
           set(() => ({ ...INITIAL_STATE }));
 
           // Undo/Redo履歴をクリア
@@ -402,23 +403,36 @@ export const useGraphStore = create<GraphStore>()(
         // チャート管理アクション（Phase 2）
         initializeApp: async () => {
           // TODO: Phase 3で実装
+          // 暫定実装: テスト用に isInitialized のみ true にする
           set(() => ({ isInitialized: true }));
         },
 
         createChart: async (_name: string) => {
           // TODO: Phase 2.3で実装
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('createChart is not yet implemented (Phase 2.3)');
+          }
         },
 
         switchChart: async (_chartId: string) => {
           // TODO: Phase 2.3で実装
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('switchChart is not yet implemented (Phase 2.3)');
+          }
         },
 
         deleteChart: async (_chartId: string) => {
           // TODO: Phase 2.3で実装
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('deleteChart is not yet implemented (Phase 2.3)');
+          }
         },
 
         renameChart: async (_chartId: string, _newName: string) => {
           // TODO: Phase 2.3で実装
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('renameChart is not yet implemented (Phase 2.3)');
+          }
         },
       }),
       {

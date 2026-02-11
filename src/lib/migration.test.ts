@@ -65,6 +65,8 @@ describe('migrateGraphState', () => {
         forceEnabled: false,
         selectedPersonIds: ['person-1'],
       });
+      // selectedPersonId が除去されていることを確認
+      expect(result).not.toHaveProperty('selectedPersonId');
     });
 
     it('selectedPersonIdがnullの場合は空配列に変換する', () => {
@@ -80,6 +82,8 @@ describe('migrateGraphState', () => {
       expect(result).toMatchObject({
         selectedPersonIds: [],
       });
+      // selectedPersonId が除去されていることを確認
+      expect(result).not.toHaveProperty('selectedPersonId');
     });
   });
 
@@ -455,6 +459,8 @@ describe('migrateGraphState', () => {
       expect(result).toMatchObject({
         selectedPersonIds: ['person-1'],
       });
+      // selectedPersonId が除去されていることを確認
+      expect(result).not.toHaveProperty('selectedPersonId');
 
       // v1 → v3: Relationship形式の変換
       expect(result).toMatchObject({
