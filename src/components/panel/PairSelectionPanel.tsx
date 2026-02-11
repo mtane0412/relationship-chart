@@ -120,7 +120,8 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
   // 物が含まれているかチェック
   const hasItem = (person1.kind === 'item') || (person2.kind === 'item');
 
-  // 2人の間の既存関係を取得（方向問わず）- メモ化して無限ループを防止
+  // 2人の間の既存関係を取得（方向問わず）
+  // メモ化により、relationshipsまたはペアIDが変わった時のみ再計算
   const existingRelationship = useMemo(
     () =>
       relationships.find(
@@ -131,7 +132,8 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
     [relationships, person1.id, person2.id]
   );
 
-  // 既存関係の向きを判定（person1がsourceかどうか）- メモ化して無限ループを防止
+  // 既存関係の向きを判定（person1がsourceかどうか）
+  // メモ化により、existingRelationshipまたはperson2.idが変わった時のみ再計算
   const isReversed = useMemo(
     () => (existingRelationship ? existingRelationship.sourcePersonId === person2.id : false),
     [existingRelationship, person2.id]
@@ -162,6 +164,31 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
     return '';
   });
   const [isTypePickerOpen, setIsTypePickerOpen] = useState(false);
+
+  // existingRelationshipの変化に応じてフォーム状態を再同期
+  // (undo/redo、関係の削除/追加などで変化する)
+  useEffect(() => {
+    if (existingRelationship) {
+      const displayType = getRelationshipDisplayType(existingRelationship);
+      setRelationshipType(displayType);
+
+      const nextSourceToTargetLabel = isReversed
+        ? existingRelationship.targetToSourceLabel || existingRelationship.sourceToTargetLabel || ''
+        : existingRelationship.sourceToTargetLabel || '';
+
+      const nextTargetToSourceLabel = isReversed
+        ? (displayType === 'dual-directed' ? existingRelationship.sourceToTargetLabel || '' : '')
+        : (existingRelationship.targetToSourceLabel || '');
+
+      setSourceToTargetLabel(nextSourceToTargetLabel);
+      setTargetToSourceLabel(nextTargetToSourceLabel);
+    } else {
+      // 関係が削除された場合は新規作成用のデフォルトにリセット
+      setRelationshipType('bidirectional');
+      setSourceToTargetLabel('');
+      setTargetToSourceLabel('');
+    }
+  }, [existingRelationship, isReversed]);
 
   // 外部クリックでドロップダウンを閉じる
   useEffect(() => {

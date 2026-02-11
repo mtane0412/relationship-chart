@@ -256,6 +256,11 @@ export function useGraphInteractions({
   // ノードクリックハンドラ（選択状態を更新）
   const handleNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
+      // コンテキストメニューが開いている場合は閉じる
+      if (contextMenu) {
+        closeContextMenu();
+      }
+
       // Shiftキーが押されている場合は複数選択（トグル）
       if (event.shiftKey) {
         const currentSelectedIds = useGraphStore.getState().selectedPersonIds;
@@ -272,7 +277,7 @@ export function useGraphInteractions({
         setSelectedPersonIds([node.id]);
       }
     },
-    [setSelectedPersonIds]
+    [contextMenu, closeContextMenu, setSelectedPersonIds]
   );
 
   // 背景クリックハンドラ
