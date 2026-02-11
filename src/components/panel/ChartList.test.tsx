@@ -7,7 +7,8 @@ import { render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { ChartList } from './ChartList';
 import { useGraphStore } from '@/stores/useGraphStore';
-import { initDB, closeDB, saveChart } from '@/lib/chart-db';
+import { useDialogStore } from '@/stores/useDialogStore';
+import { initDB, closeDB } from '@/lib/chart-db';
 import { nanoid } from 'nanoid';
 
 // IndexedDBのクリーンアップ用
@@ -38,51 +39,11 @@ describe('ChartList', () => {
     await clearIndexedDB();
   });
 
-  it('チャート一覧を表示する', async () => {
-    // テスト用のチャートを作成
+  it('ドロップダウンにチャート一覧を表示する', async () => {
     const chart1Id = nanoid();
     const chart2Id = nanoid();
     const now = new Date().toISOString();
 
-    await saveChart({
-      id: chart1Id,
-      name: '相関図 1',
-      persons: [],
-      relationships: [],
-      forceEnabled: false,
-      forceParams: {
-        linkDistance: 150,
-        linkStrength: 0.5,
-        chargeStrength: -300,
-      },
-      egoLayoutParams: {
-        ringSpacing: 200,
-        firstRingRadius: 200,
-      },
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    await saveChart({
-      id: chart2Id,
-      name: '相関図 2',
-      persons: [],
-      relationships: [],
-      forceEnabled: false,
-      forceParams: {
-        linkDistance: 150,
-        linkStrength: 0.5,
-        chargeStrength: -300,
-      },
-      egoLayoutParams: {
-        ringSpacing: 200,
-        firstRingRadius: 200,
-      },
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    // ストアにチャート一覧を設定
     useGraphStore.setState({
       activeChartId: chart1Id,
       chartMetas: [
@@ -107,17 +68,20 @@ describe('ChartList', () => {
 
     render(<ChartList />);
 
-    // 2つのチャートが表示されることを確認
-    expect(screen.getByText('相関図 1')).toBeInTheDocument();
-    expect(screen.getByText('相関図 2')).toBeInTheDocument();
+    // selectタグが存在することを確認
+    const select = screen.getByRole('combobox', { name: /相関図を選択/i });
+    expect(select).toBeInTheDocument();
+
+    // 2つのoptionが存在することを確認
+    expect(screen.getByRole('option', { name: '相関図 1' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: '相関図 2' })).toBeInTheDocument();
   });
 
-  it('アクティブなチャートがハイライトされる', async () => {
+  it('アクティブなチャートが選択されている', () => {
     const chart1Id = nanoid();
     const chart2Id = nanoid();
     const now = new Date().toISOString();
 
-    // ストアにチャート一覧を設定（chart1がアクティブ）
     useGraphStore.setState({
       activeChartId: chart1Id,
       chartMetas: [
@@ -142,18 +106,12 @@ describe('ChartList', () => {
 
     render(<ChartList />);
 
-    // アクティブなチャートの要素を取得（最も近い親のp-3要素を取得）
-    const chart1Element = screen.getByText('相関図 1').closest('.p-3');
-    const chart2Element = screen.getByText('相関図 2').closest('.p-3');
-
-    // chart1がハイライトされていることを確認（bg-blue-50などのクラスを持つ）
-    expect(chart1Element).toHaveClass('bg-blue-50');
-    // chart2はハイライトされていないことを確認
-    expect(chart2Element).not.toHaveClass('bg-blue-50');
+    // selectタグのvalueがchart1Idであることを確認
+    const select = screen.getByRole('combobox') as HTMLSelectElement;
+    expect(select.value).toBe(chart1Id);
   });
 
   it('チャートがない場合はメッセージを表示する', () => {
-    // ストアをリセット（チャートなし）
     useGraphStore.setState({
       activeChartId: null,
       chartMetas: [],
@@ -161,20 +119,17 @@ describe('ChartList', () => {
 
     render(<ChartList />);
 
-    // メッセージが表示されることを確認
     expect(screen.getByText(/チャートがありません/i)).toBeInTheDocument();
   });
 
-  it('チャートをクリックするとswitchChartが呼ばれる', async () => {
+  it('ドロップダウンでチャートを選択するとswitchChartが呼ばれる', async () => {
     const user = userEvent.setup();
     const chart1Id = nanoid();
     const chart2Id = nanoid();
     const now = new Date().toISOString();
 
-    // switchChartをスパイ
     const switchChartSpy = vi.spyOn(useGraphStore.getState(), 'switchChart');
 
-    // ストアにチャート一覧を設定（chart1がアクティブ）
     useGraphStore.setState({
       activeChartId: chart1Id,
       chartMetas: [
@@ -199,11 +154,166 @@ describe('ChartList', () => {
 
     render(<ChartList />);
 
-    // chart2をクリック
-    const chart2Element = screen.getByText('相関図 2');
-    await user.click(chart2Element);
+    const select = screen.getByRole('combobox');
+    await user.selectOptions(select, chart2Id);
 
-    // switchChartが呼ばれたことを確認
     expect(switchChartSpy).toHaveBeenCalledWith(chart2Id);
+  });
+
+  it('歯車アイコンをクリックするとメニューが表示される', async () => {
+    const user = userEvent.setup();
+    const chartId = nanoid();
+    const now = new Date().toISOString();
+
+    useGraphStore.setState({
+      activeChartId: chartId,
+      chartMetas: [
+        {
+          id: chartId,
+          name: '相関図 1',
+          personCount: 0,
+          relationshipCount: 0,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    });
+
+    render(<ChartList />);
+
+    const settingsButton = screen.getByLabelText(/設定/i);
+    await user.click(settingsButton);
+
+    // メニューが表示されることを確認
+    expect(screen.getByText('名前を変更')).toBeInTheDocument();
+    expect(screen.getByText('削除')).toBeInTheDocument();
+  });
+
+  it('メニューから名前変更を選択すると編集モードになる', async () => {
+    const user = userEvent.setup();
+    const chartId = nanoid();
+    const now = new Date().toISOString();
+
+    useGraphStore.setState({
+      activeChartId: chartId,
+      chartMetas: [
+        {
+          id: chartId,
+          name: '相関図 1',
+          personCount: 0,
+          relationshipCount: 0,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    });
+
+    render(<ChartList />);
+
+    // 歯車アイコンをクリック
+    const settingsButton = screen.getByLabelText(/設定/i);
+    await user.click(settingsButton);
+
+    // 「名前を変更」をクリック
+    const renameButton = screen.getByText('名前を変更');
+    await user.click(renameButton);
+
+    // 入力フィールドが表示されることを確認
+    const input = screen.getByDisplayValue('相関図 1');
+    expect(input).toBeInTheDocument();
+  });
+
+  it('メニューから削除を選択すると確認ダイアログが表示される', async () => {
+    const user = userEvent.setup();
+    const chartId = nanoid();
+    const now = new Date().toISOString();
+
+    const openConfirmSpy = vi.spyOn(useDialogStore.getState(), 'openConfirm');
+    openConfirmSpy.mockResolvedValue(false);
+
+    useGraphStore.setState({
+      activeChartId: chartId,
+      chartMetas: [
+        {
+          id: chartId,
+          name: '相関図 1',
+          personCount: 0,
+          relationshipCount: 0,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    });
+
+    render(<ChartList />);
+
+    // 歯車アイコンをクリック
+    const settingsButton = screen.getByLabelText(/設定/i);
+    await user.click(settingsButton);
+
+    // 「削除」をクリック
+    const deleteButton = screen.getByText('削除');
+    await user.click(deleteButton);
+
+    // 確認ダイアログが呼ばれたことを確認
+    expect(openConfirmSpy).toHaveBeenCalledWith({
+      title: 'チャートを削除',
+      message: expect.stringContaining('相関図 1'),
+      confirmLabel: '削除',
+      isDanger: true,
+    });
+  });
+
+  it('ドロップダウンに「+ 新規作成」オプションが表示される', () => {
+    const chartId = nanoid();
+    const now = new Date().toISOString();
+
+    useGraphStore.setState({
+      activeChartId: chartId,
+      chartMetas: [
+        {
+          id: chartId,
+          name: '相関図 1',
+          personCount: 0,
+          relationshipCount: 0,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    });
+
+    render(<ChartList />);
+
+    // 「+ 新規作成」オプションが存在することを確認
+    expect(screen.getByRole('option', { name: '+ 新規作成' })).toBeInTheDocument();
+  });
+
+  it('「+ 新規作成」を選択するとcreateChartが呼ばれる', async () => {
+    const user = userEvent.setup();
+    const chartId = nanoid();
+    const now = new Date().toISOString();
+
+    const createChartSpy = vi.spyOn(useGraphStore.getState(), 'createChart');
+
+    useGraphStore.setState({
+      activeChartId: chartId,
+      chartMetas: [
+        {
+          id: chartId,
+          name: '相関図 1',
+          personCount: 0,
+          relationshipCount: 0,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    });
+
+    render(<ChartList />);
+
+    const select = screen.getByRole('combobox');
+    await user.selectOptions(select, '__create_new__');
+
+    expect(createChartSpy).toHaveBeenCalled();
   });
 });
