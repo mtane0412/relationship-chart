@@ -11,7 +11,7 @@ import Link from 'next/link';
  * プライバシーポリシーページコンポーネント
  *
  * LocalStorageへのデータ保存、画像のクライアント側処理、
- * トラッキングツール不使用などのポリシーを明記します。
+ * Vercel Analyticsを用いたアクセス解析（個人を特定しない範囲）などのポリシーを明記します。
  */
 export default function PrivacyPage() {
   return (
@@ -49,7 +49,11 @@ export default function PrivacyPage() {
               3. X（旧Twitter）共有機能
             </h2>
             <p className="text-gray-700 leading-relaxed">
-              X共有ボタンをクリックすると、`window.open`によってX（旧Twitter）の投稿画面が新しいウィンドウで開かれます。この機能は、お使いのブラウザがX投稿画面を表示するのみであり、私たちのアプリケーションが自動的にデータを送信することはありません。
+              X共有ボタンをクリックすると、
+              <code className="bg-gray-100 px-1 rounded text-sm">
+                window.open
+              </code>
+              によってX（旧Twitter）の投稿画面が新しいウィンドウで開かれます。この機能は、お使いのブラウザがX投稿画面を表示するのみであり、私たちのアプリケーションが自動的にデータを送信することはありません。
             </p>
           </section>
 
