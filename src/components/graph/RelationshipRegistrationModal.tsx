@@ -8,6 +8,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ArrowRight, ArrowLeftRight, Minus } from 'lucide-react';
 import { BidirectionalArrow } from '@/components/icons/BidirectionalArrow';
+import { MAX_RELATIONSHIP_LABEL_LENGTH } from '@/lib/validation-constants';
 import type { RelationshipType } from '@/types/relationship';
 
 /**
@@ -322,6 +323,7 @@ export function RelationshipRegistrationModal({
                   type="text"
                   value={sourceToTargetLabel}
                   onChange={(e) => setSourceToTargetLabel(e.target.value)}
+                  maxLength={MAX_RELATIONSHIP_LABEL_LENGTH}
                   placeholder={getPlaceholder('dual-directed', false)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
@@ -344,6 +346,7 @@ export function RelationshipRegistrationModal({
                   type="text"
                   value={targetToSourceLabel}
                   onChange={(e) => setTargetToSourceLabel(e.target.value)}
+                  maxLength={MAX_RELATIONSHIP_LABEL_LENGTH}
                   placeholder={getPlaceholder('dual-directed', true)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
@@ -374,6 +377,7 @@ export function RelationshipRegistrationModal({
                 type="text"
                 value={sourceToTargetLabel}
                 onChange={(e) => setSourceToTargetLabel(e.target.value)}
+                maxLength={MAX_RELATIONSHIP_LABEL_LENGTH}
                 placeholder={getPlaceholder(relationshipType)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
