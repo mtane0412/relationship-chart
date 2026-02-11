@@ -172,9 +172,11 @@ export function useGraphDataSync() {
     setEdges((prevEdges) => {
       let hasChanged = false;
       const updatedEdges = prevEdges.map((edge) => {
-        // エッジは両端のノードが選択されている場合に選択状態にする
+        // エッジは両端のノードが選択されており、かつ選択数が2の場合に選択状態にする
         const shouldBeSelected =
-          selectedPersonIds.includes(edge.source) && selectedPersonIds.includes(edge.target);
+          selectedPersonIds.length === 2 &&
+          selectedPersonIds.includes(edge.source) &&
+          selectedPersonIds.includes(edge.target);
         if (edge.selected !== shouldBeSelected) {
           hasChanged = true;
           return { ...edge, selected: shouldBeSelected };
