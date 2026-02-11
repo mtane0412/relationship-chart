@@ -6,6 +6,11 @@
 import { MAX_IMAGE_FILE_SIZE_BYTES } from './validation-constants';
 
 /**
+ * ファイルサイズ制限のエラーメッセージ用のMB表記
+ */
+const MAX_SIZE_MB = MAX_IMAGE_FILE_SIZE_BYTES / (1024 * 1024);
+
+/**
  * クロップ領域を表す型
  * react-easy-cropのonCropCompleteコールバックから受け取るcroppedAreaPixelsと同じ形状
  */
@@ -31,7 +36,7 @@ export async function readFileAsDataUrl(file: File): Promise<string> {
 
   // ファイルサイズチェック（10MB以下）
   if (file.size > MAX_IMAGE_FILE_SIZE_BYTES) {
-    throw new Error('画像ファイルのサイズは10MB以下にしてください');
+    throw new Error(`画像ファイルのサイズは${MAX_SIZE_MB}MB以下にしてください`);
   }
 
   return new Promise((resolve, reject) => {
@@ -64,7 +69,7 @@ export async function processImage(file: File): Promise<string> {
 
   // ファイルサイズチェック（10MB以下）
   if (file.size > MAX_IMAGE_FILE_SIZE_BYTES) {
-    throw new Error('画像ファイルのサイズは10MB以下にしてください');
+    throw new Error(`画像ファイルのサイズは${MAX_SIZE_MB}MB以下にしてください`);
   }
 
   return new Promise((resolve, reject) => {
