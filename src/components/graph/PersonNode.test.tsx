@@ -83,18 +83,18 @@ describe('PersonNode', () => {
       });
     });
 
-    it('外周ハンドルが太い枠（borderWidth: 10px）を持つこと', () => {
+    it('外周ハンドルが太い枠（borderWidth: 40px）を持つこと', () => {
       const { container } = renderWithProvider();
 
       const handles = container.querySelectorAll('.react-flow__handle');
 
-      // 外周ハンドル（source, ring-target）に太い枠（10px）が適用されていることを確認
+      // 外周ハンドル（source, ring-target）に太い枠（40px）が適用されていることを確認
       // 中央のtarget handleはborderがないのでスキップ
       Array.from(handles).forEach((handle) => {
         const handleId = handle.getAttribute('data-handleid');
         if (handleId !== 'center-target') {
           const style = (handle as HTMLElement).style;
-          expect(style.borderWidth).toBe('10px');
+          expect(style.borderWidth).toBe('40px');
         }
       });
     });

@@ -8,6 +8,7 @@ import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { Package } from 'lucide-react';
 import type { PersonNodeData } from '@/types/graph';
 import { useHandleHover } from './useHandleHover';
+import { HANDLE_SIZE, HANDLE_BORDER_WIDTH, HOVER_ZONE_SIZE, HANDLE_CENTER_Y } from './node-constants';
 
 /**
  * 物ノードコンポーネント
@@ -28,15 +29,15 @@ export const ItemNode = memo(({ data, selected, id }: NodeProps) => {
       onMouseLeave={handleMouseLeave}
     >
       {/* 透明なホバーゾーン（ハンドル外周までカバー） */}
-      {/* ハンドルは98x98px、ゾーンは106x106pxでハンドルの外側も含める */}
+      {/* ハンドルは160x160px、ゾーンは168x168pxでハンドルの外側も含める */}
       <div
         className="absolute"
         style={{
           left: '50%',
-          top: '40px',
+          top: `${HANDLE_CENTER_Y}px`,
           transform: 'translate(-50%, -50%)',
-          width: '106px',
-          height: '106px',
+          width: `${HOVER_ZONE_SIZE}px`,
+          height: `${HOVER_ZONE_SIZE}px`,
           pointerEvents: 'auto',
           zIndex: 1,
         }}
@@ -48,20 +49,21 @@ export const ItemNode = memo(({ data, selected, id }: NodeProps) => {
       {/* 画像部分を囲む角丸四角形のハンドルで、外周から接続開始可能 */}
       {/* hover時かつ接続操作中でない時のみ有効化 */}
       {/* 中心部（画像）はそのままドラッグ移動用 */}
+      {/* ハンドル自体は透明（border-transparent）で、画像のring装飾が視覚的フィードバックを担当 */}
       <Handle
         type="source"
         id="ring-source"
         position={Position.Top}
-        className={`!absolute !rounded-xl !border-blue-500 !bg-transparent transition-opacity duration-200 ${
+        className={`!absolute !rounded-xl !border-transparent !bg-transparent transition-opacity duration-200 ${
           showSourceHandle ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         style={{
           left: '50%',
-          top: '40px',
+          top: `${HANDLE_CENTER_Y}px`,
           transform: 'translate(-50%, -50%)',
-          width: '98px',
-          height: '98px',
-          borderWidth: '9px',
+          width: `${HANDLE_SIZE}px`,
+          height: `${HANDLE_SIZE}px`,
+          borderWidth: `${HANDLE_BORDER_WIDTH}px`,
           pointerEvents: showSourceHandle ? 'auto' : 'none',
           zIndex: 2,
         }}
@@ -73,20 +75,21 @@ export const ItemNode = memo(({ data, selected, id }: NodeProps) => {
       {/* source用と同じ位置・サイズで配置し、接続の受け入れ領域を拡大 */}
       {/* 接続操作中のみ有効化して、接続の受け入れを明確化 */}
       {/* 他のノードから接続中の時のみz-indexを上げてノード全体を接続可能にする */}
+      {/* ハンドル自体は透明（border-transparent）で、画像のring装飾が視覚的フィードバックを担当 */}
       <Handle
         type="target"
         id="ring-target"
         position={Position.Top}
-        className={`!absolute !rounded-xl !border-blue-500 !bg-transparent transition-opacity duration-200 ${
+        className={`!absolute !rounded-xl !border-transparent !bg-transparent transition-opacity duration-200 ${
           showTargetHandle ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         style={{
           left: '50%',
-          top: '40px',
+          top: `${HANDLE_CENTER_Y}px`,
           transform: 'translate(-50%, -50%)',
-          width: '98px',
-          height: '98px',
-          borderWidth: '9px',
+          width: `${HANDLE_SIZE}px`,
+          height: `${HANDLE_SIZE}px`,
+          borderWidth: `${HANDLE_BORDER_WIDTH}px`,
           pointerEvents: showTargetHandle ? 'auto' : 'none',
           zIndex: isConnectingToThisNode ? 15 : 2,
         }}
@@ -103,7 +106,7 @@ export const ItemNode = memo(({ data, selected, id }: NodeProps) => {
         className="!absolute !rounded-xl !bg-transparent !border-0"
         style={{
           left: '50%',
-          top: '40px',
+          top: `${HANDLE_CENTER_Y}px`,
           transform: 'translate(-50%, -50%)',
           width: '88px',
           height: '88px',
