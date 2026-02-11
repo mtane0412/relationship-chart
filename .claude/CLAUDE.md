@@ -145,9 +145,9 @@ src/
 - **2人選択時**: 関係登録フォームを表示
 - **3人以上選択時**: 案内メッセージを表示
 
-### 7. 選択状態の双方向同期
+### 7. 選択状態の一方向同期
 
-Zustandストア（`selectedPersonIds`）とReact Flowの選択状態は双方向で同期されます。ノードのクリック操作とストアの更新が常に一致するよう、`onSelectionChange`と`setSelectedPersonIds`で連携しています。
+Zustandストア（`selectedPersonIds`）からReact Flowの選択状態への一方向同期を実装しています。ユーザーのノードクリック操作は`onNodeClick`で直接Zustandストアを更新します。この設計により、`onSelectionChange`との循環参照による無限ループを回避しています。
 
 ### 8. UI一貫性
 
@@ -176,6 +176,19 @@ Zustandストア（`selectedPersonIds`）とReact Flowの選択状態は双方�
 ### 注意点
 
 Canvas APIが必要な画像リサイズテストは`it.skip`でスキップされています。実際の画像処理は手動テストまたは統合テストで確認してください。
+
+---
+
+## React Flow統合の注意点
+
+### 選択状態の管理
+
+- **無限ループの罠**: `onSelectionChange`とZustandストアの双方向同期は無限ループを引き起こす
+- **推奨パターン**: 選択状態の同期は一方向（Zustand → React Flow）のみにする
+- **ユーザー操作**: `onNodeClick`で直接Zustandストアを更新する
+- **フォーム初期値**: `useEffect`ではなく`useState`の初期化関数を使用
+- **コンポーネントリセット**: `key`プロップで選択ペアが変わった時にコンポーネントをリセット
+- **デバッグ手法**: 問題箇所を一時的に無効化（早期return）して原因を特定
 
 ---
 
