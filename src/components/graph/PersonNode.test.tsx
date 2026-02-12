@@ -148,5 +148,51 @@ describe('PersonNode', () => {
       expect(unselectedImg?.className).toContain('ring-2');
       expect(unselectedImg?.className).toContain('ring-gray-200');
     });
+
+    it('名前ラベルのborder幅が選択状態に関わらず一定（常にborder-2）であること', () => {
+      const selectedProps = { ...mockNodeProps, selected: true };
+      const { container: selectedContainer } = renderWithProvider(selectedProps);
+      const { container: unselectedContainer } = renderWithProvider();
+
+      // 名前ラベル要素（bg-white rounded-full shadow-lgを持つdiv）を取得
+      const selectedNameLabel = Array.from(selectedContainer.querySelectorAll('div')).find((div) =>
+        div.className.includes('bg-white rounded-full shadow-lg')
+      );
+      const unselectedNameLabel = Array.from(unselectedContainer.querySelectorAll('div')).find((div) =>
+        div.className.includes('bg-white rounded-full shadow-lg')
+      );
+
+      // 両方の状態でborder-2が適用されていることを確認
+      expect(selectedNameLabel?.className).toContain('border-2');
+      expect(unselectedNameLabel?.className).toContain('border-2');
+
+      // border（1px）やborder-1は含まれないことを確認
+      // border-2以外のborder-*クラスが存在しないことを確認
+      const selectedBorderClasses = selectedNameLabel?.className.match(/border-\d+/g) || [];
+      const unselectedBorderClasses = unselectedNameLabel?.className.match(/border-\d+/g) || [];
+
+      expect(selectedBorderClasses).toEqual(['border-2']);
+      expect(unselectedBorderClasses).toEqual(['border-2']);
+    });
+
+    it('名前ラベルのborder色が選択状態で適切に変わること', () => {
+      const selectedProps = { ...mockNodeProps, selected: true };
+      const { container: selectedContainer } = renderWithProvider(selectedProps);
+      const { container: unselectedContainer } = renderWithProvider();
+
+      // 名前ラベル要素を取得
+      const selectedNameLabel = Array.from(selectedContainer.querySelectorAll('div')).find((div) =>
+        div.className.includes('bg-white rounded-full shadow-lg')
+      );
+      const unselectedNameLabel = Array.from(unselectedContainer.querySelectorAll('div')).find((div) =>
+        div.className.includes('bg-white rounded-full shadow-lg')
+      );
+
+      // 選択状態ではborder-blue-500が適用される
+      expect(selectedNameLabel?.className).toContain('border-blue-500');
+
+      // 未選択状態ではborder-gray-200が適用される
+      expect(unselectedNameLabel?.className).toContain('border-gray-200');
+    });
   });
 });
