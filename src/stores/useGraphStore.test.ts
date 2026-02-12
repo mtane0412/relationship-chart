@@ -2507,5 +2507,63 @@ describe('useGraphStore', () => {
         expect(result.current.relationships).toHaveLength(0);
       });
     });
+
+    describe('resetAllData', () => {
+      it('すべてのチャートを削除してデフォルトチャートを作成する', async () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        // アプリを初期化
+        await act(async () => {
+          await result.current.initializeApp();
+        });
+
+        // 複数のチャートを作成
+        await act(async () => {
+          await result.current.createChart('チャート2');
+        });
+
+        await act(async () => {
+          await result.current.createChart('チャート3');
+        });
+
+        // 人物を追加
+        act(() => {
+          result.current.addPerson({ name: '田中太郎' });
+        });
+
+        expect(result.current.chartMetas).toHaveLength(3);
+        expect(result.current.persons).toHaveLength(1);
+
+        // すべてのデータをリセット
+        await act(async () => {
+          await result.current.resetAllData();
+        });
+
+        // デフォルトチャートのみ存在する
+        expect(result.current.chartMetas).toHaveLength(1);
+        expect(result.current.chartMetas[0].name).toBe('相関図 1');
+        // データもリセットされている
+        expect(result.current.persons).toHaveLength(0);
+        expect(result.current.relationships).toHaveLength(0);
+        expect(result.current.forceEnabled).toBe(false);
+        expect(result.current.sidePanelOpen).toBe(true);
+      });
+
+      it('空の状態でリセットしてもエラーにならない', async () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        // リセット実行（エラーが発生しないことを確認）
+        await expect(
+          act(async () => {
+            await result.current.resetAllData();
+          })
+        ).resolves.not.toThrow();
+
+        // デフォルトチャートが作成されている
+        expect(result.current.chartMetas).toHaveLength(1);
+        expect(result.current.chartMetas[0].name).toBe('相関図 1');
+        expect(result.current.persons).toHaveLength(0);
+      });
+    });
   });
 });

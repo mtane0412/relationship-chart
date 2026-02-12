@@ -17,6 +17,7 @@ import {
   getChart,
   getAllChartMetas,
   deleteChart as deleteChartFromDB,
+  deleteAllCharts,
   getLastActiveChartId,
   setLastActiveChartId,
 } from '@/lib/chart-db';
@@ -273,6 +274,11 @@ type GraphActions = {
    * @param newName - 新しい名前
    */
   renameChart: (chartId: string, newName: string) => Promise<void>;
+
+  /**
+   * すべてのデータをリセットする（全チャート削除 + デフォルトチャート作成）
+   */
+  resetAllData: () => Promise<void>;
 };
 
 /**
@@ -833,6 +839,50 @@ export const useGraphStore = create<GraphStore>()(
           set(() => ({
             chartMetas: updatedMetas,
           }));
+        },
+
+        resetAllData: async () => {
+          // 1. すべてのチャートを削除
+          await deleteAllCharts();
+
+          // 2. デフォルト空チャートを作成
+          const chartId = nanoid();
+          const now = new Date().toISOString();
+          const chart: Chart = {
+            id: chartId,
+            name: '相関図 1',
+            persons: [],
+            relationships: [],
+            forceEnabled: false,
+            forceParams: DEFAULT_FORCE_PARAMS,
+            egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+            createdAt: now,
+            updatedAt: now,
+          };
+
+          await saveChart(chart);
+
+          // 3. メタデータを再取得
+          const chartMetas = await getAllChartMetas();
+
+          // 4. ストアを初期状態にリセット
+          set(() => ({
+            activeChartId: chartId,
+            chartMetas,
+            persons: [],
+            relationships: [],
+            forceEnabled: false,
+            forceParams: DEFAULT_FORCE_PARAMS,
+            egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+            selectedPersonIds: [],
+            sidePanelOpen: true,
+          }));
+
+          // 5. lastActiveChartIdを更新
+          await setLastActiveChartId(chartId);
+
+          // 6. Undo/Redo履歴をクリア
+          useGraphStore.temporal.getState().clear();
         },
       }),
       {

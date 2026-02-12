@@ -136,6 +136,16 @@ export async function setLastActiveChartId(chartId: string | null): Promise<void
 }
 
 /**
+ * すべての相関図を削除する
+ */
+export async function deleteAllCharts(): Promise<void> {
+  const db = await initDB();
+  const tx = db.transaction('charts', 'readwrite');
+  await tx.objectStore('charts').clear();
+  await tx.done;
+}
+
+/**
  * データベースインスタンスをクローズする（主にテスト用）
  */
 export function closeDB(): void {

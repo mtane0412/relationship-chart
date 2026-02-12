@@ -5,15 +5,16 @@
 
 'use client';
 
-import { Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { Settings } from 'lucide-react';
 import { DefaultPanel } from './DefaultPanel';
 import { SingleSelectionPanel } from './SingleSelectionPanel';
 import { PairSelectionPanel } from './PairSelectionPanel';
 import { MultipleSelectionInfo } from './MultipleSelectionInfo';
 import { AuthorAttribution } from '@/components/graph/AuthorAttribution';
 import Footer from '@/components/layout/Footer';
+import { SettingsModal } from '@/components/ui/SettingsModal';
 import { useGraphStore } from '@/stores/useGraphStore';
-import { useDialogStore } from '@/stores/useDialogStore';
 
 /**
  * サイドパネルコンポーネント
@@ -21,26 +22,12 @@ import { useDialogStore } from '@/stores/useDialogStore';
 export function SidePanel() {
   const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
   const persons = useGraphStore((state) => state.persons);
-  const resetAll = useGraphStore((state) => state.resetAll);
-  const openConfirm = useDialogStore((state) => state.openConfirm);
+  const [showSettings, setShowSettings] = useState(false);
 
   // 選択された人物を取得
   const selectedPersons = selectedPersonIds
     .map((id) => persons.find((p) => p.id === id))
     .filter((p): p is NonNullable<typeof p> => p !== undefined);
-
-  // リセット処理
-  const handleReset = async () => {
-    const confirmed = await openConfirm({
-      title: 'データをリセット',
-      message: 'すべてのデータを削除してリセットしてもよろしいですか？\nこの操作は元に戻せません。',
-      confirmLabel: 'リセット',
-      isDanger: true,
-    });
-    if (confirmed) {
-      resetAll();
-    }
-  };
 
   // 選択数によってコンテンツを切り替え（selectedPersons.lengthを使用）
   let content;
@@ -74,15 +61,15 @@ export function SidePanel() {
             {/* 作者リンク */}
             <AuthorAttribution />
           </div>
-          {/* リセットボタン */}
+          {/* 設定ボタン */}
           <button
             type="button"
-            onClick={handleReset}
-            className="rounded p-1.5 text-red-600 hover:bg-red-50 hover:text-red-700"
-            aria-label="すべてのデータをリセット"
-            title="すべてのデータをリセット"
+            onClick={() => setShowSettings(true)}
+            className="rounded p-1.5 text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+            aria-label="設定"
+            title="設定"
           >
-            <Trash2 size={20} />
+            <Settings size={20} />
           </button>
         </div>
       </div>
@@ -92,6 +79,9 @@ export function SidePanel() {
 
       {/* フッター */}
       <Footer />
+
+      {/* 設定モーダル */}
+      <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
     </div>
   );
 }
