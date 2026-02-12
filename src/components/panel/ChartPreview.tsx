@@ -49,16 +49,19 @@ function useChartPreviewData(
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
 
+  // アクティブチャートの場合はストアから直接取得
   useEffect(() => {
-    // アクティブチャートの場合はストアから直接取得
-    if (isActive) {
-      setPersons(storePersons);
-      setIsLoading(false);
-      setError(null);
-      return;
-    }
+    if (!isActive) return;
 
-    // 非アクティブチャートの場合はIndexedDBから取得
+    setPersons(storePersons);
+    setIsLoading(false);
+    setError(null);
+  }, [isActive, storePersons]);
+
+  // 非アクティブチャートの場合はIndexedDBから取得
+  useEffect(() => {
+    if (isActive) return;
+
     let isMounted = true;
     setIsLoading(true);
     setError(null);
@@ -83,7 +86,7 @@ function useChartPreviewData(
     return () => {
       isMounted = false;
     };
-  }, [chartId, isActive, storePersons]);
+  }, [chartId, isActive]);
 
   return { persons, isLoading, error };
 }

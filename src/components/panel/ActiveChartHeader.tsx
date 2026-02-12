@@ -125,15 +125,20 @@ export function ActiveChartHeader() {
   const handleDelete = async () => {
     if (!activeChart) return;
 
+    // 確認ダイアログ表示中のチャート切り替えによるstale deleteを防ぐため、
+    // 削除対象のIDと名前を事前にキャプチャ
+    const chartId = activeChart.id;
+    const chartName = activeChart.name;
+
     const confirmed = await openConfirm({
       title: 'チャートを削除',
-      message: `「${activeChart.name}」を削除してもよろしいですか？\nこの操作は元に戻せません。`,
+      message: `「${chartName}」を削除してもよろしいですか？\nこの操作は元に戻せません。`,
       confirmLabel: '削除',
       isDanger: true,
     });
 
     if (confirmed) {
-      void deleteChart(activeChart.id);
+      void deleteChart(chartId);
     }
   };
 
