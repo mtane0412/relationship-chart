@@ -130,8 +130,11 @@ export function ChartPreview({ chartId, isActive }: ChartPreviewProps) {
         {Array.from({ length: MAX_DISPLAY_COUNT }).map((_, i) => (
           <div
             key={i}
-            className="w-6 h-6 rounded-full bg-gray-200 animate-pulse border-2 border-white"
-            style={{ marginLeft: i === 0 ? 0 : '-0.5rem' }}
+            className="w-6 h-6 rounded-full bg-gray-200 animate-pulse border-2 border-gray-300"
+            style={{
+              marginLeft: i === 0 ? 0 : '-0.5rem',
+              zIndex: MAX_DISPLAY_COUNT - i, // 左に行くほど上のレイヤー
+            }}
           />
         ))}
       </div>
@@ -161,8 +164,11 @@ export function ChartPreview({ chartId, isActive }: ChartPreviewProps) {
       {displayPersons.map((person, index) => (
         <div
           key={person.id}
-          className="w-6 h-6 rounded-full overflow-hidden flex items-center justify-center text-xs text-white font-semibold border-2 border-white"
-          style={{ marginLeft: index === 0 ? 0 : '-0.5rem' }}
+          className="w-6 h-6 rounded-full overflow-hidden flex items-center justify-center text-xs text-white font-semibold border-2 border-gray-300"
+          style={{
+            marginLeft: index === 0 ? 0 : '-0.5rem',
+            zIndex: displayPersons.length - index, // 左に行くほど上のレイヤー
+          }}
           title={person.name}
         >
           {person.imageDataUrl ? (
