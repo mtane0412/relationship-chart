@@ -145,6 +145,12 @@ type GraphActions = {
   updatePerson: (personId: string, updates: Partial<Omit<Person, 'id' | 'createdAt'>>) => void;
 
   /**
+   * 複数人のノード位置を一括更新する
+   * @param positions - 人物IDをキーとする位置のMap
+   */
+  updatePersonPositions: (positions: Map<string, { x: number; y: number }>) => void;
+
+  /**
    * 指定したIDの人物を削除する
    * @param personId - 削除する人物のID
    */
@@ -306,6 +312,14 @@ export const useGraphStore = create<GraphStore>()(
             persons: state.persons.map((person) =>
               person.id === personId ? { ...person, ...updates } : person
             ),
+          })),
+
+        updatePersonPositions: (positions) =>
+          set((state) => ({
+            persons: state.persons.map((person) => {
+              const newPosition = positions.get(person.id);
+              return newPosition ? { ...person, position: newPosition } : person;
+            }),
           })),
 
         removePerson: (personId) =>

@@ -6,7 +6,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useNodesState, useEdgesState, useReactFlow } from '@xyflow/react';
 import { useGraphStore } from '@/stores/useGraphStore';
-import { personsToNodes, relationshipsToEdges } from '@/lib/graph-utils';
+import { personsToNodes, relationshipsToEdges, syncNodePositionsToStore } from '@/lib/graph-utils';
 import { resolveCollisions, DEFAULT_COLLISION_OPTIONS } from '@/lib/collision-resolver';
 import type { Node } from '@xyflow/react';
 import type { GraphNode, RelationshipEdge } from '@/types/graph';
@@ -26,6 +26,7 @@ export function useGraphDataSync() {
   const relationships = useGraphStore((state) => state.relationships);
   const forceEnabled = useGraphStore((state) => state.forceEnabled);
   const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
+  const updatePersonPositions = useGraphStore((state) => state.updatePersonPositions);
 
   // React Flowのノード/エッジ状態
   const [nodes, setNodes, onNodesChange] = useNodesState<GraphNode>([]);
@@ -118,12 +119,21 @@ export function useGraphDataSync() {
         // レンダリング完了後に衝突解消を適用（measuredが設定されるまで待つ）
         collisionResolutionRafIdRef.current = requestAnimationFrame(() => {
           // 関数型アップデータを使用して同時更新を上書きしないようにする
+          let resolvedNodesForStore: GraphNode[] | null = null;
           setNodes((prev) => {
             const currentNodes = getNodesRef.current();
             const resolvedNodes = resolveCollisions(currentNodes, DEFAULT_COLLISION_OPTIONS);
             // resolveCollisionsは変更がない場合に元の配列を返すため、参照等価性でチェック
-            return resolvedNodes !== currentNodes ? (resolvedNodes as GraphNode[]) : prev;
+            if (resolvedNodes !== currentNodes) {
+              resolvedNodesForStore = resolvedNodes as GraphNode[];
+              return resolvedNodesForStore;
+            }
+            return prev;
           });
+          // setNodesの外側でストア更新を実行（副作用を避けるため）
+          if (resolvedNodesForStore) {
+            syncNodePositionsToStore(resolvedNodesForStore, updatePersonPositions);
+          }
           collisionResolutionRafIdRef.current = null;
         });
       }
