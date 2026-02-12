@@ -325,7 +325,17 @@ export function useGraphInteractions({
 
       // sourceとtargetが存在することを確認
       if (connection.source && connection.target) {
-        tryStartConnection(connection.source, connection.target);
+        // connectingFromNodeIdRef（ドラッグ開始ノード）をsourceとして使用する
+        // ConnectionMode.LooseではReact Flowがsource/targetを入れ替えることがあるため
+        const fromNodeId = connectingFromNodeIdRef.current;
+        if (fromNodeId) {
+          // ドラッグ開始ノード以外の方をtargetとする
+          const toNodeId = fromNodeId === connection.source ? connection.target : connection.source;
+          tryStartConnection(fromNodeId, toNodeId);
+        } else {
+          // connectingFromNodeIdRefがnullの場合はconnection.source/targetをそのまま使用
+          tryStartConnection(connection.source, connection.target);
+        }
       }
     },
     [tryStartConnection]
