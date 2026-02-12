@@ -3,8 +3,11 @@
  *
  * 検証項目:
  * - 関係行クリックで2人選択状態に遷移すること
- * - 削除ボタンクリック時に選択状態が変更されないこと
+ * - 削除ボタンが表示されないこと（エッジ選択時の削除機能を使用）
  * - キーボード操作（Enter/Space）で遷移できること
+ * - 関係が方向別にグループ化されて表示されること
+ * - 双方向関係が両グループに表示されること
+ * - 無方向関係がmutualグループに表示されること
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -36,7 +39,6 @@ import {
 describe('SingleSelectionPanel - 関係クリック遷移', () => {
   const mockSetSelectedPersonIds = vi.fn();
   const mockRemovePerson = vi.fn();
-  const mockRemoveRelationship = vi.fn();
   const mockClearSelection = vi.fn();
   const mockGetNode = vi.fn();
   const mockSetCenter = vi.fn();
@@ -76,7 +78,6 @@ describe('SingleSelectionPanel - 関係クリック遷移', () => {
         relationships: [testRelationship],
         setSelectedPersonIds: mockSetSelectedPersonIds,
         removePerson: mockRemovePerson,
-        removeRelationship: mockRemoveRelationship,
         clearSelection: mockClearSelection,
       };
       return selector(state as never);
@@ -95,8 +96,10 @@ describe('SingleSelectionPanel - 関係クリック遷移', () => {
     render(<SingleSelectionPanel person={testPerson} />);
 
     // 関係行を探す（「親友」テキストを含む要素）
-    const relationshipRow = screen.getByText('親友').closest('div[role="button"]');
-    expect(relationshipRow).toBeInTheDocument();
+    // 双方向関係の場合、2つのエントリがあるので最初の要素を取得
+    const relationshipRows = screen.getAllByText('親友');
+    expect(relationshipRows.length).toBeGreaterThan(0);
+    const relationshipRow = relationshipRows[0].closest('div[role="button"]');
 
     // 関係行をクリック
     await user.click(relationshipRow!);
@@ -106,29 +109,21 @@ describe('SingleSelectionPanel - 関係クリック遷移', () => {
     expect(mockSetSelectedPersonIds).toHaveBeenCalledTimes(1);
   });
 
-  it('削除ボタンをクリックしても選択状態は変更されない', async () => {
-    const user = userEvent.setup();
+  it('関係の削除ボタンが表示されないこと', () => {
     render(<SingleSelectionPanel person={testPerson} />);
 
-    // 削除ボタンを探す
-    const deleteButton = screen.getByLabelText('佐藤花子との関係を削除');
-    expect(deleteButton).toBeInTheDocument();
-
-    // 削除ボタンをクリック
-    await user.click(deleteButton);
-
-    // setSelectedPersonIdsが呼ばれないことを確認
-    expect(mockSetSelectedPersonIds).not.toHaveBeenCalled();
-    // removeRelationshipは呼ばれる
-    expect(mockRemoveRelationship).toHaveBeenCalledWith('rel-1');
+    // 削除ボタンが存在しないことを確認
+    const deleteButton = screen.queryByLabelText('佐藤花子との関係を削除');
+    expect(deleteButton).not.toBeInTheDocument();
   });
 
   it('関係行でEnterキーを押すと2人選択状態に遷移する', async () => {
     const user = userEvent.setup();
     render(<SingleSelectionPanel person={testPerson} />);
 
-    // 関係行を探す
-    const relationshipRow = screen.getByText('親友').closest('div[role="button"]') as HTMLElement;
+    // 関係行を探す（双方向の場合は最初の要素）
+    const relationshipRows = screen.getAllByText('親友');
+    const relationshipRow = relationshipRows[0].closest('div[role="button"]') as HTMLElement;
     expect(relationshipRow).toBeInTheDocument();
 
     // フォーカスを当ててEnterキーを押す
@@ -144,8 +139,9 @@ describe('SingleSelectionPanel - 関係クリック遷移', () => {
     const user = userEvent.setup();
     render(<SingleSelectionPanel person={testPerson} />);
 
-    // 関係行を探す
-    const relationshipRow = screen.getByText('親友').closest('div[role="button"]') as HTMLElement;
+    // 関係行を探す（双方向の場合は最初の要素）
+    const relationshipRows = screen.getAllByText('親友');
+    const relationshipRow = relationshipRows[0].closest('div[role="button"]') as HTMLElement;
     expect(relationshipRow).toBeInTheDocument();
 
     // フォーカスを当ててSpaceキーを押す
@@ -162,8 +158,9 @@ describe('SingleSelectionPanel - 関係クリック遷移', () => {
 
     render(<SingleSelectionPanel person={testPerson} />);
 
-    // 関係行をクリック
-    const relationshipRow = screen.getByText('親友').closest('div[role="button"]') as HTMLElement;
+    // 関係行をクリック（双方向の場合は最初の要素）
+    const relationshipRows = screen.getAllByText('親友');
+    const relationshipRow = relationshipRows[0].closest('div[role="button"]') as HTMLElement;
     await user.click(relationshipRow);
 
     // fitViewが両ノードIDで呼ばれることを確認
@@ -181,8 +178,9 @@ describe('SingleSelectionPanel - 関係クリック遷移', () => {
 
     render(<SingleSelectionPanel person={testPerson} />);
 
-    // 関係行を探す
-    const relationshipRow = screen.getByText('親友').closest('div[role="button"]') as HTMLElement;
+    // 関係行を探す（双方向の場合は最初の要素）
+    const relationshipRows = screen.getAllByText('親友');
+    const relationshipRow = relationshipRows[0].closest('div[role="button"]') as HTMLElement;
 
     // フォーカスを当ててEnterキーを押す
     relationshipRow.focus();
@@ -201,7 +199,6 @@ describe('SingleSelectionPanel - 関係クリック遷移', () => {
 describe('SingleSelectionPanel - アイコン付き表示', () => {
   const mockSetSelectedPersonIds = vi.fn();
   const mockRemovePerson = vi.fn();
-  const mockRemoveRelationship = vi.fn();
   const mockClearSelection = vi.fn();
   const mockGetNode = vi.fn();
   const mockSetCenter = vi.fn();
@@ -258,7 +255,6 @@ describe('SingleSelectionPanel - アイコン付き表示', () => {
         relationships: [relationshipWithImage, relationshipWithoutImage],
         setSelectedPersonIds: mockSetSelectedPersonIds,
         removePerson: mockRemovePerson,
-        removeRelationship: mockRemoveRelationship,
         clearSelection: mockClearSelection,
       };
       return selector(state as never);
@@ -272,25 +268,26 @@ describe('SingleSelectionPanel - アイコン付き表示', () => {
     } as never);
   });
 
-  it('相手人物の画像がある場合、アバター画像が矢印の後に表示される', () => {
+  it('相手人物の画像がある場合、アバター画像が名前の前に表示される', () => {
     render(<SingleSelectionPanel person={testPerson} />);
 
-    // 佐藤花子のアバター画像を探す
-    const avatarImg = screen.getByAltText('佐藤花子');
-    expect(avatarImg).toBeInTheDocument();
-    expect(avatarImg).toHaveAttribute('src', 'data:image/jpeg;base64,test');
-    expect(avatarImg).toHaveClass('w-7', 'h-7', 'rounded-full');
+    // 佐藤花子のアバター画像を探す（双方向の場合は複数あるので最初の要素）
+    const avatarImgs = screen.getAllByAltText('佐藤花子');
+    expect(avatarImgs.length).toBeGreaterThan(0);
+    expect(avatarImgs[0]).toHaveAttribute('src', 'data:image/jpeg;base64,test');
+    expect(avatarImgs[0]).toHaveClass('w-7', 'h-7', 'rounded-full');
 
-    // 関係行の構造を確認：「親友 ↔ [アバター] 佐藤花子」
-    const relationshipRow = screen.getByText('親友').closest('div[role="button"]') as HTMLElement;
+    // 関係行の構造を確認：グループヘッダー配下に「[アバター] 佐藤花子 親友」
+    const relationshipRows = screen.getAllByText('親友');
+    const relationshipRow = relationshipRows[0].closest('div[role="button"]') as HTMLElement;
     const textContent = relationshipRow.textContent || '';
-    const labelIndex = textContent.indexOf('親友');
     const nameIndex = textContent.indexOf('佐藤花子');
-    // ラベルが名前の前にあることを確認
-    expect(labelIndex).toBeLessThan(nameIndex);
+    const labelIndex = textContent.indexOf('親友');
+    // 名前がラベルの前にあることを確認
+    expect(nameIndex).toBeLessThan(labelIndex);
   });
 
-  it('相手人物の画像がない場合、イニシャルが矢印の後に表示される', () => {
+  it('相手人物の画像がない場合、イニシャルが名前の前に表示される', () => {
     render(<SingleSelectionPanel person={testPerson} />);
 
     // 鈴木一郎のイニシャルを探す
@@ -298,60 +295,57 @@ describe('SingleSelectionPanel - アイコン付き表示', () => {
     expect(initial).toBeInTheDocument();
     expect(initial.parentElement).toHaveClass('w-7', 'h-7', 'rounded-full', 'bg-gray-300');
 
-    // 関係行の構造を確認：「先輩 → [イニシャル] 鈴木一郎」
+    // 関係行の構造を確認：グループヘッダー「山田太郎 → ...」配下に「[イニシャル] 鈴木一郎 先輩」
     const relationshipRow = screen.getByText('先輩').closest('div[role="button"]') as HTMLElement;
     const textContent = relationshipRow.textContent || '';
-    const labelIndex = textContent.indexOf('先輩');
     const nameIndex = textContent.indexOf('鈴木一郎');
-    // ラベルが名前の前にあることを確認
-    expect(labelIndex).toBeLessThan(nameIndex);
+    const labelIndex = textContent.indexOf('先輩');
+    // 名前がラベルの前にあることを確認
+    expect(nameIndex).toBeLessThan(labelIndex);
   });
 
-  it('bidirectional関係は「関係ラベル ↔ 名前」形式で表示される', () => {
+  it('bidirectional関係はoutgoingとincoming両方のグループに表示される', () => {
     render(<SingleSelectionPanel person={testPerson} />);
 
-    // 関係行を探す
-    const relationshipRow = screen.getByText('親友').closest('div[role="button"]') as HTMLElement;
-    expect(relationshipRow).toBeInTheDocument();
+    // outgoingグループヘッダーを確認
+    const outgoingHeader = screen.getByText('山田太郎 → ...');
+    expect(outgoingHeader).toBeInTheDocument();
 
-    // テキスト順序を確認: "親友" → "↔" → "佐藤花子"
-    const textContent = relationshipRow.textContent || '';
-    const labelIndex = textContent.indexOf('親友');
-    const arrowIndex = textContent.indexOf('↔');
-    const nameIndex = textContent.indexOf('佐藤花子');
+    // incomingグループヘッダーを確認
+    const incomingHeader = screen.getByText('... → 山田太郎');
+    expect(incomingHeader).toBeInTheDocument();
 
-    expect(labelIndex).toBeGreaterThan(-1);
-    expect(arrowIndex).toBeGreaterThan(-1);
-    expect(nameIndex).toBeGreaterThan(-1);
-    expect(labelIndex).toBeLessThan(arrowIndex);
-    expect(arrowIndex).toBeLessThan(nameIndex);
+    // mutualグループヘッダーは表示されない（bidirectionalは無方向ではない）
+    expect(screen.queryByText('山田太郎 — ...')).not.toBeInTheDocument();
+
+    // 関係行が2つ表示される（両方とも同じ「親友」ラベル）
+    const relationshipRows = screen.getAllByText('親友');
+    expect(relationshipRows).toHaveLength(2);
+
+    // 相手名前が2回表示される
+    const personNames = screen.getAllByText('佐藤花子');
+    expect(personNames).toHaveLength(2);
   });
 
-  it('one-way関係は「関係ラベル → 名前」形式で表示される', () => {
+  it('one-way関係はグループヘッダー「山田太郎 → ...」配下に表示される', () => {
     render(<SingleSelectionPanel person={testPerson} />);
+
+    // グループヘッダーを探す
+    const outgoingHeader = screen.getByText('山田太郎 → ...');
+    expect(outgoingHeader).toBeInTheDocument();
 
     // 関係行を探す
     const relationshipRow = screen.getByText('先輩').closest('div[role="button"]') as HTMLElement;
     expect(relationshipRow).toBeInTheDocument();
 
-    // テキスト順序を確認: "先輩" → "→" → "鈴木一郎"
-    const textContent = relationshipRow.textContent || '';
-    const labelIndex = textContent.indexOf('先輩');
-    const arrowIndex = textContent.indexOf('→');
-    const nameIndex = textContent.indexOf('鈴木一郎');
-
-    expect(labelIndex).toBeGreaterThan(-1);
-    expect(arrowIndex).toBeGreaterThan(-1);
-    expect(nameIndex).toBeGreaterThan(-1);
-    expect(labelIndex).toBeLessThan(arrowIndex);
-    expect(arrowIndex).toBeLessThan(nameIndex);
+    // 相手名前を確認
+    expect(screen.getByText('鈴木一郎')).toBeInTheDocument();
   });
 });
 
 describe('SingleSelectionPanel - dual-directed表示', () => {
   const mockSetSelectedPersonIds = vi.fn();
   const mockRemovePerson = vi.fn();
-  const mockRemoveRelationship = vi.fn();
   const mockClearSelection = vi.fn();
   const mockGetNode = vi.fn();
   const mockSetCenter = vi.fn();
@@ -391,7 +385,6 @@ describe('SingleSelectionPanel - dual-directed表示', () => {
         relationships: [dualDirectedRelationship],
         setSelectedPersonIds: mockSetSelectedPersonIds,
         removePerson: mockRemovePerson,
-        removeRelationship: mockRemoveRelationship,
         clearSelection: mockClearSelection,
       };
       return selector(state as never);
@@ -405,8 +398,12 @@ describe('SingleSelectionPanel - dual-directed表示', () => {
     } as never);
   });
 
-  it('dual-directed関係は2つの行として表示される', () => {
+  it('dual-directed関係は2つのグループに分かれて表示される', () => {
     render(<SingleSelectionPanel person={testPerson} />);
+
+    // グループヘッダーを確認
+    expect(screen.getByText('山田太郎 → ...')).toBeInTheDocument();
+    expect(screen.getByText('... → 山田太郎')).toBeInTheDocument();
 
     // 2つの関係行が表示されること（両方とも佐藤花子）
     const personNames = screen.getAllByText('佐藤花子');
@@ -415,32 +412,26 @@ describe('SingleSelectionPanel - dual-directed表示', () => {
     // 両方の関係ラベルが表示されること
     expect(screen.getByText('好き')).toBeInTheDocument();
     expect(screen.getByText('無関心')).toBeInTheDocument();
-
-    // 自分→相手の矢印（→）と相手→自分の矢印（←）が表示されること
-    expect(screen.getByText('→')).toBeInTheDocument();
-    expect(screen.getByText('←')).toBeInTheDocument();
   });
 
-  it('dual-directed関係の方向が正しく表示される', () => {
+  it('dual-directed関係の方向が正しいグループに表示される', () => {
     render(<SingleSelectionPanel person={testPerson} />);
 
-    // 「好き」の行（自分→相手）: "好き → 佐藤花子"
-    const forwardRow = screen.getByText('好き').closest('div[role="button"]') as HTMLElement;
-    const forwardText = forwardRow.textContent || '';
-    const forwardLabelIndex = forwardText.indexOf('好き');
-    const forwardArrowIndex = forwardText.indexOf('→');
-    const forwardNameIndex = forwardText.indexOf('佐藤花子');
-    expect(forwardLabelIndex).toBeLessThan(forwardArrowIndex);
-    expect(forwardArrowIndex).toBeLessThan(forwardNameIndex);
+    // outgoingグループヘッダー
+    const outgoingHeader = screen.getByText('山田太郎 → ...');
+    expect(outgoingHeader).toBeInTheDocument();
 
-    // 「無関心」の行（相手→自分）: "無関心 ← 佐藤花子"
+    // incomingグループヘッダー
+    const incomingHeader = screen.getByText('... → 山田太郎');
+    expect(incomingHeader).toBeInTheDocument();
+
+    // 「好き」の行（自分→相手）
+    const forwardRow = screen.getByText('好き').closest('div[role="button"]') as HTMLElement;
+    expect(forwardRow).toBeInTheDocument();
+
+    // 「無関心」の行（相手→自分）
     const backwardRow = screen.getByText('無関心').closest('div[role="button"]') as HTMLElement;
-    const backwardText = backwardRow.textContent || '';
-    const backwardLabelIndex = backwardText.indexOf('無関心');
-    const backwardArrowIndex = backwardText.indexOf('←');
-    const backwardNameIndex = backwardText.indexOf('佐藤花子');
-    expect(backwardLabelIndex).toBeLessThan(backwardArrowIndex);
-    expect(backwardArrowIndex).toBeLessThan(backwardNameIndex);
+    expect(backwardRow).toBeInTheDocument();
   });
 
   it('dual-directed関係の各行をクリックすると2人選択状態に遷移する', async () => {
@@ -460,5 +451,136 @@ describe('SingleSelectionPanel - dual-directed表示', () => {
     await user.click(secondRow);
 
     expect(mockSetSelectedPersonIds).toHaveBeenCalledWith(['person-1', 'person-2']);
+  });
+});
+
+describe('SingleSelectionPanel - グループヘッダー', () => {
+  const mockSetSelectedPersonIds = vi.fn();
+  const mockRemovePerson = vi.fn();
+  const mockClearSelection = vi.fn();
+  const mockGetNode = vi.fn();
+  const mockSetCenter = vi.fn();
+  const mockFitView = vi.fn();
+
+  const testPerson: Person = {
+    id: 'person-1',
+    name: '山田太郎',
+    imageDataUrl: undefined,
+    createdAt: '2024-01-01T00:00:00Z',
+  };
+
+  const otherPerson: Person = {
+    id: 'person-2',
+    name: '佐藤花子',
+    imageDataUrl: undefined,
+    createdAt: '2024-01-02T00:00:00Z',
+  };
+
+  // 関係がない場合のテスト
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    // useGraphStoreのモック設定
+    vi.mocked(useGraphStore).mockImplementation((selector) => {
+      const state = {
+        persons: [testPerson, otherPerson],
+        relationships: [], // 関係なし
+        setSelectedPersonIds: mockSetSelectedPersonIds,
+        removePerson: mockRemovePerson,
+        clearSelection: mockClearSelection,
+      };
+      return selector(state as never);
+    });
+
+    // useReactFlowのモック設定
+    vi.mocked(useReactFlow).mockReturnValue({
+      getNode: mockGetNode,
+      setCenter: mockSetCenter,
+      fitView: mockFitView,
+    } as never);
+  });
+
+  it('関係がないグループのヘッダーは非表示であること', () => {
+    render(<SingleSelectionPanel person={testPerson} />);
+
+    // どのグループヘッダーも表示されない
+    expect(screen.queryByText('山田太郎 — ...')).not.toBeInTheDocument();
+    expect(screen.queryByText('山田太郎 → ...')).not.toBeInTheDocument();
+    expect(screen.queryByText('... → 山田太郎')).not.toBeInTheDocument();
+
+    // 関係一覧セクション自体が非表示
+    expect(screen.queryByText('この人物の関係')).not.toBeInTheDocument();
+  });
+});
+
+describe('SingleSelectionPanel - 無方向関係（undirected）', () => {
+  const mockSetSelectedPersonIds = vi.fn();
+  const mockRemovePerson = vi.fn();
+  const mockClearSelection = vi.fn();
+  const mockGetNode = vi.fn();
+  const mockSetCenter = vi.fn();
+  const mockFitView = vi.fn();
+
+  const testPerson: Person = {
+    id: 'person-1',
+    name: '山田太郎',
+    imageDataUrl: undefined,
+    createdAt: '2024-01-01T00:00:00Z',
+  };
+
+  const otherPerson: Person = {
+    id: 'person-2',
+    name: '佐藤花子',
+    imageDataUrl: undefined,
+    createdAt: '2024-01-02T00:00:00Z',
+  };
+
+  const undirectedRelationship: Relationship = {
+    id: 'rel-1',
+    sourcePersonId: 'person-1',
+    targetPersonId: 'person-2',
+    isDirected: false, // 無方向
+    sourceToTargetLabel: '同一人物',
+    targetToSourceLabel: '同一人物',
+    createdAt: '2024-01-03T00:00:00Z',
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    // useGraphStoreのモック設定
+    vi.mocked(useGraphStore).mockImplementation((selector) => {
+      const state = {
+        persons: [testPerson, otherPerson],
+        relationships: [undirectedRelationship],
+        setSelectedPersonIds: mockSetSelectedPersonIds,
+        removePerson: mockRemovePerson,
+        clearSelection: mockClearSelection,
+      };
+      return selector(state as never);
+    });
+
+    // useReactFlowのモック設定
+    vi.mocked(useReactFlow).mockReturnValue({
+      getNode: mockGetNode,
+      setCenter: mockSetCenter,
+      fitView: mockFitView,
+    } as never);
+  });
+
+  it('無方向関係はmutualグループ（山田太郎 — ...）に表示される', () => {
+    render(<SingleSelectionPanel person={testPerson} />);
+
+    // mutualグループヘッダーを確認
+    const mutualHeader = screen.getByText('山田太郎 — ...');
+    expect(mutualHeader).toBeInTheDocument();
+
+    // 有向グループヘッダーは表示されない
+    expect(screen.queryByText('山田太郎 → ...')).not.toBeInTheDocument();
+    expect(screen.queryByText('... → 山田太郎')).not.toBeInTheDocument();
+
+    // 関係行を確認
+    expect(screen.getByText('同一人物')).toBeInTheDocument();
+    expect(screen.getByText('佐藤花子')).toBeInTheDocument();
   });
 });
