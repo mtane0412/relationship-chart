@@ -92,7 +92,7 @@ describe('ChartCreateModal', () => {
   });
 
   it.skip('名前を入力してEnterキーを押すとcreateChartが呼ばれる', async () => {
-    // CIで不安定なためスキップ（afterEachのcloseDB/clearIndexedDBでタイムアウト）
+    // Node.js 22.xでIndexedDB操作が遅延し、hookTimeoutを超過するためスキップ
     const user = userEvent.setup();
 
     const createChartSpy = vi.spyOn(useGraphStore.getState(), 'createChart');
@@ -115,12 +115,12 @@ describe('ChartCreateModal', () => {
   });
 
   it.skip('空の名前では作成できない', async () => {
+    // Node.js 22.xでIndexedDB操作が遅延し、hookTimeoutを超過するためスキップ
     const user = userEvent.setup();
 
-    render(<ChartCreateModal isOpen={true} onClose={mockOnClose} />);
-
-    // レンダリング後にスパイを作成
     const createChartSpy = vi.spyOn(useGraphStore.getState(), 'createChart');
+
+    render(<ChartCreateModal isOpen={true} onClose={mockOnClose} />);
 
     // 入力フィールドを空にする
     const input = screen.getByLabelText('相関図名');
@@ -138,12 +138,12 @@ describe('ChartCreateModal', () => {
   });
 
   it.skip('キャンセルボタンをクリックするとモーダルが閉じる', async () => {
+    // Node.js 22.xでIndexedDB操作が遅延し、hookTimeoutを超過するためスキップ
     const user = userEvent.setup();
 
-    render(<ChartCreateModal isOpen={true} onClose={mockOnClose} />);
-
-    // レンダリング後にスパイを作成
     const createChartSpy = vi.spyOn(useGraphStore.getState(), 'createChart');
+
+    render(<ChartCreateModal isOpen={true} onClose={mockOnClose} />);
 
     // キャンセルボタンをクリック
     const cancelButton = screen.getByRole('button', { name: 'キャンセル' });
@@ -157,7 +157,7 @@ describe('ChartCreateModal', () => {
   });
 
   it.skip('Escapeキーを押すとモーダルが閉じる', async () => {
-    // CIで不安定なためスキップ（afterEachのcloseDB/clearIndexedDBでタイムアウト）
+    // Node.js 22.xでIndexedDB操作が遅延し、hookTimeoutを超過するためスキップ
     const user = userEvent.setup();
 
     render(<ChartCreateModal isOpen={true} onClose={mockOnClose} />);
@@ -170,6 +170,7 @@ describe('ChartCreateModal', () => {
   });
 
   it.skip('オーバーレイをクリックするとモーダルが閉じる', async () => {
+    // Node.js 22.xでIndexedDB操作が遅延し、hookTimeoutを超過するためスキップ
     const user = userEvent.setup();
 
     const { container } = render(
