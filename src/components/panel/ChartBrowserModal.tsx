@@ -1,14 +1,30 @@
 /**
  * ChartBrowserModalコンポーネント
- * 相関図一覧をプレビュー付きで表示し、切り替え・新規作成を行うモーダル
+ * 相関図一覧をプレビュー付きで表示し、切り替え・削除・新規作成・並び替えを行うモーダル
  */
 
 'use client';
 
-import { useEffect } from 'react';
-import { X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { X, Plus } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable';
 import { useGraphStore } from '@/stores/useGraphStore';
-import { ChartPreview } from './ChartPreview';
+import { useDialogStore } from '@/stores/useDialogStore';
+import { SortableChartCard } from './SortableChartCard';
+import { ChartCreateModal } from './ChartCreateModal';
 
 /**
  * ChartBrowserModalのProps
@@ -27,13 +43,29 @@ export function ChartBrowserModal({ isOpen, onClose }: ChartBrowserModalProps) {
   const chartMetas = useGraphStore((state) => state.chartMetas);
   const activeChartId = useGraphStore((state) => state.activeChartId);
   const switchChart = useGraphStore((state) => state.switchChart);
+  const deleteChart = useGraphStore((state) => state.deleteChart);
+  const renameChart = useGraphStore((state) => state.renameChart);
+  const reorderCharts = useGraphStore((state) => state.reorderCharts);
+  const openConfirm = useDialogStore((state) => state.openConfirm);
+
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // D&Dセンサーの設定（キーボード操作のUX改善）
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Escapeキーでモーダルを閉じる
   useEffect(() => {
     if (!isOpen) return;
 
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      // 作成モーダルが開いている場合はこのハンドラーをスキップ
+      // （ChartCreateModalのEscapeハンドラーが優先）
+      if (e.key === 'Escape' && !isCreateModalOpen) {
         onClose();
       }
     };
@@ -42,7 +74,7 @@ export function ChartBrowserModal({ isOpen, onClose }: ChartBrowserModalProps) {
     return () => {
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isCreateModalOpen]);
 
   /**
    * チャートをクリックした時の処理
@@ -59,82 +91,150 @@ export function ChartBrowserModal({ isOpen, onClose }: ChartBrowserModalProps) {
     onClose();
   };
 
+  /**
+   * チャート削除ハンドラー
+   */
+  const handleChartDelete = async (chartId: string) => {
+    // 削除対象のチャート名を取得
+    const targetChart = chartMetas.find((m) => m.id === chartId);
+    if (!targetChart) return;
+
+    // 確認ダイアログを表示
+    const confirmed = await openConfirm({
+      title: 'チャートを削除',
+      message: `「${targetChart.name}」を削除してもよろしいですか？\nこの操作は元に戻せません。`,
+      confirmLabel: '削除',
+      isDanger: true,
+    });
+
+    // 確認された場合のみ削除
+    if (confirmed) {
+      void deleteChart(chartId);
+    }
+  };
+
+  /**
+   * チャート名変更ハンドラー
+   */
+  const handleChartRename = (chartId: string, newName: string) => {
+    void renameChart(chartId, newName);
+  };
+
+  /**
+   * ドラッグ終了ハンドラー
+   */
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const oldIndex = chartMetas.findIndex((m) => m.id === active.id);
+    const newIndex = chartMetas.findIndex((m) => m.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) {
+      return;
+    }
+
+    // 新しい並び順を計算
+    const newOrder = [...chartMetas];
+    const [removed] = newOrder.splice(oldIndex, 1);
+    newOrder.splice(newIndex, 0, removed);
+
+    // reorderChartsを呼び出し
+    void reorderCharts(newOrder.map((m) => m.id));
+  };
+
+  /**
+   * 新規作成モーダルを開く
+   */
+  const handleOpenCreateModal = () => {
+    setIsCreateModalOpen(true);
+  };
+
+  /**
+   * 新規作成モーダルを閉じる
+   */
+  const handleCloseCreateModal = () => {
+    setIsCreateModalOpen(false);
+  };
+
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={onClose}
-      aria-modal="true"
-      role="dialog"
-      aria-labelledby="chart-browser-title"
-    >
+    <>
       <div
-        className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        onClick={onClose}
+        aria-modal="true"
+        role="dialog"
+        aria-labelledby="chart-browser-title"
       >
-        {/* ヘッダー */}
-        <div className="flex items-center justify-between mb-4">
-          <h2
-            id="chart-browser-title"
-            className="text-xl font-semibold text-gray-900"
-          >
-            相関図を開く
-          </h2>
+        <div
+          className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* ヘッダー */}
+          <div className="flex items-center justify-between mb-4">
+            <h2
+              id="chart-browser-title"
+              className="text-xl font-semibold text-gray-900"
+            >
+              相関図を開く
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 rounded hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+              aria-label="閉じる"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* チャート一覧（D&D対応） */}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext
+              items={chartMetas.map((m) => m.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-2 mb-4">
+                {chartMetas.map((meta) => {
+                  const isActive = meta.id === activeChartId;
+
+                  return (
+                    <SortableChartCard
+                      key={meta.id}
+                      chart={meta}
+                      isActive={isActive}
+                      onSwitch={handleChartClick}
+                      onDelete={handleChartDelete}
+                      onRename={handleChartRename}
+                    />
+                  );
+                })}
+              </div>
+            </SortableContext>
+          </DndContext>
+
+          {/* 新規作成ボタン */}
           <button
             type="button"
-            onClick={onClose}
-            className="p-2 rounded hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
-            aria-label="閉じる"
+            onClick={handleOpenCreateModal}
+            className="w-full p-4 rounded-lg border border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 text-gray-600 hover:text-blue-600 transition-colors flex items-center justify-center gap-2"
           >
-            <X size={20} />
+            <Plus size={20} />
+            <span className="font-medium">新規作成</span>
           </button>
         </div>
-
-        {/* チャート一覧 */}
-        <div className="space-y-2 mb-4">
-          {chartMetas.map((meta) => {
-            const isActive = meta.id === activeChartId;
-
-            return (
-              <button
-                key={meta.id}
-                type="button"
-                onClick={() => handleChartClick(meta.id)}
-                className={`w-full p-4 rounded-lg border text-left transition-colors ${
-                  isActive
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                {/* チャート名と「現在」バッジ */}
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="text-base font-semibold text-gray-900">
-                    {meta.name}
-                  </h3>
-                  {isActive && (
-                    <span className="px-2 py-0.5 text-xs font-semibold text-blue-700 bg-blue-100 rounded-full">
-                      現在
-                    </span>
-                  )}
-                </div>
-
-                {/* メタデータ */}
-                <p className="text-sm text-gray-500 mb-3">
-                  {meta.personCount}{' '}
-                  {meta.personCount === 1 ? 'node' : 'nodes'},{' '}
-                  {meta.relationshipCount}{' '}
-                  {meta.relationshipCount === 1 ? 'edge' : 'edges'} • Last
-                  update: {new Date(meta.updatedAt).toLocaleDateString()}
-                </p>
-
-                {/* 人物プレビュー */}
-                <ChartPreview chartId={meta.id} isActive={isActive} />
-              </button>
-            );
-          })}
-        </div>
       </div>
-    </div>
+
+      {/* チャート作成モーダル */}
+      <ChartCreateModal
+        isOpen={isCreateModalOpen}
+        onClose={handleCloseCreateModal}
+      />
+    </>
   );
 }

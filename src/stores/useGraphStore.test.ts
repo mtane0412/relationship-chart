@@ -2569,6 +2569,261 @@ describe('useGraphStore', () => {
         expect(result.current.chartMetas[0].name).toBe('相関図 1');
         expect(result.current.persons).toHaveLength(0);
       });
+
+      it('リセット時にchartOrderもクリアされる', async () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        // アプリを初期化
+        await act(async () => {
+          await result.current.initializeApp();
+        });
+
+        // 複数のチャートを作成
+        await act(async () => {
+          await result.current.createChart('相関図 A');
+        });
+        await act(async () => {
+          await result.current.createChart('相関図 B');
+        });
+
+        expect(result.current.chartMetas).toHaveLength(3);
+
+        // リセット実行
+        await act(async () => {
+          await result.current.resetAllData();
+        });
+
+        // chartOrderも含めてリセットされている（getChartOrderを直接確認）
+        const { getChartOrder } = await import('@/lib/chart-db');
+        const chartOrder = await getChartOrder();
+        expect(chartOrder).toHaveLength(1);
+        expect(result.current.chartMetas).toHaveLength(1);
+      });
+    });
+
+    describe('reorderCharts', () => {
+      it('相関図の並び順を変更できる', async () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        // アプリを初期化
+        await act(async () => {
+          await result.current.initializeApp();
+        });
+
+        // 複数のチャートを作成
+        await act(async () => {
+          await result.current.createChart('相関図 A');
+        });
+        const chartIdA = result.current.activeChartId!;
+
+        await act(async () => {
+          await result.current.createChart('相関図 B');
+        });
+        const chartIdB = result.current.activeChartId!;
+
+        await act(async () => {
+          await result.current.createChart('相関図 C');
+        });
+        const chartIdC = result.current.activeChartId!;
+
+        const defaultChartId = result.current.chartMetas.find((m) => m.name === '相関図 1')!.id;
+
+        // 初期順序: C, B, A, デフォルト（作成順の逆）
+        expect(result.current.chartMetas[0].id).toBe(chartIdC);
+        expect(result.current.chartMetas[1].id).toBe(chartIdB);
+        expect(result.current.chartMetas[2].id).toBe(chartIdA);
+        expect(result.current.chartMetas[3].id).toBe(defaultChartId);
+
+        // 並び順を変更: A, デフォルト, C, B
+        const newOrder = [chartIdA, defaultChartId, chartIdC, chartIdB];
+        await act(async () => {
+          await result.current.reorderCharts(newOrder);
+        });
+
+        // 並び順が変更されている
+        expect(result.current.chartMetas[0].id).toBe(chartIdA);
+        expect(result.current.chartMetas[1].id).toBe(defaultChartId);
+        expect(result.current.chartMetas[2].id).toBe(chartIdC);
+        expect(result.current.chartMetas[3].id).toBe(chartIdB);
+
+        // IndexedDBにも保存されている
+        const { getChartOrder } = await import('@/lib/chart-db');
+        const savedOrder = await getChartOrder();
+        expect(savedOrder).toEqual(newOrder);
+      });
+
+      it('存在しないIDを含む配列でエラーをスローする', async () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        // アプリを初期化
+        await act(async () => {
+          await result.current.initializeApp();
+        });
+
+        // 存在しないIDを含む配列で並び替えを試みる
+        await expect(
+          act(async () => {
+            await result.current.reorderCharts(['non-existent-id']);
+          })
+        ).rejects.toThrow('並び順に存在しないチャートIDが含まれています');
+      });
+
+      it('数が一致しない配列でエラーをスローする', async () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        // アプリを初期化
+        await act(async () => {
+          await result.current.initializeApp();
+        });
+
+        const chartId = result.current.chartMetas[0].id;
+
+        // 数が一致しない配列で並び替えを試みる
+        await expect(
+          act(async () => {
+            await result.current.reorderCharts([chartId, 'extra-id']);
+          })
+        ).rejects.toThrow('並び順のチャート数が一致しません');
+      });
+    });
+
+    describe('chartOrder統合', () => {
+      it('initializeApp時にchartOrderが適用される', async () => {
+        // 事前にIndexedDBにチャートとchartOrderを保存
+        const { saveChart, setChartOrder } = await import('@/lib/chart-db');
+
+        await saveChart({
+          id: 'chart-1',
+          name: '相関図 1',
+          persons: [],
+          relationships: [],
+          forceEnabled: false,
+          forceParams: {
+            linkDistance: 150,
+            linkStrength: 0.5,
+            chargeStrength: -300,
+          },
+          egoLayoutParams: {
+            ringSpacing: 200,
+            firstRingRadius: 200,
+          },
+          createdAt: '2024-01-01T00:00:00Z',
+          updatedAt: '2024-01-01T00:00:00Z',
+        });
+
+        await saveChart({
+          id: 'chart-2',
+          name: '相関図 2',
+          persons: [],
+          relationships: [],
+          forceEnabled: false,
+          forceParams: {
+            linkDistance: 150,
+            linkStrength: 0.5,
+            chargeStrength: -300,
+          },
+          egoLayoutParams: {
+            ringSpacing: 200,
+            firstRingRadius: 200,
+          },
+          createdAt: '2024-01-02T00:00:00Z',
+          updatedAt: '2024-01-02T00:00:00Z',
+        });
+
+        await saveChart({
+          id: 'chart-3',
+          name: '相関図 3',
+          persons: [],
+          relationships: [],
+          forceEnabled: false,
+          forceParams: {
+            linkDistance: 150,
+            linkStrength: 0.5,
+            chargeStrength: -300,
+          },
+          egoLayoutParams: {
+            ringSpacing: 200,
+            firstRingRadius: 200,
+          },
+          createdAt: '2024-01-03T00:00:00Z',
+          updatedAt: '2024-01-03T00:00:00Z',
+        });
+
+        // 並び順を保存: chart-2, chart-1, chart-3
+        await setChartOrder(['chart-2', 'chart-1', 'chart-3']);
+
+        const { result } = renderHook(() => useGraphStore());
+
+        await act(async () => {
+          await result.current.initializeApp();
+        });
+
+        // chartOrderの順序で並んでいる
+        expect(result.current.chartMetas).toHaveLength(3);
+        expect(result.current.chartMetas[0].id).toBe('chart-2');
+        expect(result.current.chartMetas[1].id).toBe('chart-1');
+        expect(result.current.chartMetas[2].id).toBe('chart-3');
+      });
+
+      it('createChart時にchartOrderの先頭に追加される', async () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        // アプリを初期化
+        await act(async () => {
+          await result.current.initializeApp();
+        });
+
+        const defaultChartId = result.current.chartMetas[0].id;
+
+        // 新しいチャートを作成
+        await act(async () => {
+          await result.current.createChart('新規チャート');
+        });
+
+        const newChartId = result.current.activeChartId!;
+
+        // 新規チャートが先頭に追加されている
+        expect(result.current.chartMetas[0].id).toBe(newChartId);
+        expect(result.current.chartMetas[1].id).toBe(defaultChartId);
+
+        // chartOrderも更新されている
+        const { getChartOrder } = await import('@/lib/chart-db');
+        const chartOrder = await getChartOrder();
+        expect(chartOrder).toEqual([newChartId, defaultChartId]);
+      });
+
+      it('deleteChart時にchartOrderから除外される', async () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        // アプリを初期化
+        await act(async () => {
+          await result.current.initializeApp();
+        });
+
+        // 複数のチャートを作成
+        await act(async () => {
+          await result.current.createChart('相関図 A');
+        });
+        const chartIdA = result.current.activeChartId!;
+
+        await act(async () => {
+          await result.current.createChart('相関図 B');
+        });
+        const chartIdB = result.current.activeChartId!;
+
+        const defaultChartId = result.current.chartMetas.find((m) => m.name === '相関図 1')!.id;
+
+        // チャートBを削除
+        await act(async () => {
+          await result.current.deleteChart(chartIdB);
+        });
+
+        // chartOrderからチャートBが除外されている
+        const { getChartOrder } = await import('@/lib/chart-db');
+        const chartOrder = await getChartOrder();
+        expect(chartOrder).toEqual([chartIdA, defaultChartId]);
+        expect(chartOrder).not.toContain(chartIdB);
+      });
     });
   });
 });

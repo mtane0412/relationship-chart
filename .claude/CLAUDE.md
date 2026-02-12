@@ -154,6 +154,49 @@ Zustandストア（`selectedPersonIds`）からReact Flowの選択状態への�
 - 関係タイプ選択アイコン（片方向、双方向、片方向×2、無方向）
 - カスタムアイコンコンポーネントは `src/components/icons/` に配置
 
+### 9. IME（日本語入力）対応
+
+**⚠️ CRITICAL: Enterキーで送信・保存する入力フィールドは必ずIME対応を実装すること**
+
+日本語入力時の変換確定のEnterキーと、実際の送信・保存のEnterキーを区別する必要があります。
+
+#### 実装方法
+
+```tsx
+const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  if (e.key === 'Enter') {
+    // IME変換中のEnterは無視（日本語入力の変換確定時の誤動作を防ぐ）
+    if (e.nativeEvent.isComposing) {
+      return;
+    }
+    e.preventDefault();
+    // 送信・保存処理
+  }
+};
+```
+
+#### 対応が必要な箇所
+
+- テキスト入力フィールドで**Enterキー**を押した時に何らかのアクションを実行する場合
+- 例: フォーム送信、名前変更の保存、チャート作成など
+
+#### 対応済みファイル
+
+以下のファイルはすでにIME対応されています：
+
+- `src/components/panel/ActiveChartHeader.tsx` - チャート名編集
+- `src/components/panel/SortableChartCard.tsx` - チャート名編集
+- `src/components/panel/ChartCreateModal.tsx` - チャート名入力
+- `src/components/graph/SearchBar.tsx` - 検索入力
+- `src/components/panel/PersonEditForm.tsx` - 人物名編集
+- `src/components/graph/ContextMenu.tsx` - コンテキストメニュー入力
+
+#### 対応不要な箇所
+
+- Escapeキーのみを処理する場合（IME変換に影響しない）
+- Space/Tabなどのナビゲーションキー（テキスト入力以外）
+- グローバルなキーボードショートカット（Cmd+K等）
+
 ---
 
 ## テスト

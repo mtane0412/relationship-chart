@@ -42,6 +42,8 @@ export function ChartCreateModal({ isOpen, onClose }: ChartCreateModalProps) {
 
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        // 親モーダル（ChartBrowserModal）のEscapeハンドラーへの伝播を防ぐ
+        e.stopImmediatePropagation();
         onClose();
       }
     };
@@ -71,6 +73,10 @@ export function ChartCreateModal({ isOpen, onClose }: ChartCreateModalProps) {
    */
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
+      // IME変換中のEnterは無視（日本語入力の変換確定時の誤動作を防ぐ）
+      if (e.nativeEvent.isComposing) {
+        return;
+      }
       e.preventDefault();
       handleCreate();
     }

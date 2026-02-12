@@ -20,6 +20,8 @@ import {
   deleteAllCharts,
   getLastActiveChartId,
   setLastActiveChartId,
+  getChartOrder,
+  setChartOrder,
 } from '@/lib/chart-db';
 import { migrateGraphState } from '@/lib/migration';
 
@@ -307,6 +309,12 @@ type GraphActions = {
   renameChart: (chartId: string, newName: string) => Promise<void>;
 
   /**
+   * 相関図の並び順を変更する
+   * @param chartIds - 並び順のチャートIDリスト
+   */
+  reorderCharts: (chartIds: string[]) => Promise<void>;
+
+  /**
    * すべてのデータをリセットする（全チャート削除 + デフォルトチャート作成）
    */
   resetAllData: () => Promise<void>;
@@ -555,6 +563,8 @@ export const useGraphStore = create<GraphStore>()(
                 };
 
                 await saveChart(chart);
+                // chartOrderを初期化
+                await setChartOrder([chartId]);
 
                 // LocalStorageを削除
                 localStorage.removeItem(localStorageKey);
@@ -564,35 +574,49 @@ export const useGraphStore = create<GraphStore>()(
               } catch (error) {
                 console.error('Failed to migrate from LocalStorage:', error);
                 // マイグレーション失敗時はデフォルトチャートを作成
-                await createDefaultChart();
+                const defaultChart = await createDefaultChart();
+                await setChartOrder([defaultChart.id]);
                 chartMetas = await getAllChartMetas();
               }
             } else {
               // 3b. デフォルト空チャート「相関図 1」を作成
-              await createDefaultChart();
+              const defaultChart = await createDefaultChart();
+              await setChartOrder([defaultChart.id]);
               chartMetas = await getAllChartMetas();
             }
           }
 
-          // 4. lastActiveChartIdを取得
+          // 4. chartOrderを取得して並び順を適用
+          const chartOrder = await getChartOrder();
+          if (chartOrder) {
+            // chartOrderの順序でchartMetasをソート
+            const orderMap = new Map(chartOrder.map((id, index) => [id, index]));
+            chartMetas.sort((a, b) => {
+              const indexA = orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+              const indexB = orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+              return indexA - indexB;
+            });
+          }
+
+          // 5. lastActiveChartIdを取得
           const lastActiveChartId = await getLastActiveChartId();
 
-          // 5. ロードするチャートを決定
+          // 6. ロードするチャートを決定
           let targetChartId: string;
           if (lastActiveChartId && chartMetas.some((m) => m.id === lastActiveChartId)) {
             targetChartId = lastActiveChartId;
           } else {
-            // 最新のチャート（updatedAtが最新）
+            // 先頭のチャート（chartOrderまたはupdatedAtが最新）
             targetChartId = chartMetas[0].id;
           }
 
-          // 6. チャートをロード
+          // 7. チャートをロード
           const chart = await getChart(targetChartId);
           if (!chart) {
             throw new Error(`Chart not found: ${targetChartId}`);
           }
 
-          // 7. ストアを更新
+          // 8. ストアを更新
           set(() => ({
             activeChartId: chart.id,
             chartMetas,
@@ -604,7 +628,7 @@ export const useGraphStore = create<GraphStore>()(
             isInitialized: true,
           }));
 
-          // 8. lastActiveChartIdを保存
+          // 9. lastActiveChartIdを保存
           await setLastActiveChartId(chart.id);
         },
 
@@ -663,10 +687,13 @@ export const useGraphStore = create<GraphStore>()(
           };
 
           const updatedMetas = [newMeta, ...currentMetas];
-          // updatedAtの降順にソート（最新のものが先頭）
-          updatedMetas.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
-          // 7. ストアを更新
+          // 7. chartOrderを更新（先頭に追加）
+          const currentOrder = await getChartOrder();
+          const newOrder = [chartId, ...(currentOrder || currentMetas.map((m) => m.id))];
+          await setChartOrder(newOrder);
+
+          // 8. ストアを更新
           set(() => ({
             activeChartId: chartId,
             persons: [],
@@ -678,10 +705,10 @@ export const useGraphStore = create<GraphStore>()(
             chartMetas: updatedMetas,
           }));
 
-          // 8. lastActiveChartIdを更新
+          // 9. lastActiveChartIdを更新
           await setLastActiveChartId(chartId);
 
-          // 9. Undo/Redo履歴をクリア
+          // 10. Undo/Redo履歴をクリア
           useGraphStore.temporal.getState().clear();
         },
 
@@ -744,6 +771,9 @@ export const useGraphStore = create<GraphStore>()(
             // IndexedDBに保存（リセット状態で）
             await saveCurrentChart(get);
 
+            // chartOrderも更新（単一チャートのIDのみ）
+            await setChartOrder([currentMetas[0].id]);
+
             // Undo/Redo履歴をクリア
             useGraphStore.temporal.getState().clear();
 
@@ -753,19 +783,26 @@ export const useGraphStore = create<GraphStore>()(
           // 2. chartMetasを更新（削除後の状態を先に計算）
           const updatedMetas = currentMetas.filter((m) => m.id !== chartId);
 
-          // 3. 削除したのがアクティブチャートの場合 → 次のチャートを先にロード
+          // 3. chartOrderから除外
+          const currentOrder = await getChartOrder();
+          if (currentOrder) {
+            const newOrder = currentOrder.filter((id) => id !== chartId);
+            await setChartOrder(newOrder);
+          }
+
+          // 4. 削除したのがアクティブチャートの場合 → 次のチャートを先にロード
           if (get().activeChartId === chartId) {
-            // 次のチャート（最新のもの）を先にロード
+            // 次のチャート（先頭のもの）を先にロード
             const nextChartId = updatedMetas[0].id;
             const nextChart = await getChart(nextChartId);
             if (!nextChart) {
               throw new Error(`Chart not found: ${nextChartId}`);
             }
 
-            // 4. 次のチャートのロードに成功したらIndexedDBから削除
+            // 5. 次のチャートのロードに成功したらIndexedDBから削除
             await deleteChartFromDB(chartId);
 
-            // 5. ストアを更新
+            // 6. ストアを更新
             set(() => ({
               activeChartId: nextChart.id,
               chartMetas: updatedMetas,
@@ -782,7 +819,7 @@ export const useGraphStore = create<GraphStore>()(
             // Undo/Redo履歴をクリア
             useGraphStore.temporal.getState().clear();
           } else {
-            // 6. 削除したのが非アクティブの場合 → IndexedDBから削除してchartMetasのみ更新
+            // 7. 削除したのが非アクティブの場合 → IndexedDBから削除してchartMetasのみ更新
             await deleteChartFromDB(chartId);
 
             set(() => ({
@@ -836,11 +873,41 @@ export const useGraphStore = create<GraphStore>()(
             return meta;
           });
 
-          // updatedAtの降順にソート（最新のものが先頭）
-          updatedMetas.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-
+          // 並び順は変更しない（chartOrderを維持）
           set(() => ({
             chartMetas: updatedMetas,
+          }));
+        },
+
+        reorderCharts: async (chartIds: string[]) => {
+          const currentMetas = get().chartMetas;
+
+          // 1. 数が一致するかチェック
+          if (chartIds.length !== currentMetas.length) {
+            throw new Error('並び順のチャート数が一致しません');
+          }
+
+          // 2. すべてのIDが存在するかチェック
+          const currentIds = new Set(currentMetas.map((m) => m.id));
+          const hasInvalidId = chartIds.some((id) => !currentIds.has(id));
+          if (hasInvalidId) {
+            throw new Error('並び順に存在しないチャートIDが含まれています');
+          }
+
+          // 3. chartOrderをIndexedDBに保存
+          await setChartOrder(chartIds);
+
+          // 4. chartMetasをソート
+          const orderMap = new Map(chartIds.map((id, index) => [id, index]));
+          const sortedMetas = [...currentMetas].sort((a, b) => {
+            const indexA = orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+            const indexB = orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+            return indexA - indexB;
+          });
+
+          // 5. ストアを更新
+          set(() => ({
+            chartMetas: sortedMetas,
           }));
         },
 
@@ -855,13 +922,16 @@ export const useGraphStore = create<GraphStore>()(
             // 2. デフォルト空チャートを作成
             const chart = await createDefaultChart();
 
-            // 3. メタデータを再取得
+            // 3. chartOrderをリセット
+            await setChartOrder([chart.id]);
+
+            // 4. メタデータを再取得
             const chartMetas = await getAllChartMetas();
 
-            // 4. lastActiveChartIdを更新
+            // 5. lastActiveChartIdを更新
             await setLastActiveChartId(chart.id);
 
-            // 5. ストアを初期状態にリセット（すべての破壊的操作が成功した後）
+            // 6. ストアを初期状態にリセット（すべての破壊的操作が成功した後）
             set(() => ({
               activeChartId: chart.id,
               chartMetas,
@@ -875,7 +945,7 @@ export const useGraphStore = create<GraphStore>()(
               pauseAutoSave: false,
             }));
 
-            // 6. Undo/Redo履歴をクリア
+            // 7. Undo/Redo履歴をクリア
             useGraphStore.temporal.getState().clear();
           } catch (error) {
             // エラー時はauto-save一時停止を解除

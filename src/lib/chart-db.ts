@@ -136,6 +136,33 @@ export async function setLastActiveChartId(chartId: string | null): Promise<void
 }
 
 /**
+ * 相関図の並び順を取得する
+ * @returns 相関図IDの配列（保存されていない場合はnull）
+ */
+export async function getChartOrder(): Promise<string[] | null> {
+  const db = await initDB();
+  const value = await db.get('appSettings', 'chartOrder');
+  if (value === undefined || value === null) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 相関図の並び順を保存する
+ * @param chartIds - 相関図IDの配列
+ */
+export async function setChartOrder(chartIds: string[]): Promise<void> {
+  const db = await initDB();
+  await db.put('appSettings', JSON.stringify(chartIds), 'chartOrder');
+}
+
+/**
  * すべての相関図を削除する
  */
 export async function deleteAllCharts(): Promise<void> {
