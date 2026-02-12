@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useMemo, useRef, useCallback } from 'react';
+import { useMemo, useRef, useCallback, useEffect } from 'react';
 import {
   ReactFlow,
   Background,
@@ -37,6 +37,7 @@ import { ContextMenu } from './ContextMenu';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { getRelationshipDisplayType } from '@/lib/relationship-utils';
 import { resolveCollisions, DEFAULT_COLLISION_OPTIONS } from '@/lib/collision-resolver';
+import { syncNodePositionsToStore } from '@/lib/graph-utils';
 import type { GraphNode } from '@/types/graph';
 
 // カスタムノードタイプの定義
@@ -58,6 +59,7 @@ export function RelationshipGraph() {
   const persons = useGraphStore((state) => state.persons);
   const relationships = useGraphStore((state) => state.relationships);
   const forceParams = useGraphStore((state) => state.forceParams);
+  const updatePersonPositions = useGraphStore((state) => state.updatePersonPositions);
 
   // React Flow APIを取得
   const { screenToFlowPosition, getNodes } = useReactFlow();
@@ -164,10 +166,27 @@ export function RelationshipGraph() {
         if (resolvedNodes !== currentNodes) {
           setNodes(resolvedNodes as GraphNode[]);
         }
+        // 衝突解消後の位置をストアに書き戻す
+        syncNodePositionsToStore(resolvedNodes, updatePersonPositions);
+      } else {
+        // Force Layout有効時は全ノードの位置を書き戻す（他ノードもシミュレーションで移動するため）
+        const currentNodes = getNodesRef.current();
+        syncNodePositionsToStore(currentNodes, updatePersonPositions);
       }
     },
-    [handleNodeDragEnd, forceEnabled, setNodes]
+    [handleNodeDragEnd, forceEnabled, setNodes, updatePersonPositions]
   );
+
+  // Force Layout無効化時の位置書き戻し
+  const prevForceEnabledRef = useRef(forceEnabled);
+  useEffect(() => {
+    // forceEnabledがtrue→falseに変わった時
+    if (prevForceEnabledRef.current && !forceEnabled) {
+      const currentNodes = getNodesRef.current();
+      syncNodePositionsToStore(currentNodes, updatePersonPositions);
+    }
+    prevForceEnabledRef.current = forceEnabled;
+  }, [forceEnabled, updatePersonPositions]);
 
   return (
     <div className="w-full h-screen relative" onDrop={handleDrop} onDragOver={handleDragOver}>

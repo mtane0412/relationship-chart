@@ -3,10 +3,11 @@
  * Person/Relationship → Node/Edge変換関数の振る舞いを検証
  */
 
-import { describe, it, expect } from 'vitest';
-import { personsToNodes, relationshipsToEdges } from './graph-utils';
+import { describe, it, expect, vi } from 'vitest';
+import { personsToNodes, relationshipsToEdges, syncNodePositionsToStore } from './graph-utils';
 import type { Person } from '@/types/person';
 import type { Relationship } from '@/types/relationship';
+import type { GraphNode } from '@/types/graph';
 
 describe('graph-utils', () => {
   describe('personsToNodes', () => {
@@ -371,6 +372,72 @@ describe('graph-utils', () => {
       expect(edges).toHaveLength(2);
       expect(edges[0].id).toBe('rel-1');
       expect(edges[1].id).toBe('rel-2');
+    });
+  });
+
+  describe('syncNodePositionsToStore', () => {
+    it('空のノード配列でも正常に動作する', () => {
+      const nodes: GraphNode[] = [];
+      const mockUpdatePositions = vi.fn();
+
+      syncNodePositionsToStore(nodes, mockUpdatePositions);
+
+      // 空のMapで呼ばれる
+      expect(mockUpdatePositions).toHaveBeenCalledTimes(1);
+      const calledMap = mockUpdatePositions.mock.calls[0][0] as Map<string, { x: number; y: number }>;
+      expect(calledMap.size).toBe(0);
+    });
+
+    it('単一ノードの位置をMapに変換してコールバックを呼ぶ', () => {
+      const nodes: GraphNode[] = [
+        {
+          id: 'person-1',
+          type: 'person',
+          data: { name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,abc', kind: 'person' },
+          position: { x: 100, y: 200 },
+        },
+      ];
+      const mockUpdatePositions = vi.fn();
+
+      syncNodePositionsToStore(nodes, mockUpdatePositions);
+
+      expect(mockUpdatePositions).toHaveBeenCalledTimes(1);
+      const calledMap = mockUpdatePositions.mock.calls[0][0] as Map<string, { x: number; y: number }>;
+      expect(calledMap.size).toBe(1);
+      expect(calledMap.get('person-1')).toEqual({ x: 100, y: 200 });
+    });
+
+    it('複数ノードの位置をMapに変換してコールバックを呼ぶ', () => {
+      const nodes: GraphNode[] = [
+        {
+          id: 'person-1',
+          type: 'person',
+          data: { name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,abc', kind: 'person' },
+          position: { x: 100, y: 200 },
+        },
+        {
+          id: 'person-2',
+          type: 'person',
+          data: { name: '佐藤花子', imageDataUrl: 'data:image/jpeg;base64,def', kind: 'person' },
+          position: { x: 300, y: 400 },
+        },
+        {
+          id: 'item-1',
+          type: 'item',
+          data: { name: '伝説の剣', imageDataUrl: 'data:image/jpeg;base64,sword', kind: 'item' },
+          position: { x: 500, y: 600 },
+        },
+      ];
+      const mockUpdatePositions = vi.fn();
+
+      syncNodePositionsToStore(nodes, mockUpdatePositions);
+
+      expect(mockUpdatePositions).toHaveBeenCalledTimes(1);
+      const calledMap = mockUpdatePositions.mock.calls[0][0] as Map<string, { x: number; y: number }>;
+      expect(calledMap.size).toBe(3);
+      expect(calledMap.get('person-1')).toEqual({ x: 100, y: 200 });
+      expect(calledMap.get('person-2')).toEqual({ x: 300, y: 400 });
+      expect(calledMap.get('item-1')).toEqual({ x: 500, y: 600 });
     });
   });
 });

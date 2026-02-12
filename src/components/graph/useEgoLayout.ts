@@ -7,6 +7,7 @@ import { useCallback, useRef } from 'react';
 import { useReactFlow } from '@xyflow/react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { computeGraphDistances, computeRadialPositions } from '@/lib/ego-layout';
+import { syncNodePositionsToStore } from '@/lib/graph-utils';
 
 /**
  * イージング関数: easeOutCubic
@@ -53,6 +54,7 @@ export function useEgoLayout(): UseEgoLayoutResult {
   const egoLayoutParams = useGraphStore((state) => state.egoLayoutParams);
   const forceEnabled = useGraphStore((state) => state.forceEnabled);
   const setForceEnabled = useGraphStore((state) => state.setForceEnabled);
+  const updatePersonPositions = useGraphStore((state) => state.updatePersonPositions);
 
   // アニメーションフレームIDを保持（連続クリック時のキャンセル用）
   const animationFrameRef = useRef<number | null>(null);
@@ -128,6 +130,8 @@ export function useEgoLayout(): UseEgoLayoutResult {
           animationFrameRef.current = requestAnimationFrame(animate);
         } else {
           animationFrameRef.current = null;
+          // アニメーション完了時に全ノード位置をストアに書き戻す
+          syncNodePositionsToStore(updatedNodes, updatePersonPositions);
         }
       };
 
@@ -143,6 +147,7 @@ export function useEgoLayout(): UseEgoLayoutResult {
       getNodes,
       setNodes,
       getViewport,
+      updatePersonPositions,
     ]
   );
 

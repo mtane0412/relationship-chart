@@ -489,6 +489,125 @@ describe('useGraphStore', () => {
     });
   });
 
+  describe('updatePersonPositions', () => {
+    it('複数人のノード位置を一括更新できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 3人の人物を追加
+      act(() => {
+        result.current.addPerson({ name: '山田太郎' });
+        result.current.addPerson({ name: '佐藤花子' });
+        result.current.addPerson({ name: '鈴木一郎' });
+      });
+
+      const personId1 = result.current.persons[0].id;
+      const personId2 = result.current.persons[1].id;
+      const personId3 = result.current.persons[2].id;
+
+      // 初期状態では位置は未設定
+      expect(result.current.persons[0].position).toBeUndefined();
+      expect(result.current.persons[1].position).toBeUndefined();
+      expect(result.current.persons[2].position).toBeUndefined();
+
+      // 複数人の位置を一括更新
+      const positions = new Map<string, { x: number; y: number }>([
+        [personId1, { x: 100, y: 200 }],
+        [personId2, { x: 300, y: 400 }],
+        [personId3, { x: 500, y: 600 }],
+      ]);
+
+      act(() => {
+        result.current.updatePersonPositions(positions);
+      });
+
+      // 位置が更新されている
+      expect(result.current.persons[0].position).toEqual({ x: 100, y: 200 });
+      expect(result.current.persons[1].position).toEqual({ x: 300, y: 400 });
+      expect(result.current.persons[2].position).toEqual({ x: 500, y: 600 });
+    });
+
+    it('存在しないIDを含むMapでも他のpersonに影響しない', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 2人の人物を追加
+      act(() => {
+        result.current.addPerson({ name: '山田太郎' });
+        result.current.addPerson({ name: '佐藤花子' });
+      });
+
+      const personId1 = result.current.persons[0].id;
+      const personId2 = result.current.persons[1].id;
+
+      // 存在しないIDを含むMapで更新
+      const positions = new Map<string, { x: number; y: number }>([
+        [personId1, { x: 100, y: 200 }],
+        ['non-existent-id', { x: 999, y: 999 }],
+        [personId2, { x: 300, y: 400 }],
+      ]);
+
+      act(() => {
+        result.current.updatePersonPositions(positions);
+      });
+
+      // 存在するpersonの位置は更新されている
+      expect(result.current.persons[0].position).toEqual({ x: 100, y: 200 });
+      expect(result.current.persons[1].position).toEqual({ x: 300, y: 400 });
+      // エラーは発生せず、他のpersonに影響しない
+      expect(result.current.persons).toHaveLength(2);
+    });
+
+    it('位置未設定のpersonに位置を設定できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 位置未設定で人物を追加
+      act(() => {
+        result.current.addPerson({ name: '山田太郎' });
+      });
+
+      const personId = result.current.persons[0].id;
+
+      // 初期状態では位置は未設定
+      expect(result.current.persons[0].position).toBeUndefined();
+
+      // 位置を設定
+      const positions = new Map<string, { x: number; y: number }>([[personId, { x: 150, y: 250 }]]);
+
+      act(() => {
+        result.current.updatePersonPositions(positions);
+      });
+
+      // 位置が設定されている
+      expect(result.current.persons[0].position).toEqual({ x: 150, y: 250 });
+    });
+
+    it('既に位置が設定されているpersonの位置を更新できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          position: { x: 100, y: 100 },
+        });
+      });
+
+      const personId = result.current.persons[0].id;
+
+      // 初期位置を確認
+      expect(result.current.persons[0].position).toEqual({ x: 100, y: 100 });
+
+      // 位置を更新
+      const positions = new Map<string, { x: number; y: number }>([[personId, { x: 200, y: 300 }]]);
+
+      act(() => {
+        result.current.updatePersonPositions(positions);
+      });
+
+      // 位置が更新されている
+      expect(result.current.persons[0].position).toEqual({ x: 200, y: 300 });
+    });
+  });
+
   describe('selectPerson', () => {
     it('人物を選択できる', () => {
       const { result } = renderHook(() => useGraphStore());
