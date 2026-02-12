@@ -128,13 +128,13 @@ export const PersonNode = memo(({ data, selected, id }: NodeProps) => {
           <img
             src={personData.imageDataUrl}
             alt={personData.name}
-            className={`w-20 h-20 rounded-full object-cover border-4 border-white shadow-xl transition-all duration-200 ${
+            className={`w-20 h-20 rounded-full object-cover border-4 border-white shadow-xl transition-shadow duration-200 ${
               selected || showSourceHandle || showTargetHandle ? 'ring-4 ring-blue-500' : 'ring-2 ring-gray-200'
             }`}
           />
         ) : (
           <div
-            className={`w-20 h-20 rounded-full bg-gray-400 border-4 border-white shadow-xl transition-all duration-200 flex items-center justify-center ${
+            className={`w-20 h-20 rounded-full bg-gray-400 border-4 border-white shadow-xl transition-shadow duration-200 flex items-center justify-center ${
               selected || showSourceHandle || showTargetHandle ? 'ring-4 ring-blue-500' : 'ring-2 ring-gray-200'
             }`}
           >
@@ -146,8 +146,8 @@ export const PersonNode = memo(({ data, selected, id }: NodeProps) => {
       {/* 名前テキスト表示 */}
       {/* z-indexを上げてドラッグ可能にする */}
       <div
-        className={`mt-2 px-3 py-1 bg-white rounded-full shadow-lg transition-all duration-200 ${
-          selected ? 'border-2 border-blue-500' : 'border border-gray-200'
+        className={`mt-2 px-3 py-1 bg-white rounded-full shadow-lg transition-colors duration-200 border-2 ${
+          selected ? 'border-blue-500' : 'border-gray-200'
         }`}
         style={{ zIndex: 10 }}
       >
