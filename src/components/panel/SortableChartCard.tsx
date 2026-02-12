@@ -41,6 +41,7 @@ export function SortableChartCard({
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(chart.name);
   const inputRef = useRef<HTMLInputElement>(null);
+  const isSavingRef = useRef<boolean>(false);
 
   const {
     attributes,
@@ -87,19 +88,38 @@ export function SortableChartCard({
    * 名前変更を保存
    */
   const handleRenameSave = () => {
+    // 既に保存処理中またはキャンセル済みの場合は何もしない
+    if (isSavingRef.current) return;
+
+    // 保存処理開始をマーク
+    isSavingRef.current = true;
+
     const trimmedName = editName.trim();
     if (trimmedName && trimmedName !== chart.name) {
       onRename(chart.id, trimmedName);
     }
     setIsEditing(false);
+
+    // フラグをリセット
+    setTimeout(() => {
+      isSavingRef.current = false;
+    }, 0);
   };
 
   /**
    * 名前変更をキャンセル
    */
   const handleRenameCancel = () => {
+    // 保存処理をブロック
+    isSavingRef.current = true;
+
     setEditName(chart.name);
     setIsEditing(false);
+
+    // フラグをリセット
+    setTimeout(() => {
+      isSavingRef.current = false;
+    }, 0);
   };
 
   /**
@@ -115,6 +135,8 @@ export function SortableChartCard({
       handleRenameSave();
     } else if (e.key === 'Escape') {
       e.preventDefault();
+      // Escapeキーが押された時点で保存処理をブロック（blurより先に設定）
+      isSavingRef.current = true;
       handleRenameCancel();
     }
   };

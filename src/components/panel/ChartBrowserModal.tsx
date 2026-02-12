@@ -41,7 +41,9 @@ export function ChartBrowserModal({ isOpen, onClose }: ChartBrowserModalProps) {
     if (!isOpen) return;
 
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      // 作成モーダルが開いている場合はこのハンドラーをスキップ
+      // （ChartCreateModalのEscapeハンドラーが優先）
+      if (e.key === 'Escape' && !isCreateModalOpen) {
         onClose();
       }
     };
@@ -50,7 +52,7 @@ export function ChartBrowserModal({ isOpen, onClose }: ChartBrowserModalProps) {
     return () => {
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isCreateModalOpen]);
 
   /**
    * チャートをクリックした時の処理
