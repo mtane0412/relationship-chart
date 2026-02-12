@@ -10,6 +10,7 @@ import { X, Plus } from 'lucide-react';
 import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useGraphStore } from '@/stores/useGraphStore';
+import { useDialogStore } from '@/stores/useDialogStore';
 import { SortableChartCard } from './SortableChartCard';
 import { ChartCreateModal } from './ChartCreateModal';
 
@@ -33,6 +34,7 @@ export function ChartBrowserModal({ isOpen, onClose }: ChartBrowserModalProps) {
   const deleteChart = useGraphStore((state) => state.deleteChart);
   const renameChart = useGraphStore((state) => state.renameChart);
   const reorderCharts = useGraphStore((state) => state.reorderCharts);
+  const openConfirm = useDialogStore((state) => state.openConfirm);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
@@ -72,8 +74,23 @@ export function ChartBrowserModal({ isOpen, onClose }: ChartBrowserModalProps) {
   /**
    * チャート削除ハンドラー
    */
-  const handleChartDelete = (chartId: string) => {
-    void deleteChart(chartId);
+  const handleChartDelete = async (chartId: string) => {
+    // 削除対象のチャート名を取得
+    const targetChart = chartMetas.find((m) => m.id === chartId);
+    if (!targetChart) return;
+
+    // 確認ダイアログを表示
+    const confirmed = await openConfirm({
+      title: 'チャートを削除',
+      message: `「${targetChart.name}」を削除してもよろしいですか？\nこの操作は元に戻せません。`,
+      confirmLabel: '削除',
+      isDanger: true,
+    });
+
+    // 確認された場合のみ削除
+    if (confirmed) {
+      void deleteChart(chartId);
+    }
   };
 
   /**

@@ -7,6 +7,7 @@ import { render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { ChartBrowserModal } from './ChartBrowserModal';
 import { useGraphStore } from '@/stores/useGraphStore';
+import { useDialogStore } from '@/stores/useDialogStore';
 import { initDB, closeDB } from '@/lib/chart-db';
 import { nanoid } from 'nanoid';
 
@@ -255,6 +256,9 @@ describe('ChartBrowserModal', () => {
 
     const deleteChartSpy = vi.spyOn(useGraphStore.getState(), 'deleteChart');
 
+    // 確認ダイアログをモック（承認する）
+    const openConfirmSpy = vi.spyOn(useDialogStore.getState(), 'openConfirm').mockResolvedValue(true);
+
     useGraphStore.setState({
       activeChartId: chart1Id,
       chartMetas: [
@@ -282,6 +286,14 @@ describe('ChartBrowserModal', () => {
     // 削除ボタンをクリック（2番目のチャート）
     const deleteButtons = screen.getAllByLabelText(/削除/i);
     await user.click(deleteButtons[1]);
+
+    // 確認ダイアログが表示されたことを確認
+    expect(openConfirmSpy).toHaveBeenCalledWith({
+      title: 'チャートを削除',
+      message: '「相関図 2」を削除してもよろしいですか？\nこの操作は元に戻せません。',
+      confirmLabel: '削除',
+      isDanger: true,
+    });
 
     // deleteChartが呼ばれたことを確認
     expect(deleteChartSpy).toHaveBeenCalledWith(chart2Id);
