@@ -488,6 +488,7 @@ describe('SearchBar', () => {
     });
 
     it('IME変換中のCmd+Kは無視される', async () => {
+      const user = userEvent.setup();
       render(
         <ReactFlowProvider>
           <SearchBar />
@@ -496,9 +497,13 @@ describe('SearchBar', () => {
 
       const combobox = screen.getByRole('combobox') as HTMLInputElement;
 
-      // 検索クエリを入力
-      combobox.value = 'テスト';
-      combobox.blur(); // フォーカスを外す
+      // 事前に入力しておく
+      await user.type(combobox, 'テスト');
+      expect(combobox.value).toBe('テスト');
+
+      // フォーカスを外す
+      combobox.blur();
+      expect(combobox).not.toHaveFocus();
 
       // IME変換中のCmd+Kイベントをシミュレート
       const composingCmdKEvent = new KeyboardEvent('keydown', {
@@ -516,6 +521,7 @@ describe('SearchBar', () => {
     });
 
     it('IME変換確定後のCmd+Kで検索入力フィールドにフォーカスする', async () => {
+      const user = userEvent.setup();
       render(
         <ReactFlowProvider>
           <SearchBar />
@@ -524,9 +530,13 @@ describe('SearchBar', () => {
 
       const combobox = screen.getByRole('combobox') as HTMLInputElement;
 
-      // 検索クエリを入力
-      combobox.value = 'テスト';
-      combobox.blur(); // フォーカスを外す
+      // 事前に入力しておく
+      await user.type(combobox, 'テスト');
+      expect(combobox.value).toBe('テスト');
+
+      // フォーカスを外す
+      combobox.blur();
+      expect(combobox).not.toHaveFocus();
 
       // IME変換確定後のCmd+Kイベントをシミュレート
       const normalCmdKEvent = new KeyboardEvent('keydown', {
