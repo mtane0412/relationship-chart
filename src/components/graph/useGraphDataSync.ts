@@ -118,21 +118,15 @@ export function useGraphDataSync() {
         }
         // レンダリング完了後に衝突解消を適用（measuredが設定されるまで待つ）
         collisionResolutionRafIdRef.current = requestAnimationFrame(() => {
-          // 関数型アップデータを使用して同時更新を上書きしないようにする
-          let resolvedNodesForStore: GraphNode[] | null = null;
-          setNodes((prev) => {
-            const currentNodes = getNodesRef.current();
-            const resolvedNodes = resolveCollisions(currentNodes, DEFAULT_COLLISION_OPTIONS);
-            // resolveCollisionsは変更がない場合に元の配列を返すため、参照等価性でチェック
-            if (resolvedNodes !== currentNodes) {
-              resolvedNodesForStore = resolvedNodes as GraphNode[];
-              return resolvedNodesForStore;
-            }
-            return prev;
-          });
-          // setNodesの外側でストア更新を実行（副作用を避けるため）
-          if (resolvedNodesForStore) {
-            syncNodePositionsToStore(resolvedNodesForStore, updatePersonPositions);
+          // setNodesの外側で計算（React 18の同時レンダリングで安全）
+          const currentNodes = getNodesRef.current();
+          const resolvedNodes = resolveCollisions(currentNodes, DEFAULT_COLLISION_OPTIONS);
+
+          // resolveCollisionsは変更がない場合に元の配列を返すため、参照等価性でチェック
+          if (resolvedNodes !== currentNodes) {
+            // 位置が変更された場合のみ更新
+            setNodes(resolvedNodes as GraphNode[]);
+            syncNodePositionsToStore(resolvedNodes, updatePersonPositions);
           }
           collisionResolutionRafIdRef.current = null;
         });
@@ -161,7 +155,7 @@ export function useGraphDataSync() {
         collisionResolutionRafIdRef.current = null;
       }
     };
-  }, [persons, relationships, setNodes, setEdges, forceEnabled]);
+  }, [persons, relationships, setNodes, setEdges, forceEnabled, updatePersonPositions]);
 
   // 選択状態の変更時に既存ノード/エッジのselectedプロパティのみ更新
   // 配列参照を変更しないようにhasChangedフラグで最適化

@@ -8,7 +8,6 @@ import { useReactFlow } from '@xyflow/react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { computeGraphDistances, computeRadialPositions } from '@/lib/ego-layout';
 import { syncNodePositionsToStore } from '@/lib/graph-utils';
-import type { GraphNode } from '@/types/graph';
 
 /**
  * イージング関数: easeOutCubic
@@ -132,7 +131,7 @@ export function useEgoLayout(): UseEgoLayoutResult {
         } else {
           animationFrameRef.current = null;
           // アニメーション完了時に全ノード位置をストアに書き戻す
-          syncNodePositionsToStore(updatedNodes as GraphNode[], updatePersonPositions);
+          syncNodePositionsToStore(updatedNodes, updatePersonPositions);
         }
       };
 

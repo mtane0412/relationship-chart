@@ -55,11 +55,11 @@ export function relationshipsToEdges(
 
 /**
  * React Flowのノード配列からMapを構築してストアの位置更新関数を呼ぶヘルパー
- * @param nodes - React Flowのノード配列
+ * @param nodes - id と position を持つノード配列
  * @param updatePositions - ストアの位置更新関数
  */
 export function syncNodePositionsToStore(
-  nodes: GraphNode[],
+  nodes: Array<{ id: string; position: { x: number; y: number } }>,
   updatePositions: (positions: Map<string, { x: number; y: number }>) => void
 ): void {
   const positions = new Map<string, { x: number; y: number }>();

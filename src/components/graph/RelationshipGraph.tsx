@@ -167,11 +167,11 @@ export function RelationshipGraph() {
           setNodes(resolvedNodes as GraphNode[]);
         }
         // 衝突解消後の位置をストアに書き戻す
-        syncNodePositionsToStore(resolvedNodes as GraphNode[], updatePersonPositions);
+        syncNodePositionsToStore(resolvedNodes, updatePersonPositions);
       } else {
-        // Force Layout有効時はドラッグノード単体の位置を書き戻す
+        // Force Layout有効時は全ノードの位置を書き戻す（他ノードもシミュレーションで移動するため）
         const currentNodes = getNodesRef.current();
-        syncNodePositionsToStore(currentNodes as GraphNode[], updatePersonPositions);
+        syncNodePositionsToStore(currentNodes, updatePersonPositions);
       }
     },
     [handleNodeDragEnd, forceEnabled, setNodes, updatePersonPositions]
@@ -183,7 +183,7 @@ export function RelationshipGraph() {
     // forceEnabledがtrue→falseに変わった時
     if (prevForceEnabledRef.current && !forceEnabled) {
       const currentNodes = getNodesRef.current();
-      syncNodePositionsToStore(currentNodes as GraphNode[], updatePersonPositions);
+      syncNodePositionsToStore(currentNodes, updatePersonPositions);
     }
     prevForceEnabledRef.current = forceEnabled;
   }, [forceEnabled, updatePersonPositions]);
