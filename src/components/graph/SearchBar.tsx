@@ -103,6 +103,11 @@ export default function SearchBar() {
     function handleKeyDown(event: KeyboardEvent) {
       // Cmd+K (Mac) または Ctrl+K (Windows/Linux)
       if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+        // IME変換中は無視（日本語入力のカタカナ変換などと競合しないようにする）
+        if (event.isComposing) {
+          return;
+        }
+
         event.preventDefault();
         if (inputRef.current) {
           inputRef.current.focus();

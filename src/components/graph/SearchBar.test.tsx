@@ -486,6 +486,67 @@ describe('SearchBar', () => {
         expect(selectPerson).toHaveBeenCalledWith('person1');
       });
     });
+
+    it('IME変換中のCmd+Kは無視される', async () => {
+      render(
+        <ReactFlowProvider>
+          <SearchBar />
+        </ReactFlowProvider>
+      );
+
+      const combobox = screen.getByRole('combobox') as HTMLInputElement;
+
+      // 検索クエリを入力
+      combobox.value = 'テスト';
+      combobox.blur(); // フォーカスを外す
+
+      // IME変換中のCmd+Kイベントをシミュレート
+      const composingCmdKEvent = new KeyboardEvent('keydown', {
+        key: 'k',
+        metaKey: true,
+        bubbles: true,
+        cancelable: true,
+        isComposing: true,
+      });
+
+      window.dispatchEvent(composingCmdKEvent);
+
+      // フォーカスされないことを確認（IME変換中は無視される）
+      expect(combobox).not.toHaveFocus();
+    });
+
+    it('IME変換確定後のCmd+Kで検索入力フィールドにフォーカスする', async () => {
+      render(
+        <ReactFlowProvider>
+          <SearchBar />
+        </ReactFlowProvider>
+      );
+
+      const combobox = screen.getByRole('combobox') as HTMLInputElement;
+
+      // 検索クエリを入力
+      combobox.value = 'テスト';
+      combobox.blur(); // フォーカスを外す
+
+      // IME変換確定後のCmd+Kイベントをシミュレート
+      const normalCmdKEvent = new KeyboardEvent('keydown', {
+        key: 'k',
+        metaKey: true,
+        bubbles: true,
+        cancelable: true,
+        isComposing: false,
+      });
+
+      window.dispatchEvent(normalCmdKEvent);
+
+      await waitFor(() => {
+        // フォーカスされることを確認
+        expect(combobox).toHaveFocus();
+        // 全選択されていることを確認
+        expect(combobox.selectionStart).toBe(0);
+        expect(combobox.selectionEnd).toBe(combobox.value.length);
+      });
+    });
   });
 
   describe('結果選択', () => {
