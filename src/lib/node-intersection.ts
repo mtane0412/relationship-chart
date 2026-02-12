@@ -165,7 +165,7 @@ export function getEdgeIntersectionPoints(
   sourcePoint: { x: number; y: number };
   targetPoint: { x: number; y: number };
 } {
-  // ノードの幅と高さを取得（名前ラベルの幅で可変、デフォルトは画像サイズ）
+  // ノードの幅と高さを取得（名前ラベルはabsolute配置のため、measured.widthは画像サイズ相当）
   // 注: sourceHeight/targetHeightは現在未使用（画像領域のPERSON_IMAGE_SIZEを使用）
   const sourceWidth = sourceNode.measured?.width || PERSON_IMAGE_SIZE;
   const _sourceHeight = sourceNode.measured?.height || PERSON_IMAGE_SIZE;
@@ -173,8 +173,9 @@ export function getEdgeIntersectionPoints(
   const _targetHeight = targetNode.measured?.height || PERSON_IMAGE_SIZE;
 
   // ノードの中心座標を計算
-  // centerX: 名前ラベルの幅に応じて可変
-  // centerY: 画像の中心Y座標で固定（position.y + PERSON_IMAGE_RADIUS）
+  // centerX: 画像の中心X座標（position.x + sourceWidth / 2）
+  // centerY: 画像の中心Y座標（position.y + PERSON_IMAGE_RADIUS）
+  // 注: 名前ラベルはabsolute配置のため、positionは画像の左上を指す
   const sourceCenterX = sourceNode.position.x + sourceWidth / 2;
   const sourceCenterY = sourceNode.position.y + PERSON_IMAGE_RADIUS;
   const targetCenterX = targetNode.position.x + targetWidth / 2;

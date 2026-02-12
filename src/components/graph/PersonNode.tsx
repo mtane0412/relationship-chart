@@ -8,6 +8,7 @@ import { Handle, Position, type NodeProps } from '@xyflow/react';
 import type { PersonNodeData } from '@/types/graph';
 import { useHandleHover } from './useHandleHover';
 import { HANDLE_SIZE, HANDLE_BORDER_WIDTH, HOVER_ZONE_SIZE, HANDLE_CENTER_Y, CENTER_TARGET_SIZE } from './node-constants';
+import { NameLabel } from './NameLabel';
 
 /**
  * 人物ノードコンポーネント
@@ -144,17 +145,12 @@ export const PersonNode = memo(({ data, selected, id }: NodeProps) => {
       </div>
 
       {/* 名前テキスト表示 */}
-      {/* z-indexを上げてドラッグ可能にする */}
-      <div
-        className={`mt-2 px-3 py-1 bg-white rounded-full shadow-lg transition-colors duration-200 border-2 ${
-          selected ? 'border-blue-500' : 'border-gray-200'
-        }`}
-        style={{ zIndex: 10 }}
-      >
-        <div className="text-sm font-medium text-gray-900 whitespace-nowrap">
-          {personData.name}
-        </div>
-      </div>
+      <NameLabel
+        name={personData.name}
+        selected={selected}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      />
     </div>
   );
 });
