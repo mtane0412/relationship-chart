@@ -21,3 +21,6 @@ export const HANDLE_CENTER_Y = 40;
 
 /** 中央ターゲットハンドルのサイズ（px） */
 export const CENTER_TARGET_SIZE = 88;
+
+/** 名前ラベルと画像の間隔（px）= Tailwindのmt-2相当 */
+export const NAME_LABEL_GAP = 8;

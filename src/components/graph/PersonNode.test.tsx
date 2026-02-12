@@ -194,5 +194,34 @@ describe('PersonNode', () => {
       // 未選択状態ではborder-gray-200が適用される
       expect(unselectedNameLabel?.className).toContain('border-gray-200');
     });
+
+    it('名前ラベルがabsolute配置であること（measured.widthに影響しないことを保証）', () => {
+      const { container } = renderWithProvider();
+
+      // 名前ラベル要素を取得
+      const nameLabel = Array.from(container.querySelectorAll('div')).find((div) =>
+        div.className.includes('bg-white rounded-full shadow-lg')
+      );
+
+      // absoluteクラスが適用されていることを確認
+      expect(nameLabel?.className).toContain('absolute');
+    });
+
+    it('名前ラベルが画像の下に水平中央配置されていること', () => {
+      const { container } = renderWithProvider();
+
+      // 名前ラベル要素を取得
+      const nameLabel = Array.from(container.querySelectorAll('div')).find((div) =>
+        div.className.includes('bg-white rounded-full shadow-lg')
+      ) as HTMLElement;
+
+      expect(nameLabel).toBeInTheDocument();
+
+      // スタイルプロパティを確認
+      const style = nameLabel.style;
+      expect(style.top).toBe('88px'); // IMAGE_SIZE(80) + NAME_LABEL_GAP(8) = 88px
+      expect(style.left).toBe('50%');
+      expect(style.transform).toBe('translateX(-50%)');
+    });
   });
 });

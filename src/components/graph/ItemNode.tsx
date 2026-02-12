@@ -8,7 +8,7 @@ import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { Package } from 'lucide-react';
 import type { PersonNodeData } from '@/types/graph';
 import { useHandleHover } from './useHandleHover';
-import { HANDLE_SIZE, HANDLE_BORDER_WIDTH, HOVER_ZONE_SIZE, HANDLE_CENTER_Y, CENTER_TARGET_SIZE } from './node-constants';
+import { HANDLE_SIZE, HANDLE_BORDER_WIDTH, HOVER_ZONE_SIZE, HANDLE_CENTER_Y, CENTER_TARGET_SIZE, IMAGE_SIZE, NAME_LABEL_GAP } from './node-constants';
 
 /**
  * 物ノードコンポーネント
@@ -123,13 +123,13 @@ export const ItemNode = memo(({ data, selected, id }: NodeProps) => {
           <img
             src={itemData.imageDataUrl}
             alt={itemData.name}
-            className={`w-20 h-20 rounded-xl object-cover border-4 border-white shadow-xl transition-all duration-200 ${
+            className={`w-20 h-20 rounded-xl object-cover border-4 border-white shadow-xl transition-shadow duration-200 ${
               selected || showSourceHandle || showTargetHandle ? 'ring-4 ring-blue-500' : 'ring-2 ring-gray-200'
             }`}
           />
         ) : (
           <div
-            className={`w-20 h-20 rounded-xl bg-gray-400 border-4 border-white shadow-xl transition-all duration-200 flex items-center justify-center ${
+            className={`w-20 h-20 rounded-xl bg-gray-400 border-4 border-white shadow-xl transition-shadow duration-200 flex items-center justify-center ${
               selected || showSourceHandle || showTargetHandle ? 'ring-4 ring-blue-500' : 'ring-2 ring-gray-200'
             }`}
           >
@@ -139,12 +139,19 @@ export const ItemNode = memo(({ data, selected, id }: NodeProps) => {
       </div>
 
       {/* 名前テキスト表示 */}
-      {/* z-indexを上げてドラッグ可能にする */}
+      {/* absolute配置でReact Flowのmeasured.widthから除外し、画像の下に水平中央配置 */}
       <div
-        className={`mt-2 px-3 py-1 bg-white rounded-full shadow-lg transition-all duration-200 ${
-          selected ? 'border-2 border-blue-500' : 'border border-gray-200'
+        className={`absolute px-3 py-1 bg-white rounded-full shadow-lg transition-colors duration-200 border-2 ${
+          selected ? 'border-blue-500' : 'border-gray-200'
         }`}
-        style={{ zIndex: 10 }}
+        style={{
+          top: `${IMAGE_SIZE + NAME_LABEL_GAP}px`,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 10,
+        }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         <div className="text-sm font-medium text-gray-900 whitespace-nowrap">
           {itemData.name}
