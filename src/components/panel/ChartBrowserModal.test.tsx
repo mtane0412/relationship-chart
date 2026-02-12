@@ -102,7 +102,7 @@ describe('ChartBrowserModal', () => {
     expect(screen.getByText(/1 node/)).toBeInTheDocument();
   });
 
-  it('アクティブチャートに「現在」バッジが表示される', () => {
+  it('アクティブチャートに「Active」バッジが表示される', () => {
     const chart1Id = nanoid();
     const chart2Id = nanoid();
     const now = new Date().toISOString();
@@ -131,8 +131,8 @@ describe('ChartBrowserModal', () => {
 
     render(<ChartBrowserModal isOpen={true} onClose={mockOnClose} />);
 
-    // 「現在」バッジが表示されることを確認
-    expect(screen.getByText('現在')).toBeInTheDocument();
+    // 「Active」バッジが表示されることを確認
+    expect(screen.getByText('Active')).toBeInTheDocument();
   });
 
   it('チャートクリックでswitchChartが呼ばれてモーダルが閉じる', async () => {
@@ -167,9 +167,9 @@ describe('ChartBrowserModal', () => {
 
     render(<ChartBrowserModal isOpen={true} onClose={mockOnClose} />);
 
-    // 「相関図 2」をクリック
-    const chart2Button = screen.getByText('相関図 2');
-    await user.click(chart2Button);
+    // 「相関図 2」のカード（メタデータ部分）をクリック
+    const chart2Cards = screen.getAllByText(/nodes/);
+    await user.click(chart2Cards[1]); // 2番目のカード（相関図 2）
 
     // switchChartが呼ばれたことを確認
     expect(switchChartSpy).toHaveBeenCalledWith(chart2Id);
@@ -213,13 +213,84 @@ describe('ChartBrowserModal', () => {
     expect(mockOnClose).toHaveBeenCalled();
   });
 
-  it.skip('「+ 新規作成」でcreateChartが呼ばれてモーダルが閉じる', async () => {
-    // 新規作成ボタンはモーダルから削除されたためスキップ
+  it('各チャートカードに削除ボタンが表示される', () => {
+    const chart1Id = nanoid();
+    const chart2Id = nanoid();
+    const now = new Date().toISOString();
+
+    useGraphStore.setState({
+      activeChartId: chart1Id,
+      chartMetas: [
+        {
+          id: chart1Id,
+          name: '相関図 1',
+          personCount: 0,
+          relationshipCount: 0,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: chart2Id,
+          name: '相関図 2',
+          personCount: 0,
+          relationshipCount: 0,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    });
+
+    render(<ChartBrowserModal isOpen={true} onClose={mockOnClose} />);
+
+    // 削除ボタンが2つ表示されることを確認
+    const deleteButtons = screen.getAllByLabelText(/削除/i);
+    expect(deleteButtons).toHaveLength(2);
+  });
+
+  it('削除ボタンクリックでdeleteChartが呼ばれる', async () => {
+    const user = userEvent.setup();
+    const chart1Id = nanoid();
+    const chart2Id = nanoid();
+    const now = new Date().toISOString();
+
+    const deleteChartSpy = vi.spyOn(useGraphStore.getState(), 'deleteChart');
+
+    useGraphStore.setState({
+      activeChartId: chart1Id,
+      chartMetas: [
+        {
+          id: chart1Id,
+          name: '相関図 1',
+          personCount: 0,
+          relationshipCount: 0,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: chart2Id,
+          name: '相関図 2',
+          personCount: 0,
+          relationshipCount: 0,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    });
+
+    render(<ChartBrowserModal isOpen={true} onClose={mockOnClose} />);
+
+    // 削除ボタンをクリック（2番目のチャート）
+    const deleteButtons = screen.getAllByLabelText(/削除/i);
+    await user.click(deleteButtons[1]);
+
+    // deleteChartが呼ばれたことを確認
+    expect(deleteChartSpy).toHaveBeenCalledWith(chart2Id);
+  });
+
+  it('「+ 新規作成」ボタンでChartCreateModalが表示される', async () => {
     const user = userEvent.setup();
     const chartId = nanoid();
     const now = new Date().toISOString();
-
-    const createChartSpy = vi.spyOn(useGraphStore.getState(), 'createChart');
 
     useGraphStore.setState({
       activeChartId: chartId,
@@ -241,11 +312,8 @@ describe('ChartBrowserModal', () => {
     const createButton = screen.getByText(/新規作成/i);
     await user.click(createButton);
 
-    // createChartが呼ばれたことを確認
-    expect(createChartSpy).toHaveBeenCalled();
-
-    // モーダルが閉じられることを確認
-    expect(mockOnClose).toHaveBeenCalled();
+    // ChartCreateModalが表示されることを確認
+    expect(screen.getByText('新しい相関図を作成')).toBeInTheDocument();
   });
 
   it('Escapeキーを押すとモーダルが閉じる', async () => {

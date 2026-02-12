@@ -7,7 +7,6 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { ActiveChartHeader } from './ActiveChartHeader';
 import { useGraphStore } from '@/stores/useGraphStore';
-import { useDialogStore } from '@/stores/useDialogStore';
 import { initDB, closeDB } from '@/lib/chart-db';
 import { nanoid } from 'nanoid';
 
@@ -29,16 +28,9 @@ async function clearIndexedDB() {
 }
 
 describe('ActiveChartHeader', () => {
-  let mockOpenConfirm: ReturnType<typeof vi.fn>;
-
   beforeEach(async () => {
     await initDB();
     useGraphStore.getState().resetAll();
-
-    // openConfirmのモック関数を作成して設定
-    mockOpenConfirm = vi.fn().mockResolvedValue(true);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    useDialogStore.setState({ openConfirm: mockOpenConfirm as any });
   });
 
   afterEach(async () => {
@@ -282,89 +274,7 @@ describe('ActiveChartHeader', () => {
     expect(renameChartSpy).not.toHaveBeenCalled();
   });
 
-  it('ゴミ箱ボタンで確認ダイアログが表示され、削除が実行される', async () => {
-    const user = userEvent.setup();
-    const chartId = nanoid();
-    const now = new Date().toISOString();
-
-    // モックの戻り値をtrueに設定（削除を承認）
-    mockOpenConfirm.mockResolvedValue(true);
-
-    const deleteChartSpy = vi.spyOn(useGraphStore.getState(), 'deleteChart');
-
-    useGraphStore.setState({
-      activeChartId: chartId,
-      chartMetas: [
-        {
-          id: chartId,
-          name: '相関図 1',
-          personCount: 0,
-          relationshipCount: 0,
-          createdAt: now,
-          updatedAt: now,
-        },
-      ],
-    });
-
-    render(<ActiveChartHeader />);
-
-    // ゴミ箱ボタンをクリック
-    const deleteButton = screen.getByLabelText(/削除/i);
-    await user.click(deleteButton);
-
-    // 確認ダイアログが呼ばれたことを確認
-    expect(mockOpenConfirm).toHaveBeenCalledWith({
-      title: 'チャートを削除',
-      message: expect.stringContaining('相関図 1'),
-      confirmLabel: '削除',
-      isDanger: true,
-    });
-
-    // deleteChartが呼ばれたことを確認
-    await waitFor(() => {
-      expect(deleteChartSpy).toHaveBeenCalledWith(chartId);
-    });
-  });
-
-  it.skip('ゴミ箱ボタンで確認ダイアログをキャンセルすると削除されない', async () => {
-    const user = userEvent.setup();
-    const chartId = nanoid();
-    const now = new Date().toISOString();
-
-    // 新しいモック関数を作成してfalseを返すように設定
-    const cancelMock = vi.fn().mockResolvedValue(false);
-    useDialogStore.setState({ openConfirm: cancelMock });
-
-    const deleteChartSpy = vi.spyOn(useGraphStore.getState(), 'deleteChart');
-
-    useGraphStore.setState({
-      activeChartId: chartId,
-      chartMetas: [
-        {
-          id: chartId,
-          name: '相関図 1',
-          personCount: 0,
-          relationshipCount: 0,
-          createdAt: now,
-          updatedAt: now,
-        },
-      ],
-    });
-
-    render(<ActiveChartHeader />);
-
-    // ゴミ箱ボタンをクリック
-    const deleteButton = screen.getByLabelText(/削除/i);
-    await user.click(deleteButton);
-
-    // 確認ダイアログが呼ばれたことを確認
-    expect(cancelMock).toHaveBeenCalled();
-
-    // deleteChartが呼ばれていないことを確認
-    expect(deleteChartSpy).not.toHaveBeenCalled();
-  });
-
-  it('「開く」ボタンでChartBrowserModalが表示される', async () => {
+  it('チャート名クリックでChartBrowserModalが表示される', async () => {
     const user = userEvent.setup();
     const chartId = nanoid();
     const now = new Date().toISOString();
@@ -385,8 +295,8 @@ describe('ActiveChartHeader', () => {
 
     render(<ActiveChartHeader />);
 
-    // 「開く」ボタンをクリック
-    const openButton = screen.getByLabelText(/開く/i);
+    // チャート名の隣のFolderOpenアイコンをクリック
+    const openButton = screen.getByLabelText(/相関図を開く/i);
     await user.click(openButton);
 
     // モーダルが表示されることを確認

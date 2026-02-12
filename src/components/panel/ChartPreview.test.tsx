@@ -98,7 +98,7 @@ describe('ChartPreview', () => {
     expect(screen.getByText('佐')).toBeInTheDocument();
   });
 
-  it('0人の場合に「空の相関図」テキストを表示する', () => {
+  it('0人の場合は何も表示しない', () => {
     const chartId = nanoid();
 
     // ストアに空の人物データを設定
@@ -107,10 +107,12 @@ describe('ChartPreview', () => {
       persons: [],
     });
 
-    render(<ChartPreview chartId={chartId} isActive={true} />);
+    const { container } = render(
+      <ChartPreview chartId={chartId} isActive={true} />
+    );
 
-    // 「空の相関図」テキストが表示されることを確認
-    expect(screen.getByText('空の相関図')).toBeInTheDocument();
+    // 何もレンダリングされないことを確認
+    expect(container.firstChild).toBeNull();
   });
 
   it('表示上限を超える場合は「+N」で超過分を表示する', () => {
@@ -213,18 +215,20 @@ describe('ChartPreview', () => {
     });
   });
 
-  it('IndexedDBから取得したデータがundefinedの場合は「空の相関図」を表示する', async () => {
+  it('IndexedDBから取得したデータがundefinedの場合は何も表示しない', async () => {
     const chartId = nanoid();
 
     // getChartがundefinedを返すようモック
     const getChartMock = vi.spyOn(chartDB, 'getChart');
     getChartMock.mockResolvedValue(undefined);
 
-    render(<ChartPreview chartId={chartId} isActive={false} />);
+    const { container } = render(
+      <ChartPreview chartId={chartId} isActive={false} />
+    );
 
-    // 「空の相関図」テキストが表示されることを確認
+    // 何もレンダリングされないことを確認
     await waitFor(() => {
-      expect(screen.getByText('空の相関図')).toBeInTheDocument();
+      expect(container.firstChild).toBeNull();
     });
   });
 });

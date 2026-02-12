@@ -122,7 +122,7 @@ export function ChartPreview({ chartId, isActive }: ChartPreviewProps) {
   if (isLoading) {
     return (
       <div
-        className="flex items-center gap-1"
+        className="flex items-center"
         data-testid="chart-preview-loading"
         aria-label="読み込み中"
       >
@@ -130,7 +130,8 @@ export function ChartPreview({ chartId, isActive }: ChartPreviewProps) {
         {Array.from({ length: MAX_DISPLAY_COUNT }).map((_, i) => (
           <div
             key={i}
-            className="w-6 h-6 rounded-full bg-gray-200 animate-pulse"
+            className="w-6 h-6 rounded-full bg-gray-200 animate-pulse border-2 border-white"
+            style={{ marginLeft: i === 0 ? 0 : '-0.5rem' }}
           />
         ))}
       </div>
@@ -146,13 +147,9 @@ export function ChartPreview({ chartId, isActive }: ChartPreviewProps) {
     );
   }
 
-  // 0人の場合
+  // 0人の場合は何も表示しない
   if (persons.length === 0) {
-    return (
-      <div className="text-xs text-gray-400" aria-label="空の相関図">
-        空の相関図
-      </div>
-    );
+    return null;
   }
 
   // 表示する人物と超過分
@@ -160,11 +157,12 @@ export function ChartPreview({ chartId, isActive }: ChartPreviewProps) {
   const remainingCount = persons.length - MAX_DISPLAY_COUNT;
 
   return (
-    <div className="flex items-center gap-1" aria-label="人物プレビュー">
-      {displayPersons.map((person) => (
+    <div className="flex items-center" aria-label="人物プレビュー">
+      {displayPersons.map((person, index) => (
         <div
           key={person.id}
-          className="w-6 h-6 rounded-full overflow-hidden flex items-center justify-center text-xs text-white font-semibold"
+          className="w-6 h-6 rounded-full overflow-hidden flex items-center justify-center text-xs text-white font-semibold border-2 border-white"
+          style={{ marginLeft: index === 0 ? 0 : '-0.5rem' }}
           title={person.name}
         >
           {person.imageDataUrl ? (
@@ -188,7 +186,7 @@ export function ChartPreview({ chartId, isActive }: ChartPreviewProps) {
       {/* 超過分の表示 */}
       {remainingCount > 0 && (
         <div
-          className="text-xs text-gray-500 font-semibold"
+          className="text-xs text-gray-500 font-semibold ml-1"
           aria-label={`他${remainingCount}人`}
         >
           +{remainingCount}

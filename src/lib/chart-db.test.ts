@@ -13,6 +13,8 @@ import {
   deleteChart,
   getLastActiveChartId,
   setLastActiveChartId,
+  getChartOrder,
+  setChartOrder,
   closeDB,
 } from './chart-db';
 import type { Chart } from '@/types/chart';
@@ -241,6 +243,33 @@ describe('chart-db', () => {
       await setLastActiveChartId('chart-2');
       const retrieved = await getLastActiveChartId();
       expect(retrieved).toBe('chart-2');
+    });
+  });
+
+  describe('getChartOrder / setChartOrder', () => {
+    it('初期状態ではnullを返す', async () => {
+      const chartOrder = await getChartOrder();
+      expect(chartOrder).toBeNull();
+    });
+
+    it('相関図の並び順を保存・取得できる', async () => {
+      const order = ['chart-3', 'chart-1', 'chart-2'];
+      await setChartOrder(order);
+      const retrieved = await getChartOrder();
+      expect(retrieved).toEqual(order);
+    });
+
+    it('空配列を保存できる', async () => {
+      await setChartOrder([]);
+      const retrieved = await getChartOrder();
+      expect(retrieved).toEqual([]);
+    });
+
+    it('上書き保存できる', async () => {
+      await setChartOrder(['chart-1', 'chart-2']);
+      await setChartOrder(['chart-3', 'chart-4']);
+      const retrieved = await getChartOrder();
+      expect(retrieved).toEqual(['chart-3', 'chart-4']);
     });
   });
 });

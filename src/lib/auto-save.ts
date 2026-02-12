@@ -96,9 +96,7 @@ async function performSave(): Promise<void> {
       return meta;
     });
 
-    // updatedAtの降順にソート（最新のものが先頭）
-    updatedMetas.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-
+    // 並び順は変更しない（chartOrderを維持）
     useGraphStore.setState({ chartMetas: updatedMetas });
     hasPendingSave = false;
     currentSavePromise = null;
