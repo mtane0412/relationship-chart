@@ -2552,12 +2552,17 @@ describe('useGraphStore', () => {
       it('空の状態でリセットしてもエラーにならない', async () => {
         const { result } = renderHook(() => useGraphStore());
 
+        // アプリを初期化（デフォルトチャートが作成される）
+        await act(async () => {
+          await result.current.initializeApp();
+        });
+
+        expect(result.current.chartMetas).toHaveLength(1);
+
         // リセット実行（エラーが発生しないことを確認）
-        await expect(
-          act(async () => {
-            await result.current.resetAllData();
-          })
-        ).resolves.not.toThrow();
+        await act(async () => {
+          await result.current.resetAllData();
+        });
 
         // デフォルトチャートが作成されている
         expect(result.current.chartMetas).toHaveLength(1);

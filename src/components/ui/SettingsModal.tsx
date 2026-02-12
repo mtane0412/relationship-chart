@@ -27,14 +27,45 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const resetAllData = useGraphStore((state) => state.resetAllData);
   const openConfirm = useDialogStore((state) => state.openConfirm);
   const modalRef = useRef<HTMLDivElement>(null);
+  const isConfirmOpenRef = useRef(false);
 
-  // Escapeキーでモーダルを閉じる
+  // モーダル表示時に最初のフォーカス可能な要素にフォーカス
+  useEffect(() => {
+    if (!isOpen || !modalRef.current) return;
+
+    const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusableElements.length > 0) {
+      focusableElements[0].focus();
+    }
+  }, [isOpen]);
+
+  // Escapeキーでモーダルを閉じる & フォーカストラップ
   useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !isConfirmOpenRef.current) {
         onClose();
+        return;
+      }
+
+      // Tab/Shift+Tabでフォーカストラップ
+      if (event.key === 'Tab' && modalRef.current) {
+        const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (event.shiftKey && document.activeElement === firstElement) {
+          event.preventDefault();
+          lastElement.focus();
+        } else if (!event.shiftKey && document.activeElement === lastElement) {
+          event.preventDefault();
+          firstElement.focus();
+        }
       }
     };
 
@@ -47,7 +78,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     if (!isOpen) return;
 
     const handleClickOutside = (event: MouseEvent) => {
-      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+      if (
+        modalRef.current &&
+        !modalRef.current.contains(event.target as Node) &&
+        !isConfirmOpenRef.current
+      ) {
         onClose();
       }
     };
@@ -58,17 +93,24 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   // すべてのデータをリセット
   const handleResetAllData = async () => {
-    const confirmed = await openConfirm({
-      title: 'すべてのデータをリセット',
-      message:
-        'すべての相関図とデータを削除してリセットしてもよろしいですか？\nこの操作は元に戻せません。',
-      confirmLabel: 'リセット',
-      isDanger: true,
-    });
+    try {
+      isConfirmOpenRef.current = true;
+      const confirmed = await openConfirm({
+        title: 'すべてのデータをリセット',
+        message:
+          'すべての相関図とデータを削除してリセットしてもよろしいですか？\nこの操作は元に戻せません。',
+        confirmLabel: 'リセット',
+        isDanger: true,
+      });
 
-    if (confirmed) {
-      await resetAllData();
-      onClose();
+      if (confirmed) {
+        await resetAllData();
+        onClose();
+      }
+    } catch (error) {
+      console.error('データリセット中にエラーが発生しました:', error);
+    } finally {
+      isConfirmOpenRef.current = false;
     }
   };
 

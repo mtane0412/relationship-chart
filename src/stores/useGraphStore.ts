@@ -129,6 +129,29 @@ async function saveCurrentChart(get: () => GraphStore): Promise<void> {
 }
 
 /**
+ * デフォルト空チャート「相関図 1」を作成してIndexedDBに保存する
+ * @returns 作成されたチャート
+ */
+async function createDefaultChart(): Promise<Chart> {
+  const chartId = nanoid();
+  const now = new Date().toISOString();
+  const chart: Chart = {
+    id: chartId,
+    name: '相関図 1',
+    persons: [],
+    relationships: [],
+    forceEnabled: false,
+    forceParams: DEFAULT_FORCE_PARAMS,
+    egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await saveChart(chart);
+  return chart;
+}
+
+/**
  * グラフストアのアクション型
  */
 type GraphActions = {
@@ -533,40 +556,12 @@ export const useGraphStore = create<GraphStore>()(
               } catch (error) {
                 console.error('Failed to migrate from LocalStorage:', error);
                 // マイグレーション失敗時はデフォルトチャートを作成
-                const chartId = nanoid();
-                const now = new Date().toISOString();
-                const chart: Chart = {
-                  id: chartId,
-                  name: '相関図 1',
-                  persons: [],
-                  relationships: [],
-                  forceEnabled: false,
-                  forceParams: DEFAULT_FORCE_PARAMS,
-                  egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
-                  createdAt: now,
-                  updatedAt: now,
-                };
-
-                await saveChart(chart);
+                await createDefaultChart();
                 chartMetas = await getAllChartMetas();
               }
             } else {
               // 3b. デフォルト空チャート「相関図 1」を作成
-              const chartId = nanoid();
-              const now = new Date().toISOString();
-              const chart: Chart = {
-                id: chartId,
-                name: '相関図 1',
-                persons: [],
-                relationships: [],
-                forceEnabled: false,
-                forceParams: DEFAULT_FORCE_PARAMS,
-                egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
-                createdAt: now,
-                updatedAt: now,
-              };
-
-              await saveChart(chart);
+              await createDefaultChart();
               chartMetas = await getAllChartMetas();
             }
           }
@@ -842,32 +837,21 @@ export const useGraphStore = create<GraphStore>()(
         },
 
         resetAllData: async () => {
+          // auto-saveが古いチャートを保存しないように、即座にストア状態をクリア
+          set(() => ({ activeChartId: null, chartMetas: [] }));
+
           // 1. すべてのチャートを削除
           await deleteAllCharts();
 
           // 2. デフォルト空チャートを作成
-          const chartId = nanoid();
-          const now = new Date().toISOString();
-          const chart: Chart = {
-            id: chartId,
-            name: '相関図 1',
-            persons: [],
-            relationships: [],
-            forceEnabled: false,
-            forceParams: DEFAULT_FORCE_PARAMS,
-            egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
-            createdAt: now,
-            updatedAt: now,
-          };
-
-          await saveChart(chart);
+          const chart = await createDefaultChart();
 
           // 3. メタデータを再取得
           const chartMetas = await getAllChartMetas();
 
           // 4. ストアを初期状態にリセット
           set(() => ({
-            activeChartId: chartId,
+            activeChartId: chart.id,
             chartMetas,
             persons: [],
             relationships: [],
@@ -879,7 +863,7 @@ export const useGraphStore = create<GraphStore>()(
           }));
 
           // 5. lastActiveChartIdを更新
-          await setLastActiveChartId(chartId);
+          await setLastActiveChartId(chart.id);
 
           // 6. Undo/Redo履歴をクリア
           useGraphStore.temporal.getState().clear();
