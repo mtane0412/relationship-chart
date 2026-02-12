@@ -70,6 +70,8 @@ type GraphState = {
   isInitialized: boolean;
   /** チャート切り替え中フラグ */
   isLoading: boolean;
+  /** auto-save一時停止フラグ（破壊的操作中にtrueになる） */
+  pauseAutoSave: boolean;
 };
 
 /**
@@ -87,14 +89,20 @@ const INITIAL_STATE: GraphState = {
   chartMetas: [],
   isInitialized: false,
   isLoading: false,
+  pauseAutoSave: false,
 };
 
 /**
  * 現在のストア状態からChartオブジェクトを構築する
  * @param state - ストアの状態
- * @returns Chartオブジェクト（activeChartIdがnullの場合はnull）
+ * @returns Chartオブジェクト（activeChartIdがnullまたはpauseAutoSaveがtrueの場合はnull）
  */
 function buildChartFromState(state: GraphState): Chart | null {
+  // auto-save一時停止中はnullを返す
+  if (state.pauseAutoSave) {
+    return null;
+  }
+
   if (!state.activeChartId) {
     return null;
   }
@@ -837,36 +845,43 @@ export const useGraphStore = create<GraphStore>()(
         },
 
         resetAllData: async () => {
-          // auto-saveが古いチャートを保存しないように、即座にストア状態をクリア
-          set(() => ({ activeChartId: null, chartMetas: [] }));
+          // auto-saveを一時停止
+          set(() => ({ pauseAutoSave: true }));
 
-          // 1. すべてのチャートを削除
-          await deleteAllCharts();
+          try {
+            // 1. すべてのチャートを削除
+            await deleteAllCharts();
 
-          // 2. デフォルト空チャートを作成
-          const chart = await createDefaultChart();
+            // 2. デフォルト空チャートを作成
+            const chart = await createDefaultChart();
 
-          // 3. メタデータを再取得
-          const chartMetas = await getAllChartMetas();
+            // 3. メタデータを再取得
+            const chartMetas = await getAllChartMetas();
 
-          // 4. ストアを初期状態にリセット
-          set(() => ({
-            activeChartId: chart.id,
-            chartMetas,
-            persons: [],
-            relationships: [],
-            forceEnabled: false,
-            forceParams: DEFAULT_FORCE_PARAMS,
-            egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
-            selectedPersonIds: [],
-            sidePanelOpen: true,
-          }));
+            // 4. lastActiveChartIdを更新
+            await setLastActiveChartId(chart.id);
 
-          // 5. lastActiveChartIdを更新
-          await setLastActiveChartId(chart.id);
+            // 5. ストアを初期状態にリセット（すべての破壊的操作が成功した後）
+            set(() => ({
+              activeChartId: chart.id,
+              chartMetas,
+              persons: [],
+              relationships: [],
+              forceEnabled: false,
+              forceParams: DEFAULT_FORCE_PARAMS,
+              egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+              selectedPersonIds: [],
+              sidePanelOpen: true,
+              pauseAutoSave: false,
+            }));
 
-          // 6. Undo/Redo履歴をクリア
-          useGraphStore.temporal.getState().clear();
+            // 6. Undo/Redo履歴をクリア
+            useGraphStore.temporal.getState().clear();
+          } catch (error) {
+            // エラー時はauto-save一時停止を解除
+            set(() => ({ pauseAutoSave: false }));
+            throw error;
+          }
         },
       }),
       {
