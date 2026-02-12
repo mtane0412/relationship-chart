@@ -7,8 +7,20 @@
 
 import { useEffect, useState } from 'react';
 import { X, Plus } from 'lucide-react';
-import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import {
+  DndContext,
+  closestCenter,
+  DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { useDialogStore } from '@/stores/useDialogStore';
 import { SortableChartCard } from './SortableChartCard';
@@ -37,6 +49,14 @@ export function ChartBrowserModal({ isOpen, onClose }: ChartBrowserModalProps) {
   const openConfirm = useDialogStore((state) => state.openConfirm);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // D&Dセンサーの設定（キーボード操作のUX改善）
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Escapeキーでモーダルを閉じる
   useEffect(() => {
@@ -174,7 +194,7 @@ export function ChartBrowserModal({ isOpen, onClose }: ChartBrowserModalProps) {
           </div>
 
           {/* チャート一覧（D&D対応） */}
-          <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext
               items={chartMetas.map((m) => m.id)}
               strategy={verticalListSortingStrategy}

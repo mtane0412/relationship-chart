@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { ChartBrowserModal } from './ChartBrowserModal';
 import { useGraphStore } from '@/stores/useGraphStore';
@@ -35,6 +35,7 @@ describe('ChartBrowserModal', () => {
     await initDB();
     useGraphStore.getState().resetAll();
     mockOnClose.mockClear();
+    vi.clearAllMocks();
   });
 
   afterEach(async () => {
@@ -254,10 +255,57 @@ describe('ChartBrowserModal', () => {
     const chart2Id = nanoid();
     const now = new Date().toISOString();
 
+    useGraphStore.setState({
+      activeChartId: chart1Id,
+      chartMetas: [
+        {
+          id: chart1Id,
+          name: '相関図 1',
+          personCount: 0,
+          relationshipCount: 0,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: chart2Id,
+          name: '相関図 2',
+          personCount: 0,
+          relationshipCount: 0,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    });
+
+    // ストア更新後にスパイを作成
     const deleteChartSpy = vi.spyOn(useGraphStore.getState(), 'deleteChart');
 
     // 確認ダイアログをモック（承認する）
     const openConfirmSpy = vi.spyOn(useDialogStore.getState(), 'openConfirm').mockResolvedValue(true);
+
+    render(<ChartBrowserModal isOpen={true} onClose={mockOnClose} />);
+
+    // 削除ボタンをクリック（2番目のチャート）
+    const deleteButtons = screen.getAllByLabelText(/削除/i);
+    await user.click(deleteButtons[1]);
+
+    // 確認ダイアログが表示されたことを確認
+    expect(openConfirmSpy).toHaveBeenCalledWith({
+      title: 'チャートを削除',
+      message: '「相関図 2」を削除してもよろしいですか？\nこの操作は元に戻せません。',
+      confirmLabel: '削除',
+      isDanger: true,
+    });
+
+    // deleteChartが呼ばれたことを確認
+    expect(deleteChartSpy).toHaveBeenCalledWith(chart2Id);
+  });
+
+  it('削除確認でキャンセルした場合はdeleteChartが呼ばれない', async () => {
+    const user = userEvent.setup();
+    const chart1Id = nanoid();
+    const chart2Id = nanoid();
+    const now = new Date().toISOString();
 
     useGraphStore.setState({
       activeChartId: chart1Id,
@@ -281,22 +329,30 @@ describe('ChartBrowserModal', () => {
       ],
     });
 
+    // ストア更新後にスパイを作成
+    const deleteChartSpy = vi.spyOn(useGraphStore.getState(), 'deleteChart');
+
+    // 確認ダイアログをモック（キャンセルする）
+    const openConfirmSpy = vi.spyOn(useDialogStore.getState(), 'openConfirm').mockResolvedValue(false);
+
     render(<ChartBrowserModal isOpen={true} onClose={mockOnClose} />);
 
     // 削除ボタンをクリック（2番目のチャート）
     const deleteButtons = screen.getAllByLabelText(/削除/i);
     await user.click(deleteButtons[1]);
 
-    // 確認ダイアログが表示されたことを確認
-    expect(openConfirmSpy).toHaveBeenCalledWith({
-      title: 'チャートを削除',
-      message: '「相関図 2」を削除してもよろしいですか？\nこの操作は元に戻せません。',
-      confirmLabel: '削除',
-      isDanger: true,
+    // 確認ダイアログが表示されることを待つ
+    await waitFor(() => {
+      expect(openConfirmSpy).toHaveBeenCalledWith({
+        title: 'チャートを削除',
+        message: '「相関図 2」を削除してもよろしいですか？\nこの操作は元に戻せません。',
+        confirmLabel: '削除',
+        isDanger: true,
+      });
     });
 
-    // deleteChartが呼ばれたことを確認
-    expect(deleteChartSpy).toHaveBeenCalledWith(chart2Id);
+    // deleteChartが呼ばれていないことを確認
+    expect(deleteChartSpy).not.toHaveBeenCalled();
   });
 
   it('「+ 新規作成」ボタンでChartCreateModalが表示される', async () => {

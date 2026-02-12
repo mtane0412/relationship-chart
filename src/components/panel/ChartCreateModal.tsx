@@ -42,6 +42,8 @@ export function ChartCreateModal({ isOpen, onClose }: ChartCreateModalProps) {
 
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        // 親モーダル（ChartBrowserModal）のEscapeハンドラーへの伝播を防ぐ
+        e.stopImmediatePropagation();
         onClose();
       }
     };
