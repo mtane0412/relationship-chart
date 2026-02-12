@@ -17,6 +17,7 @@ import {
   getChart,
   getAllChartMetas,
   deleteChart as deleteChartFromDB,
+  deleteAllCharts,
   getLastActiveChartId,
   setLastActiveChartId,
 } from '@/lib/chart-db';
@@ -69,6 +70,8 @@ type GraphState = {
   isInitialized: boolean;
   /** チャート切り替え中フラグ */
   isLoading: boolean;
+  /** auto-save一時停止フラグ（破壊的操作中にtrueになる） */
+  pauseAutoSave: boolean;
 };
 
 /**
@@ -86,14 +89,20 @@ const INITIAL_STATE: GraphState = {
   chartMetas: [],
   isInitialized: false,
   isLoading: false,
+  pauseAutoSave: false,
 };
 
 /**
  * 現在のストア状態からChartオブジェクトを構築する
  * @param state - ストアの状態
- * @returns Chartオブジェクト（activeChartIdがnullの場合はnull）
+ * @returns Chartオブジェクト（activeChartIdがnullまたはpauseAutoSaveがtrueの場合はnull）
  */
 function buildChartFromState(state: GraphState): Chart | null {
+  // auto-save一時停止中はnullを返す
+  if (state.pauseAutoSave) {
+    return null;
+  }
+
   if (!state.activeChartId) {
     return null;
   }
@@ -125,6 +134,29 @@ async function saveCurrentChart(get: () => GraphStore): Promise<void> {
   if (chart) {
     await saveChart(chart);
   }
+}
+
+/**
+ * デフォルト空チャート「相関図 1」を作成してIndexedDBに保存する
+ * @returns 作成されたチャート
+ */
+async function createDefaultChart(): Promise<Chart> {
+  const chartId = nanoid();
+  const now = new Date().toISOString();
+  const chart: Chart = {
+    id: chartId,
+    name: '相関図 1',
+    persons: [],
+    relationships: [],
+    forceEnabled: false,
+    forceParams: DEFAULT_FORCE_PARAMS,
+    egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await saveChart(chart);
+  return chart;
 }
 
 /**
@@ -273,6 +305,11 @@ type GraphActions = {
    * @param newName - 新しい名前
    */
   renameChart: (chartId: string, newName: string) => Promise<void>;
+
+  /**
+   * すべてのデータをリセットする（全チャート削除 + デフォルトチャート作成）
+   */
+  resetAllData: () => Promise<void>;
 };
 
 /**
@@ -527,40 +564,12 @@ export const useGraphStore = create<GraphStore>()(
               } catch (error) {
                 console.error('Failed to migrate from LocalStorage:', error);
                 // マイグレーション失敗時はデフォルトチャートを作成
-                const chartId = nanoid();
-                const now = new Date().toISOString();
-                const chart: Chart = {
-                  id: chartId,
-                  name: '相関図 1',
-                  persons: [],
-                  relationships: [],
-                  forceEnabled: false,
-                  forceParams: DEFAULT_FORCE_PARAMS,
-                  egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
-                  createdAt: now,
-                  updatedAt: now,
-                };
-
-                await saveChart(chart);
+                await createDefaultChart();
                 chartMetas = await getAllChartMetas();
               }
             } else {
               // 3b. デフォルト空チャート「相関図 1」を作成
-              const chartId = nanoid();
-              const now = new Date().toISOString();
-              const chart: Chart = {
-                id: chartId,
-                name: '相関図 1',
-                persons: [],
-                relationships: [],
-                forceEnabled: false,
-                forceParams: DEFAULT_FORCE_PARAMS,
-                egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
-                createdAt: now,
-                updatedAt: now,
-              };
-
-              await saveChart(chart);
+              await createDefaultChart();
               chartMetas = await getAllChartMetas();
             }
           }
@@ -833,6 +842,46 @@ export const useGraphStore = create<GraphStore>()(
           set(() => ({
             chartMetas: updatedMetas,
           }));
+        },
+
+        resetAllData: async () => {
+          // auto-saveを一時停止
+          set(() => ({ pauseAutoSave: true }));
+
+          try {
+            // 1. すべてのチャートを削除
+            await deleteAllCharts();
+
+            // 2. デフォルト空チャートを作成
+            const chart = await createDefaultChart();
+
+            // 3. メタデータを再取得
+            const chartMetas = await getAllChartMetas();
+
+            // 4. lastActiveChartIdを更新
+            await setLastActiveChartId(chart.id);
+
+            // 5. ストアを初期状態にリセット（すべての破壊的操作が成功した後）
+            set(() => ({
+              activeChartId: chart.id,
+              chartMetas,
+              persons: [],
+              relationships: [],
+              forceEnabled: false,
+              forceParams: DEFAULT_FORCE_PARAMS,
+              egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+              selectedPersonIds: [],
+              sidePanelOpen: true,
+              pauseAutoSave: false,
+            }));
+
+            // 6. Undo/Redo履歴をクリア
+            useGraphStore.temporal.getState().clear();
+          } catch (error) {
+            // エラー時はauto-save一時停止を解除
+            set(() => ({ pauseAutoSave: false }));
+            throw error;
+          }
         },
       }),
       {
