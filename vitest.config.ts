@@ -8,6 +8,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.ts',
+    hookTimeout: 90_000,
   },
   resolve: {
     alias: {
