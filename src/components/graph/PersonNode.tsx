@@ -128,13 +128,13 @@ export const PersonNode = memo(({ data, selected, id }: NodeProps) => {
           <img
             src={personData.imageDataUrl}
             alt={personData.name}
-            className={`w-20 h-20 rounded-full object-cover border-4 border-white shadow-xl transition-[colors,box-shadow] duration-200 ${
+            className={`w-20 h-20 rounded-full object-cover border-4 border-white shadow-xl transition-shadow duration-200 ${
               selected || showSourceHandle || showTargetHandle ? 'ring-4 ring-blue-500' : 'ring-2 ring-gray-200'
             }`}
           />
         ) : (
           <div
-            className={`w-20 h-20 rounded-full bg-gray-400 border-4 border-white shadow-xl transition-[colors,box-shadow] duration-200 flex items-center justify-center ${
+            className={`w-20 h-20 rounded-full bg-gray-400 border-4 border-white shadow-xl transition-shadow duration-200 flex items-center justify-center ${
               selected || showSourceHandle || showTargetHandle ? 'ring-4 ring-blue-500' : 'ring-2 ring-gray-200'
             }`}
           >
