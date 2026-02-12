@@ -57,7 +57,7 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
     }
   };
 
-  // この人物に関連する関係を取得し、dual-directedの場合は2つの関係として展開
+  // この人物に関連する関係を取得し、方向別にグループ化
   type RelationshipItem = {
     relationship: Relationship;
     otherPersonId: string;
@@ -66,24 +66,25 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
     key: string;
   };
 
-  const relatedRelationships: RelationshipItem[] = relationships
-    .filter((r) => r.sourcePersonId === person.id || r.targetPersonId === person.id)
-    .flatMap((relationship): RelationshipItem[] => {
-      // getRelationshipFromPerspectiveを使用して視点ベースの関係情報を取得
-      const perspectiveItems = getRelationshipFromPerspective(relationship, person.id);
-
-      // RelationshipItemの配列に変換
-      return perspectiveItems.map((item, index) => ({
-        relationship,
-        otherPersonId: item.otherPersonId,
-        label: item.label,
-        direction: item.direction === '↔' ? '↔' : item.direction === '→' ? '→' : item.direction === '←' ? '←' : '—',
-        key: perspectiveItems.length > 1 ? `${relationship.id}-${index}` : relationship.id,
-      }));
-    });
-
-  // 関係を方向別にグループ化
+  // 関係を方向別にグループ化（useMemoで最適化）
   const groups = useMemo(() => {
+    // 関連する関係を取得
+    const relatedRelationships: RelationshipItem[] = relationships
+      .filter((r) => r.sourcePersonId === person.id || r.targetPersonId === person.id)
+      .flatMap((relationship): RelationshipItem[] => {
+        // getRelationshipFromPerspectiveを使用して視点ベースの関係情報を取得
+        const perspectiveItems = getRelationshipFromPerspective(relationship, person.id);
+
+        // RelationshipItemの配列に変換
+        return perspectiveItems.map((item, index) => ({
+          relationship,
+          otherPersonId: item.otherPersonId,
+          label: item.label,
+          direction: item.direction === '↔' ? '↔' : item.direction === '→' ? '→' : item.direction === '←' ? '←' : '—',
+          key: perspectiveItems.length > 1 ? `${relationship.id}-${index}` : relationship.id,
+        }));
+      });
+
     // 双方向（↔）を2つのエントリに分割
     const expandedItems: RelationshipItem[] = [];
     for (const item of relatedRelationships) {
@@ -114,7 +115,7 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
       { key: 'outgoing', label: `${person.name} → ...`, items: outgoing },
       { key: 'incoming', label: `... → ${person.name}`, items: incoming },
     ].filter((g) => g.items.length > 0);
-  }, [relatedRelationships, person.name]);
+  }, [relationships, persons, person.id, person.name]);
 
   return (
     <>
