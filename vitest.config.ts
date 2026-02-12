@@ -8,7 +8,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.ts',
-    hookTimeout: 90_000,
+    hookTimeout: 90_000, // Node.js 22.xのIndexedDB遅延への対応
   },
   resolve: {
     alias: {

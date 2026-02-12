@@ -119,7 +119,6 @@ describe('ChartCreateModal', () => {
     const user = userEvent.setup();
 
     const createChartSpy = vi.spyOn(useGraphStore.getState(), 'createChart');
-    createChartSpy.mockClear();
 
     render(<ChartCreateModal isOpen={true} onClose={mockOnClose} />);
 
@@ -143,7 +142,6 @@ describe('ChartCreateModal', () => {
     const user = userEvent.setup();
 
     const createChartSpy = vi.spyOn(useGraphStore.getState(), 'createChart');
-    createChartSpy.mockClear();
 
     render(<ChartCreateModal isOpen={true} onClose={mockOnClose} />);
 
