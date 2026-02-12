@@ -6,7 +6,7 @@
 'use client';
 
 import { PersonList } from './PersonList';
-import { ChartList } from './ChartList';
+import { ActiveChartHeader } from './ActiveChartHeader';
 
 /**
  * デフォルトパネルコンポーネント
@@ -16,8 +16,7 @@ export function DefaultPanel() {
     <div className="p-4 space-y-6">
       {/* チャート管理セクション */}
       <div>
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">相関図</h2>
-        <ChartList />
+        <ActiveChartHeader />
       </div>
 
       {/* 人物管理セクション */}
