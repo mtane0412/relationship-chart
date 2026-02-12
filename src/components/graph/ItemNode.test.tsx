@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { ItemNode } from './ItemNode';
 import { Position } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
@@ -108,22 +108,18 @@ describe('ItemNode', () => {
   it('名前ラベルがabsolute配置であること（measured.widthに影響しないことを保証）', () => {
     const { container } = render(<ItemNode {...(createMockProps(mockDataWithImage) as NodeProps)} />);
 
-    // 名前ラベル要素を取得
-    const nameLabel = Array.from(container.querySelectorAll('div')).find((div) =>
-      div.className.includes('bg-white rounded-full shadow-lg')
-    );
+    // data-testidで名前ラベル要素を取得
+    const nameLabel = within(container).getByTestId('name-label');
 
     // absoluteクラスが適用されていることを確認
-    expect(nameLabel?.className).toContain('absolute');
+    expect(nameLabel.className).toContain('absolute');
   });
 
   it('名前ラベルが画像の下に水平中央配置されていること', () => {
     const { container } = render(<ItemNode {...(createMockProps(mockDataWithImage) as NodeProps)} />);
 
-    // 名前ラベル要素を取得
-    const nameLabel = Array.from(container.querySelectorAll('div')).find((div) =>
-      div.className.includes('bg-white rounded-full shadow-lg')
-    ) as HTMLElement;
+    // data-testidで名前ラベル要素を取得
+    const nameLabel = within(container).getByTestId('name-label') as HTMLElement;
 
     expect(nameLabel).toBeInTheDocument();
 
@@ -142,21 +138,17 @@ describe('ItemNode', () => {
       <ItemNode {...(createMockProps(mockDataWithImage, false) as NodeProps)} />
     );
 
-    // 名前ラベル要素を取得
-    const selectedNameLabel = Array.from(selectedContainer.querySelectorAll('div')).find((div) =>
-      div.className.includes('bg-white rounded-full shadow-lg')
-    );
-    const unselectedNameLabel = Array.from(unselectedContainer.querySelectorAll('div')).find((div) =>
-      div.className.includes('bg-white rounded-full shadow-lg')
-    );
+    // data-testidで名前ラベル要素を取得
+    const selectedNameLabel = within(selectedContainer).getByTestId('name-label');
+    const unselectedNameLabel = within(unselectedContainer).getByTestId('name-label');
 
     // 両方の状態でborder-2が適用されていることを確認
-    expect(selectedNameLabel?.className).toContain('border-2');
-    expect(unselectedNameLabel?.className).toContain('border-2');
+    expect(selectedNameLabel.className).toContain('border-2');
+    expect(unselectedNameLabel.className).toContain('border-2');
 
     // border-2以外のborder-*クラスが存在しないことを確認
-    const selectedBorderClasses = selectedNameLabel?.className.match(/border-\d+/g) || [];
-    const unselectedBorderClasses = unselectedNameLabel?.className.match(/border-\d+/g) || [];
+    const selectedBorderClasses = selectedNameLabel.className.match(/border-\d+/g) || [];
+    const unselectedBorderClasses = unselectedNameLabel.className.match(/border-\d+/g) || [];
 
     expect(selectedBorderClasses).toEqual(['border-2']);
     expect(unselectedBorderClasses).toEqual(['border-2']);
@@ -170,18 +162,14 @@ describe('ItemNode', () => {
       <ItemNode {...(createMockProps(mockDataWithImage, false) as NodeProps)} />
     );
 
-    // 名前ラベル要素を取得
-    const selectedNameLabel = Array.from(selectedContainer.querySelectorAll('div')).find((div) =>
-      div.className.includes('bg-white rounded-full shadow-lg')
-    );
-    const unselectedNameLabel = Array.from(unselectedContainer.querySelectorAll('div')).find((div) =>
-      div.className.includes('bg-white rounded-full shadow-lg')
-    );
+    // data-testidで名前ラベル要素を取得
+    const selectedNameLabel = within(selectedContainer).getByTestId('name-label');
+    const unselectedNameLabel = within(unselectedContainer).getByTestId('name-label');
 
     // 選択状態ではborder-blue-500が適用される
-    expect(selectedNameLabel?.className).toContain('border-blue-500');
+    expect(selectedNameLabel.className).toContain('border-blue-500');
 
     // 未選択状態ではborder-gray-200が適用される
-    expect(unselectedNameLabel?.className).toContain('border-gray-200');
+    expect(unselectedNameLabel.className).toContain('border-gray-200');
   });
 });

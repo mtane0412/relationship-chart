@@ -4,7 +4,7 @@
  * ハンドルの構成（type、id、position）を検証します。
  */
 
-import { render } from '@testing-library/react';
+import { render, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { ReactFlowProvider } from '@xyflow/react';
 import { PersonNode } from './PersonNode';
@@ -154,22 +154,17 @@ describe('PersonNode', () => {
       const { container: selectedContainer } = renderWithProvider(selectedProps);
       const { container: unselectedContainer } = renderWithProvider();
 
-      // 名前ラベル要素（bg-white rounded-full shadow-lgを持つdiv）を取得
-      const selectedNameLabel = Array.from(selectedContainer.querySelectorAll('div')).find((div) =>
-        div.className.includes('bg-white rounded-full shadow-lg')
-      );
-      const unselectedNameLabel = Array.from(unselectedContainer.querySelectorAll('div')).find((div) =>
-        div.className.includes('bg-white rounded-full shadow-lg')
-      );
+      // data-testidで名前ラベル要素を取得
+      const selectedNameLabel = within(selectedContainer).getByTestId('name-label');
+      const unselectedNameLabel = within(unselectedContainer).getByTestId('name-label');
 
       // 両方の状態でborder-2が適用されていることを確認
-      expect(selectedNameLabel?.className).toContain('border-2');
-      expect(unselectedNameLabel?.className).toContain('border-2');
+      expect(selectedNameLabel.className).toContain('border-2');
+      expect(unselectedNameLabel.className).toContain('border-2');
 
-      // border（1px）やborder-1は含まれないことを確認
       // border-2以外のborder-*クラスが存在しないことを確認
-      const selectedBorderClasses = selectedNameLabel?.className.match(/border-\d+/g) || [];
-      const unselectedBorderClasses = unselectedNameLabel?.className.match(/border-\d+/g) || [];
+      const selectedBorderClasses = selectedNameLabel.className.match(/border-\d+/g) || [];
+      const unselectedBorderClasses = unselectedNameLabel.className.match(/border-\d+/g) || [];
 
       expect(selectedBorderClasses).toEqual(['border-2']);
       expect(unselectedBorderClasses).toEqual(['border-2']);
@@ -180,40 +175,32 @@ describe('PersonNode', () => {
       const { container: selectedContainer } = renderWithProvider(selectedProps);
       const { container: unselectedContainer } = renderWithProvider();
 
-      // 名前ラベル要素を取得
-      const selectedNameLabel = Array.from(selectedContainer.querySelectorAll('div')).find((div) =>
-        div.className.includes('bg-white rounded-full shadow-lg')
-      );
-      const unselectedNameLabel = Array.from(unselectedContainer.querySelectorAll('div')).find((div) =>
-        div.className.includes('bg-white rounded-full shadow-lg')
-      );
+      // data-testidで名前ラベル要素を取得
+      const selectedNameLabel = within(selectedContainer).getByTestId('name-label');
+      const unselectedNameLabel = within(unselectedContainer).getByTestId('name-label');
 
       // 選択状態ではborder-blue-500が適用される
-      expect(selectedNameLabel?.className).toContain('border-blue-500');
+      expect(selectedNameLabel.className).toContain('border-blue-500');
 
       // 未選択状態ではborder-gray-200が適用される
-      expect(unselectedNameLabel?.className).toContain('border-gray-200');
+      expect(unselectedNameLabel.className).toContain('border-gray-200');
     });
 
     it('名前ラベルがabsolute配置であること（measured.widthに影響しないことを保証）', () => {
       const { container } = renderWithProvider();
 
-      // 名前ラベル要素を取得
-      const nameLabel = Array.from(container.querySelectorAll('div')).find((div) =>
-        div.className.includes('bg-white rounded-full shadow-lg')
-      );
+      // data-testidで名前ラベル要素を取得
+      const nameLabel = within(container).getByTestId('name-label');
 
       // absoluteクラスが適用されていることを確認
-      expect(nameLabel?.className).toContain('absolute');
+      expect(nameLabel.className).toContain('absolute');
     });
 
     it('名前ラベルが画像の下に水平中央配置されていること', () => {
       const { container } = renderWithProvider();
 
-      // 名前ラベル要素を取得
-      const nameLabel = Array.from(container.querySelectorAll('div')).find((div) =>
-        div.className.includes('bg-white rounded-full shadow-lg')
-      ) as HTMLElement;
+      // data-testidで名前ラベル要素を取得
+      const nameLabel = within(container).getByTestId('name-label') as HTMLElement;
 
       expect(nameLabel).toBeInTheDocument();
 
