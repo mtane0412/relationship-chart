@@ -34,8 +34,10 @@ import { useGraphInteractions } from './useGraphInteractions';
 import { useGraphContextMenuActions } from './useGraphContextMenuActions';
 import { useContextMenu } from './useContextMenu';
 import { ContextMenu } from './ContextMenu';
+import { LayerFilterPanel } from './LayerFilterPanel';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { getRelationshipDisplayType } from '@/lib/relationship-utils';
+import { RELATIONSHIP_LAYERS } from '@/types/relationship';
 import { resolveCollisions, DEFAULT_COLLISION_OPTIONS } from '@/lib/collision-resolver';
 import { syncNodePositionsToStore } from '@/lib/graph-utils';
 import type { GraphNode } from '@/types/graph';
@@ -228,22 +230,26 @@ export function RelationshipGraph() {
         <ForceLayoutPanel />
         <ShareButton />
         <SearchBar />
+        <LayerFilterPanel />
 
         {/* SVGマーカー定義（全エッジで共有） */}
         <svg>
           <defs>
-            {/* 統一された矢印マーカー（グレー） */}
-            <marker
-              id="arrow"
-              viewBox="0 0 10 10"
-              refX="8"
-              refY="5"
-              markerWidth="6"
-              markerHeight="6"
-              orient="auto-start-reverse"
-            >
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b" />
-            </marker>
+            {/* レイヤーごとの矢印マーカー */}
+            {RELATIONSHIP_LAYERS.map((layer) => (
+              <marker
+                key={layer.value}
+                id={`arrow-${layer.value}`}
+                viewBox="0 0 10 10"
+                refX="8"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill={layer.color} />
+              </marker>
+            ))}
             {/* 選択時の矢印マーカー（青） */}
             <marker
               id="arrow-selected"

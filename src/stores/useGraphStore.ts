@@ -7,8 +7,8 @@ import { create } from 'zustand';
 import { temporal } from 'zundo';
 import { nanoid } from 'nanoid';
 import type { Person } from '@/types/person';
-import type { Relationship } from '@/types/relationship';
-import { DEFAULT_LAYER } from '@/types/relationship';
+import type { Relationship, RelationshipLayer } from '@/types/relationship';
+import { DEFAULT_LAYER, RELATIONSHIP_LAYERS } from '@/types/relationship';
 import type { EgoLayoutParams } from '@/lib/ego-layout';
 import { DEFAULT_EGO_LAYOUT_PARAMS } from '@/lib/ego-layout';
 import type { ChartMeta, Chart } from '@/types/chart';
@@ -65,6 +65,8 @@ type GraphState = {
   egoLayoutParams: EgoLayoutParams;
   /** サイドパネルが開いているかどうか */
   sidePanelOpen: boolean;
+  /** 表示するレイヤーのSet（全レイヤーがデフォルト） */
+  visibleLayers: Set<RelationshipLayer>;
   /** アクティブな相関図ID */
   activeChartId: string | null;
   /** 相関図のメタデータリスト */
@@ -88,6 +90,7 @@ const INITIAL_STATE: GraphState = {
   forceParams: DEFAULT_FORCE_PARAMS,
   egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
   sidePanelOpen: true,
+  visibleLayers: new Set(RELATIONSHIP_LAYERS.map((l) => l.value)),
   activeChartId: null,
   chartMetas: [],
   isInitialized: false,
@@ -287,6 +290,12 @@ type GraphActions = {
    * サイドパネルの開閉状態をトグルする
    */
   toggleSidePanel: () => void;
+
+  /**
+   * レイヤーの表示/非表示をトグルする
+   * @param layer - トグルするレイヤー
+   */
+  toggleLayerVisibility: (layer: RelationshipLayer) => void;
 
   /**
    * すべてのデータと状態を初期値にリセットする
@@ -519,6 +528,18 @@ export const useGraphStore = create<GraphStore>()(
           set((state) => ({
             sidePanelOpen: !state.sidePanelOpen,
           })),
+
+        toggleLayerVisibility: (layer) =>
+          set((state) => {
+            // 現在のSetをコピーして更新（Setは参照型のためspreadでコピー）
+            const next = new Set(state.visibleLayers);
+            if (next.has(layer)) {
+              next.delete(layer);
+            } else {
+              next.add(layer);
+            }
+            return { visibleLayers: next };
+          }),
 
         resetAll: () => {
           // データフィールドのみリセット（チャート管理状態は保持）

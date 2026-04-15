@@ -19,6 +19,7 @@ import { useGraphStore } from '@/stores/useGraphStore';
 import { getEdgeIntersectionPoints } from '@/lib/node-intersection';
 import { calculateLabelPositionOnEdge } from '@/lib/edge-label-position';
 import type { RelationshipEdgeData } from '@/types/graph';
+import { RELATIONSHIP_LAYERS } from '@/types/relationship';
 
 /**
  * 関係エッジコンポーネント
@@ -178,27 +179,27 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
     removeRelationship(id);
   };
 
-  // マーカーの設定（選択状態に応じて色を変更）
+  // レイヤーの色を取得（デフォルトはpublic = #64748b）
+  const layerColor =
+    RELATIONSHIP_LAYERS.find((l) => l.value === edgeData.layer)?.color ?? '#64748b';
+
+  // マーカーの設定（選択状態・レイヤーに応じて色を変更）
+  const markerSuffix = selected ? 'selected' : edgeData.layer ?? 'public';
   const markerEnd =
-    edgeData.displayType === 'undirected'
-      ? undefined
-      : selected
-        ? 'url(#arrow-selected)'
-        : 'url(#arrow)';
+    edgeData.displayType === 'undirected' ? undefined : `url(#arrow-${markerSuffix})`;
   const markerStart =
     edgeData.displayType === 'bidirectional' || edgeData.displayType === 'dual-directed'
-      ? selected
-        ? 'url(#arrow-selected)'
-        : 'url(#arrow)'
+      ? `url(#arrow-${markerSuffix})`
       : undefined;
 
-  // エッジのスタイル（選択状態に応じて色と太さを変更）
+  // エッジのスタイル（選択状態・レイヤーに応じて色と太さを変更）
+  const strokeColor = selected ? '#3b82f6' : layerColor;
   const edgeStyle = {
-    stroke: selected ? '#3b82f6' : '#64748b',
+    stroke: strokeColor,
     strokeWidth: selected ? 3.5 : 2,
   };
   const dualDirectedEdgeStyle = {
-    stroke: selected ? '#3b82f6' : '#64748b',
+    stroke: strokeColor,
     strokeWidth: selected ? 3 : 2,
   };
 

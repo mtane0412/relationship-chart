@@ -2111,6 +2111,37 @@ describe('useGraphStore', () => {
     });
   });
 
+  describe('visibleLayers', () => {
+    it('初期状態で全レイヤーが表示されている', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 全4レイヤーが表示状態であること
+      expect(result.current.visibleLayers).toContain('public');
+      expect(result.current.visibleLayers).toContain('hidden');
+      expect(result.current.visibleLayers).toContain('emotional');
+      expect(result.current.visibleLayers).toContain('organizational');
+    });
+
+    it('toggleLayerVisibilityでレイヤーのON/OFFを切り替えられる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // hiddenレイヤーをOFF
+      act(() => {
+        result.current.toggleLayerVisibility('hidden');
+      });
+
+      expect(result.current.visibleLayers).not.toContain('hidden');
+      expect(result.current.visibleLayers).toContain('public');
+
+      // 再度ONに戻す
+      act(() => {
+        result.current.toggleLayerVisibility('hidden');
+      });
+
+      expect(result.current.visibleLayers).toContain('hidden');
+    });
+  });
+
   describe('resetAll', () => {
     it('データが存在する状態からリセットすると全状態が初期値に戻る', () => {
       const { result } = renderHook(() => useGraphStore());

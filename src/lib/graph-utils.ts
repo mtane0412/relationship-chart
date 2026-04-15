@@ -4,7 +4,7 @@
  */
 
 import type { Person } from '@/types/person';
-import type { Relationship } from '@/types/relationship';
+import type { Relationship, RelationshipLayer } from '@/types/relationship';
 import type { GraphNode, RelationshipEdge } from '@/types/graph';
 import { getRelationshipDisplayType } from './relationship-utils';
 
@@ -35,12 +35,20 @@ export function personsToNodes(persons: Person[]): GraphNode[] {
 /**
  * Relationship配列をRelationshipEdge配列に変換する
  * @param relationships - 変換対象のRelationship配列
- * @returns RelationshipEdge配列
+ * @param visibleLayers - 表示するレイヤーのSet。省略時は全レイヤーを表示
+ * @returns RelationshipEdge配列（非表示レイヤーのエッジは除外される）
  */
 export function relationshipsToEdges(
-  relationships: Relationship[]
+  relationships: Relationship[],
+  visibleLayers?: Set<RelationshipLayer>
 ): RelationshipEdge[] {
-  return relationships.map((relationship) => ({
+  // visibleLayersが指定されている場合は非表示レイヤーを除外する
+  const filtered =
+    visibleLayers !== undefined
+      ? relationships.filter((r) => visibleLayers.has(r.layer))
+      : relationships;
+
+  return filtered.map((relationship) => ({
     id: relationship.id,
     source: relationship.sourcePersonId,
     target: relationship.targetPersonId,

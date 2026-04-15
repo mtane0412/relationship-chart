@@ -400,6 +400,78 @@ describe('graph-utils', () => {
       expect(edges[0].id).toBe('rel-1');
       expect(edges[1].id).toBe('rel-2');
     });
+
+    it('visibleLayersを指定すると非表示レイヤーのエッジが除外される', () => {
+      // 同じペア間の表・裏・感情レイヤーの関係
+      const relationships: Relationship[] = [
+        {
+          id: 'rel-public',
+          sourcePersonId: 'person-1',
+          targetPersonId: 'person-2',
+          isDirected: false,
+          sourceToTargetLabel: '同僚',
+          targetToSourceLabel: '同僚',
+          layer: 'public' as const,
+          createdAt: '2026-02-05T00:00:00.000Z',
+        },
+        {
+          id: 'rel-hidden',
+          sourcePersonId: 'person-1',
+          targetPersonId: 'person-2',
+          isDirected: true,
+          sourceToTargetLabel: '正体を知っている',
+          targetToSourceLabel: '正体を知っている',
+          layer: 'hidden' as const,
+          createdAt: '2026-02-05T00:01:00.000Z',
+        },
+        {
+          id: 'rel-emotional',
+          sourcePersonId: 'person-1',
+          targetPersonId: 'person-2',
+          isDirected: true,
+          sourceToTargetLabel: '信頼',
+          targetToSourceLabel: null,
+          layer: 'emotional' as const,
+          createdAt: '2026-02-05T00:02:00.000Z',
+        },
+      ];
+
+      // publicのみ表示
+      const edges = relationshipsToEdges(relationships, new Set(['public']));
+
+      expect(edges).toHaveLength(1);
+      expect(edges[0].id).toBe('rel-public');
+    });
+
+    it('visibleLayersを省略すると全レイヤーのエッジが含まれる', () => {
+      const relationships: Relationship[] = [
+        {
+          id: 'rel-public',
+          sourcePersonId: 'person-1',
+          targetPersonId: 'person-2',
+          isDirected: false,
+          sourceToTargetLabel: '同僚',
+          targetToSourceLabel: '同僚',
+          layer: 'public' as const,
+          createdAt: '2026-02-05T00:00:00.000Z',
+        },
+        {
+          id: 'rel-hidden',
+          sourcePersonId: 'person-1',
+          targetPersonId: 'person-2',
+          isDirected: true,
+          sourceToTargetLabel: '裏の関係',
+          targetToSourceLabel: '裏の関係',
+          layer: 'hidden' as const,
+          createdAt: '2026-02-05T00:01:00.000Z',
+        },
+      ];
+
+      // visibleLayersを省略（全レイヤー表示）
+      const edges = relationshipsToEdges(relationships);
+
+      expect(edges).toHaveLength(2);
+    });
   });
 
   describe('syncNodePositionsToStore', () => {
