@@ -8,6 +8,7 @@ import { temporal } from 'zundo';
 import { nanoid } from 'nanoid';
 import type { Person } from '@/types/person';
 import type { Relationship } from '@/types/relationship';
+import { DEFAULT_LAYER } from '@/types/relationship';
 import type { EgoLayoutParams } from '@/lib/ego-layout';
 import { DEFAULT_EGO_LAYOUT_PARAMS } from '@/lib/ego-layout';
 import type { ChartMeta, Chart } from '@/types/chart';
@@ -128,6 +129,22 @@ function buildChartFromState(state: GraphState): Chart | null {
 }
 
 /**
+ * IndexedDB からロードしたChartのrelationshipsにlayerフィールドを補完する
+ * layerフィールドがない旧形式のデータに対してデフォルト値（'public'）を設定する
+ * @param chart - IndexedDBからロードしたChart
+ * @returns layerフィールドが補完されたChart
+ */
+function normalizeChartLayers(chart: Chart): Chart {
+  return {
+    ...chart,
+    relationships: chart.relationships.map((r) => ({
+      ...r,
+      layer: r.layer ?? DEFAULT_LAYER,
+    })),
+  };
+}
+
+/**
  * 現在のチャートをIndexedDBに保存する
  * @param get - Zustandのgetトラ
  */
@@ -217,7 +234,7 @@ type GraphActions = {
    * 新しい関係を追加する
    * @param relationship - 追加する関係データ（idとcreatedAtは自動生成される）
    */
-  addRelationship: (relationship: Omit<Relationship, 'id' | 'createdAt'>) => void;
+  addRelationship: (relationship: Omit<Relationship, 'id' | 'createdAt' | 'layer'> & { layer?: Relationship['layer'] }) => void;
 
   /**
    * 指定したIDの関係を更新する
@@ -411,13 +428,17 @@ export const useGraphStore = create<GraphStore>()(
 
         addRelationship: (relationship) =>
           set((state) => {
-            // 同じペアの関係が既に存在するかチェック（方向問わず）
+            // 追加するレイヤー（省略時はデフォルト）
+            const layer = relationship.layer ?? DEFAULT_LAYER;
+
+            // 同じペア・同じレイヤーの関係が既に存在するかチェック（方向問わず）
             const isDuplicate = state.relationships.some(
               (r) =>
-                (r.sourcePersonId === relationship.sourcePersonId &&
+                r.layer === layer &&
+                ((r.sourcePersonId === relationship.sourcePersonId &&
                   r.targetPersonId === relationship.targetPersonId) ||
-                (r.sourcePersonId === relationship.targetPersonId &&
-                  r.targetPersonId === relationship.sourcePersonId)
+                  (r.sourcePersonId === relationship.targetPersonId &&
+                    r.targetPersonId === relationship.sourcePersonId))
             );
 
             // 重複している場合は追加しない
@@ -430,6 +451,7 @@ export const useGraphStore = create<GraphStore>()(
                 ...state.relationships,
                 {
                   ...relationship,
+                  layer,
                   id: nanoid(),
                   createdAt: new Date().toISOString(),
                 },
@@ -610,11 +632,12 @@ export const useGraphStore = create<GraphStore>()(
             targetChartId = chartMetas[0].id;
           }
 
-          // 7. チャートをロード
-          const chart = await getChart(targetChartId);
-          if (!chart) {
+          // 7. チャートをロード（layerフィールドがない旧形式のデータを補完）
+          const rawChart = await getChart(targetChartId);
+          if (!rawChart) {
             throw new Error(`Chart not found: ${targetChartId}`);
           }
+          const chart = normalizeChartLayers(rawChart);
 
           // 8. ストアを更新
           set(() => ({
@@ -716,11 +739,12 @@ export const useGraphStore = create<GraphStore>()(
           // 1. 現在のチャートをIndexedDBに保存
           await saveCurrentChart(get);
 
-          // 2. 対象チャートをロード
-          const chart = await getChart(chartId);
-          if (!chart) {
+          // 2. 対象チャートをロード（layerフィールドがない旧形式のデータを補完）
+          const rawChart = await getChart(chartId);
+          if (!rawChart) {
             throw new Error(`Chart not found: ${chartId}`);
           }
+          const chart = normalizeChartLayers(rawChart);
 
           // 3. ストアを更新
           set(() => ({

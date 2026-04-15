@@ -4,7 +4,7 @@
  */
 
 import type { Node as ReactFlowNode, Edge as ReactFlowEdge } from '@xyflow/react';
-import type { RelationshipType } from '@/types/relationship';
+import type { RelationshipLayer, RelationshipType } from '@/types/relationship';
 
 import type { NodeKind } from '@/types/person';
 
@@ -26,6 +26,7 @@ export type RelationshipEdgeData = {
   displayType: RelationshipType;
   sourceToTargetLabel: string | null;
   targetToSourceLabel: string | null;
+  layer: RelationshipLayer;
 };
 
 /**

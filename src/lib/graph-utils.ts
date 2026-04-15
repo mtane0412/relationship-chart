@@ -49,6 +49,7 @@ export function relationshipsToEdges(
       displayType: getRelationshipDisplayType(relationship),
       sourceToTargetLabel: relationship.sourceToTargetLabel,
       targetToSourceLabel: relationship.targetToSourceLabel,
+      layer: relationship.layer,
     },
   }));
 }

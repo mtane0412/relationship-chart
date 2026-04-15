@@ -37,6 +37,7 @@ describe('computeGraphDistances', () => {
         isDirected: true,
         sourceToTargetLabel: 'friend',
         targetToSourceLabel: null,
+        layer: 'public' as const,
         createdAt: '2024-01-01T00:00:00.000Z',
       },
     ];
@@ -63,6 +64,7 @@ describe('computeGraphDistances', () => {
         isDirected: true,
         sourceToTargetLabel: 'one-way',
         targetToSourceLabel: null,
+        layer: 'public' as const,
         createdAt: '2024-01-01T00:00:00.000Z',
       },
     ];
@@ -90,6 +92,7 @@ describe('computeGraphDistances', () => {
         isDirected: false,
         sourceToTargetLabel: 'friend',
         targetToSourceLabel: 'friend',
+        layer: 'public' as const,
         createdAt: '2024-01-01T00:00:00.000Z',
       },
       {
@@ -99,6 +102,7 @@ describe('computeGraphDistances', () => {
         isDirected: false,
         sourceToTargetLabel: 'friend',
         targetToSourceLabel: 'friend',
+        layer: 'public' as const,
         createdAt: '2024-01-01T00:00:00.000Z',
       },
     ];
@@ -127,6 +131,7 @@ describe('computeGraphDistances', () => {
         isDirected: false,
         sourceToTargetLabel: 'friend',
         targetToSourceLabel: 'friend',
+        layer: 'public' as const,
         createdAt: '2024-01-01T00:00:00.000Z',
       },
       {
@@ -136,6 +141,7 @@ describe('computeGraphDistances', () => {
         isDirected: false,
         sourceToTargetLabel: 'friend',
         targetToSourceLabel: 'friend',
+        layer: 'public' as const,
         createdAt: '2024-01-01T00:00:00.000Z',
       },
       {
@@ -145,6 +151,7 @@ describe('computeGraphDistances', () => {
         isDirected: false,
         sourceToTargetLabel: 'best friend',
         targetToSourceLabel: 'best friend',
+        layer: 'public' as const,
         createdAt: '2024-01-01T00:00:00.000Z',
       },
     ];
@@ -173,6 +180,7 @@ describe('computeGraphDistances', () => {
         isDirected: false,
         sourceToTargetLabel: 'friend',
         targetToSourceLabel: 'friend',
+        layer: 'public' as const,
         createdAt: '2024-01-01T00:00:00.000Z',
       },
     ];

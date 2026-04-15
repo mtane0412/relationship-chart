@@ -1060,6 +1060,168 @@ describe('useGraphStore', () => {
       expect(result.current.relationships).toHaveLength(1);
       expect(result.current.relationships[0].sourcePersonId).toBe(personId1);
     });
+
+    it('関係はデフォルトで公開レイヤー（public）として追加される', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 2人の人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+        result.current.addPerson({
+          name: '佐藤花子',
+          imageDataUrl: 'data:image/jpeg;base64,def',
+        });
+      });
+
+      const personId1 = result.current.persons[0].id;
+      const personId2 = result.current.persons[1].id;
+
+      // layerを指定せず関係を追加
+      act(() => {
+        result.current.addRelationship({
+          sourcePersonId: personId1,
+          targetPersonId: personId2,
+          isDirected: true,
+          sourceToTargetLabel: '同僚',
+          targetToSourceLabel: '同僚',
+        });
+      });
+
+      // デフォルトレイヤーが'public'であること
+      expect(result.current.relationships[0].layer).toBe('public');
+    });
+
+    it('同じペア・同じレイヤーの関係は重複して追加できない', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 2人の人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '江戸川コナン',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+        result.current.addPerson({
+          name: '毛利蘭',
+          imageDataUrl: 'data:image/jpeg;base64,def',
+        });
+      });
+
+      const personId1 = result.current.persons[0].id;
+      const personId2 = result.current.persons[1].id;
+
+      // publicレイヤーで関係を追加
+      act(() => {
+        result.current.addRelationship({
+          sourcePersonId: personId1,
+          targetPersonId: personId2,
+          isDirected: false,
+          sourceToTargetLabel: '幼馴染',
+          targetToSourceLabel: '幼馴染',
+          layer: 'public',
+        });
+      });
+
+      expect(result.current.relationships).toHaveLength(1);
+
+      // 同じペア・同じレイヤー（public）で再度追加しようとする
+      act(() => {
+        result.current.addRelationship({
+          sourcePersonId: personId1,
+          targetPersonId: personId2,
+          isDirected: true,
+          sourceToTargetLabel: '好き',
+          targetToSourceLabel: null,
+          layer: 'public',
+        });
+      });
+
+      // 追加されない（1つのまま）
+      expect(result.current.relationships).toHaveLength(1);
+    });
+
+    it('同じペアでもレイヤーが異なれば複数の関係を追加できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 2人の人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '江戸川コナン',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+        result.current.addPerson({
+          name: '灰原哀',
+          imageDataUrl: 'data:image/jpeg;base64,def',
+        });
+      });
+
+      const personId1 = result.current.persons[0].id;
+      const personId2 = result.current.persons[1].id;
+
+      // 表（public）レイヤーで関係を追加
+      act(() => {
+        result.current.addRelationship({
+          sourcePersonId: personId1,
+          targetPersonId: personId2,
+          isDirected: false,
+          sourceToTargetLabel: '同居人・仲間',
+          targetToSourceLabel: '同居人・仲間',
+          layer: 'public',
+        });
+      });
+
+      // 裏（hidden）レイヤーで別の関係を追加
+      act(() => {
+        result.current.addRelationship({
+          sourcePersonId: personId1,
+          targetPersonId: personId2,
+          isDirected: true,
+          sourceToTargetLabel: '正体を知っている',
+          targetToSourceLabel: '正体を知っている',
+          layer: 'hidden',
+        });
+      });
+
+      // 2つの関係が追加されていること
+      expect(result.current.relationships).toHaveLength(2);
+      expect(result.current.relationships[0].layer).toBe('public');
+      expect(result.current.relationships[1].layer).toBe('hidden');
+    });
+
+    it('layerを明示的に指定して関係を追加できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 2人の人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '工藤新一',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+        result.current.addPerson({
+          name: '毛利蘭',
+          imageDataUrl: 'data:image/jpeg;base64,def',
+        });
+      });
+
+      const personId1 = result.current.persons[0].id;
+      const personId2 = result.current.persons[1].id;
+
+      // emotionalレイヤーで関係を追加
+      act(() => {
+        result.current.addRelationship({
+          sourcePersonId: personId1,
+          targetPersonId: personId2,
+          isDirected: true,
+          sourceToTargetLabel: '想い人',
+          targetToSourceLabel: null,
+          layer: 'emotional',
+        });
+      });
+
+      expect(result.current.relationships[0].layer).toBe('emotional');
+    });
   });
 
   describe('updateRelationship', () => {

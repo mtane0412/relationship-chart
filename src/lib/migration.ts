@@ -84,8 +84,8 @@ type GraphStateV2 = {
  * @returns マイグレーション後の状態
  */
 export function migrateGraphState(persistedState: unknown, version: number): unknown {
-  // v6以降は変換不要
-  if (version >= 6) {
+  // v7以降は変換不要
+  if (version >= 7) {
     return persistedState;
   }
 
@@ -117,6 +117,7 @@ export function migrateGraphState(persistedState: unknown, version: number): unk
       isDirected: r.isDirected,
       sourceToTargetLabel: r.label,
       targetToSourceLabel: r.isDirected ? null : r.label, // undirectedの場合は同一ラベル
+      layer: 'public' as const, // v1データはlayerなし → publicをデフォルト設定
       createdAt: r.createdAt,
     }));
 
@@ -141,6 +142,7 @@ export function migrateGraphState(persistedState: unknown, version: number): unk
           isDirected: true,
           sourceToTargetLabel: r.sourceToTargetLabel,
           targetToSourceLabel: r.sourceToTargetLabel, // 同一ラベルにする
+          layer: 'public' as const, // v2データはlayerなし → publicをデフォルト設定
           createdAt: r.createdAt,
         };
       } else if (r.type === 'dual-directed') {
@@ -151,6 +153,7 @@ export function migrateGraphState(persistedState: unknown, version: number): unk
           isDirected: true,
           sourceToTargetLabel: r.sourceToTargetLabel,
           targetToSourceLabel: r.targetToSourceLabel, // そのまま維持
+          layer: 'public' as const,
           createdAt: r.createdAt,
         };
       } else if (r.type === 'one-way') {
@@ -161,6 +164,7 @@ export function migrateGraphState(persistedState: unknown, version: number): unk
           isDirected: true,
           sourceToTargetLabel: r.sourceToTargetLabel,
           targetToSourceLabel: null, // 片方向のみ
+          layer: 'public' as const,
           createdAt: r.createdAt,
         };
       } else {
@@ -172,6 +176,7 @@ export function migrateGraphState(persistedState: unknown, version: number): unk
           isDirected: false,
           sourceToTargetLabel: r.sourceToTargetLabel,
           targetToSourceLabel: r.sourceToTargetLabel, // 同一ラベルにする
+          layer: 'public' as const,
           createdAt: r.createdAt,
         };
       }
@@ -221,6 +226,20 @@ export function migrateGraphState(persistedState: unknown, version: number): unk
         ...v5State,
         egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
       };
+    }
+  }
+
+  // v6からv7への変換（layerフィールドを補完）
+  // v0〜v5からの変換後も必ずここを通るため、すべてのバージョンでlayerが補完される
+  if (version <= 6) {
+    const v6State = state as Partial<PersistedGraphState>;
+    if (v6State.relationships) {
+      v6State.relationships = v6State.relationships.map((r) => ({
+        ...r,
+        // layerフィールドがない場合は'public'をデフォルト値として設定
+        layer: (r as Relationship & { layer?: string }).layer ?? 'public',
+      }));
+      state = v6State;
     }
   }
 

@@ -181,6 +181,7 @@ describe('PairSelectionPanel', () => {
             isDirected: true,
             sourceToTargetLabel: '友人',
             targetToSourceLabel: '友人', // bidirectional: 同じラベル
+            layer: 'public' as const,
             createdAt: '2024-01-01T00:00:00.000Z',
           },
         ],
@@ -328,6 +329,7 @@ describe('PairSelectionPanel', () => {
             isDirected: true,
             sourceToTargetLabel: '好き',
             targetToSourceLabel: '無関心', // dual-directed: 異なるラベル
+            layer: 'public' as const,
             createdAt: '2024-01-01T00:00:00.000Z',
           },
         ],
@@ -368,6 +370,7 @@ describe('PairSelectionPanel', () => {
             isDirected: true,
             sourceToTargetLabel: '上司',
             targetToSourceLabel: null, // one-way: 逆方向ラベルなし
+            layer: 'public' as const,
             createdAt: '2024-01-01T00:00:00.000Z',
           },
         ],
@@ -396,6 +399,7 @@ describe('PairSelectionPanel', () => {
             isDirected: true,
             sourceToTargetLabel: '上司',
             targetToSourceLabel: null, // one-way: 逆方向ラベルなし
+            layer: 'public' as const,
             createdAt: '2024-01-01T00:00:00.000Z',
           },
         ],
@@ -473,6 +477,7 @@ describe('PairSelectionPanel', () => {
             isDirected: true,
             sourceToTargetLabel: '上司',
             targetToSourceLabel: null, // one-way: 逆方向ラベルなし
+            layer: 'public' as const,
             createdAt: '2024-01-01T00:00:00.000Z',
           },
         ],

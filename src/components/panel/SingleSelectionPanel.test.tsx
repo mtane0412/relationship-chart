@@ -65,6 +65,7 @@ describe('SingleSelectionPanel - 関係クリック遷移', () => {
     isDirected: true,
     sourceToTargetLabel: '親友',
     targetToSourceLabel: '親友', // bidirectional: 同じラベル
+    layer: 'public' as const,
     createdAt: '2024-01-03T00:00:00Z',
   };
 
@@ -232,6 +233,7 @@ describe('SingleSelectionPanel - アイコン付き表示', () => {
     isDirected: true,
     sourceToTargetLabel: '親友',
     targetToSourceLabel: '親友', // bidirectional: 同じラベル
+    layer: 'public' as const,
     createdAt: '2024-01-04T00:00:00Z',
   };
 
@@ -242,6 +244,7 @@ describe('SingleSelectionPanel - アイコン付き表示', () => {
     isDirected: true,
     sourceToTargetLabel: '先輩',
     targetToSourceLabel: null, // one-way: 逆方向ラベルなし
+    layer: 'public' as const,
     createdAt: '2024-01-05T00:00:00Z',
   };
 
@@ -372,6 +375,7 @@ describe('SingleSelectionPanel - dual-directed表示', () => {
     isDirected: true,
     sourceToTargetLabel: '好き',
     targetToSourceLabel: '無関心', // dual-directed: 異なるラベル
+    layer: 'public' as const,
     createdAt: '2024-01-03T00:00:00Z',
   };
 
@@ -542,6 +546,7 @@ describe('SingleSelectionPanel - 無方向関係（undirected）', () => {
     isDirected: false, // 無方向
     sourceToTargetLabel: '同一人物',
     targetToSourceLabel: '同一人物',
+    layer: 'public' as const,
     createdAt: '2024-01-03T00:00:00Z',
   };
 

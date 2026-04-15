@@ -16,6 +16,7 @@ describe('getRelationshipDisplayType', () => {
       isDirected: true,
       sourceToTargetLabel: '好き',
       targetToSourceLabel: '好き',
+      layer: 'public' as const,
       createdAt: '2024-01-01T00:00:00.000Z',
     };
 
@@ -30,6 +31,7 @@ describe('getRelationshipDisplayType', () => {
       isDirected: true,
       sourceToTargetLabel: '好き',
       targetToSourceLabel: null,
+      layer: 'public' as const,
       createdAt: '2024-01-01T00:00:00.000Z',
     };
 
@@ -44,6 +46,7 @@ describe('getRelationshipDisplayType', () => {
       isDirected: true,
       sourceToTargetLabel: null,
       targetToSourceLabel: '好き',
+      layer: 'public' as const,
       createdAt: '2024-01-01T00:00:00.000Z',
     };
 
@@ -58,6 +61,7 @@ describe('getRelationshipDisplayType', () => {
       isDirected: true,
       sourceToTargetLabel: '好き',
       targetToSourceLabel: '嫌い',
+      layer: 'public' as const,
       createdAt: '2024-01-01T00:00:00.000Z',
     };
 
@@ -72,6 +76,7 @@ describe('getRelationshipDisplayType', () => {
       isDirected: false,
       sourceToTargetLabel: '同一人物',
       targetToSourceLabel: '同一人物',
+      layer: 'public' as const,
       createdAt: '2024-01-01T00:00:00.000Z',
     };
 
@@ -88,6 +93,7 @@ describe('getRelationshipFromPerspective', () => {
       isDirected: true,
       sourceToTargetLabel: '親子',
       targetToSourceLabel: '親子',
+      layer: 'public' as const,
       createdAt: '2024-01-01T00:00:00.000Z',
     };
 
@@ -114,6 +120,7 @@ describe('getRelationshipFromPerspective', () => {
       isDirected: true,
       sourceToTargetLabel: '片想い',
       targetToSourceLabel: null,
+      layer: 'public' as const,
       createdAt: '2024-01-01T00:00:00.000Z',
     };
 
@@ -140,6 +147,7 @@ describe('getRelationshipFromPerspective', () => {
       isDirected: true,
       sourceToTargetLabel: null,
       targetToSourceLabel: '片想い',
+      layer: 'public' as const,
       createdAt: '2024-01-01T00:00:00.000Z',
     };
 
@@ -166,6 +174,7 @@ describe('getRelationshipFromPerspective', () => {
       isDirected: true,
       sourceToTargetLabel: '好き',
       targetToSourceLabel: '嫌い',
+      layer: 'public' as const,
       createdAt: '2024-01-01T00:00:00.000Z',
     };
 
@@ -194,6 +203,7 @@ describe('getRelationshipFromPerspective', () => {
       isDirected: false,
       sourceToTargetLabel: '同一人物',
       targetToSourceLabel: '同一人物',
+      layer: 'public' as const,
       createdAt: '2024-01-01T00:00:00.000Z',
     };
 
@@ -221,6 +231,7 @@ describe('getRelationshipFromPerspective', () => {
         isDirected: true,
         sourceToTargetLabel: '好き',
         targetToSourceLabel: null,
+        layer: 'public' as const,
         createdAt: '2024-01-01T00:00:00.000Z',
       };
 

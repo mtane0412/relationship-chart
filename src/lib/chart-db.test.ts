@@ -151,6 +151,7 @@ describe('chart-db', () => {
             isDirected: true,
             sourceToTargetLabel: '友達',
             targetToSourceLabel: null,
+            layer: 'public' as const,
             createdAt: '2024-01-02T00:00:00.000Z',
           },
         ],

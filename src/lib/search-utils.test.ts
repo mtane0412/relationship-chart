@@ -36,6 +36,7 @@ describe('searchGraph', () => {
       isDirected: true,
       sourceToTargetLabel: '上司',
       targetToSourceLabel: '部下',
+      layer: 'public' as const,
       createdAt: '2024-01-01T00:00:00Z',
     },
     {
@@ -45,6 +46,7 @@ describe('searchGraph', () => {
       isDirected: false,
       sourceToTargetLabel: '友人',
       targetToSourceLabel: null,
+      layer: 'public' as const,
       createdAt: '2024-01-02T00:00:00Z',
     },
     {
@@ -54,6 +56,7 @@ describe('searchGraph', () => {
       isDirected: true,
       sourceToTargetLabel: '先輩',
       targetToSourceLabel: '後輩',
+      layer: 'public' as const,
       createdAt: '2024-01-03T00:00:00Z',
     },
   ];
@@ -214,6 +217,7 @@ describe('searchGraph', () => {
           isDirected: true,
           sourceToTargetLabel: '友達',
           targetToSourceLabel: null,
+          layer: 'public' as const,
           createdAt: '2024-01-01T00:00:00Z',
         },
       ];
@@ -256,6 +260,7 @@ describe('searchGraph', () => {
           isDirected: true,
           sourceToTargetLabel: '親子',
           targetToSourceLabel: '親子',
+          layer: 'public' as const,
           createdAt: '2024-01-01T00:00:00Z',
         },
       ];
@@ -299,6 +304,7 @@ describe('searchGraph', () => {
           isDirected: true,
           sourceToTargetLabel: '正体を隠している',
           targetToSourceLabel: '新一?',
+          layer: 'public' as const,
           createdAt: '2024-01-01T00:00:00Z',
         },
       ];
@@ -383,6 +389,7 @@ describe('searchGraph', () => {
           isDirected: false,
           sourceToTargetLabel: '友人',
           targetToSourceLabel: null,
+          layer: 'public' as const,
           createdAt: '2024-01-01T00:00:00Z',
         },
       ];
