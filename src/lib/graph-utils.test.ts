@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { personsToNodes, relationshipsToEdges, syncNodePositionsToStore } from './graph-utils';
+import { personsToNodes, relationshipsToEdges, syncNodePositionsToStore, calculateParallelEdgeOffset } from './graph-utils';
 import type { Person } from '@/types/person';
 import type { Relationship } from '@/types/relationship';
 import type { GraphNode } from '@/types/graph';
@@ -282,6 +282,8 @@ describe('graph-utils', () => {
           targetToSourceLabel: '親子',
           layer: 'general',
           weight: null,
+          edgeIndex: 0,
+          totalEdgesInPair: 1,
         },
       });
     });
@@ -550,6 +552,156 @@ describe('graph-utils', () => {
       expect(calledMap.get('person-1')).toEqual({ x: 100, y: 200 });
       expect(calledMap.get('person-2')).toEqual({ x: 300, y: 400 });
       expect(calledMap.get('item-1')).toEqual({ x: 500, y: 600 });
+    });
+  });
+
+  describe('relationshipsToEdges: 同一ペア間の並列描画インデックス', () => {
+    const baseRelationship = {
+      sourcePersonId: 'person-1',
+      targetPersonId: 'person-2',
+      isDirected: true,
+      createdAt: '2026-02-05T00:00:00.000Z',
+    };
+
+    it('同じペアの関係が1件の場合、edgeIndex=0 / totalEdgesInPair=1 になる', () => {
+      const relationships: Relationship[] = [
+        {
+          ...baseRelationship,
+          id: 'rel-1',
+          sourceToTargetLabel: '好き',
+          targetToSourceLabel: null,
+          layer: 'general' as const,
+          weight: null,
+        },
+      ];
+
+      const edges = relationshipsToEdges(relationships);
+
+      expect(edges).toHaveLength(1);
+      expect(edges[0].data?.edgeIndex).toBe(0);
+      expect(edges[0].data?.totalEdgesInPair).toBe(1);
+    });
+
+    it('同じペアの関係が2件の場合、edgeIndex=0,1 / totalEdgesInPair=2 になる', () => {
+      const relationships: Relationship[] = [
+        {
+          ...baseRelationship,
+          id: 'rel-1',
+          sourceToTargetLabel: '好き',
+          targetToSourceLabel: null,
+          layer: 'general' as const,
+          weight: null,
+        },
+        {
+          ...baseRelationship,
+          id: 'rel-2',
+          sourceToTargetLabel: '知っている',
+          targetToSourceLabel: null,
+          layer: 'awareness' as const,
+          weight: null,
+        },
+      ];
+
+      const edges = relationshipsToEdges(relationships);
+
+      expect(edges).toHaveLength(2);
+      expect(edges[0].data?.edgeIndex).toBe(0);
+      expect(edges[0].data?.totalEdgesInPair).toBe(2);
+      expect(edges[1].data?.edgeIndex).toBe(1);
+      expect(edges[1].data?.totalEdgesInPair).toBe(2);
+    });
+
+    it('逆方向の関係（source/targetが入れ替わり）も同一ペアとしてカウントされる', () => {
+      const relationships: Relationship[] = [
+        {
+          ...baseRelationship,
+          id: 'rel-1',
+          sourceToTargetLabel: '上司',
+          targetToSourceLabel: null,
+          layer: 'organizational' as const,
+          weight: null,
+        },
+        {
+          id: 'rel-2',
+          // source/targetが逆
+          sourcePersonId: 'person-2',
+          targetPersonId: 'person-1',
+          isDirected: true,
+          sourceToTargetLabel: '部下',
+          targetToSourceLabel: null,
+          layer: 'emotional' as const,
+          weight: null,
+          createdAt: '2026-02-05T00:00:00.000Z',
+        },
+      ];
+
+      const edges = relationshipsToEdges(relationships);
+
+      expect(edges).toHaveLength(2);
+      expect(edges[0].data?.totalEdgesInPair).toBe(2);
+      expect(edges[1].data?.totalEdgesInPair).toBe(2);
+    });
+
+    it('異なるペアの関係は独立してカウントされる', () => {
+      const relationships: Relationship[] = [
+        {
+          ...baseRelationship,
+          id: 'rel-1',
+          sourceToTargetLabel: '友人',
+          targetToSourceLabel: null,
+          layer: 'general' as const,
+          weight: null,
+        },
+        {
+          id: 'rel-2',
+          sourcePersonId: 'person-1',
+          targetPersonId: 'person-3', // 別のペア
+          isDirected: false,
+          sourceToTargetLabel: '同僚',
+          targetToSourceLabel: null,
+          layer: 'general' as const,
+          weight: null,
+          createdAt: '2026-02-05T00:00:00.000Z',
+        },
+      ];
+
+      const edges = relationshipsToEdges(relationships);
+
+      expect(edges).toHaveLength(2);
+      // 各エッジは独立したペアなので totalEdgesInPair=1
+      expect(edges[0].data?.totalEdgesInPair).toBe(1);
+      expect(edges[1].data?.totalEdgesInPair).toBe(1);
+    });
+  });
+
+  describe('calculateParallelEdgeOffset: 並列エッジの垂直オフセット計算', () => {
+    it('エッジが1本の場合、オフセットは0になる', () => {
+      const offset = calculateParallelEdgeOffset(0, 1, 20);
+      expect(offset).toBe(0);
+    });
+
+    it('エッジが2本の場合、0番目は-spacing/2、1番目は+spacing/2になる', () => {
+      const offset0 = calculateParallelEdgeOffset(0, 2, 20);
+      const offset1 = calculateParallelEdgeOffset(1, 2, 20);
+      expect(offset0).toBe(-10);
+      expect(offset1).toBe(10);
+    });
+
+    it('エッジが3本の場合、中央が0・両端が±spacingになる', () => {
+      const offset0 = calculateParallelEdgeOffset(0, 3, 20);
+      const offset1 = calculateParallelEdgeOffset(1, 3, 20);
+      const offset2 = calculateParallelEdgeOffset(2, 3, 20);
+      expect(offset0).toBe(-20);
+      expect(offset1).toBe(0);
+      expect(offset2).toBe(20);
+    });
+
+    it('spacingを省略するとデフォルト値が使用される', () => {
+      // デフォルトのspacing (20) を使用
+      const offset0 = calculateParallelEdgeOffset(0, 2);
+      const offset1 = calculateParallelEdgeOffset(1, 2);
+      // 合計間隔が正の値であること
+      expect(offset1 - offset0).toBeGreaterThan(0);
     });
   });
 });
