@@ -4,8 +4,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { migrateGraphState } from './migration';
+import { migrateGraphState, migrateV8ToV9 } from './migration';
 import type { Person } from '@/types/person';
+import type { LegacyRelationshipV8 } from '@/types/relationship';
 import { DEFAULT_FORCE_PARAMS } from '@/stores/useGraphStore';
 import { DEFAULT_EGO_LAYOUT_PARAMS } from './ego-layout';
 
@@ -87,7 +88,7 @@ describe('migrateGraphState', () => {
     });
   });
 
-  // v1からv3への変換
+  // v1からv9への変換（v3形式を経由して最終的にv9形式になることを確認）
   describe('v1からv3への変換', () => {
     it('Relationshipの形式を変換する（directed）', () => {
       const person1: Person = {
@@ -117,24 +118,25 @@ describe('migrateGraphState', () => {
         selectedPersonIds: [],
       };
 
-      const result = migrateGraphState(v1State, 1);
+      const result = migrateGraphState(v1State, 1) as {
+        persons: Person[];
+        relationships: Array<{ id: string; isDirected: boolean; forward: { label: string | null }; tags: string[] }>;
+        forceEnabled: boolean;
+        selectedPersonIds: string[];
+      };
 
-      expect(result).toMatchObject({
-        persons: [person1, person2],
-        relationships: [
-          {
-            id: 'rel-1',
-            sourcePersonId: 'person-1',
-            targetPersonId: 'person-2',
-            isDirected: true,
-            sourceToTargetLabel: '好き',
-            targetToSourceLabel: null, // directedの場合はnull
-            createdAt: '2024-01-01T00:00:00.000Z',
-          },
-        ],
-        forceEnabled: false,
-        selectedPersonIds: [],
-      });
+      // v9 形式に変換されること
+      expect(result.persons).toEqual([person1, person2]);
+      expect(result.forceEnabled).toBe(false);
+      expect(result.selectedPersonIds).toEqual([]);
+      expect(result.relationships).toHaveLength(1);
+      // directed なので forward.label に変換される
+      expect(result.relationships[0].id).toBe('rel-1');
+      expect(result.relationships[0].isDirected).toBe(true);
+      expect(result.relationships[0].forward.label).toBe('好き');
+      // general レイヤー由来なのでタグに入る
+      expect(result.relationships[0].tags).toContain('好き');
+      expect(result.relationships[0].tags).toContain('layer-general');
     });
 
     it('Relationshipの形式を変換する（undirected）', () => {
@@ -154,27 +156,25 @@ describe('migrateGraphState', () => {
         selectedPersonIds: [],
       };
 
-      const result = migrateGraphState(v1State, 1);
+      const result = migrateGraphState(v1State, 1) as {
+        relationships: Array<{ id: string; isDirected: boolean; forward: { label: string | null }; tags: string[] }>;
+      };
 
-      expect(result).toMatchObject({
-        relationships: [
-          {
-            id: 'rel-1',
-            sourcePersonId: 'person-1',
-            targetPersonId: 'person-2',
-            isDirected: false,
-            sourceToTargetLabel: '友達',
-            targetToSourceLabel: '友達', // undirectedの場合は同一ラベル
-            createdAt: '2024-01-01T00:00:00.000Z',
-          },
-        ],
-      });
+      // v9 形式に変換されること
+      expect(result.relationships).toHaveLength(1);
+      expect(result.relationships[0].id).toBe('rel-1');
+      expect(result.relationships[0].isDirected).toBe(false);
+      expect(result.relationships[0].forward.label).toBe('友達');
+      // general レイヤー由来なのでタグに入る
+      expect(result.relationships[0].tags).toContain('友達');
+      expect(result.relationships[0].tags).toContain('layer-general');
     });
   });
 
-  // v2からv3への変換
+  // v2からv3への変換（v2→v3→...→v9 の連続変換。最終形は v9 形式になる）
   describe('v2からv3への変換', () => {
     it('bidirectionalタイプを変換する', () => {
+      // 前提条件: v2 形式の bidirectional 関係（親子関係）
       const v2State = {
         persons: [],
         relationships: [
@@ -192,24 +192,36 @@ describe('migrateGraphState', () => {
         selectedPersonIds: [],
       };
 
-      const result = migrateGraphState(v2State, 2);
+      const result = migrateGraphState(v2State, 2) as {
+        relationships: Array<{
+          id: string;
+          sourcePersonId: string;
+          targetPersonId: string;
+          isDirected: boolean;
+          forward: { label: string | null };
+          reverse: { label: string | null };
+          tags: string[];
+        }>;
+      };
 
-      expect(result).toMatchObject({
-        relationships: [
-          {
-            id: 'rel-1',
-            sourcePersonId: 'person-1',
-            targetPersonId: 'person-2',
-            isDirected: true,
-            sourceToTargetLabel: '親子',
-            targetToSourceLabel: '親子', // 同一ラベルに変換
-            createdAt: '2024-01-01T00:00:00.000Z',
-          },
-        ],
-      });
+      // 最終的に v9 形式に変換されること
+      expect(result.relationships).toHaveLength(1);
+      const rel = result.relationships[0];
+      expect(rel.id).toBe('rel-1');
+      expect(rel.sourcePersonId).toBe('person-1');
+      expect(rel.targetPersonId).toBe('person-2');
+      // bidirectional は isDirected: true に変換される
+      expect(rel.isDirected).toBe(true);
+      // sourceToTargetLabel（'親子'）が forward.label に写像されること
+      expect(rel.forward.label).toBe('親子');
+      // bidirectional では両方向に同一ラベルがつくため reverse.label も '親子'
+      expect(rel.reverse.label).toBe('親子');
+      // general レイヤー由来タグが付与されること
+      expect(rel.tags).toContain('layer-general');
     });
 
     it('dual-directedタイプを変換する', () => {
+      // 前提条件: v2 形式の dual-directed 関係（好き / 無関心）
       const v2State = {
         persons: [],
         relationships: [
@@ -227,24 +239,29 @@ describe('migrateGraphState', () => {
         selectedPersonIds: [],
       };
 
-      const result = migrateGraphState(v2State, 2);
+      const result = migrateGraphState(v2State, 2) as {
+        relationships: Array<{
+          isDirected: boolean;
+          forward: { label: string | null };
+          reverse: { label: string | null };
+          tags: string[];
+        }>;
+      };
 
-      expect(result).toMatchObject({
-        relationships: [
-          {
-            id: 'rel-1',
-            sourcePersonId: 'person-1',
-            targetPersonId: 'person-2',
-            isDirected: true,
-            sourceToTargetLabel: '好き',
-            targetToSourceLabel: '無関心', // そのまま維持
-            createdAt: '2024-01-01T00:00:00.000Z',
-          },
-        ],
-      });
+      // 最終的に v9 形式に変換されること
+      expect(result.relationships).toHaveLength(1);
+      const rel = result.relationships[0];
+      // dual-directed は isDirected: true に変換される
+      expect(rel.isDirected).toBe(true);
+      // 各方向のラベルが forward / reverse に写像されること
+      expect(rel.forward.label).toBe('好き');
+      expect(rel.reverse.label).toBe('無関心');
+      // general レイヤー由来タグが付与されること
+      expect(rel.tags).toContain('layer-general');
     });
 
     it('one-wayタイプを変換する', () => {
+      // 前提条件: v2 形式の one-way 関係（片想い）
       const v2State = {
         persons: [],
         relationships: [
@@ -262,24 +279,29 @@ describe('migrateGraphState', () => {
         selectedPersonIds: [],
       };
 
-      const result = migrateGraphState(v2State, 2);
+      const result = migrateGraphState(v2State, 2) as {
+        relationships: Array<{
+          isDirected: boolean;
+          forward: { label: string | null };
+          reverse: { label: string | null };
+          tags: string[];
+        }>;
+      };
 
-      expect(result).toMatchObject({
-        relationships: [
-          {
-            id: 'rel-1',
-            sourcePersonId: 'person-1',
-            targetPersonId: 'person-2',
-            isDirected: true,
-            sourceToTargetLabel: '片想い',
-            targetToSourceLabel: null, // 片方向のみ
-            createdAt: '2024-01-01T00:00:00.000Z',
-          },
-        ],
-      });
+      // 最終的に v9 形式に変換されること
+      expect(result.relationships).toHaveLength(1);
+      const rel = result.relationships[0];
+      // one-way は isDirected: true に変換される
+      expect(rel.isDirected).toBe(true);
+      // forward.label のみ設定され、reverse.label は null のまま
+      expect(rel.forward.label).toBe('片想い');
+      expect(rel.reverse.label).toBeNull();
+      // general レイヤー由来タグが付与されること
+      expect(rel.tags).toContain('layer-general');
     });
 
     it('undirectedタイプを変換する', () => {
+      // 前提条件: v2 形式の undirected 関係（同級生）
       const v2State = {
         persons: [],
         relationships: [
@@ -297,21 +319,25 @@ describe('migrateGraphState', () => {
         selectedPersonIds: [],
       };
 
-      const result = migrateGraphState(v2State, 2);
+      const result = migrateGraphState(v2State, 2) as {
+        relationships: Array<{
+          isDirected: boolean;
+          forward: { label: string | null };
+          reverse: { label: string | null };
+          tags: string[];
+        }>;
+      };
 
-      expect(result).toMatchObject({
-        relationships: [
-          {
-            id: 'rel-1',
-            sourcePersonId: 'person-1',
-            targetPersonId: 'person-2',
-            isDirected: false,
-            sourceToTargetLabel: '同級生',
-            targetToSourceLabel: '同級生', // 同一ラベルに変換
-            createdAt: '2024-01-01T00:00:00.000Z',
-          },
-        ],
-      });
+      // 最終的に v9 形式に変換されること
+      expect(result.relationships).toHaveLength(1);
+      const rel = result.relationships[0];
+      // undirected は isDirected: false のまま
+      expect(rel.isDirected).toBe(false);
+      // v3 で両方向に同一ラベルがつくため forward / reverse ともに '同級生'
+      expect(rel.forward.label).toBe('同級生');
+      expect(rel.reverse.label).toBe('同級生');
+      // general レイヤー由来タグが付与されること
+      expect(rel.tags).toContain('layer-general');
     });
   });
 
@@ -434,9 +460,10 @@ describe('migrateGraphState', () => {
     });
   });
 
-  // v6からv7への変換（layerフィールドの補完）→v8も連続適用される
+  // v6からv7への変換（layerフィールドの補完）→v8→v9も連続適用される
   describe('v6からv7への変換', () => {
-    it('layerフィールドがないrelationshipsにgeneralを補完する（v7→v8も連続適用）', () => {
+    it('layerフィールドがないrelationshipsにgeneralを補完する（v7→v8→v9も連続適用）', () => {
+      // 前提条件: layer フィールドなしの v6 形式データ
       const v6State = {
         persons: [],
         relationships: [
@@ -458,21 +485,26 @@ describe('migrateGraphState', () => {
         egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
       };
 
-      const result = migrateGraphState(v6State, 6);
+      const result = migrateGraphState(v6State, 6) as {
+        relationships: Array<{
+          id: string;
+          forward: { label: string | null };
+          tags: string[];
+        }>;
+      };
 
-      // layerフィールドのないrelationshipsにgeneralが補完される
-      expect(result).toMatchObject({
-        relationships: [
-          {
-            id: 'rel-1',
-            layer: 'general',
-            weight: null,
-          },
-        ],
-      });
+      // layer なし → general を補完 → v9 形式に変換されること
+      expect(result.relationships).toHaveLength(1);
+      const rel = result.relationships[0];
+      expect(rel.id).toBe('rel-1');
+      // general レイヤーとして処理されるため forward.label に変換されること
+      expect(rel.forward.label).toBe('幼馴染');
+      // general レイヤー由来タグが付与されること
+      expect(rel.tags).toContain('layer-general');
     });
 
-    it('hiddenレイヤーのrelationshipsはv8でgeneralにリネームされる', () => {
+    it('hiddenレイヤーのrelationshipsはv8でgeneralにリネームされv9に変換される', () => {
+      // 前提条件: layer='hidden' の v6 形式データ
       const v6State = {
         persons: [],
         relationships: [
@@ -494,24 +526,28 @@ describe('migrateGraphState', () => {
         egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
       };
 
-      const result = migrateGraphState(v6State, 6);
+      const result = migrateGraphState(v6State, 6) as {
+        relationships: Array<{
+          id: string;
+          forward: { label: string | null };
+          tags: string[];
+        }>;
+      };
 
-      // v8でhidden→generalにリネームされる
-      expect(result).toMatchObject({
-        relationships: [
-          {
-            id: 'rel-1',
-            layer: 'general',
-            weight: null,
-          },
-        ],
-      });
+      // v8 で hidden→general にリネームされ、v9 形式に変換されること
+      expect(result.relationships).toHaveLength(1);
+      const rel = result.relationships[0];
+      expect(rel.id).toBe('rel-1');
+      // hidden は v8 で general にリネームされるため、general レイヤーとして処理される
+      expect(rel.forward.label).toBe('正体を知っている');
+      expect(rel.tags).toContain('layer-general');
     });
   });
 
-  // v7からv8への変換（レイヤーリネーム + weightフィールドの追加）
+  // v7からv8への変換（レイヤーリネーム + weightフィールドの追加）→ v9 も連続適用
   describe('v7からv8への変換', () => {
-    it('publicレイヤーをgeneralにリネームする', () => {
+    it('publicレイヤーをgeneralにリネームしてv9形式に変換する', () => {
+      // 前提条件: layer='public' の v7 形式データ（旧 public レイヤー）
       const v7State = {
         persons: [],
         relationships: [
@@ -533,16 +569,24 @@ describe('migrateGraphState', () => {
         egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
       };
 
-      const result = migrateGraphState(v7State, 7);
+      const result = migrateGraphState(v7State, 7) as {
+        relationships: Array<{
+          id: string;
+          forward: { label: string | null };
+          tags: string[];
+        }>;
+      };
 
-      expect(result).toMatchObject({
-        relationships: [
-          { id: 'rel-1', layer: 'general', weight: null },
-        ],
-      });
+      // v8 で public→general にリネームされ、v9 形式に変換されること
+      expect(result.relationships).toHaveLength(1);
+      const rel = result.relationships[0];
+      expect(rel.id).toBe('rel-1');
+      expect(rel.forward.label).toBe('友人');
+      expect(rel.tags).toContain('layer-general');
     });
 
-    it('hiddenレイヤーをgeneralにリネームする', () => {
+    it('hiddenレイヤーをgeneralにリネームしてv9形式に変換する', () => {
+      // 前提条件: layer='hidden' の v7 形式データ
       const v7State = {
         persons: [],
         relationships: [
@@ -564,16 +608,24 @@ describe('migrateGraphState', () => {
         egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
       };
 
-      const result = migrateGraphState(v7State, 7);
+      const result = migrateGraphState(v7State, 7) as {
+        relationships: Array<{
+          id: string;
+          forward: { label: string | null };
+          tags: string[];
+        }>;
+      };
 
-      expect(result).toMatchObject({
-        relationships: [
-          { id: 'rel-1', layer: 'general', weight: null },
-        ],
-      });
+      // v8 で hidden→general にリネームされ、v9 形式に変換されること
+      expect(result.relationships).toHaveLength(1);
+      const rel = result.relationships[0];
+      expect(rel.id).toBe('rel-1');
+      expect(rel.forward.label).toBe('正体を知っている');
+      expect(rel.tags).toContain('layer-general');
     });
 
-    it('emotionalレイヤーはそのまま維持する', () => {
+    it('emotionalレイヤーが v9 の emotional タグに変換される', () => {
+      // 前提条件: layer='emotional' の v7 形式データ（weight なし）
       const v7State = {
         persons: [],
         relationships: [
@@ -595,16 +647,24 @@ describe('migrateGraphState', () => {
         egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
       };
 
-      const result = migrateGraphState(v7State, 7);
+      const result = migrateGraphState(v7State, 7) as {
+        relationships: Array<{
+          id: string;
+          forward: { label: string | null };
+          tags: string[];
+        }>;
+      };
 
-      expect(result).toMatchObject({
-        relationships: [
-          { id: 'rel-1', layer: 'emotional', weight: null },
-        ],
-      });
+      // emotional レイヤーは v9 の layer-emotional タグに変換されること
+      expect(result.relationships).toHaveLength(1);
+      const rel = result.relationships[0];
+      expect(rel.id).toBe('rel-1');
+      expect(rel.forward.label).toBe('好き');
+      expect(rel.tags).toContain('layer-emotional');
     });
 
-    it('organizationalレイヤーはそのまま維持する', () => {
+    it('organizationalレイヤーのラベルがタグに変換される', () => {
+      // 前提条件: layer='organizational' の v7 形式データ
       const v7State = {
         persons: [],
         relationships: [
@@ -626,16 +686,25 @@ describe('migrateGraphState', () => {
         egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
       };
 
-      const result = migrateGraphState(v7State, 7);
+      const result = migrateGraphState(v7State, 7) as {
+        relationships: Array<{
+          id: string;
+          forward: { label: string | null };
+          tags: string[];
+        }>;
+      };
 
-      expect(result).toMatchObject({
-        relationships: [
-          { id: 'rel-1', layer: 'organizational', weight: null },
-        ],
-      });
+      // organizational のラベルがタグに変換されること
+      expect(result.relationships).toHaveLength(1);
+      const rel = result.relationships[0];
+      expect(rel.id).toBe('rel-1');
+      expect(rel.forward.label).toBe('上司');
+      expect(rel.tags).toContain('上司');
+      expect(rel.tags).toContain('layer-organizational');
     });
 
-    it('既存のweightフィールドがある場合はそのまま維持する', () => {
+    it('既存のweightフィールドがある場合はclosenessに変換される', () => {
+      // 前提条件: emotional レイヤーで weight=0.8 が設定されている v7 形式データ
       const v7State = {
         persons: [],
         relationships: [
@@ -658,16 +727,22 @@ describe('migrateGraphState', () => {
         egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
       };
 
-      const result = migrateGraphState(v7State, 7);
+      const result = migrateGraphState(v7State, 7) as {
+        relationships: Array<{
+          id: string;
+          symmetric: { closeness: number | null };
+        }>;
+      };
 
-      expect(result).toMatchObject({
-        relationships: [
-          { id: 'rel-1', weight: 0.8 },
-        ],
-      });
+      // weight=0.8 が v9 の symmetric.closeness に写像されること
+      expect(result.relationships).toHaveLength(1);
+      const rel = result.relationships[0];
+      expect(rel.id).toBe('rel-1');
+      expect(rel.symmetric.closeness).toBe(0.8);
     });
 
-    it('複数のrelationshipsが混在している場合にすべて正しくマイグレーションされる', () => {
+    it('同一ペアの複数レイヤーが1本のv9エッジにマージされる', () => {
+      // 前提条件: p1-p2 間に public・hidden・emotional の3レイヤーが存在する v7 形式データ
       const v7State = {
         persons: [],
         relationships: [
@@ -688,17 +763,352 @@ describe('migrateGraphState', () => {
         egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
       };
 
-      const result = migrateGraphState(v7State, 7) as { relationships: Array<{ id: string; layer: string; weight: null }> };
+      const result = migrateGraphState(v7State, 7) as {
+        relationships: Array<{
+          id: string;
+          forward: { label: string | null };
+          tags: string[];
+        }>;
+      };
 
-      expect(result.relationships[0]).toMatchObject({ id: 'rel-1', layer: 'general', weight: null });
-      expect(result.relationships[1]).toMatchObject({ id: 'rel-2', layer: 'general', weight: null });
-      expect(result.relationships[2]).toMatchObject({ id: 'rel-3', layer: 'emotional', weight: null });
+      // 3本が同一ペアとしてマージされ1本になること
+      expect(result.relationships).toHaveLength(1);
+      const rel = result.relationships[0];
+      // id は最初にソートされたエントリを採用
+      expect(rel.id).toBe('rel-1');
+      // 各レイヤーの情報がタグに保存されること
+      expect(rel.tags).toContain('layer-general');
+      expect(rel.tags).toContain('layer-emotional');
     });
   });
 
   // 複数バージョンの連続マイグレーション
+  // ─── v8 → v9 マイグレーション ────────────────────────────────────────────────
+  describe('v8からv9への変換', () => {
+    // ──────────────────── migrateV8ToV9 関数のユニットテスト ────────────────────
+
+    describe('migrateV8ToV9', () => {
+      it('単一の emotional レイヤーのデータを変換する（weight → closeness + forward.affection）', () => {
+        // 前提条件: emotional レイヤーで weight=0.9 の関係
+        const legacy: LegacyRelationshipV8[] = [
+          {
+            id: 'rel-1',
+            sourcePersonId: 'コナン',
+            targetPersonId: '蘭',
+            isDirected: true,
+            sourceToTargetLabel: '好き',
+            targetToSourceLabel: null,
+            layer: 'emotional',
+            weight: 0.9,
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+        ];
+
+        const result = migrateV8ToV9(legacy);
+
+        // 1本のエッジにまとめられること
+        expect(result).toHaveLength(1);
+        expect(result[0].id).toBe('rel-1');
+        expect(result[0].sourcePersonId).toBe('コナン');
+        expect(result[0].targetPersonId).toBe('蘭');
+        // weight が closeness に写像されること
+        expect(result[0].symmetric.closeness).toBe(0.9);
+        // ラベルが forward.label に写像されること
+        expect(result[0].forward.label).toBe('好き');
+        // 旧レイヤー名がタグとして保存されること（可逆性の保険）
+        expect(result[0].tags).toContain('layer-emotional');
+        // narrative は初期値
+        expect(result[0].narrative.summary).toBeNull();
+        expect(result[0].narrative.turningPoints).toHaveLength(0);
+        // colorOverride は初期値
+        expect(result[0].colorOverride).toBeNull();
+      });
+
+      it('単一の awareness レイヤーのラベルから forward.awareness を推論する', () => {
+        // 前提条件: awareness レイヤーのデータ（正体認知の3パターン）
+        const legacy: LegacyRelationshipV8[] = [
+          {
+            id: 'rel-known',
+            sourcePersonId: '灰原',
+            targetPersonId: 'コナン',
+            isDirected: true,
+            sourceToTargetLabel: '知っている',
+            targetToSourceLabel: null,
+            layer: 'awareness',
+            weight: null,
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+        ];
+
+        const result = migrateV8ToV9(legacy);
+
+        expect(result).toHaveLength(1);
+        // "知っている" → awareness: 'known'
+        expect(result[0].forward.awareness).toBe('known');
+        expect(result[0].tags).toContain('layer-awareness');
+      });
+
+      it('"疑っている" を suspected に変換する', () => {
+        const legacy: LegacyRelationshipV8[] = [
+          {
+            id: 'rel-suspected',
+            sourcePersonId: '蘭',
+            targetPersonId: 'コナン',
+            isDirected: true,
+            sourceToTargetLabel: '疑っている',
+            targetToSourceLabel: null,
+            layer: 'awareness',
+            weight: null,
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+        ];
+
+        const result = migrateV8ToV9(legacy);
+
+        expect(result[0].forward.awareness).toBe('suspected');
+      });
+
+      it('"知らない" を unknown に変換する', () => {
+        const legacy: LegacyRelationshipV8[] = [
+          {
+            id: 'rel-unknown',
+            sourcePersonId: '小五郎',
+            targetPersonId: 'コナン',
+            isDirected: true,
+            sourceToTargetLabel: '知らない',
+            targetToSourceLabel: null,
+            layer: 'awareness',
+            weight: null,
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+        ];
+
+        const result = migrateV8ToV9(legacy);
+
+        expect(result[0].forward.awareness).toBe('unknown');
+      });
+
+      it('organizational レイヤーのラベルをタグとして追加する', () => {
+        // 前提条件: organizational レイヤーで上司・部下の関係
+        const legacy: LegacyRelationshipV8[] = [
+          {
+            id: 'rel-org',
+            sourcePersonId: '目暮警部',
+            targetPersonId: '毛利小五郎',
+            isDirected: true,
+            sourceToTargetLabel: '上司',
+            targetToSourceLabel: null,
+            layer: 'organizational',
+            weight: null,
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+        ];
+
+        const result = migrateV8ToV9(legacy);
+
+        expect(result[0].tags).toContain('上司');
+        expect(result[0].tags).toContain('layer-organizational');
+      });
+
+      it('general レイヤーの "父" ラベルから kinship: parent を推論する', () => {
+        // 前提条件: 父親関係を general レイヤーで記録したデータ
+        const legacy: LegacyRelationshipV8[] = [
+          {
+            id: 'rel-kinship',
+            sourcePersonId: '工藤優作',
+            targetPersonId: '工藤新一',
+            isDirected: false,
+            sourceToTargetLabel: '父',
+            targetToSourceLabel: '父',
+            layer: 'general',
+            weight: null,
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+        ];
+
+        const result = migrateV8ToV9(legacy);
+
+        expect(result[0].symmetric.kinship).toBe('parent');
+      });
+
+      it('同一ペアの複数レイヤーをマージして1本のエッジにする', () => {
+        // 前提条件: コナン→灰原 間に emotional + awareness + organizational の3レイヤーが存在
+        const legacy: LegacyRelationshipV8[] = [
+          {
+            id: 'rel-emotional',
+            sourcePersonId: 'コナン',
+            targetPersonId: '灰原',
+            isDirected: true,
+            sourceToTargetLabel: '信頼',
+            targetToSourceLabel: null,
+            layer: 'emotional',
+            weight: 0.9,
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+          {
+            id: 'rel-awareness',
+            sourcePersonId: 'コナン',
+            targetPersonId: '灰原',
+            isDirected: true,
+            sourceToTargetLabel: '知っている',
+            targetToSourceLabel: null,
+            layer: 'awareness',
+            weight: null,
+            createdAt: '2024-01-02T00:00:00.000Z',
+          },
+          {
+            id: 'rel-org',
+            sourcePersonId: 'コナン',
+            targetPersonId: '灰原',
+            isDirected: false,
+            sourceToTargetLabel: '同級生',
+            targetToSourceLabel: '同級生',
+            layer: 'organizational',
+            weight: null,
+            createdAt: '2024-01-03T00:00:00.000Z',
+          },
+        ];
+
+        const result = migrateV8ToV9(legacy);
+
+        // 3本が1本にまとめられること
+        expect(result).toHaveLength(1);
+        // emotional の weight が closeness に写像されること
+        expect(result[0].symmetric.closeness).toBe(0.9);
+        // awareness が推論されること
+        expect(result[0].forward.awareness).toBe('known');
+        // organizational のラベルがタグに入ること
+        expect(result[0].tags).toContain('同級生');
+        // 旧レイヤー名が全タグとして保存されること
+        expect(result[0].tags).toContain('layer-emotional');
+        expect(result[0].tags).toContain('layer-awareness');
+        expect(result[0].tags).toContain('layer-organizational');
+        // id は最も古いエッジのものを採用
+        expect(result[0].id).toBe('rel-emotional');
+        expect(result[0].createdAt).toBe('2024-01-01T00:00:00.000Z');
+      });
+
+      it('source/target が逆方向のレイヤーもペアとしてマージする', () => {
+        // 前提条件: A→B と B→A が別レイヤーに入っているケース
+        const legacy: LegacyRelationshipV8[] = [
+          {
+            id: 'rel-ab',
+            sourcePersonId: '蘭',
+            targetPersonId: 'コナン',
+            isDirected: true,
+            sourceToTargetLabel: '疑っている',
+            targetToSourceLabel: null,
+            layer: 'awareness',
+            weight: null,
+            createdAt: '2024-02-01T00:00:00.000Z',
+          },
+          {
+            id: 'rel-ba',
+            sourcePersonId: 'コナン',
+            targetPersonId: '蘭',
+            isDirected: true,
+            sourceToTargetLabel: '好き',
+            targetToSourceLabel: null,
+            layer: 'emotional',
+            weight: 0.95,
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+        ];
+
+        const result = migrateV8ToV9(legacy);
+
+        // 逆方向のペアも1本にまとめられること
+        expect(result).toHaveLength(1);
+        // id は最も古い createdAt のものを採用（rel-ba が古い）
+        expect(result[0].id).toBe('rel-ba');
+      });
+
+      it('v9 データをそのまま受け入れる（冪等性）', () => {
+        // 前提条件: 空配列
+        const result = migrateV8ToV9([]);
+        expect(result).toHaveLength(0);
+      });
+
+      it('負のラベル（"嫌"を含む）を持つ emotional レイヤーは affection を負値にする', () => {
+        const legacy: LegacyRelationshipV8[] = [
+          {
+            id: 'rel-hate',
+            sourcePersonId: 'ジン',
+            targetPersonId: '灰原',
+            isDirected: true,
+            sourceToTargetLabel: '嫌い',
+            targetToSourceLabel: null,
+            layer: 'emotional',
+            weight: 0.8,
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+        ];
+
+        const result = migrateV8ToV9(legacy);
+
+        // "嫌" を含む場合は affection が負値
+        expect(result[0].forward.affection).toBeLessThan(0);
+        expect(result[0].symmetric.closeness).toBe(0.8);
+      });
+    });
+
+    // ──────────────── migrateGraphState 経由のインテグレーションテスト ───────────
+
+    describe('migrateGraphState 経由の変換', () => {
+      it('v8のデータを v9 形式に変換する', () => {
+        const v8State = {
+          persons: [],
+          relationships: [
+            {
+              id: 'rel-1',
+              sourcePersonId: 'コナン',
+              targetPersonId: '灰原',
+              isDirected: true,
+              sourceToTargetLabel: '信頼',
+              targetToSourceLabel: null,
+              layer: 'emotional',
+              weight: 0.9,
+              createdAt: '2024-01-01T00:00:00.000Z',
+            },
+          ],
+          forceEnabled: false,
+          selectedPersonIds: [],
+          forceParams: DEFAULT_FORCE_PARAMS,
+          sidePanelOpen: true,
+          egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+        };
+
+        const result = migrateGraphState(v8State, 8) as {
+          relationships: Array<{ id: string; symmetric: { closeness: number | null } }>;
+        };
+
+        // v9 形式に変換されること
+        expect(result.relationships).toHaveLength(1);
+        expect(result.relationships[0].id).toBe('rel-1');
+        expect(result.relationships[0].symmetric.closeness).toBe(0.9);
+      });
+
+      it('v9 以降のデータはそのまま返す', () => {
+        const v9State = {
+          persons: [],
+          relationships: [],
+          forceEnabled: false,
+          selectedPersonIds: [],
+          forceParams: DEFAULT_FORCE_PARAMS,
+          sidePanelOpen: true,
+          egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+        };
+
+        const result = migrateGraphState(v9State, 9);
+
+        expect(result).toEqual(v9State);
+      });
+    });
+  });
+
   describe('複数バージョンの連続マイグレーション', () => {
-    it('v0からv8まで連続で変換する', () => {
+    it('v0からv9まで連続で変換する', () => {
+      // 前提条件: v0 形式の状態（selectedPersonId、v1 形式の label フィールド）
       const v0State = {
         persons: [],
         relationships: [
@@ -715,51 +1125,45 @@ describe('migrateGraphState', () => {
         selectedPersonId: 'person-1',
       };
 
-      const result = migrateGraphState(v0State, 0);
+      const result = migrateGraphState(v0State, 0) as {
+        selectedPersonIds: string[];
+        relationships: Array<{
+          id: string;
+          isDirected: boolean;
+          forward: { label: string | null };
+          reverse: { label: string | null };
+          tags: string[];
+        }>;
+        forceParams: typeof DEFAULT_FORCE_PARAMS;
+        sidePanelOpen: boolean;
+        egoLayoutParams: typeof DEFAULT_EGO_LAYOUT_PARAMS;
+      };
 
       // v0 → v1: selectedPersonId → selectedPersonIds
-      expect(result).toMatchObject({
-        selectedPersonIds: ['person-1'],
-      });
+      expect(result.selectedPersonIds).toEqual(['person-1']);
       // selectedPersonId が除去されていることを確認
       expect(result).not.toHaveProperty('selectedPersonId');
 
-      // v1 → v3: Relationship形式の変換
-      expect(result).toMatchObject({
-        relationships: [
-          {
-            id: 'rel-1',
-            sourcePersonId: 'person-1',
-            targetPersonId: 'person-2',
-            isDirected: false,
-            sourceToTargetLabel: '友達',
-            targetToSourceLabel: '友達',
-            createdAt: '2024-01-01T00:00:00.000Z',
-          },
-        ],
-      });
+      // v3 → v4: forceParams 補完
+      expect(result.forceParams).toEqual(DEFAULT_FORCE_PARAMS);
 
-      // v3 → v4: forceParams補完
-      expect(result).toMatchObject({
-        forceParams: DEFAULT_FORCE_PARAMS,
-      });
+      // v4 → v5: sidePanelOpen 補完
+      expect(result.sidePanelOpen).toBe(true);
 
-      // v4 → v5: sidePanelOpen補完
-      expect(result).toMatchObject({
-        sidePanelOpen: true,
-      });
+      // v5 → v6: egoLayoutParams 補完
+      expect(result.egoLayoutParams).toEqual(DEFAULT_EGO_LAYOUT_PARAMS);
 
-      // v5 → v6: egoLayoutParams補完
-      expect(result).toMatchObject({
-        egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
-      });
-
-      // v7 → v8: layer=generalに変換、weight=null補完
-      expect(result).toMatchObject({
-        relationships: [
-          { id: 'rel-1', layer: 'general', weight: null },
-        ],
-      });
+      // 最終的に v9 形式に変換されること
+      expect(result.relationships).toHaveLength(1);
+      const rel = result.relationships[0];
+      expect(rel.id).toBe('rel-1');
+      // v1 の label='友達'（undirected）→ v3 で sourceToTargetLabel='友達', targetToSourceLabel='友達'
+      // → v9 で forward.label='友達', reverse.label='友達'
+      expect(rel.isDirected).toBe(false);
+      expect(rel.forward.label).toBe('友達');
+      expect(rel.reverse.label).toBe('友達');
+      // general レイヤー由来タグが付与されること
+      expect(rel.tags).toContain('layer-general');
     });
   });
 });

@@ -24,7 +24,7 @@ import {
   getChartOrder,
   setChartOrder,
 } from '@/lib/chart-db';
-import { migrateGraphState } from '@/lib/migration';
+import { migrateGraphState, migrateV8ToV9 } from '@/lib/migration';
 
 /**
  * force-directedレイアウトのパラメータ型
@@ -129,34 +129,37 @@ function buildChartFromState(state: GraphState): Chart | null {
     forceEnabled: state.forceEnabled,
     forceParams: state.forceParams,
     egoLayoutParams: state.egoLayoutParams,
+    // v9 形式であることを明示する（ロード時の再マイグレーションを防ぐ）
+    schemaVersion: 9,
     createdAt: meta.createdAt,
     updatedAt: new Date().toISOString(),
   };
 }
 
 /**
- * IndexedDB からロードしたChartのrelationshipsを正規化する
- * 旧形式のデータ（layer/weight未定義、public/hiddenレイヤー名）を最新形式に変換する
- * @param chart - IndexedDBからロードしたChart
- * @returns 正規化されたChart
+ * IndexedDB からロードした Chart の relationships を v9 形式に正規化する。
+ * `schemaVersion` が未定義または 9 未満の場合に `migrateV8ToV9` を適用し、
+ * `schemaVersion: 9` を付与して返す。v9 以降のデータはそのまま返す。
+ *
+ * @param chart - IndexedDB からロードした Chart（任意のスキーマバージョン）
+ * @returns v9 形式に正規化された Chart（schemaVersion: 9 付き）
  */
-function normalizeChartLayers(chart: Chart): Chart {
+function normalizeChartRelationships(chart: Chart): Chart {
+  // v9 以降は変換不要
+  if ((chart.schemaVersion ?? 0) >= 9) {
+    return chart;
+  }
+
+  // v8 以前のデータを v9 形式に変換する
+  // 型上は Relationship[] だが実データは LegacyRelationshipV8[] として扱う
+  const legacyRels = chart.relationships as unknown as Parameters<typeof migrateV8ToV9>[0];
+  const v9Rels = migrateV8ToV9(legacyRels);
+
   return {
     ...chart,
-    relationships: chart.relationships.map((r) => {
-      // 旧レイヤー名のリネーム: public/hidden → general
-      const rawLayer = r.layer as string | undefined;
-      const layer =
-        rawLayer === 'public' || rawLayer === 'hidden' || !rawLayer
-          ? 'general'
-          : (rawLayer as Relationship['layer']);
-      return {
-        ...r,
-        layer,
-        // weightフィールドがない場合はnullを補完
-        weight: r.weight ?? null,
-      };
-    }),
+    // RelationshipV9[] を Relationship[] としてキャスト（Phase 2 で型を統一予定）
+    relationships: v9Rels as unknown as Relationship[],
+    schemaVersion: 9,
   };
 }
 
@@ -685,12 +688,16 @@ export const useGraphStore = create<GraphStore>()(
             targetChartId = chartMetas[0].id;
           }
 
-          // 7. チャートをロード（layerフィールドがない旧形式のデータを補完）
+          // 7. チャートをロード（v8 以前のデータは v9 形式に変換して書き戻す）
           const rawChart = await getChart(targetChartId);
           if (!rawChart) {
             throw new Error(`Chart not found: ${targetChartId}`);
           }
-          const chart = normalizeChartLayers(rawChart);
+          const chart = normalizeChartRelationships(rawChart);
+          // v8→v9 変換が行われた場合は IndexedDB に書き戻す（次回ロード時の再変換を防ぐ）
+          if (rawChart.schemaVersion !== chart.schemaVersion) {
+            await saveChart(chart);
+          }
 
           // 8. ストアを更新
           set(() => ({
@@ -792,12 +799,16 @@ export const useGraphStore = create<GraphStore>()(
           // 1. 現在のチャートをIndexedDBに保存
           await saveCurrentChart(get);
 
-          // 2. 対象チャートをロード（layerフィールドがない旧形式のデータを補完）
+          // 2. 対象チャートをロード（v8 以前のデータは v9 形式に変換して書き戻す）
           const rawChart = await getChart(chartId);
           if (!rawChart) {
             throw new Error(`Chart not found: ${chartId}`);
           }
-          const chart = normalizeChartLayers(rawChart);
+          const chart = normalizeChartRelationships(rawChart);
+          // v8→v9 変換が行われた場合は IndexedDB に書き戻す（次回ロード時の再変換を防ぐ）
+          if (rawChart.schemaVersion !== chart.schemaVersion) {
+            await saveChart(chart);
+          }
 
           // 3. ストアを更新
           set(() => ({
