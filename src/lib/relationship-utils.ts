@@ -57,7 +57,8 @@ export function getRelationshipFromPerspective(
   // 無方向の場合
   if (!relationship.isDirected) {
     // forward.label と reverse.label は同一値のはずだが、念のためnullチェック
-    const label = relationship.forward.label || relationship.reverse.label || '';
+    // 空文字も有効なラベルとして扱うため ?? を使用する（|| は空文字を falsy 扱いする）
+    const label = relationship.forward.label ?? relationship.reverse.label ?? '';
     return [{ label, direction: '', otherPersonId }];
   }
 

@@ -32,16 +32,17 @@ export function SidePanel() {
     .filter((p): p is NonNullable<typeof p> => p !== undefined);
 
   // 編集対象の関係IDが現在の2人選択に対応するかを検証（stale IDを無視するため）
+  // selectedPersons は毎回新しい配列参照を生成するため、安定した selectedPersonIds を依存配列に使用する
   const editingRelationshipBelongsToCurrentPair = useMemo(() => {
-    if (!editingRelationshipId || selectedPersons.length !== 2) return false;
+    if (!editingRelationshipId || selectedPersonIds.length !== 2) return false;
     const rel = relationships.find((r) => r.id === editingRelationshipId);
     if (!rel) return false;
-    const [id1, id2] = [selectedPersons[0].id, selectedPersons[1].id];
+    const [id1, id2] = [selectedPersonIds[0], selectedPersonIds[1]];
     return (
       (rel.sourcePersonId === id1 && rel.targetPersonId === id2) ||
       (rel.sourcePersonId === id2 && rel.targetPersonId === id1)
     );
-  }, [editingRelationshipId, relationships, selectedPersons]);
+  }, [editingRelationshipId, relationships, selectedPersonIds]);
 
   // 選択数によってコンテンツを切り替え（selectedPersons.lengthを使用）
   let content;

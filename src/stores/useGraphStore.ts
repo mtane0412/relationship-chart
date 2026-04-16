@@ -145,7 +145,11 @@ function mergeRelationshipV9(
     return {
       summary: i.summary !== null ? i.summary : b.summary,
       notes: mergedNotes,
-      turningPoints: [...b.turningPoints, ...i.turningPoints],
+      // at + note をキーとして重複排除する（同一ターニングポイントが重複登録されないようにする）
+      turningPoints: [...b.turningPoints, ...i.turningPoints].filter(
+        (tp, index, arr) =>
+          arr.findIndex((t) => t.at === tp.at && t.note === tp.note) === index
+      ),
     };
   };
 

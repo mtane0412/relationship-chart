@@ -384,7 +384,7 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
                 className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white border border-gray-300 rounded-md shadow-lg p-1 flex gap-1 z-10"
                 data-dropdown="relationship-type"
               >
-                {/* 片方向 (one-way) */}
+                {/* 片方向 (one-way): isReversed の状態に合わせて矢印の向きを変える */}
                 <button
                   type="button"
                   onClick={() => {
@@ -399,7 +399,7 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
                       : 'hover:bg-gray-100'
                   }`}
                 >
-                  <ArrowRight className="w-6 h-6" />
+                  {isReversed ? <ArrowLeft className="w-6 h-6" /> : <ArrowRight className="w-6 h-6" />}
                 </button>
 
                 {/* 双方向 (bidirectional) */}

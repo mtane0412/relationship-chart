@@ -7,10 +7,16 @@
 
 'use client';
 
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useCallback } from 'react';
 import { Panel } from '@xyflow/react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import type { RelationshipV9 } from '@/types/relationship';
+
+/**
+ * パネル上部のオフセット量
+ * ShareButton（top-left, 約40px 高さ）の下に配置するための固定値
+ */
+const EDGE_FILTER_PANEL_TOP_OFFSET = '56px';
 
 /**
  * エッジフィルターパネルコンポーネント
@@ -29,7 +35,8 @@ export const EdgeFilterPanel = memo(() => {
   const allTags = useMemo(() => {
     const tagSet = new Set<string>();
     for (const rel of relationships as unknown as RelationshipV9[]) {
-      for (const tag of rel.tags) {
+      // rel.tags が undefined の場合は空配列にフォールバックする（型の不整合への防御）
+      for (const tag of rel.tags ?? []) {
         tagSet.add(tag);
       }
     }
@@ -44,7 +51,7 @@ export const EdgeFilterPanel = memo(() => {
    * タグチェックボックスの変更ハンドラ
    * チェック時は tags.values にタグを追加、解除時は削除する
    */
-  const handleTagToggle = (tag: string, checked: boolean) => {
+  const handleTagToggle = useCallback((tag: string, checked: boolean) => {
     const newValues = new Set(edgeFilter.tags.values);
     if (checked) {
       newValues.add(tag);
@@ -54,7 +61,7 @@ export const EdgeFilterPanel = memo(() => {
     updateEdgeFilter({
       tags: { mode: edgeFilter.tags.mode, values: newValues },
     });
-  };
+  }, [edgeFilter.tags, updateEdgeFilter]);
 
   /**
    * フィルター解除ハンドラ
@@ -74,7 +81,7 @@ export const EdgeFilterPanel = memo(() => {
 
   return (
     // ShareButton（top-left, 約40px高さ）の下に配置するため top オフセットを指定
-    <Panel position="top-left" style={{ top: '56px' }}>
+    <Panel position="top-left" style={{ top: EDGE_FILTER_PANEL_TOP_OFFSET }}>
       <div className="bg-white rounded-lg shadow-md px-3 py-2 min-w-[120px] max-w-[180px]">
         {/* ヘッダー */}
         <div className="flex items-center justify-between mb-2">
@@ -92,8 +99,8 @@ export const EdgeFilterPanel = memo(() => {
           )}
         </div>
 
-        {/* タグチェックボックス一覧 */}
-        <div className="space-y-1">
+        {/* タグチェックボックス一覧（タグが多い場合はスクロール可能） */}
+        <div className="space-y-1 max-h-48 overflow-y-auto">
           {allTags.map((tag) => {
             const checked = edgeFilter.tags.values.has(tag);
             return (
@@ -106,7 +113,6 @@ export const EdgeFilterPanel = memo(() => {
                   checked={checked}
                   onChange={(e) => handleTagToggle(tag, e.target.checked)}
                   className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  aria-label={tag}
                 />
                 <span className="text-xs text-gray-700 group-hover:text-gray-900 truncate">
                   {tag}

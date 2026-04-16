@@ -15,6 +15,18 @@ import type { NodeKind } from '@/types/person';
 import type { ContextMenuState } from './useContextMenu';
 
 /**
+ * 方向プロパティの null 初期値（ラベル・感情・認知・役割がすべて未設定の状態）
+ * handleRegisterRelationship 内で毎回生成するのを避けるためモジュールレベル定数として定義する
+ */
+const NULL_DIRECTIONAL = { label: null, affection: null, awareness: null, role: null } as const;
+
+/**
+ * 対称プロパティの null 初期値（親密度・信頼・緊張・秘匿・血縁がすべて未設定の状態）
+ * handleRegisterRelationship 内で毎回生成するのを避けるためモジュールレベル定数として定義する
+ */
+const NULL_SYMMETRIC = { closeness: null, trust: null, tension: null, secrecy: null, kinship: null } as const;
+
+/**
  * 画像D&D/ペースト時の登録待ちデータ
  */
 export type PendingRegistration = {
@@ -508,15 +520,12 @@ export function useGraphInteractions({
             ? forwardLabel // 双方向・無方向は同じラベル
             : null; // one-wayは逆方向ラベルなし
 
-      const nullDirectional = { label: null, affection: null, awareness: null, role: null };
-      const nullSymmetric = { closeness: null, trust: null, tension: null, secrecy: null, kinship: null };
-
       if (pendingConnection.existingRelationshipId) {
         // 編集モード: 既存の関係を更新
         updateRelationship(pendingConnection.existingRelationshipId, {
           isDirected,
-          forward: { ...nullDirectional, label: forwardLabel },
-          reverse: { ...nullDirectional, label: reverseLabel },
+          forward: { ...NULL_DIRECTIONAL, label: forwardLabel },
+          reverse: { ...NULL_DIRECTIONAL, label: reverseLabel },
         });
       } else {
         // 新規登録モード: 関係を追加
@@ -524,9 +533,9 @@ export function useGraphInteractions({
           sourcePersonId: pendingConnection.sourcePersonId,
           targetPersonId: pendingConnection.targetPersonId,
           isDirected,
-          forward: { ...nullDirectional, label: forwardLabel },
-          reverse: { ...nullDirectional, label: reverseLabel },
-          symmetric: nullSymmetric,
+          forward: { ...NULL_DIRECTIONAL, label: forwardLabel },
+          reverse: { ...NULL_DIRECTIONAL, label: reverseLabel },
+          symmetric: NULL_SYMMETRIC,
           tags: [],
           narrative: { summary: null, notes: null, turningPoints: [] },
           colorOverride: null,

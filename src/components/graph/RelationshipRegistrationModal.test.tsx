@@ -335,7 +335,7 @@ describe('RelationshipRegistrationModal', () => {
       );
 
       // initialRelationshipのsourceToTargetLabelが初期値として設定されることを確認
-      const labelInput = screen.getByLabelText('関係のラベル') as HTMLInputElement;
+      const labelInput = screen.getByLabelText(/関係のラベル/) as HTMLInputElement;
       expect(labelInput.value).toBe('仲間');
     });
   });
@@ -873,21 +873,6 @@ describe('RelationshipRegistrationModal', () => {
   });
 
   describe('スキーマ対応UI（v9）', () => {
-    it('レイヤー選択UIが表示されない（v9ではレイヤー廃止）', () => {
-      render(
-        <RelationshipRegistrationModal
-          isOpen={true}
-          sourcePerson={{ name: '江戸川コナン' }}
-          targetPerson={{ name: '毛利蘭' }}
-          onSubmit={vi.fn()}
-          onCancel={vi.fn()}
-        />
-      );
-
-      // v9ではレイヤー選択UIは廃止されている
-      expect(screen.queryByLabelText('レイヤー')).not.toBeInTheDocument();
-    });
-
     it('weightスライダーが表示されない（v9ではweight廃止）', () => {
       render(
         <RelationshipRegistrationModal

@@ -119,6 +119,8 @@ export type SymmetricProps = {
  * @property summary - 関係全体の物語的記述
  * @property notes - メモ・補足
  * @property turningPoints - ターニングポイントのリスト（時刻と内容）
+ *   - `at` は ISO 8601 形式の文字列（例: "2024-01-01T00:00:00.000Z"）または時点の説明文字列
+ *   - `note` は出来事の説明文字列
  */
 export type RelationshipNarrative = {
   summary: string | null;

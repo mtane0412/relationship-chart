@@ -103,6 +103,11 @@ export function matchesEdgeFilter(relationship: RelationshipV9, filter: EdgeFilt
       case 'has_kinship':
         if (relationship.symmetric.kinship === null) return false;
         break;
+      default: {
+        // 未知の述語タイプに対して exhaustive check を行う
+        const _exhaustive: never = pred;
+        throw new Error(`未知の述語タイプ: ${JSON.stringify(_exhaustive)}`);
+      }
     }
   }
 

@@ -329,7 +329,7 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
         ) : (
           // bidirectional / one-way / undirected: 1つのラベルを中央に表示
           <>
-            {/* 存在するラベルを表示（sourceToTargetLabel優先、なければtargetToSourceLabel） */}
+            {/* 存在するラベルを表示（forwardLabel優先、なければreverseLabel） */}
             {(edgeData.forwardLabel || edgeData.reverseLabel) && (
               <div
                 style={{

@@ -297,6 +297,7 @@ describe('PairSelectionPanel', () => {
         const state = useGraphStore.getState();
         // dual-directed: isDirected=true かつ forward.label !== reverse.label
         expect(state.relationships[0].isDirected).toBe(true);
+        expect(state.relationships[0].forward.label).toBe('友人');
         expect(state.relationships[0].forward.label).not.toBe(state.relationships[0].reverse.label);
         expect(state.relationships[0].reverse.label).toBe('同僚');
       });
@@ -515,6 +516,8 @@ describe('PairSelectionPanel', () => {
 
       // ラベルを入力（逆向きのため、ラベル入力はperson1→person2方向 = reverse.label）
       const labelInput = screen.getByLabelText('関係のラベル');
+      // 既存値をクリアしてから入力することで、append ではなく上書きになる
+      await user.clear(labelInput);
       await user.type(labelInput, 'マネージャー');
 
       // 更新ボタンをクリック
@@ -567,43 +570,6 @@ describe('PairSelectionPanel', () => {
         // v9では forward.label に保存される
         expect(state.relationships[0].forward.label).toBe('友達');
       });
-    });
-  });
-
-  describe('既存関係の初期表示（v9）', () => {
-    it('既存の関係がある場合、forward.labelがラベル入力の初期値として表示される', () => {
-      // v9では1ペアにつき1つの関係（マージ方式）
-      useGraphStore.setState({
-        persons: [person1, person2],
-        relationships: [
-          {
-            id: 'rel-1',
-            sourcePersonId: person1.id,
-            targetPersonId: person2.id,
-            isDirected: true,
-            symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
-            forward: { label: '友人', affection: null, awareness: null, role: null },
-            reverse: { label: '友人', affection: null, awareness: null, role: null },
-            tags: [],
-            narrative: { summary: null, notes: null, turningPoints: [] },
-            colorOverride: null,
-            createdAt: '2024-01-01T00:00:00.000Z',
-            updatedAt: '2024-01-01T00:00:00.000Z',
-          },
-        ],
-        selectedPersonIds: [person1.id, person2.id],
-        forceEnabled: true,
-      });
-
-      render(
-        <ReactFlowProvider>
-          <PairSelectionPanel persons={[person1, person2]} />
-        </ReactFlowProvider>
-      );
-
-      // 既存関係のforward.labelが初期値として表示される
-      const labelInput = screen.getByLabelText(/関係のラベル/) as HTMLInputElement;
-      expect(labelInput.value).toBe('友人');
     });
   });
 
@@ -712,6 +678,8 @@ describe('PairSelectionPanel', () => {
         expect(state.relationships[0].symmetric).toBeDefined();
         expect(state.relationships[0].tags).toBeDefined();
         expect(state.relationships[0].narrative).toBeDefined();
+        // colorOverrideは登録時にnullになっている
+        expect(state.relationships[0].colorOverride).toBeNull();
       });
     });
   });

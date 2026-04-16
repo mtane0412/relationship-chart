@@ -85,7 +85,8 @@ export function deriveEdgeVisual(relationship: RelationshipV9): EdgeVisual {
   }
 
   // ─── SVG マーカーキー（既知色から逆引き、未知色は gray） ─────────────────────
-  const markerKey = COLOR_TO_MARKER[color] ?? 'gray';
+  // colorOverride に大文字 HEX（例: #EF4444）が渡された場合もルックアップできるよう小文字に正規化する
+  const markerKey = COLOR_TO_MARKER[color.toLowerCase()] ?? 'gray';
 
   // ─── ストローク幅（closeness から線形補間） ──────────────────────────────────
   // null=2px, 0=1px, 1=4px（式: closeness * 3 + 1）

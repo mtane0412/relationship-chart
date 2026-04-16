@@ -60,15 +60,22 @@ export const RelationshipNarrativeSchema = z.object({
   summary: z.string().nullable(),
   /** メモ・補足 */
   notes: z.string().nullable(),
-  /** ターニングポイントのリスト */
-  turningPoints: z.array(
-    z.object({
-      /** 発生時刻・場面の説明 */
-      at: z.string(),
-      /** 出来事の説明 */
-      note: z.string(),
-    })
-  ),
+  /** ターニングポイントのリスト（省略可能。デフォルトは空配列） */
+  turningPoints: z
+    .array(
+      z.object({
+        /**
+         * 発生時刻・場面の説明
+         * ISO 8601 形式（例: "2024-01-01T00:00:00.000Z"）または日本語の日付・場面説明
+         */
+        at: z.string().optional().nullable(),
+        /** 出来事の説明 */
+        note: z.string().optional().nullable(),
+      })
+    )
+    .optional()
+    .nullable()
+    .default([]),
 });
 
 /**
@@ -93,8 +100,10 @@ export const RelationshipV9Schema = z.object({
   narrative: RelationshipNarrativeSchema,
   /** エッジ色の手動上書き（null の場合はタグ/定型値から派生） */
   colorOverride: z.string().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  /** ISO 8601 形式の作成日時（例: "2024-01-01T00:00:00.000Z"） */
+  createdAt: z.string().datetime(),
+  /** ISO 8601 形式の更新日時（例: "2024-01-01T00:00:00.000Z"） */
+  updatedAt: z.string().datetime(),
 });
 
 /** RelationshipV9 の infer 型（zod スキーマから導出） */

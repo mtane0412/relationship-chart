@@ -158,7 +158,8 @@ function mergeLegacyGroup(group: LegacyRelationshipV8[]): RelationshipV9 {
         }
         if (stl && !forwardLabel) forwardLabel = stl;
         if (tsl && !reverseLabel) reverseLabel = tsl;
-        if (r.isDirected) isDirected = true;
+        // いずれか1本でも有向なら有向扱いにする（OR 演算で既存値を保持する）
+        isDirected = isDirected || r.isDirected;
         break;
       }
 
@@ -476,7 +477,8 @@ export function migrateGraphState(persistedState: unknown, version: number): unk
   }
 
   // v0〜v7 から変換されてきた v8 形式のデータを v9 形式に変換する
-  // （v8 のステートマシン → v9 への最終ステップ）
+  // migrateV8ToV9 はレイヤー分割された複数の v8 レコードをプロパティグラフ方式の1本に集約する。
+  // v9 形式データが渡された場合は冪等に通過するため、このブロックは常に実行してよい。
   {
     const v8State = state as Record<string, unknown>;
     if (Array.isArray(v8State.relationships)) {

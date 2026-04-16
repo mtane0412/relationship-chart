@@ -14,8 +14,9 @@ describe('EdgeFilterPanel', () => {
     localStorage.clear();
 
     const store = useGraphStore.getState();
-    store.persons.forEach((person) => store.removePerson(person.id));
-    store.relationships.forEach((rel) => store.removeRelationship(rel.id));
+    // イテレーション中に配列が変化してスキップが起きないよう、コピーを取ってから反復する
+    [...store.persons].forEach((person) => store.removePerson(person.id));
+    [...store.relationships].forEach((rel) => store.removeRelationship(rel.id));
     store.clearSelection();
     // edgeFilter をリセット
     store.updateEdgeFilter({ tags: { mode: 'any', values: new Set() }, predicates: [] });

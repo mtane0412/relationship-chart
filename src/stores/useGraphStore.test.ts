@@ -2239,16 +2239,27 @@ describe('useGraphStore', () => {
     it('updateEdgeFilter: パッチ更新は既存のフィールドを保持する', () => {
       const { result } = renderHook(() => useGraphStore());
 
+      // 事前に predicates を非空の値にセットする
+      act(() => {
+        result.current.updateEdgeFilter({
+          predicates: [{ type: 'closeness_gte', value: 0.5 }],
+        });
+      });
+
+      expect(result.current.edgeFilter.predicates).toEqual([{ type: 'closeness_gte', value: 0.5 }]);
+
+      // tags のみ更新し、predicates が変わっていないことを確認する
       act(() => {
         result.current.updateEdgeFilter({
           tags: { mode: 'all', values: new Set(['上司']) },
         });
       });
 
-      // 述語フィールドは変更されていない
+      // タグフィールドが更新されている
       expect(result.current.edgeFilter.tags.mode).toBe('all');
       expect(result.current.edgeFilter.tags.values).toEqual(new Set(['上司']));
-      expect(result.current.edgeFilter.predicates).toEqual([]);
+      // predicates はパッチ更新によって変更されていない
+      expect(result.current.edgeFilter.predicates).toEqual([{ type: 'closeness_gte', value: 0.5 }]);
     });
 
     it('updateEdgeFilter: タグのモードを any から all に変更できる', () => {
