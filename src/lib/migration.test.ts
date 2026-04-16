@@ -460,7 +460,7 @@ describe('migrateGraphState', () => {
 
       const result = migrateGraphState(v6State, 6);
 
-      // v7でpublicが補完され、v8でgeneralにリネームされる
+      // layerフィールドのないrelationshipsにgeneralが補完される
       expect(result).toMatchObject({
         relationships: [
           {

@@ -133,6 +133,8 @@ export function RelationshipRegistrationModal({
   const [weight, setWeight] = useState<number | null>(null);
   const labelInputRef = useRef<HTMLInputElement>(null);
   const labelSelectRef = useRef<HTMLSelectElement>(null);
+  // モーダルが「新たに開いた」直後のフォーカス制御フラグ
+  const justOpenedRef = useRef(false);
 
   // 現在選択されているレイヤーのスキーマ定義
   const currentLayerDef = RELATIONSHIP_LAYERS.find((l) => l.value === selectedLayer)!;
@@ -160,17 +162,11 @@ export function RelationshipRegistrationModal({
     }
   };
 
-  // モーダルが開いたときにフォーカスと初期値設定
+  // モーダルが開いたときに初期値を設定
   useEffect(() => {
     if (isOpen) {
-      // モーダルが開いた時点のレイヤーに応じてフォーカス先を決定
-      const openingLayer = initialRelationship?.layer ?? DEFAULT_LAYER;
-      const openingLayerDef = RELATIONSHIP_LAYERS.find((l) => l.value === openingLayer)!;
-      if (openingLayerDef.labelSystem === 'fixed') {
-        labelSelectRef.current?.focus();
-      } else {
-        labelInputRef.current?.focus();
-      }
+      // フォーカス制御フラグをセット（selectedLayer更新後のレンダリングでフォーカスを実行）
+      justOpenedRef.current = true;
 
       // 初期値を設定（編集モードの場合は initialRelationship から、そうでなければデフォルト値）
       if (initialRelationship) {
@@ -189,6 +185,19 @@ export function RelationshipRegistrationModal({
       }
     }
   }, [isOpen, defaultType, initialRelationship]);
+
+  // フォーカス制御: selectedLayerが確定しDOMが更新された後に実行
+  // justOpenedRefフラグでモーダルが新たに開いた直後のみフォーカスを当てる
+  useEffect(() => {
+    if (!justOpenedRef.current) return;
+    justOpenedRef.current = false;
+    const layerDef = RELATIONSHIP_LAYERS.find((l) => l.value === selectedLayer)!;
+    if (layerDef.labelSystem === 'fixed') {
+      labelSelectRef.current?.focus();
+    } else {
+      labelInputRef.current?.focus();
+    }
+  }, [selectedLayer]);
 
   // Escapeキーでキャンセル
   useEffect(() => {
@@ -502,22 +511,44 @@ export function RelationshipRegistrationModal({
           {/* weightスライダー（supportsWeight=trueのレイヤーのみ表示） */}
           {currentLayerDef.supportsWeight && (
             <div className="mb-4">
-              <label
-                htmlFor="relationship-weight"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                強度（{weight !== null ? weight.toFixed(1) : '未設定'}）
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                強度
               </label>
-              <input
-                id="relationship-weight"
-                type="range"
-                min="0"
-                max="1"
-                step="0.1"
-                value={weight ?? DEFAULT_WEIGHT_VALUE}
-                onChange={(e) => setWeight(parseFloat(e.target.value))}
-                className="w-full"
-              />
+              {weight === null ? (
+                // 未設定状態: 「強度を設定する」ボタンで有効化
+                <button
+                  type="button"
+                  onClick={() => setWeight(DEFAULT_WEIGHT_VALUE)}
+                  className="px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                >
+                  強度を設定する
+                </button>
+              ) : (
+                // 設定済み状態: スライダーと「未設定にする」ボタン
+                <div className="space-y-2">
+                  <input
+                    id="relationship-weight"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={weight}
+                    onChange={(e) => setWeight(parseFloat(e.target.value))}
+                    className="w-full"
+                    aria-label={`強度: ${weight.toFixed(1)}`}
+                  />
+                  <div className="flex justify-between items-center text-xs text-gray-500">
+                    <span>{weight.toFixed(1)}</span>
+                    <button
+                      type="button"
+                      onClick={() => setWeight(null)}
+                      className="text-gray-500 hover:text-gray-700 underline"
+                    >
+                      未設定にする
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

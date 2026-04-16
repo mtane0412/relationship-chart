@@ -1112,7 +1112,7 @@ describe('useGraphStore', () => {
       const personId1 = result.current.persons[0].id;
       const personId2 = result.current.persons[1].id;
 
-      // publicレイヤーで関係を追加
+      // generalレイヤーで関係を追加
       act(() => {
         result.current.addRelationship({
           sourcePersonId: personId1,
@@ -1126,7 +1126,7 @@ describe('useGraphStore', () => {
 
       expect(result.current.relationships).toHaveLength(1);
 
-      // 同じペア・同じレイヤー（public）で再度追加しようとする
+      // 同じペア・同じレイヤー（general）で再度追加しようとする
       act(() => {
         result.current.addRelationship({
           sourcePersonId: personId1,

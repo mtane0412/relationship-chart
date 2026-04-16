@@ -303,7 +303,7 @@ describe('RelationshipRegistrationModal', () => {
         />
       );
 
-      // デフォルトで「表」が選択されていることを確認
+      // デフォルトで「一般」が選択されていることを確認
       const layerSelect = screen.getByLabelText('レイヤー') as HTMLSelectElement;
       expect(layerSelect.value).toBe('general');
     });
@@ -323,7 +323,7 @@ describe('RelationshipRegistrationModal', () => {
 
       const layerSelect = screen.getByLabelText('レイヤー');
 
-      // レイヤーを「裏」に変更
+      // レイヤーを「感情」（emotional）に変更
       await user.selectOptions(layerSelect, 'emotional');
       expect((layerSelect as HTMLSelectElement).value).toBe('emotional');
     });
