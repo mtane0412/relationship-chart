@@ -10,7 +10,7 @@ import { useDialogStore } from '@/stores/useDialogStore';
 import { readFileAsDataUrl } from '@/lib/image-utils';
 import { findClosestTargetNode } from '@/lib/connection-target-detection';
 import type { GraphNode, RelationshipEdge } from '@/types/graph';
-import type { RelationshipType, RelationshipLayer, Relationship } from '@/types/relationship';
+import type { RelationshipType } from '@/types/relationship';
 import type { NodeKind } from '@/types/person';
 import type { ContextMenuState } from './useContextMenu';
 
@@ -489,35 +489,34 @@ export function useGraphInteractions({
     setPendingRegistration(null);
   }, []);
 
-  // 関係登録・更新ハンドラ（UI層のRelationshipTypeを新データモデルに変換）
+  // 関係登録・更新ハンドラ（UI層のRelationshipTypeを v9 データモデルに変換）
   const handleRegisterRelationship = useCallback(
     (
       type: RelationshipType,
       sourceToTargetLabel: string,
-      targetToSourceLabel: string | null,
-      layer: RelationshipLayer,
-      weight: Relationship['weight']
+      targetToSourceLabel: string | null
     ) => {
       if (!pendingConnection) return;
 
-      // UI層のRelationshipTypeを新データモデルに変換
+      // UI層のRelationshipTypeを v9 フィールドに変換
       const isDirected = type !== 'undirected';
-      const finalSourceToTargetLabel = sourceToTargetLabel.trim();
-      const finalTargetToSourceLabel =
+      const forwardLabel = sourceToTargetLabel.trim() || null;
+      const reverseLabel =
         type === 'dual-directed'
           ? targetToSourceLabel?.trim() || null
           : type === 'bidirectional' || type === 'undirected'
-            ? finalSourceToTargetLabel // 双方向・無方向は同じラベル
+            ? forwardLabel // 双方向・無方向は同じラベル
             : null; // one-wayは逆方向ラベルなし
+
+      const nullDirectional = { label: null, affection: null, awareness: null, role: null };
+      const nullSymmetric = { closeness: null, trust: null, tension: null, secrecy: null, kinship: null };
 
       if (pendingConnection.existingRelationshipId) {
         // 編集モード: 既存の関係を更新
         updateRelationship(pendingConnection.existingRelationshipId, {
           isDirected,
-          sourceToTargetLabel: finalSourceToTargetLabel,
-          targetToSourceLabel: finalTargetToSourceLabel,
-          layer,
-          weight,
+          forward: { ...nullDirectional, label: forwardLabel },
+          reverse: { ...nullDirectional, label: reverseLabel },
         });
       } else {
         // 新規登録モード: 関係を追加
@@ -525,10 +524,12 @@ export function useGraphInteractions({
           sourcePersonId: pendingConnection.sourcePersonId,
           targetPersonId: pendingConnection.targetPersonId,
           isDirected,
-          sourceToTargetLabel: finalSourceToTargetLabel,
-          targetToSourceLabel: finalTargetToSourceLabel,
-          layer,
-          weight,
+          forward: { ...nullDirectional, label: forwardLabel },
+          reverse: { ...nullDirectional, label: reverseLabel },
+          symmetric: nullSymmetric,
+          tags: [],
+          narrative: { summary: null, notes: null, turningPoints: [] },
+          colorOverride: null,
         });
       }
 

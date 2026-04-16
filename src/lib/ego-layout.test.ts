@@ -6,15 +6,41 @@
 import { describe, it, expect } from 'vitest';
 import { computeGraphDistances, computeRadialPositions } from './ego-layout';
 import type { Person } from '@/types/person';
-import type { Relationship } from '@/types/relationship';
+import type { RelationshipV9 } from '@/types/relationship';
 
+
+/**
+ * ego-layoutテスト用のv9形式の関係オブジェクトを生成するヘルパー関数
+ * グラフ距離計算に必要なsourcePersonId/targetPersonIdのみを指定する
+ */
+function makeEgoRel(
+  id: string,
+  sourcePersonId: string,
+  targetPersonId: string,
+  isDirected: boolean = false
+): RelationshipV9 {
+  return {
+    id,
+    sourcePersonId,
+    targetPersonId,
+    isDirected,
+    symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
+    forward: { label: null, affection: null, awareness: null, role: null },
+    reverse: { label: null, affection: null, awareness: null, role: null },
+    tags: [],
+    narrative: { summary: null, notes: null, turningPoints: [] },
+    colorOverride: null,
+    createdAt: '2024-01-01T00:00:00.000Z',
+    updatedAt: '2024-01-01T00:00:00.000Z',
+  };
+}
 describe('computeGraphDistances', () => {
   it('中心ノード自身の距離は0である', () => {
     // 準備: 1つのノードのみ（孤立ノード）
     const persons: Person[] = [
       { id: 'a', name: 'A', createdAt: '2024-01-01T00:00:00.000Z' },
     ];
-    const relationships: Relationship[] = [];
+    const relationships: RelationshipV9[] = [];
 
     // 実行
     const distances = computeGraphDistances('a', persons, relationships);
@@ -29,18 +55,8 @@ describe('computeGraphDistances', () => {
       { id: 'a', name: 'A', createdAt: '2024-01-01T00:00:00.000Z' },
       { id: 'b', name: 'B', createdAt: '2024-01-01T00:00:00.000Z' },
     ];
-    const relationships: Relationship[] = [
-      {
-        id: 'r1',
-        sourcePersonId: 'a',
-        targetPersonId: 'b',
-        isDirected: true,
-        sourceToTargetLabel: 'friend',
-        targetToSourceLabel: null,
-        layer: 'general' as const,
-        weight: null,
-        createdAt: '2024-01-01T00:00:00.000Z',
-      },
+    const relationships: RelationshipV9[] = [
+      makeEgoRel('r1', 'a', 'b', true),
     ];
 
     // 実行
@@ -57,18 +73,8 @@ describe('computeGraphDistances', () => {
       { id: 'a', name: 'A', createdAt: '2024-01-01T00:00:00.000Z' },
       { id: 'b', name: 'B', createdAt: '2024-01-01T00:00:00.000Z' },
     ];
-    const relationships: Relationship[] = [
-      {
-        id: 'r1',
-        sourcePersonId: 'a',
-        targetPersonId: 'b',
-        isDirected: true,
-        sourceToTargetLabel: 'one-way',
-        targetToSourceLabel: null,
-        layer: 'general' as const,
-        weight: null,
-        createdAt: '2024-01-01T00:00:00.000Z',
-      },
+    const relationships: RelationshipV9[] = [
+      makeEgoRel('r1', 'a', 'b', true),
     ];
 
     // 実行: Bを中心とした場合、A → B の関係でもAに到達できる
@@ -86,29 +92,9 @@ describe('computeGraphDistances', () => {
       { id: 'b', name: 'B', createdAt: '2024-01-01T00:00:00.000Z' },
       { id: 'c', name: 'C', createdAt: '2024-01-01T00:00:00.000Z' },
     ];
-    const relationships: Relationship[] = [
-      {
-        id: 'r1',
-        sourcePersonId: 'a',
-        targetPersonId: 'b',
-        isDirected: false,
-        sourceToTargetLabel: 'friend',
-        targetToSourceLabel: 'friend',
-        layer: 'general' as const,
-        weight: null,
-        createdAt: '2024-01-01T00:00:00.000Z',
-      },
-      {
-        id: 'r2',
-        sourcePersonId: 'b',
-        targetPersonId: 'c',
-        isDirected: false,
-        sourceToTargetLabel: 'friend',
-        targetToSourceLabel: 'friend',
-        layer: 'general' as const,
-        weight: null,
-        createdAt: '2024-01-01T00:00:00.000Z',
-      },
+    const relationships: RelationshipV9[] = [
+      makeEgoRel('r1', 'a', 'b', false),
+      makeEgoRel('r2', 'b', 'c', false),
     ];
 
     // 実行
@@ -127,40 +113,10 @@ describe('computeGraphDistances', () => {
       { id: 'b', name: 'B', createdAt: '2024-01-01T00:00:00.000Z' },
       { id: 'c', name: 'C', createdAt: '2024-01-01T00:00:00.000Z' },
     ];
-    const relationships: Relationship[] = [
-      {
-        id: 'r1',
-        sourcePersonId: 'a',
-        targetPersonId: 'b',
-        isDirected: false,
-        sourceToTargetLabel: 'friend',
-        targetToSourceLabel: 'friend',
-        layer: 'general' as const,
-        weight: null,
-        createdAt: '2024-01-01T00:00:00.000Z',
-      },
-      {
-        id: 'r2',
-        sourcePersonId: 'b',
-        targetPersonId: 'c',
-        isDirected: false,
-        sourceToTargetLabel: 'friend',
-        targetToSourceLabel: 'friend',
-        layer: 'general' as const,
-        weight: null,
-        createdAt: '2024-01-01T00:00:00.000Z',
-      },
-      {
-        id: 'r3',
-        sourcePersonId: 'a',
-        targetPersonId: 'c',
-        isDirected: false,
-        sourceToTargetLabel: 'best friend',
-        targetToSourceLabel: 'best friend',
-        layer: 'general' as const,
-        weight: null,
-        createdAt: '2024-01-01T00:00:00.000Z',
-      },
+    const relationships: RelationshipV9[] = [
+      makeEgoRel('r1', 'a', 'b', false),
+      makeEgoRel('r2', 'b', 'c', false),
+      makeEgoRel('r3', 'a', 'c', false),
     ];
 
     // 実行
@@ -179,18 +135,8 @@ describe('computeGraphDistances', () => {
       { id: 'b', name: 'B', createdAt: '2024-01-01T00:00:00.000Z' },
       { id: 'c', name: 'C', createdAt: '2024-01-01T00:00:00.000Z' },
     ];
-    const relationships: Relationship[] = [
-      {
-        id: 'r1',
-        sourcePersonId: 'a',
-        targetPersonId: 'b',
-        isDirected: false,
-        sourceToTargetLabel: 'friend',
-        targetToSourceLabel: 'friend',
-        layer: 'general' as const,
-        weight: null,
-        createdAt: '2024-01-01T00:00:00.000Z',
-      },
+    const relationships: RelationshipV9[] = [
+      makeEgoRel('r1', 'a', 'b', false),
     ];
 
     // 実行

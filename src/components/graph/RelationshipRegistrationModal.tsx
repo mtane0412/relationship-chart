@@ -1,6 +1,7 @@
 /**
  * RelationshipRegistrationModalコンポーネント
  * エッジ接続時に関係を登録するためのモーダル
+ * v9プロパティグラフ方式対応：レイヤー選択・重みスライダーを廃止し、ラベル入力のみに簡素化
  */
 
 'use client';
@@ -9,11 +10,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ArrowRight, ArrowLeftRight, Minus } from 'lucide-react';
 import { BidirectionalArrow } from '@/components/icons/BidirectionalArrow';
 import { MAX_RELATIONSHIP_LABEL_LENGTH } from '@/lib/validation-constants';
-import type { RelationshipType, RelationshipLayer } from '@/types/relationship';
-import { RELATIONSHIP_LAYERS, DEFAULT_LAYER } from '@/types/relationship';
-
-/** weightスライダーのデフォルト値（中央値） */
-const DEFAULT_WEIGHT_VALUE = 0.5;
+import type { RelationshipType } from '@/types/relationship';
 
 /**
  * モーダルで表示する人物情報
@@ -35,10 +32,6 @@ type InitialRelationship = {
   sourceToTargetLabel: string;
   /** targetからsourceへのラベル（dual-directedのみ） */
   targetToSourceLabel: string | null;
-  /** レイヤー（省略時はデフォルトレイヤーを使用） */
-  layer?: RelationshipLayer;
-  /** 感情の強度（0.0〜1.0、emotionalレイヤーのみ有効） */
-  weight?: number | null;
 };
 
 /**
@@ -59,9 +52,7 @@ type RelationshipRegistrationModalProps = {
   onSubmit: (
     type: RelationshipType,
     sourceToTargetLabel: string,
-    targetToSourceLabel: string | null,
-    layer: RelationshipLayer,
-    weight: number | null
+    targetToSourceLabel: string | null
   ) => void;
   /** キャンセルボタンクリック時のコールバック */
   onCancel: () => void;
@@ -128,104 +119,34 @@ export function RelationshipRegistrationModal({
   const [relationshipType, setRelationshipType] = useState<RelationshipType>('bidirectional');
   const [sourceToTargetLabel, setSourceToTargetLabel] = useState('');
   const [targetToSourceLabel, setTargetToSourceLabel] = useState('');
-  const [selectedLayer, setSelectedLayer] = useState<RelationshipLayer>(DEFAULT_LAYER);
-  // weightの状態（nullは未設定、supportsWeightのレイヤーで有効）
-  const [weight, setWeight] = useState<number | null>(null);
   const labelInputRef = useRef<HTMLInputElement>(null);
-  const labelSelectRef = useRef<HTMLSelectElement>(null);
   // モーダルが「新たに開いた」直後のフォーカス制御フラグ
   const justOpenedRef = useRef(false);
-
-  // 現在選択されているレイヤーのスキーマ定義
-  const currentLayerDef = RELATIONSHIP_LAYERS.find((l) => l.value === selectedLayer)!;
-
-  /**
-   * fixedレイヤー用ラベル正規化
-   * - fixedレイヤーでは候補外のラベルを空文字に落とす
-   * - fixed以外のレイヤーではラベルをそのまま返す
-   */
-  const normalizeLabelForLayer = (label: string, layer: RelationshipLayer) => {
-    const layerDef = RELATIONSHIP_LAYERS.find((l) => l.value === layer);
-    if (!layerDef || layerDef.labelSystem !== 'fixed') return label;
-    return layerDef.suggestedLabels?.includes(label) ? label : '';
-  };
-
-  /**
-   * レイヤー変更時の処理
-   * - allowDirectionOverride=falseのレイヤーに変更した場合、方向をdefaultDirectedに強制
-   * - supportsWeight=falseのレイヤーに変更した場合、weightをnullにリセット
-   * - fixedレイヤーに変更した場合、候補外ラベルを空文字に正規化
-   */
-  const handleLayerChange = (newLayer: RelationshipLayer) => {
-    const newLayerDef = RELATIONSHIP_LAYERS.find((l) => l.value === newLayer)!;
-    setSelectedLayer(newLayer);
-
-    // fixedレイヤーに切り替えた場合は候補外ラベルを正規化
-    setSourceToTargetLabel((prev) => normalizeLabelForLayer(prev, newLayer));
-
-    // 方向変更不可のレイヤーに切り替えた場合は方向をデフォルトに強制
-    if (!newLayerDef.allowDirectionOverride) {
-      setRelationshipType(newLayerDef.defaultDirected ? 'one-way' : 'undirected');
-    }
-
-    // weight非対応レイヤーに切り替えた場合はweightをリセット
-    if (!newLayerDef.supportsWeight) {
-      setWeight(null);
-    } else if (weight === null) {
-      // weight対応レイヤーに切り替えた場合でweightが未設定ならデフォルト値を設定
-      setWeight(DEFAULT_WEIGHT_VALUE);
-    }
-  };
 
   // モーダルが開いたときに初期値を設定
   useEffect(() => {
     if (isOpen) {
-      // フォーカス制御フラグをセット（selectedLayer更新後のレンダリングでフォーカスを実行）
       justOpenedRef.current = true;
 
-      // 初期値を設定（編集モードの場合は initialRelationship から、そうでなければデフォルト値）
       if (initialRelationship) {
-        const restoredLayer = initialRelationship.layer ?? DEFAULT_LAYER;
-        const restoredLayerDef = RELATIONSHIP_LAYERS.find((l) => l.value === restoredLayer)!;
-        // allowDirectionOverride=falseのレイヤーでは方向をデフォルトに強制（保存データとの不整合を防ぐ）
-        const normalizedType = restoredLayerDef.allowDirectionOverride
-          ? initialRelationship.type
-          : restoredLayerDef.defaultDirected
-            ? 'one-way'
-            : 'undirected';
-        setRelationshipType(normalizedType);
-        // fixedレイヤーの場合は候補外ラベルを正規化して復元
-        setSourceToTargetLabel(
-          normalizeLabelForLayer(initialRelationship.sourceToTargetLabel, restoredLayer)
-        );
+        setRelationshipType(initialRelationship.type);
+        setSourceToTargetLabel(initialRelationship.sourceToTargetLabel);
         setTargetToSourceLabel(initialRelationship.targetToSourceLabel || '');
-        setSelectedLayer(restoredLayer);
-        // supportsWeight=falseのレイヤーではweightをnullに正規化（保存データとの不整合を防ぐ）
-        setWeight(restoredLayerDef.supportsWeight ? (initialRelationship.weight ?? null) : null);
       } else {
         // フォームをリセット（defaultTypeを使用）
         setRelationshipType(defaultType);
         setSourceToTargetLabel('');
         setTargetToSourceLabel('');
-        setSelectedLayer(DEFAULT_LAYER);
-        setWeight(null);
       }
     }
   }, [isOpen, defaultType, initialRelationship]);
 
-  // フォーカス制御: selectedLayerが確定しDOMが更新された後に実行
-  // justOpenedRefフラグでモーダルが新たに開いた直後のみフォーカスを当てる
-  // isOpenを依存に含めることで同じレイヤーで再オープンした場合もフォーカスを当てる
+  // フォーカス制御: モーダルが新たに開いた直後にラベル入力欄にフォーカス
   useEffect(() => {
     if (!isOpen || !justOpenedRef.current) return;
     justOpenedRef.current = false;
-    const layerDef = RELATIONSHIP_LAYERS.find((l) => l.value === selectedLayer)!;
-    if (layerDef.labelSystem === 'fixed') {
-      labelSelectRef.current?.focus();
-    } else {
-      labelInputRef.current?.focus();
-    }
-  }, [isOpen, selectedLayer]);
+    labelInputRef.current?.focus();
+  }, [isOpen]);
 
   // Escapeキーでキャンセル
   useEffect(() => {
@@ -252,7 +173,7 @@ export function RelationshipRegistrationModal({
     const finalTargetToSourceLabel =
       relationshipType === 'dual-directed' ? targetToSourceLabel.trim() : null;
 
-    onSubmit(relationshipType, sourceToTargetLabel.trim(), finalTargetToSourceLabel, selectedLayer, weight);
+    onSubmit(relationshipType, sourceToTargetLabel.trim(), finalTargetToSourceLabel);
   };
 
   if (!isOpen) return null;
@@ -303,70 +224,68 @@ export function RelationshipRegistrationModal({
             <span className="font-medium">{sourcePerson.name}</span>
           </div>
 
-          {/* セグメントコントロール（関係タイプ選択）: allowDirectionOverride=falseのレイヤーでは非表示 */}
-          {currentLayerDef.allowDirectionOverride && (
-            <div className="flex gap-1 bg-gray-100 rounded-md p-1">
-              {/* 片方向 (one-way) */}
-              <button
-                type="button"
-                onClick={() => setRelationshipType('one-way')}
-                aria-pressed={relationshipType === 'one-way'}
-                aria-label="片方向"
-                className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
-                  relationshipType === 'one-way'
-                    ? 'bg-blue-100 ring-2 ring-blue-500'
-                    : 'hover:bg-gray-200'
-                }`}
-              >
-                <ArrowRight className="w-5 h-5" />
-              </button>
+          {/* セグメントコントロール（関係タイプ選択） */}
+          <div className="flex gap-1 bg-gray-100 rounded-md p-1">
+            {/* 片方向 (one-way) */}
+            <button
+              type="button"
+              onClick={() => setRelationshipType('one-way')}
+              aria-pressed={relationshipType === 'one-way'}
+              aria-label="片方向"
+              className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
+                relationshipType === 'one-way'
+                  ? 'bg-blue-100 ring-2 ring-blue-500'
+                  : 'hover:bg-gray-200'
+              }`}
+            >
+              <ArrowRight className="w-5 h-5" />
+            </button>
 
-              {/* 双方向 (bidirectional) */}
-              <button
-                type="button"
-                onClick={() => setRelationshipType('bidirectional')}
-                aria-pressed={relationshipType === 'bidirectional'}
-                aria-label="双方向"
-                className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
-                  relationshipType === 'bidirectional'
-                    ? 'bg-blue-100 ring-2 ring-blue-500'
-                    : 'hover:bg-gray-200'
-                }`}
-              >
-                <BidirectionalArrow className="w-5 h-5" />
-              </button>
+            {/* 双方向 (bidirectional) */}
+            <button
+              type="button"
+              onClick={() => setRelationshipType('bidirectional')}
+              aria-pressed={relationshipType === 'bidirectional'}
+              aria-label="双方向"
+              className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
+                relationshipType === 'bidirectional'
+                  ? 'bg-blue-100 ring-2 ring-blue-500'
+                  : 'hover:bg-gray-200'
+              }`}
+            >
+              <BidirectionalArrow className="w-5 h-5" />
+            </button>
 
-              {/* 片方向×2 (dual-directed) */}
-              <button
-                type="button"
-                onClick={() => setRelationshipType('dual-directed')}
-                aria-pressed={relationshipType === 'dual-directed'}
-                aria-label="片方向×2"
-                className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
-                  relationshipType === 'dual-directed'
-                    ? 'bg-blue-100 ring-2 ring-blue-500'
-                    : 'hover:bg-gray-200'
-                }`}
-              >
-                <ArrowLeftRight className="w-5 h-5" />
-              </button>
+            {/* 片方向×2 (dual-directed) */}
+            <button
+              type="button"
+              onClick={() => setRelationshipType('dual-directed')}
+              aria-pressed={relationshipType === 'dual-directed'}
+              aria-label="片方向×2"
+              className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
+                relationshipType === 'dual-directed'
+                  ? 'bg-blue-100 ring-2 ring-blue-500'
+                  : 'hover:bg-gray-200'
+              }`}
+            >
+              <ArrowLeftRight className="w-5 h-5" />
+            </button>
 
-              {/* 無方向 (undirected) */}
-              <button
-                type="button"
-                onClick={() => setRelationshipType('undirected')}
-                aria-pressed={relationshipType === 'undirected'}
-                aria-label="無方向"
-                className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
-                  relationshipType === 'undirected'
-                    ? 'bg-blue-100 ring-2 ring-blue-500'
-                    : 'hover:bg-gray-200'
-                }`}
-              >
-                <Minus className="w-5 h-5" />
-              </button>
-            </div>
-          )}
+            {/* 無方向 (undirected) */}
+            <button
+              type="button"
+              onClick={() => setRelationshipType('undirected')}
+              aria-pressed={relationshipType === 'undirected'}
+              aria-label="無方向"
+              className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
+                relationshipType === 'undirected'
+                  ? 'bg-blue-100 ring-2 ring-blue-500'
+                  : 'hover:bg-gray-200'
+              }`}
+            >
+              <Minus className="w-5 h-5" />
+            </button>
+          </div>
 
           {/* 接続先の人物 */}
           <div className="flex items-center gap-2">
@@ -390,55 +309,9 @@ export function RelationshipRegistrationModal({
 
         {/* フォーム */}
         <form onSubmit={handleSubmit}>
-          {/* レイヤー選択 */}
-          <div className="mb-4">
-            <label
-              htmlFor="relationship-layer"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              レイヤー
-            </label>
-            <select
-              id="relationship-layer"
-              value={selectedLayer}
-              onChange={(e) => handleLayerChange(e.target.value as RelationshipLayer)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-            >
-              {RELATIONSHIP_LAYERS.map((layer) => (
-                <option key={layer.value} value={layer.value}>
-                  {layer.label}（{layer.description}）
-                </option>
-              ))}
-            </select>
-          </div>
-
           {/* ラベル入力（方向コンテキスト付き） */}
-          {currentLayerDef.labelSystem === 'fixed' ? (
-            // fixed: suggestedLabels からselectで選択
-            <div className="mb-4">
-              <label
-                htmlFor="relationship-label"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                関係のラベル
-              </label>
-              <select
-                ref={labelSelectRef}
-                id="relationship-label"
-                value={sourceToTargetLabel}
-                onChange={(e) => setSourceToTargetLabel(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">選択してください</option>
-                {currentLayerDef.suggestedLabels?.map((label) => (
-                  <option key={label} value={label}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : relationshipType === 'dual-directed' ? (
-            // dual-directed: 2つのラベル入力セット（semi-fixed/free）
+          {relationshipType === 'dual-directed' ? (
+            // dual-directed: 2つのラベル入力セット
             <>
               <div className="mb-4">
                 <label
@@ -457,20 +330,12 @@ export function RelationshipRegistrationModal({
                   ref={labelInputRef}
                   id="relationship-label"
                   type="text"
-                  list={currentLayerDef.labelSystem === 'semi-fixed' ? 'label-suggestions' : undefined}
                   value={sourceToTargetLabel}
                   onChange={(e) => setSourceToTargetLabel(e.target.value)}
                   maxLength={MAX_RELATIONSHIP_LABEL_LENGTH}
                   placeholder={getPlaceholder('dual-directed', false)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
-                {currentLayerDef.labelSystem === 'semi-fixed' && currentLayerDef.suggestedLabels && (
-                  <datalist id="label-suggestions">
-                    {currentLayerDef.suggestedLabels.map((label) => (
-                      <option key={label} value={label}>{label}</option>
-                    ))}
-                  </datalist>
-                )}
               </div>
               <div className="mb-4">
                 <label
@@ -488,7 +353,6 @@ export function RelationshipRegistrationModal({
                 <input
                   id="reverse-relationship-label"
                   type="text"
-                  list={currentLayerDef.labelSystem === 'semi-fixed' ? 'label-suggestions' : undefined}
                   value={targetToSourceLabel}
                   onChange={(e) => setTargetToSourceLabel(e.target.value)}
                   maxLength={MAX_RELATIONSHIP_LABEL_LENGTH}
@@ -498,7 +362,7 @@ export function RelationshipRegistrationModal({
               </div>
             </>
           ) : (
-            // one-way / bidirectional / undirected: 単一ラベル入力（semi-fixed/free）
+            // one-way / bidirectional / undirected: 単一ラベル入力
             <div className="mb-4">
               <label
                 htmlFor="relationship-label"
@@ -520,64 +384,12 @@ export function RelationshipRegistrationModal({
                 ref={labelInputRef}
                 id="relationship-label"
                 type="text"
-                list={currentLayerDef.labelSystem === 'semi-fixed' ? 'label-suggestions' : undefined}
                 value={sourceToTargetLabel}
                 onChange={(e) => setSourceToTargetLabel(e.target.value)}
                 maxLength={MAX_RELATIONSHIP_LABEL_LENGTH}
                 placeholder={getPlaceholder(relationshipType)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
-              {currentLayerDef.labelSystem === 'semi-fixed' && currentLayerDef.suggestedLabels && (
-                <datalist id="label-suggestions">
-                  {currentLayerDef.suggestedLabels.map((label) => (
-                    <option key={label} value={label}>{label}</option>
-                  ))}
-                </datalist>
-              )}
-            </div>
-          )}
-
-          {/* weightスライダー（supportsWeight=trueのレイヤーのみ表示） */}
-          {currentLayerDef.supportsWeight && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                強度
-              </label>
-              {weight === null ? (
-                // 未設定状態: 「強度を設定する」ボタンで有効化
-                <button
-                  type="button"
-                  onClick={() => setWeight(DEFAULT_WEIGHT_VALUE)}
-                  className="px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-                >
-                  強度を設定する
-                </button>
-              ) : (
-                // 設定済み状態: スライダーと「未設定にする」ボタン
-                <div className="space-y-2">
-                  <input
-                    id="relationship-weight"
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={weight}
-                    onChange={(e) => setWeight(parseFloat(e.target.value))}
-                    className="w-full"
-                    aria-label={`強度: ${weight.toFixed(1)}`}
-                  />
-                  <div className="flex justify-between items-center text-xs text-gray-500">
-                    <span>{weight.toFixed(1)}</span>
-                    <button
-                      type="button"
-                      onClick={() => setWeight(null)}
-                      className="text-gray-500 hover:text-gray-700 underline"
-                    >
-                      未設定にする
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 

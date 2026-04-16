@@ -106,13 +106,17 @@ describe('MiniSidebar', () => {
       const personId1 = persons[0].id;
       const personId2 = persons[1].id;
 
-      // 山田太郎と佐藤花子の間に関係を追加
+      // 山田太郎と佐藤花子の間に関係を追加（v9形式）
       store.addRelationship({
         sourcePersonId: personId1,
         targetPersonId: personId2,
         isDirected: false,
-        sourceToTargetLabel: '友人',
-        targetToSourceLabel: '友人',
+        symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
+        forward: { label: '友人', affection: null, awareness: null, role: null },
+        reverse: { label: '友人', affection: null, awareness: null, role: null },
+        tags: [],
+        narrative: { summary: null, notes: null, turningPoints: [] },
+        colorOverride: null,
       });
 
       // 山田太郎を選択

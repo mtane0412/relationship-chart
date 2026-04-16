@@ -10,7 +10,7 @@ import { ReactFlowProvider } from '@xyflow/react';
 import SearchBar from './SearchBar';
 import { useGraphStore } from '@/stores/useGraphStore';
 import type { Person } from '@/types/person';
-import type { Relationship } from '@/types/relationship';
+import type { RelationshipV9 } from '@/types/relationship';
 import {
   VIEWPORT_ANIMATION_DURATION,
   VIEWPORT_FIT_PADDING,
@@ -53,17 +53,20 @@ describe('SearchBar', () => {
     },
   ];
 
-  const testRelationships: Relationship[] = [
+  const testRelationships: RelationshipV9[] = [
     {
       id: 'rel1',
       sourcePersonId: 'person1',
       targetPersonId: 'person2',
       isDirected: true,
-      sourceToTargetLabel: '上司',
-      targetToSourceLabel: '部下',
-      layer: 'general' as const,
-      weight: null,
+      symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
+      forward: { label: '上司', affection: null, awareness: null, role: null },
+      reverse: { label: '部下', affection: null, awareness: null, role: null },
+      tags: [],
+      narrative: { summary: null, notes: null, turningPoints: [] },
+      colorOverride: null,
       createdAt: '2024-01-01T00:00:00Z',
+      updatedAt: '2024-01-01T00:00:00Z',
     },
   ];
 

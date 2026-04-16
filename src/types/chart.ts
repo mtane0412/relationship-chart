@@ -4,7 +4,7 @@
  */
 
 import type { Person } from './person';
-import type { Relationship } from './relationship';
+import type { RelationshipV9 } from './relationship';
 import type { ForceParams } from '@/stores/useGraphStore';
 import type { EgoLayoutParams } from '@/lib/ego-layout';
 
@@ -25,7 +25,7 @@ export type Chart = {
   id: string;
   name: string;
   persons: Person[];
-  relationships: Relationship[];
+  relationships: RelationshipV9[];
   forceEnabled: boolean;
   forceParams: ForceParams;
   egoLayoutParams: EgoLayoutParams;

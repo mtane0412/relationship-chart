@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RelationshipRegistrationModal } from './RelationshipRegistrationModal';
 
@@ -276,8 +276,8 @@ describe('RelationshipRegistrationModal', () => {
     });
   });
 
-  describe('レイヤー選択', () => {
-    it('レイヤー選択セレクトが表示される', () => {
+  describe('レイヤー選択（v9）', () => {
+    it('レイヤー選択UIが表示されない（v9ではレイヤー廃止）', () => {
       render(
         <RelationshipRegistrationModal
           isOpen={true}
@@ -288,47 +288,11 @@ describe('RelationshipRegistrationModal', () => {
         />
       );
 
-      // レイヤー選択セレクトが表示されることを確認
-      expect(screen.getByLabelText('レイヤー')).toBeInTheDocument();
+      // v9ではレイヤー選択UIは廃止されている
+      expect(screen.queryByLabelText('レイヤー')).not.toBeInTheDocument();
     });
 
-    it('デフォルトレイヤーは「一般」（general）である', () => {
-      render(
-        <RelationshipRegistrationModal
-          isOpen={true}
-          sourcePerson={{ name: '山田太郎' }}
-          targetPerson={{ name: '佐藤花子' }}
-          onSubmit={vi.fn()}
-          onCancel={vi.fn()}
-        />
-      );
-
-      // デフォルトで「一般」が選択されていることを確認
-      const layerSelect = screen.getByLabelText('レイヤー') as HTMLSelectElement;
-      expect(layerSelect.value).toBe('general');
-    });
-
-    it('レイヤーをemotionalに変更できる', async () => {
-      const user = userEvent.setup();
-
-      render(
-        <RelationshipRegistrationModal
-          isOpen={true}
-          sourcePerson={{ name: '山田太郎' }}
-          targetPerson={{ name: '佐藤花子' }}
-          onSubmit={vi.fn()}
-          onCancel={vi.fn()}
-        />
-      );
-
-      const layerSelect = screen.getByLabelText('レイヤー');
-
-      // レイヤーを「感情」（emotional）に変更
-      await user.selectOptions(layerSelect, 'emotional');
-      expect((layerSelect as HTMLSelectElement).value).toBe('emotional');
-    });
-
-    it('onSubmitにデフォルトのgeneralレイヤーが渡される', async () => {
+    it('onSubmitにtype・sourceToTargetLabel・targetToSourceLabelが渡される（v9）', async () => {
       const user = userEvent.setup();
       const onSubmit = vi.fn();
 
@@ -345,44 +309,16 @@ describe('RelationshipRegistrationModal', () => {
       const labelInput = screen.getByLabelText(/関係のラベル/);
       const submitButton = screen.getByRole('button', { name: '登録' });
 
-      // ラベルを入力（レイヤーはデフォルトのgeneral）
+      // ラベルを入力して登録
       await user.type(labelInput, '友人');
       await user.click(submitButton);
 
-      // onSubmitにgeneralレイヤーとweight=nullが渡されることを確認
-      expect(onSubmit).toHaveBeenCalledWith('bidirectional', '友人', null, 'general', null);
+      // v9: onSubmitに (type, sourceToTargetLabel, targetToSourceLabel) の3引数で渡される
+      expect(onSubmit).toHaveBeenCalledWith('bidirectional', '友人', null);
     });
 
-    it('変更したレイヤーがonSubmitに渡される', async () => {
-      const user = userEvent.setup();
-      const onSubmit = vi.fn();
-
-      render(
-        <RelationshipRegistrationModal
-          isOpen={true}
-          sourcePerson={{ name: '山田太郎' }}
-          targetPerson={{ name: '佐藤花子' }}
-          onSubmit={onSubmit}
-          onCancel={vi.fn()}
-        />
-      );
-
-      // レイヤーを「感情」に変更
-      const layerSelect = screen.getByLabelText('レイヤー');
-      await user.selectOptions(layerSelect, 'emotional');
-
-      const labelInput = screen.getByLabelText(/関係のラベル/);
-      const submitButton = screen.getByRole('button', { name: '登録' });
-
-      await user.type(labelInput, '好き');
-      await user.click(submitButton);
-
-      // 変更したレイヤーがonSubmitに渡されることを確認
-      // emotionalレイヤーに切り替えると weight がデフォルト値（0.5）に設定される
-      expect(onSubmit).toHaveBeenCalledWith('bidirectional', '好き', null, 'emotional', 0.5);
-    });
-
-    it('initialRelationshipにlayerが含まれる場合、初期値として設定される', () => {
+    it('initialRelationshipのsourceToTargetLabelが初期値として設定される', () => {
+      // v9ではlayerフィールドは廃止。sourceToTargetLabelの初期値をテスト
       render(
         <RelationshipRegistrationModal
           isOpen={true}
@@ -392,16 +328,15 @@ describe('RelationshipRegistrationModal', () => {
             type: 'bidirectional',
             sourceToTargetLabel: '仲間',
             targetToSourceLabel: null,
-            layer: 'organizational',
           }}
           onSubmit={vi.fn()}
           onCancel={vi.fn()}
         />
       );
 
-      // initialRelationshipのlayerが初期値として設定されることを確認
-      const layerSelect = screen.getByLabelText('レイヤー') as HTMLSelectElement;
-      expect(layerSelect.value).toBe('organizational');
+      // initialRelationshipのsourceToTargetLabelが初期値として設定されることを確認
+      const labelInput = screen.getByLabelText('関係のラベル') as HTMLInputElement;
+      expect(labelInput.value).toBe('仲間');
     });
   });
 
@@ -429,8 +364,8 @@ describe('RelationshipRegistrationModal', () => {
       // 登録ボタンをクリック
       await user.click(submitButton);
 
-      // onSubmitが正しい引数で呼ばれることを確認
-      expect(onSubmit).toHaveBeenCalledWith('bidirectional', '親子', null, 'general', null);
+      // onSubmitが正しい引数で呼ばれることを確認（v9: 3引数）
+      expect(onSubmit).toHaveBeenCalledWith('bidirectional', '親子', null);
     });
 
     it('dual-directedタイプでonSubmitが呼ばれる', async () => {
@@ -462,8 +397,8 @@ describe('RelationshipRegistrationModal', () => {
       // 登録ボタンをクリック
       await user.click(submitButton);
 
-      // onSubmitが正しい引数で呼ばれることを確認
-      expect(onSubmit).toHaveBeenCalledWith('dual-directed', '好き', '無関心', 'general', null);
+      // onSubmitが正しい引数で呼ばれることを確認（v9: 3引数）
+      expect(onSubmit).toHaveBeenCalledWith('dual-directed', '好き', '無関心');
     });
 
     it('one-wayタイプでonSubmitが呼ばれる', async () => {
@@ -493,8 +428,8 @@ describe('RelationshipRegistrationModal', () => {
       // 登録ボタンをクリック
       await user.click(submitButton);
 
-      // onSubmitが正しい引数で呼ばれることを確認
-      expect(onSubmit).toHaveBeenCalledWith('one-way', '片想い', null, 'general', null);
+      // onSubmitが正しい引数で呼ばれることを確認（v9: 3引数）
+      expect(onSubmit).toHaveBeenCalledWith('one-way', '片想い', null);
     });
 
     it('undirectedタイプでonSubmitが呼ばれる', async () => {
@@ -524,8 +459,8 @@ describe('RelationshipRegistrationModal', () => {
       // 登録ボタンをクリック
       await user.click(submitButton);
 
-      // onSubmitが正しい引数で呼ばれることを確認
-      expect(onSubmit).toHaveBeenCalledWith('undirected', '同一人物', null, 'general', null);
+      // onSubmitが正しい引数で呼ばれることを確認（v9: 3引数）
+      expect(onSubmit).toHaveBeenCalledWith('undirected', '同一人物', null);
     });
 
     it('キャンセルボタンをクリックするとonCancelが呼ばれる', async () => {
@@ -712,8 +647,8 @@ describe('RelationshipRegistrationModal', () => {
       const submitButton = screen.getByRole('button', { name: '更新' });
       await user.click(submitButton);
 
-      // onSubmitが更新された値で呼ばれることを確認
-      expect(onSubmit).toHaveBeenCalledWith('bidirectional', '親友', null, 'general', null);
+      // onSubmitが更新された値で呼ばれることを確認（v9: 3引数）
+      expect(onSubmit).toHaveBeenCalledWith('bidirectional', '親友', null);
     });
   });
 
@@ -937,10 +872,8 @@ describe('RelationshipRegistrationModal', () => {
     });
   });
 
-  describe('スキーマ対応UI: allowDirectionOverride=false（認知レイヤー）', () => {
-    it('awarenessレイヤー選択時は方向選択ボタンが非表示になる', async () => {
-      const user = userEvent.setup();
-
+  describe('スキーマ対応UI（v9）', () => {
+    it('レイヤー選択UIが表示されない（v9ではレイヤー廃止）', () => {
       render(
         <RelationshipRegistrationModal
           isOpen={true}
@@ -951,122 +884,11 @@ describe('RelationshipRegistrationModal', () => {
         />
       );
 
-      // awarenessレイヤーに変更
-      const layerSelect = screen.getByLabelText('レイヤー');
-      await user.selectOptions(layerSelect, 'awareness');
-
-      // 方向選択ボタンが非表示になることを確認
-      expect(screen.queryByRole('button', { name: '片方向' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: '双方向' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: '片方向×2' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: '無方向' })).not.toBeInTheDocument();
+      // v9ではレイヤー選択UIは廃止されている
+      expect(screen.queryByLabelText('レイヤー')).not.toBeInTheDocument();
     });
 
-    it('awarenessレイヤーから別のレイヤーに戻すと方向選択ボタンが再表示される', async () => {
-      const user = userEvent.setup();
-
-      render(
-        <RelationshipRegistrationModal
-          isOpen={true}
-          sourcePerson={{ name: '江戸川コナン' }}
-          targetPerson={{ name: '毛利蘭' }}
-          onSubmit={vi.fn()}
-          onCancel={vi.fn()}
-        />
-      );
-
-      const layerSelect = screen.getByLabelText('レイヤー');
-
-      // awarenessに変更して方向選択が消えることを確認
-      await user.selectOptions(layerSelect, 'awareness');
-      expect(screen.queryByRole('button', { name: '片方向' })).not.toBeInTheDocument();
-
-      // generalに戻すと方向選択が再表示されることを確認
-      await user.selectOptions(layerSelect, 'general');
-      expect(screen.getByRole('button', { name: '片方向' })).toBeInTheDocument();
-    });
-  });
-
-  describe('スキーマ対応UI: labelSystem=fixed（認知レイヤー）', () => {
-    it('awarenessレイヤー選択時はラベル入力がselectになる', async () => {
-      const user = userEvent.setup();
-
-      render(
-        <RelationshipRegistrationModal
-          isOpen={true}
-          sourcePerson={{ name: '江戸川コナン' }}
-          targetPerson={{ name: '毛利蘭' }}
-          onSubmit={vi.fn()}
-          onCancel={vi.fn()}
-        />
-      );
-
-      // awarenessレイヤーに変更
-      const layerSelect = screen.getByLabelText('レイヤー');
-      await user.selectOptions(layerSelect, 'awareness');
-
-      // ラベル入力がtext inputではなくselectになることを確認
-      expect(screen.queryByRole('textbox', { name: /関係のラベル/ })).not.toBeInTheDocument();
-      const labelSelect = screen.getByLabelText(/関係のラベル/) as HTMLSelectElement;
-      expect(labelSelect.tagName).toBe('SELECT');
-    });
-
-    it('awarenessレイヤーのラベルselectには suggestedLabels が含まれる', async () => {
-      const user = userEvent.setup();
-
-      render(
-        <RelationshipRegistrationModal
-          isOpen={true}
-          sourcePerson={{ name: '江戸川コナン' }}
-          targetPerson={{ name: '毛利蘭' }}
-          onSubmit={vi.fn()}
-          onCancel={vi.fn()}
-        />
-      );
-
-      // awarenessレイヤーに変更
-      const layerSelect = screen.getByLabelText('レイヤー');
-      await user.selectOptions(layerSelect, 'awareness');
-
-      // awareness の suggestedLabels が選択肢として含まれることを確認
-      expect(screen.getByRole('option', { name: '知っている' })).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: '知らない' })).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: '疑っている' })).toBeInTheDocument();
-    });
-
-    it('awarenessレイヤーでラベルを選択してonSubmitが呼ばれる', async () => {
-      const user = userEvent.setup();
-      const onSubmit = vi.fn();
-
-      render(
-        <RelationshipRegistrationModal
-          isOpen={true}
-          sourcePerson={{ name: '江戸川コナン' }}
-          targetPerson={{ name: '毛利蘭' }}
-          onSubmit={onSubmit}
-          onCancel={vi.fn()}
-        />
-      );
-
-      // awarenessレイヤーに変更
-      const layerSelect = screen.getByLabelText('レイヤー');
-      await user.selectOptions(layerSelect, 'awareness');
-
-      // ラベルselectで「知っている」を選択
-      const labelSelect = screen.getByLabelText(/関係のラベル/);
-      await user.selectOptions(labelSelect, '知っている');
-
-      // 登録ボタンをクリック
-      const submitButton = screen.getByRole('button', { name: '登録' });
-      await user.click(submitButton);
-
-      // onSubmitにawarenessレイヤーと選択したラベルが渡されることを確認
-      expect(onSubmit).toHaveBeenCalledWith('one-way', '知っている', null, 'awareness', null);
-    });
-  });
-
-  describe('スキーマ対応UI: labelSystem=semi-fixed（一般レイヤー）', () => {
-    it('generalレイヤーではラベル入力にdatalistが紐付けられる', () => {
+    it('weightスライダーが表示されない（v9ではweight廃止）', () => {
       render(
         <RelationshipRegistrationModal
           isOpen={true}
@@ -1077,138 +899,24 @@ describe('RelationshipRegistrationModal', () => {
         />
       );
 
-      // generalレイヤーのラベル入力にlistプロパティが設定されていることを確認
+      // v9ではweightスライダーは廃止されている
+      expect(screen.queryByLabelText(/強度/)).not.toBeInTheDocument();
+    });
+
+    it('ラベル入力がテキスト入力として表示される（v9）', () => {
+      render(
+        <RelationshipRegistrationModal
+          isOpen={true}
+          sourcePerson={{ name: '山田太郎' }}
+          targetPerson={{ name: '佐藤花子' }}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      // ラベル入力がテキスト入力として表示されることを確認
       const labelInput = screen.getByLabelText(/関係のラベル/) as HTMLInputElement;
-      expect(labelInput.list).not.toBeNull();
-    });
-
-    it('generalレイヤーのdatalistにはsuggestedLabelsが含まれる', () => {
-      render(
-        <RelationshipRegistrationModal
-          isOpen={true}
-          sourcePerson={{ name: '山田太郎' }}
-          targetPerson={{ name: '佐藤花子' }}
-          onSubmit={vi.fn()}
-          onCancel={vi.fn()}
-        />
-      );
-
-      // general の suggestedLabels がdatalistに含まれることを確認
-      expect(screen.getByText('友人')).toBeInTheDocument();
-      expect(screen.getByText('知人')).toBeInTheDocument();
-      expect(screen.getByText('恋人')).toBeInTheDocument();
-    });
-  });
-
-  describe('スキーマ対応UI: supportsWeight=true（感情レイヤー）', () => {
-    it('emotionalレイヤー選択時にweightスライダーが表示される', async () => {
-      const user = userEvent.setup();
-
-      render(
-        <RelationshipRegistrationModal
-          isOpen={true}
-          sourcePerson={{ name: '山田太郎' }}
-          targetPerson={{ name: '佐藤花子' }}
-          onSubmit={vi.fn()}
-          onCancel={vi.fn()}
-        />
-      );
-
-      // 初期状態（general）ではweightスライダーが非表示
-      expect(screen.queryByLabelText(/強度/)).not.toBeInTheDocument();
-
-      // emotionalレイヤーに変更
-      const layerSelect = screen.getByLabelText('レイヤー');
-      await user.selectOptions(layerSelect, 'emotional');
-
-      // weightスライダーが表示されることを確認
-      expect(screen.getByLabelText(/強度/)).toBeInTheDocument();
-    });
-
-    it('emotionalレイヤーから他レイヤーに変更するとweightスライダーが非表示になる', async () => {
-      const user = userEvent.setup();
-
-      render(
-        <RelationshipRegistrationModal
-          isOpen={true}
-          sourcePerson={{ name: '山田太郎' }}
-          targetPerson={{ name: '佐藤花子' }}
-          onSubmit={vi.fn()}
-          onCancel={vi.fn()}
-        />
-      );
-
-      const layerSelect = screen.getByLabelText('レイヤー');
-      await user.selectOptions(layerSelect, 'emotional');
-      expect(screen.getByLabelText(/強度/)).toBeInTheDocument();
-
-      // generalに戻すとweightスライダーが非表示になることを確認
-      await user.selectOptions(layerSelect, 'general');
-      expect(screen.queryByLabelText(/強度/)).not.toBeInTheDocument();
-    });
-
-    it('emotionalレイヤーでweightを設定してonSubmitにweight値が渡される', async () => {
-      const user = userEvent.setup();
-      const onSubmit = vi.fn();
-
-      render(
-        <RelationshipRegistrationModal
-          isOpen={true}
-          sourcePerson={{ name: '山田太郎' }}
-          targetPerson={{ name: '佐藤花子' }}
-          onSubmit={onSubmit}
-          onCancel={vi.fn()}
-        />
-      );
-
-      // emotionalレイヤーに変更
-      const layerSelect = screen.getByLabelText('レイヤー');
-      await user.selectOptions(layerSelect, 'emotional');
-
-      // ラベルを入力
-      const labelInput = screen.getByLabelText(/関係のラベル/);
-      await user.type(labelInput, '好き');
-
-      // weightスライダーを操作（0.8に設定）
-      const weightSlider = screen.getByLabelText(/強度/) as HTMLInputElement;
-      fireEvent.change(weightSlider, { target: { value: '0.8' } });
-
-      // 登録ボタンをクリック
-      const submitButton = screen.getByRole('button', { name: '登録' });
-      await user.click(submitButton);
-
-      // onSubmitにweight=0.8が渡されることを確認
-      expect(onSubmit).toHaveBeenCalledWith('bidirectional', '好き', null, 'emotional', 0.8);
-    });
-
-    it('emotionalレイヤーでweightを変更しない場合、デフォルト値（0.5）が渡される', async () => {
-      const user = userEvent.setup();
-      const onSubmit = vi.fn();
-
-      render(
-        <RelationshipRegistrationModal
-          isOpen={true}
-          sourcePerson={{ name: '山田太郎' }}
-          targetPerson={{ name: '佐藤花子' }}
-          onSubmit={onSubmit}
-          onCancel={vi.fn()}
-        />
-      );
-
-      // emotionalレイヤーに変更
-      const layerSelect = screen.getByLabelText('レイヤー');
-      await user.selectOptions(layerSelect, 'emotional');
-
-      // ラベルを入力（weightは変更しない）
-      const labelInput = screen.getByLabelText(/関係のラベル/);
-      await user.type(labelInput, '憧れ');
-
-      // 登録ボタンをクリック
-      const submitButton = screen.getByRole('button', { name: '登録' });
-      await user.click(submitButton);
-
-      // emotionalレイヤー切り替え時にデフォルトのweight値（0.5）が設定される
-      expect(onSubmit).toHaveBeenCalledWith('bidirectional', '憧れ', null, 'emotional', 0.5);
+      expect(labelInput.tagName).toBe('INPUT');
     });
   });
 });

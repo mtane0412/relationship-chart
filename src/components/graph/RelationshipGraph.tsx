@@ -342,14 +342,12 @@ export function RelationshipGraph() {
             (r) => r.id === pendingConnection.existingRelationshipId
           );
           if (!existingRelationship) return undefined;
-          // 新データモデルからUI用のRelationshipTypeに変換
+          // v9 データモデルからUI用のRelationshipTypeに変換
           const displayType = getRelationshipDisplayType(existingRelationship);
           return {
             type: displayType,
-            sourceToTargetLabel: existingRelationship.sourceToTargetLabel ?? '',
-            targetToSourceLabel: existingRelationship.targetToSourceLabel ?? null,
-            layer: existingRelationship.layer,
-            weight: existingRelationship.weight,
+            sourceToTargetLabel: existingRelationship.forward.label ?? '',
+            targetToSourceLabel: existingRelationship.reverse.label ?? null,
           };
         }, [pendingConnection, relationships])}
         onSubmit={handleRegisterRelationship}

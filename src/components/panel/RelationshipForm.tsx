@@ -45,14 +45,18 @@ export function RelationshipForm() {
       return;
     }
 
-    // 関係を追加（新データモデル形式）
+    // 関係を追加（v9プロパティグラフ形式）
     const trimmedLabel = label.trim();
     addRelationship({
       sourcePersonId,
       targetPersonId,
       isDirected,
-      sourceToTargetLabel: trimmedLabel,
-      targetToSourceLabel: isDirected ? null : trimmedLabel, // undirectedの場合は同じラベル
+      forward: { label: trimmedLabel, affection: null, awareness: null, role: null },
+      reverse: { label: isDirected ? null : trimmedLabel, affection: null, awareness: null, role: null },
+      symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
+      tags: [],
+      narrative: { summary: null, notes: null, turningPoints: [] },
+      colorOverride: null,
     });
 
     // フォームをリセット

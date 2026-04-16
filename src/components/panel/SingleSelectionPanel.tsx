@@ -11,8 +11,7 @@ import { useGraphStore } from '@/stores/useGraphStore';
 import { useDialogStore } from '@/stores/useDialogStore';
 import { useReactFlow } from '@xyflow/react';
 import type { Person } from '@/types/person';
-import type { Relationship } from '@/types/relationship';
-import { RELATIONSHIP_LAYERS } from '@/types/relationship';
+import type { RelationshipV9 } from '@/types/relationship';
 import { getRelationshipFromPerspective } from '@/lib/relationship-utils';
 import {
   VIEWPORT_ANIMATION_DURATION,
@@ -60,7 +59,7 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
 
   // この人物に関連する関係を取得し、方向別にグループ化
   type RelationshipItem = {
-    relationship: Relationship;
+    relationship: RelationshipV9;
     otherPersonId: string;
     label: string;
     direction: '→' | '←' | '↔' | '—';
@@ -201,19 +200,6 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
                           )}
                           <span className="text-gray-600 truncate">{otherPerson.name}</span>
                           <span className="font-medium text-gray-700 truncate">{relItem.label}</span>
-                          {/* レイヤー色バッジ */}
-                          {(() => {
-                            const layerDef = RELATIONSHIP_LAYERS.find(
-                              (l) => l.value === relItem.relationship.layer
-                            );
-                            return layerDef ? (
-                              <span
-                                className="shrink-0 w-2 h-2 rounded-full"
-                                style={{ backgroundColor: layerDef.color }}
-                                title={`${layerDef.label}（${layerDef.description}）`}
-                              />
-                            ) : null;
-                          })()}
                         </div>
                       </div>
                     );
