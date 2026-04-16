@@ -7,7 +7,8 @@ import { create } from 'zustand';
 import { temporal } from 'zundo';
 import { nanoid } from 'nanoid';
 import type { Person } from '@/types/person';
-import type { RelationshipV9, DirectionalProps, SymmetricProps, RelationshipNarrative } from '@/types/relationship';
+import type { RelationshipV9, DirectionalProps, SymmetricProps, RelationshipNarrative, EdgeFilter } from '@/types/relationship';
+import { INITIAL_EDGE_FILTER } from '@/types/relationship';
 import type { EgoLayoutParams } from '@/lib/ego-layout';
 import { DEFAULT_EGO_LAYOUT_PARAMS } from '@/lib/ego-layout';
 import type { ChartMeta, Chart } from '@/types/chart';
@@ -76,6 +77,8 @@ type GraphState = {
   pauseAutoSave: boolean;
   /** ペア編集時に表示する特定の関係ID（エッジクリック・関係一覧クリック時に設定） */
   editingRelationshipId: string | null;
+  /** エッジフィルタ（タグ・述語による絞り込み、セッション内のみ保持） */
+  edgeFilter: EdgeFilter;
 };
 
 /**
@@ -95,6 +98,7 @@ const INITIAL_STATE: GraphState = {
   isLoading: false,
   pauseAutoSave: false,
   editingRelationshipId: null,
+  edgeFilter: INITIAL_EDGE_FILTER,
 };
 
 /**
@@ -381,6 +385,12 @@ type GraphActions = {
   toggleSidePanel: () => void;
 
   /**
+   * エッジフィルタを部分更新する（セッション内のみ有効）
+   * @param patch - 更新するフィールド（指定したもののみ更新）
+   */
+  updateEdgeFilter: (patch: Partial<EdgeFilter>) => void;
+
+  /**
    * すべてのデータと状態を初期値にリセットする
    * Undo/Redo履歴もクリアされます
    */
@@ -617,6 +627,14 @@ export const useGraphStore = create<GraphStore>()(
         toggleSidePanel: () =>
           set((state) => ({
             sidePanelOpen: !state.sidePanelOpen,
+          })),
+
+        updateEdgeFilter: (patch) =>
+          set((state) => ({
+            edgeFilter: {
+              ...state.edgeFilter,
+              ...patch,
+            },
           })),
 
         resetAll: () => {

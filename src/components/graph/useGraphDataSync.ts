@@ -28,7 +28,7 @@ export function useGraphDataSync() {
   const forceEnabled = useGraphStore((state) => state.forceEnabled);
   const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
   const updatePersonPositions = useGraphStore((state) => state.updatePersonPositions);
-  // NOTE: visibleLayers は Phase 4 で edgeFilter に置き換え予定。Phase 2 では使用しない。
+  const edgeFilter = useGraphStore((state) => state.edgeFilter);
 
   // React Flowのノード/エッジ状態
   const [nodes, setNodes, onNodesChange] = useNodesState<GraphNode>([]);
@@ -72,7 +72,8 @@ export function useGraphDataSync() {
   useEffect(() => {
     const newNodes = personsToNodes(persons);
     // relationships は Phase 1 で v9 形式に変換済み（型は Relationship[] だが実体は RelationshipV9[]）
-    const newEdges = relationshipsToEdges(relationships as unknown as RelationshipV9[]);
+    // edgeFilter に基づいて表示するエッジを絞り込む
+    const newEdges = relationshipsToEdges(relationships as unknown as RelationshipV9[], edgeFilter);
 
     // setNodesの関数型アップデータ内からRAFをスケジュールしています
     // React 18 StrictModeではアップデータが2回呼ばれる可能性がありますが、
@@ -158,7 +159,7 @@ export function useGraphDataSync() {
         collisionResolutionRafIdRef.current = null;
       }
     };
-  }, [persons, relationships, setNodes, setEdges, forceEnabled, updatePersonPositions]);
+  }, [persons, relationships, setNodes, setEdges, forceEnabled, updatePersonPositions, edgeFilter]);
 
   // 選択状態の変更時に既存ノード/エッジのselectedプロパティのみ更新
   // 配列参照を変更しないようにhasChangedフラグで最適化

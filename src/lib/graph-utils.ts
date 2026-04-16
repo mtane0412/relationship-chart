@@ -4,7 +4,7 @@
  */
 
 import type { Person } from '@/types/person';
-import type { RelationshipV9, RelationshipType } from '@/types/relationship';
+import type { RelationshipV9, RelationshipType, EdgeFilter } from '@/types/relationship';
 import type { GraphNode, RelationshipEdge } from '@/types/graph';
 import { deriveEdgeVisual } from './relationship-visual';
 
@@ -59,9 +59,61 @@ function getPairKey(idA: string, idB: string): string {
 }
 
 /**
+ * エッジフィルタ条件に関係が一致するか判定する
+ *
+ * @param relationship - 判定対象の RelationshipV9
+ * @param filter - エッジフィルタ（タグフィルタ + 述語フィルタ）
+ * @returns フィルタを通過すれば true
+ *
+ * @description
+ * タグフィルタ: values が空なら全通過。mode='any' なら関係タグのいずれかが一致すればOK、
+ *               mode='all' なら全フィルタタグが関係タグに含まれる必要がある。
+ * 述語フィルタ: 全述語を AND で評価（1つでも失敗すれば除外）。
+ *               定型数値が null の場合は述語を満たさないとみなす。
+ */
+export function matchesEdgeFilter(relationship: RelationshipV9, filter: EdgeFilter): boolean {
+  // タグフィルタ: values が空なら全通過
+  if (filter.tags.values.size > 0) {
+    if (filter.tags.mode === 'any') {
+      // いずれか1つのタグが一致すればOK
+      const hasMatch = relationship.tags.some((tag) => filter.tags.values.has(tag));
+      if (!hasMatch) return false;
+    } else {
+      // 全てのフィルタタグが relationship.tags に含まれる必要がある
+      const allMatch = [...filter.tags.values].every((tag) => relationship.tags.includes(tag));
+      if (!allMatch) return false;
+    }
+  }
+
+  // 述語フィルタ: 全述語を AND 評価
+  for (const pred of filter.predicates) {
+    switch (pred.type) {
+      case 'closeness_gte':
+        if (relationship.symmetric.closeness === null || relationship.symmetric.closeness < pred.value) return false;
+        break;
+      case 'trust_gte':
+        if (relationship.symmetric.trust === null || relationship.symmetric.trust < pred.value) return false;
+        break;
+      case 'tension_gte':
+        if (relationship.symmetric.tension === null || relationship.symmetric.tension < pred.value) return false;
+        break;
+      case 'secrecy_gte':
+        if (relationship.symmetric.secrecy === null || relationship.symmetric.secrecy < pred.value) return false;
+        break;
+      case 'has_kinship':
+        if (relationship.symmetric.kinship === null) return false;
+        break;
+    }
+  }
+
+  return true;
+}
+
+/**
  * RelationshipV9 配列を RelationshipEdge 配列に変換する
  *
  * @param relationships - 変換対象の RelationshipV9 配列
+ * @param edgeFilter - エッジフィルタ（指定した場合は条件に一致する関係のみ変換）
  * @returns RelationshipEdge 配列
  *
  * @description
@@ -69,11 +121,17 @@ function getPairKey(idA: string, idB: string): string {
  * source/target の順序に関わらず同一ペアとして扱う（getPairKey で正規化）。
  * この情報は RelationshipEdge コンポーネントの並列描画オフセット計算に使用される。
  * エッジの色・線幅・破線は deriveEdgeVisual で決定する。
+ * edgeFilter が指定された場合は先にフィルタリングし、残った関係のみを変換する。
  */
-export function relationshipsToEdges(relationships: RelationshipV9[]): RelationshipEdge[] {
+export function relationshipsToEdges(relationships: RelationshipV9[], edgeFilter?: EdgeFilter): RelationshipEdge[] {
+  // edgeFilter が指定されている場合は先にフィルタリング
+  const filtered = edgeFilter
+    ? relationships.filter((r) => matchesEdgeFilter(r, edgeFilter))
+    : relationships;
+
   // ペアキーごとのエッジ数をカウントする（source/targetの順序を無視）
   const pairCountMap = new Map<string, number>();
-  for (const r of relationships) {
+  for (const r of filtered) {
     const key = getPairKey(r.sourcePersonId, r.targetPersonId);
     pairCountMap.set(key, (pairCountMap.get(key) ?? 0) + 1);
   }
@@ -81,7 +139,7 @@ export function relationshipsToEdges(relationships: RelationshipV9[]): Relations
   // ペアキーごとのエッジインデックスを追跡する
   const pairIndexMap = new Map<string, number>();
 
-  return relationships.map((relationship) => {
+  return filtered.map((relationship) => {
     const key = getPairKey(relationship.sourcePersonId, relationship.targetPersonId);
     const edgeIndex = pairIndexMap.get(key) ?? 0;
     pairIndexMap.set(key, edgeIndex + 1);

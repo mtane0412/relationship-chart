@@ -268,6 +268,41 @@ export const SUGGESTED_TAGS = [
 ] as const;
 
 /**
+ * エッジフィルタの述語
+ * 定型数値・血縁の有無などによる絞り込み条件を表す
+ */
+export type EdgePredicate =
+  | { type: 'closeness_gte'; value: number }
+  | { type: 'trust_gte'; value: number }
+  | { type: 'tension_gte'; value: number }
+  | { type: 'secrecy_gte'; value: number }
+  | { type: 'has_kinship' };
+
+/**
+ * エッジフィルタの状態
+ * タグフィルタ（ANY/ALL モード）と述語フィルタの組み合わせで関係を絞り込む
+ *
+ * @property tags.mode - 'any': いずれかのタグが一致すればOK / 'all': 全タグが一致する必要あり
+ * @property tags.values - フィルタ対象のタグ集合（空の場合はタグ絞り込みなし）
+ * @property predicates - 追加述語フィルタ（全て通過する必要あり）
+ */
+export type EdgeFilter = {
+  tags: {
+    mode: 'any' | 'all';
+    values: Set<string>;
+  };
+  predicates: EdgePredicate[];
+};
+
+/**
+ * エッジフィルタの初期値（全エッジを表示）
+ */
+export const INITIAL_EDGE_FILTER: EdgeFilter = {
+  tags: { mode: 'any', values: new Set() },
+  predicates: [],
+};
+
+/**
  * タグと色のマッピング（旧レイヤー色を継承）
  * タグから色を派生させるために使用する
  */

@@ -74,6 +74,8 @@ describe('useGraphStore', () => {
     store.resetEgoLayoutParams();
     // sidePanelOpenもリセット
     store.setSidePanelOpen(true);
+    // edgeFilterもリセット
+    store.updateEdgeFilter({ tags: { mode: 'any', values: new Set() }, predicates: [] });
   });
 
   describe('初期状態', () => {
@@ -2201,6 +2203,69 @@ describe('useGraphStore', () => {
 
   // v9移行によりvisibleLayersとtoggleLayerVisibilityはストアから削除されました。
   // レイヤーフィルタリングの代わりにtags機能で関係の分類を行います。
+
+  describe('edgeFilter', () => {
+    it('初期状態のedgeFilterはタグなし・述語なしのフィルタ（全表示）になっている', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      expect(result.current.edgeFilter.tags.mode).toBe('any');
+      expect(result.current.edgeFilter.tags.values.size).toBe(0);
+      expect(result.current.edgeFilter.predicates).toEqual([]);
+    });
+
+    it('updateEdgeFilter: タグフィルタを設定できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      act(() => {
+        result.current.updateEdgeFilter({
+          tags: { mode: 'any', values: new Set(['上司', '部下']) },
+        });
+      });
+
+      expect(result.current.edgeFilter.tags.values).toEqual(new Set(['上司', '部下']));
+      expect(result.current.edgeFilter.predicates).toEqual([]);
+    });
+
+    it('updateEdgeFilter: 述語フィルタを設定できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      act(() => {
+        result.current.updateEdgeFilter({
+          predicates: [{ type: 'closeness_gte', value: 0.5 }],
+        });
+      });
+
+      expect(result.current.edgeFilter.predicates).toEqual([{ type: 'closeness_gte', value: 0.5 }]);
+      expect(result.current.edgeFilter.tags.values.size).toBe(0);
+    });
+
+    it('updateEdgeFilter: パッチ更新は既存のフィールドを保持する', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      act(() => {
+        result.current.updateEdgeFilter({
+          tags: { mode: 'all', values: new Set(['上司']) },
+        });
+      });
+
+      // 述語フィールドは変更されていない
+      expect(result.current.edgeFilter.tags.mode).toBe('all');
+      expect(result.current.edgeFilter.tags.values).toEqual(new Set(['上司']));
+      expect(result.current.edgeFilter.predicates).toEqual([]);
+    });
+
+    it('updateEdgeFilter: タグのモードを any から all に変更できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      act(() => {
+        result.current.updateEdgeFilter({
+          tags: { mode: 'all', values: new Set(['友人']) },
+        });
+      });
+
+      expect(result.current.edgeFilter.tags.mode).toBe('all');
+    });
+  });
 
   describe('resetAll', () => {
     it('データが存在する状態からリセットすると全状態が初期値に戻る', () => {

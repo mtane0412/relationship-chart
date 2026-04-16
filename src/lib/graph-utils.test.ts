@@ -4,9 +4,9 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { personsToNodes, relationshipsToEdges, syncNodePositionsToStore, calculateParallelEdgeOffset } from './graph-utils';
+import { personsToNodes, relationshipsToEdges, matchesEdgeFilter, syncNodePositionsToStore, calculateParallelEdgeOffset } from './graph-utils';
 import type { Person } from '@/types/person';
-import type { RelationshipV9 } from '@/types/relationship';
+import type { RelationshipV9, EdgeFilter } from '@/types/relationship';
 import type { GraphNode } from '@/types/graph';
 
 // ─── テストデータ ヘルパー ─────────────────────────────────────────────────────
@@ -527,6 +527,250 @@ describe('graph-utils', () => {
       // 各エッジは独立したペアなので totalEdgesInPair=1
       expect(edges[0].data?.totalEdgesInPair).toBe(1);
       expect(edges[1].data?.totalEdgesInPair).toBe(1);
+    });
+  });
+
+  describe('matchesEdgeFilter: エッジフィルタ判定', () => {
+    /** フィルタなし（初期値）を表す EdgeFilter */
+    const noFilter: EdgeFilter = {
+      tags: { mode: 'any', values: new Set() },
+      predicates: [],
+    };
+
+    it('フィルタが空（タグなし・述語なし）の場合は全ての関係が通過する', () => {
+      // 前提条件: タグあり関係でもフィルタが空なら通過する
+      const rel = makeRel({ tags: ['上司', '友人'] });
+      expect(matchesEdgeFilter(rel, noFilter)).toBe(true);
+    });
+
+    it('タグなし関係もフィルタが空なら通過する', () => {
+      const rel = makeRel({ tags: [] });
+      expect(matchesEdgeFilter(rel, noFilter)).toBe(true);
+    });
+
+    describe('タグフィルタ（ANYモード）', () => {
+      it('関係のタグにフィルタのタグが1つでも含まれていれば通過する', () => {
+        // 前提条件: 関係タグ ['友人', '同級生']、フィルタタグ ['同級生']
+        const rel = makeRel({ tags: ['友人', '同級生'] });
+        const filter: EdgeFilter = {
+          tags: { mode: 'any', values: new Set(['同級生']) },
+          predicates: [],
+        };
+        expect(matchesEdgeFilter(rel, filter)).toBe(true);
+      });
+
+      it('関係のタグがフィルタのいずれのタグにも一致しない場合は除外される', () => {
+        // 前提条件: 関係タグ ['友人']、フィルタタグ ['上司', '部下']
+        const rel = makeRel({ tags: ['友人'] });
+        const filter: EdgeFilter = {
+          tags: { mode: 'any', values: new Set(['上司', '部下']) },
+          predicates: [],
+        };
+        expect(matchesEdgeFilter(rel, filter)).toBe(false);
+      });
+
+      it('関係のタグが空でフィルタにタグが指定されている場合は除外される', () => {
+        const rel = makeRel({ tags: [] });
+        const filter: EdgeFilter = {
+          tags: { mode: 'any', values: new Set(['上司']) },
+          predicates: [],
+        };
+        expect(matchesEdgeFilter(rel, filter)).toBe(false);
+      });
+    });
+
+    describe('タグフィルタ（ALLモード）', () => {
+      it('関係のタグにフィルタの全タグが含まれていれば通過する', () => {
+        // 前提条件: 関係タグ ['上司', '同級生', '友人']、フィルタタグ ['上司', '同級生']
+        const rel = makeRel({ tags: ['上司', '同級生', '友人'] });
+        const filter: EdgeFilter = {
+          tags: { mode: 'all', values: new Set(['上司', '同級生']) },
+          predicates: [],
+        };
+        expect(matchesEdgeFilter(rel, filter)).toBe(true);
+      });
+
+      it('フィルタのタグが関係に一部しか含まれていない場合は除外される', () => {
+        // 前提条件: 関係タグ ['上司']、フィルタタグ ['上司', '同級生']（'同級生'がない）
+        const rel = makeRel({ tags: ['上司'] });
+        const filter: EdgeFilter = {
+          tags: { mode: 'all', values: new Set(['上司', '同級生']) },
+          predicates: [],
+        };
+        expect(matchesEdgeFilter(rel, filter)).toBe(false);
+      });
+    });
+
+    describe('述語フィルタ', () => {
+      it('closeness_gte: 閾値以上なら通過する', () => {
+        const rel = makeRel({ symmetric: { closeness: 0.8, trust: null, tension: null, secrecy: null, kinship: null } });
+        const filter: EdgeFilter = {
+          tags: { mode: 'any', values: new Set() },
+          predicates: [{ type: 'closeness_gte', value: 0.5 }],
+        };
+        expect(matchesEdgeFilter(rel, filter)).toBe(true);
+      });
+
+      it('closeness_gte: 閾値未満なら除外される', () => {
+        const rel = makeRel({ symmetric: { closeness: 0.3, trust: null, tension: null, secrecy: null, kinship: null } });
+        const filter: EdgeFilter = {
+          tags: { mode: 'any', values: new Set() },
+          predicates: [{ type: 'closeness_gte', value: 0.5 }],
+        };
+        expect(matchesEdgeFilter(rel, filter)).toBe(false);
+      });
+
+      it('closeness_gte: closenessがnullなら除外される', () => {
+        const rel = makeRel({ symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null } });
+        const filter: EdgeFilter = {
+          tags: { mode: 'any', values: new Set() },
+          predicates: [{ type: 'closeness_gte', value: 0.0 }],
+        };
+        expect(matchesEdgeFilter(rel, filter)).toBe(false);
+      });
+
+      it('trust_gte: 閾値以上なら通過する', () => {
+        const rel = makeRel({ symmetric: { closeness: null, trust: 0.7, tension: null, secrecy: null, kinship: null } });
+        const filter: EdgeFilter = {
+          tags: { mode: 'any', values: new Set() },
+          predicates: [{ type: 'trust_gte', value: 0.5 }],
+        };
+        expect(matchesEdgeFilter(rel, filter)).toBe(true);
+      });
+
+      it('tension_gte: 閾値未満なら除外される', () => {
+        const rel = makeRel({ symmetric: { closeness: null, trust: null, tension: 0.2, secrecy: null, kinship: null } });
+        const filter: EdgeFilter = {
+          tags: { mode: 'any', values: new Set() },
+          predicates: [{ type: 'tension_gte', value: 0.5 }],
+        };
+        expect(matchesEdgeFilter(rel, filter)).toBe(false);
+      });
+
+      it('secrecy_gte: 閾値以上なら通過する', () => {
+        const rel = makeRel({ symmetric: { closeness: null, trust: null, tension: null, secrecy: 0.6, kinship: null } });
+        const filter: EdgeFilter = {
+          tags: { mode: 'any', values: new Set() },
+          predicates: [{ type: 'secrecy_gte', value: 0.5 }],
+        };
+        expect(matchesEdgeFilter(rel, filter)).toBe(true);
+      });
+
+      it('has_kinship: kinshipが設定されていれば通過する', () => {
+        const rel = makeRel({ symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: 'parent' } });
+        const filter: EdgeFilter = {
+          tags: { mode: 'any', values: new Set() },
+          predicates: [{ type: 'has_kinship' }],
+        };
+        expect(matchesEdgeFilter(rel, filter)).toBe(true);
+      });
+
+      it('has_kinship: kinshipがnullなら除外される', () => {
+        const rel = makeRel({ symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null } });
+        const filter: EdgeFilter = {
+          tags: { mode: 'any', values: new Set() },
+          predicates: [{ type: 'has_kinship' }],
+        };
+        expect(matchesEdgeFilter(rel, filter)).toBe(false);
+      });
+
+      it('複数の述語は全て通過する必要がある（AND条件）', () => {
+        // closeness=0.8（OK）、trust=null（NG for trust_gte=0.5）
+        const rel = makeRel({ symmetric: { closeness: 0.8, trust: null, tension: null, secrecy: null, kinship: null } });
+        const filter: EdgeFilter = {
+          tags: { mode: 'any', values: new Set() },
+          predicates: [
+            { type: 'closeness_gte', value: 0.5 },
+            { type: 'trust_gte', value: 0.5 },
+          ],
+        };
+        expect(matchesEdgeFilter(rel, filter)).toBe(false);
+      });
+    });
+
+    it('タグフィルタと述語フィルタを組み合わせた場合、両方を通過する関係だけが残る', () => {
+      // 前提条件: タグ ['上司']、closeness=0.8 → 通過
+      const relPass = makeRel({
+        id: 'rel-pass',
+        tags: ['上司'],
+        symmetric: { closeness: 0.8, trust: null, tension: null, secrecy: null, kinship: null },
+      });
+      // 前提条件: タグ ['上司']、closeness=0.2 → 述語で除外
+      const relFailPredicate = makeRel({
+        id: 'rel-fail-pred',
+        tags: ['上司'],
+        symmetric: { closeness: 0.2, trust: null, tension: null, secrecy: null, kinship: null },
+      });
+      // 前提条件: タグなし、closeness=0.8 → タグで除外
+      const relFailTag = makeRel({
+        id: 'rel-fail-tag',
+        tags: [],
+        symmetric: { closeness: 0.8, trust: null, tension: null, secrecy: null, kinship: null },
+      });
+
+      const filter: EdgeFilter = {
+        tags: { mode: 'any', values: new Set(['上司']) },
+        predicates: [{ type: 'closeness_gte', value: 0.5 }],
+      };
+
+      expect(matchesEdgeFilter(relPass, filter)).toBe(true);
+      expect(matchesEdgeFilter(relFailPredicate, filter)).toBe(false);
+      expect(matchesEdgeFilter(relFailTag, filter)).toBe(false);
+    });
+  });
+
+  describe('relationshipsToEdges: edgeFilterによる絞り込み', () => {
+    it('edgeFilterが未指定の場合、全ての関係がエッジに変換される', () => {
+      const relationships: RelationshipV9[] = [
+        makeRel({ id: 'rel-1', tags: ['上司'] }),
+        makeRel({ id: 'rel-2', tags: ['友人'] }),
+      ];
+
+      const edges = relationshipsToEdges(relationships);
+
+      expect(edges).toHaveLength(2);
+    });
+
+    it('edgeFilterのタグ条件に一致する関係のみエッジに変換される', () => {
+      const relationships: RelationshipV9[] = [
+        makeRel({ id: 'rel-上司', sourcePersonId: 'p1', targetPersonId: 'p2', tags: ['上司'] }),
+        makeRel({ id: 'rel-友人', sourcePersonId: 'p3', targetPersonId: 'p4', tags: ['友人'] }),
+      ];
+      const filter: EdgeFilter = {
+        tags: { mode: 'any', values: new Set(['上司']) },
+        predicates: [],
+      };
+
+      const edges = relationshipsToEdges(relationships, filter);
+
+      expect(edges).toHaveLength(1);
+      expect(edges[0].id).toBe('rel-上司');
+    });
+
+    it('edgeFilterの述語条件に一致する関係のみエッジに変換される', () => {
+      const relationships: RelationshipV9[] = [
+        makeRel({
+          id: 'rel-親密',
+          sourcePersonId: 'p1',
+          targetPersonId: 'p2',
+          symmetric: { closeness: 0.9, trust: null, tension: null, secrecy: null, kinship: null },
+        }),
+        makeRel({
+          id: 'rel-疎遠',
+          sourcePersonId: 'p3',
+          targetPersonId: 'p4',
+          symmetric: { closeness: 0.1, trust: null, tension: null, secrecy: null, kinship: null },
+        }),
+      ];
+      const filter: EdgeFilter = {
+        tags: { mode: 'any', values: new Set() },
+        predicates: [{ type: 'closeness_gte', value: 0.5 }],
+      };
+
+      const edges = relationshipsToEdges(relationships, filter);
+
+      expect(edges).toHaveLength(1);
+      expect(edges[0].id).toBe('rel-親密');
     });
   });
 
