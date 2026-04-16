@@ -215,7 +215,6 @@ function normalizeChartRelationships(chart: Chart): Chart {
   }
 
   // v8 以前のデータを v9 形式に変換する
-  // 型上は Relationship[] だが実データは LegacyRelationshipV8[] として扱う
   const legacyRels = chart.relationships as unknown as Parameters<typeof migrateV8ToV9>[0];
   const v9Rels = migrateV8ToV9(legacyRels);
 

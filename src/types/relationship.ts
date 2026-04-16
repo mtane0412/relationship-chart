@@ -5,9 +5,8 @@
  * 【v9以降】プロパティグラフ方式（RelationshipV9）を採用
  *   1本のエッジに多次元プロパティ（タグ・定型数値・自由記述・方向非対称）を持たせる
  *
- * 【v8以前】レイヤーベース方式（LegacyRelationshipV8 / 現行の Relationship 型）
- *   4値固定レイヤー（general/emotional/organizational/awareness）と (ペア, layer) 一意制約
- *   ※ 将来的に Relationship = RelationshipV9 に切り替え（Phase 2 以降）
+ * 【v8以前】レイヤーベース方式（LegacyRelationshipV8 / Relationship 型）
+ *   マイグレーション（migration.ts）でのみ使用。新規コードでは RelationshipV9 を使用すること。
  */
 
 /**
@@ -29,92 +28,6 @@ export type RelationshipType = 'bidirectional' | 'dual-directed' | 'one-way' | '
  */
 export type RelationshipLayer = 'general' | 'emotional' | 'organizational' | 'awareness';
 
-/**
- * ラベル体系の種別
- * - fixed: 定型（suggestedLabelsから選択必須）
- * - semi-fixed: 半定型（suggestedLabelsを候補として表示、自由入力も可）
- * - free: 自由（ユーザーが自由に入力）
- */
-export type LabelSystem = 'fixed' | 'semi-fixed' | 'free';
-
-/**
- * レイヤーのスキーマ定義
- * @property value - レイヤー識別子
- * @property label - 表示ラベル
- * @property color - エッジ色（HEX）
- * @property description - 説明文
- * @property defaultDirected - デフォルトの方向性（true=有向）
- * @property allowDirectionOverride - ユーザーが方向を変更できるか
- * @property labelSystem - ラベル体系
- * @property suggestedLabels - 候補ラベル（fixed/semi-fixedのとき使用）
- * @property supportsWeight - 重み（強度）をサポートするか
- */
-export type RelationshipLayerDef = {
-  value: RelationshipLayer;
-  label: string;
-  color: string;
-  description: string;
-  defaultDirected: boolean;
-  allowDirectionOverride: boolean;
-  labelSystem: LabelSystem;
-  suggestedLabels?: readonly string[];
-  supportsWeight: boolean;
-};
-
-/**
- * 全レイヤーのスキーマ定義（UI表示・入力制御・色分け用）
- */
-export const RELATIONSHIP_LAYERS: readonly RelationshipLayerDef[] = [
-  {
-    value: 'general',
-    label: '一般',
-    color: '#64748b',
-    description: '基本的な関係',
-    defaultDirected: false,
-    allowDirectionOverride: true,
-    labelSystem: 'semi-fixed',
-    suggestedLabels: ['友人', '知人', '恋人', 'ライバル', '師弟'],
-    supportsWeight: false,
-  },
-  {
-    value: 'emotional',
-    label: '感情',
-    color: '#ef4444',
-    description: '感情的な結びつき',
-    defaultDirected: true,
-    allowDirectionOverride: true,
-    labelSystem: 'free',
-    supportsWeight: true,
-  },
-  {
-    value: 'organizational',
-    label: '組織',
-    color: '#22c55e',
-    description: '所属・組織関係',
-    defaultDirected: true,
-    allowDirectionOverride: true,
-    labelSystem: 'semi-fixed',
-    suggestedLabels: ['上司', '部下', '同僚', 'メンバー', 'ボス'],
-    supportsWeight: false,
-  },
-  {
-    value: 'awareness',
-    label: '認知',
-    color: '#8b5cf6',
-    description: '正体・情報の認知状況',
-    defaultDirected: true,
-    allowDirectionOverride: false,
-    labelSystem: 'fixed',
-    suggestedLabels: ['知っている', '知らない', '疑っている'],
-    supportsWeight: false,
-  },
-];
-
-/**
- * デフォルトレイヤー
- * 新規関係追加時にlayerを省略した場合に使用される
- */
-export const DEFAULT_LAYER: RelationshipLayer = 'general';
 
 /**
  * 人物間の関係を表す型（v8以前・レイヤーベース方式）

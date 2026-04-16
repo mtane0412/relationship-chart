@@ -2201,9 +2201,6 @@ describe('useGraphStore', () => {
     });
   });
 
-  // v9移行によりvisibleLayersとtoggleLayerVisibilityはストアから削除されました。
-  // レイヤーフィルタリングの代わりにtags機能で関係の分類を行います。
-
   describe('edgeFilter', () => {
     it('初期状態のedgeFilterはタグなし・述語なしのフィルタ（全表示）になっている', () => {
       const { result } = renderHook(() => useGraphStore());
