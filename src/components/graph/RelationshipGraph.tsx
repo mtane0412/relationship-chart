@@ -341,6 +341,8 @@ export function RelationshipGraph() {
             type: displayType,
             sourceToTargetLabel: existingRelationship.sourceToTargetLabel ?? '',
             targetToSourceLabel: existingRelationship.targetToSourceLabel ?? null,
+            layer: existingRelationship.layer,
+            weight: existingRelationship.weight,
           };
         }, [pendingConnection, relationships])}
         onSubmit={handleRegisterRelationship}

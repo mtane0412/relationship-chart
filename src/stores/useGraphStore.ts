@@ -132,18 +132,28 @@ function buildChartFromState(state: GraphState): Chart | null {
 }
 
 /**
- * IndexedDB からロードしたChartのrelationshipsにlayerフィールドを補完する
- * layerフィールドがない旧形式のデータに対してデフォルト値（'public'）を設定する
+ * IndexedDB からロードしたChartのrelationshipsを正規化する
+ * 旧形式のデータ（layer/weight未定義、public/hiddenレイヤー名）を最新形式に変換する
  * @param chart - IndexedDBからロードしたChart
- * @returns layerフィールドが補完されたChart
+ * @returns 正規化されたChart
  */
 function normalizeChartLayers(chart: Chart): Chart {
   return {
     ...chart,
-    relationships: chart.relationships.map((r) => ({
-      ...r,
-      layer: r.layer ?? DEFAULT_LAYER,
-    })),
+    relationships: chart.relationships.map((r) => {
+      // 旧レイヤー名のリネーム: public/hidden → general
+      const rawLayer = r.layer as string | undefined;
+      const layer =
+        rawLayer === 'public' || rawLayer === 'hidden' || !rawLayer
+          ? 'general'
+          : (rawLayer as Relationship['layer']);
+      return {
+        ...r,
+        layer,
+        // weightフィールドがない場合はnullを補完
+        weight: r.weight ?? null,
+      };
+    }),
   };
 }
 
@@ -235,9 +245,9 @@ type GraphActions = {
 
   /**
    * 新しい関係を追加する
-   * @param relationship - 追加する関係データ（idとcreatedAtは自動生成される）
+   * @param relationship - 追加する関係データ（id・createdAt・layer・weightは省略可）
    */
-  addRelationship: (relationship: Omit<Relationship, 'id' | 'createdAt' | 'layer'> & { layer?: Relationship['layer'] }) => void;
+  addRelationship: (relationship: Omit<Relationship, 'id' | 'createdAt' | 'layer' | 'weight'> & { layer?: Relationship['layer']; weight?: Relationship['weight'] }) => void;
 
   /**
    * 指定したIDの関係を更新する
@@ -461,6 +471,8 @@ export const useGraphStore = create<GraphStore>()(
                 {
                   ...relationship,
                   layer,
+                  // weightが指定されていない場合はnullを設定
+                  weight: relationship.weight ?? null,
                   id: nanoid(),
                   createdAt: new Date().toISOString(),
                 },

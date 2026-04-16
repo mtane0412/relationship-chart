@@ -179,12 +179,12 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
     removeRelationship(id);
   };
 
-  // レイヤーの色を取得（デフォルトはpublic = #64748b）
+  // レイヤーの色を取得（デフォルトはgeneral = #64748b）
   const layerColor =
     RELATIONSHIP_LAYERS.find((l) => l.value === edgeData.layer)?.color ?? '#64748b';
 
   // マーカーの設定（選択状態・レイヤーに応じて色を変更）
-  const markerSuffix = selected ? 'selected' : edgeData.layer ?? 'public';
+  const markerSuffix = selected ? 'selected' : (edgeData.layer ?? 'general');
   const markerEnd =
     edgeData.displayType === 'undirected' ? undefined : `url(#arrow-${markerSuffix})`;
   const markerStart =
@@ -192,15 +192,17 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
       ? `url(#arrow-${markerSuffix})`
       : undefined;
 
-  // エッジのスタイル（選択状態・レイヤーに応じて色と太さを変更）
+  // エッジのスタイル（選択状態・レイヤー・weightに応じて色と太さを変更）
   const strokeColor = selected ? '#3b82f6' : layerColor;
+  // weightがある場合は1〜4pxの範囲でストローク幅を調整（weight: 0.0→1px, 1.0→4px）
+  const baseStrokeWidth = edgeData.weight !== null && edgeData.weight !== undefined ? edgeData.weight * 3 + 1 : 2;
   const edgeStyle = {
     stroke: strokeColor,
-    strokeWidth: selected ? 3.5 : 2,
+    strokeWidth: selected ? 3.5 : baseStrokeWidth,
   };
   const dualDirectedEdgeStyle = {
     stroke: strokeColor,
-    strokeWidth: selected ? 3 : 2,
+    strokeWidth: selected ? 3 : baseStrokeWidth,
   };
 
   return (

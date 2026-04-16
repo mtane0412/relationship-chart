@@ -262,7 +262,8 @@ describe('graph-utils', () => {
           isDirected: true,
           sourceToTargetLabel: '親子',
           targetToSourceLabel: '親子',
-          layer: 'public',
+          layer: 'general' as const,
+          weight: null,
           createdAt: '2026-02-05T00:00:00.000Z',
         },
       ];
@@ -279,29 +280,31 @@ describe('graph-utils', () => {
           displayType: 'bidirectional',
           sourceToTargetLabel: '親子',
           targetToSourceLabel: '親子',
-          layer: 'public',
+          layer: 'general',
+          weight: null,
         },
       });
     });
 
     it('RelationshipのlayerがEdgeDataに含まれる', () => {
-      // 裏レイヤー（hidden）の関係がEdgeDataに正しく変換されることを検証
+      // 認知レイヤー（awareness）の関係がEdgeDataに正しく変換されることを検証
       const relationships: Relationship[] = [
         {
           id: 'rel-1',
           sourcePersonId: 'person-1',
           targetPersonId: 'person-2',
           isDirected: true,
-          sourceToTargetLabel: '正体を知っている',
-          targetToSourceLabel: '元組織メンバー同士',
-          layer: 'hidden',
+          sourceToTargetLabel: '知っている',
+          targetToSourceLabel: null,
+          layer: 'awareness' as const,
+          weight: null,
           createdAt: '2026-02-05T00:00:00.000Z',
         },
       ];
 
       const edges = relationshipsToEdges(relationships);
 
-      expect(edges[0].data?.layer).toBe('hidden');
+      expect(edges[0].data?.layer).toBe('awareness');
     });
 
     it('dual-directedタイプのRelationshipをRelationshipEdgeに変換できる', () => {
@@ -313,7 +316,8 @@ describe('graph-utils', () => {
           isDirected: true,
           sourceToTargetLabel: '好き',
           targetToSourceLabel: '無関心',
-          layer: 'public' as const,
+          layer: 'general' as const,
+          weight: null,
           createdAt: '2026-02-05T00:00:00.000Z',
         },
       ];
@@ -335,7 +339,8 @@ describe('graph-utils', () => {
           isDirected: true,
           sourceToTargetLabel: '片想い',
           targetToSourceLabel: null,
-          layer: 'public' as const,
+          layer: 'general' as const,
+          weight: null,
           createdAt: '2026-02-05T00:00:00.000Z',
         },
       ];
@@ -357,7 +362,8 @@ describe('graph-utils', () => {
           isDirected: false,
           sourceToTargetLabel: '同一人物',
           targetToSourceLabel: '同一人物',
-          layer: 'public' as const,
+          layer: 'general' as const,
+          weight: null,
           createdAt: '2026-02-05T00:00:00.000Z',
         },
       ];
@@ -379,7 +385,8 @@ describe('graph-utils', () => {
           isDirected: true,
           sourceToTargetLabel: '友人',
           targetToSourceLabel: '友人',
-          layer: 'public' as const,
+          layer: 'general' as const,
+          weight: null,
           createdAt: '2026-02-05T00:00:00.000Z',
         },
         {
@@ -389,7 +396,8 @@ describe('graph-utils', () => {
           isDirected: true,
           sourceToTargetLabel: '同僚',
           targetToSourceLabel: null,
-          layer: 'public' as const,
+          layer: 'general' as const,
+          weight: null,
           createdAt: '2026-02-05T00:01:00.000Z',
         },
       ];
@@ -402,26 +410,28 @@ describe('graph-utils', () => {
     });
 
     it('visibleLayersを指定すると非表示レイヤーのエッジが除外される', () => {
-      // 同じペア間の表・裏・感情レイヤーの関係
+      // 同じペア間の一般・感情・認知レイヤーの関係
       const relationships: Relationship[] = [
         {
-          id: 'rel-public',
+          id: 'rel-general',
           sourcePersonId: 'person-1',
           targetPersonId: 'person-2',
           isDirected: false,
           sourceToTargetLabel: '同僚',
           targetToSourceLabel: '同僚',
-          layer: 'public' as const,
+          layer: 'general' as const,
+          weight: null,
           createdAt: '2026-02-05T00:00:00.000Z',
         },
         {
-          id: 'rel-hidden',
+          id: 'rel-awareness',
           sourcePersonId: 'person-1',
           targetPersonId: 'person-2',
           isDirected: true,
-          sourceToTargetLabel: '正体を知っている',
-          targetToSourceLabel: '正体を知っている',
-          layer: 'hidden' as const,
+          sourceToTargetLabel: '知っている',
+          targetToSourceLabel: null,
+          layer: 'awareness' as const,
+          weight: null,
           createdAt: '2026-02-05T00:01:00.000Z',
         },
         {
@@ -432,15 +442,16 @@ describe('graph-utils', () => {
           sourceToTargetLabel: '信頼',
           targetToSourceLabel: null,
           layer: 'emotional' as const,
+          weight: null,
           createdAt: '2026-02-05T00:02:00.000Z',
         },
       ];
 
-      // publicのみ表示
-      const edges = relationshipsToEdges(relationships, new Set(['public']));
+      // generalのみ表示
+      const edges = relationshipsToEdges(relationships, new Set(['general' as const]));
 
       expect(edges).toHaveLength(1);
-      expect(edges[0].id).toBe('rel-public');
+      expect(edges[0].id).toBe('rel-general');
     });
 
     it('visibleLayersを省略すると全レイヤーのエッジが含まれる', () => {
@@ -452,7 +463,8 @@ describe('graph-utils', () => {
           isDirected: false,
           sourceToTargetLabel: '同僚',
           targetToSourceLabel: '同僚',
-          layer: 'public' as const,
+          layer: 'general' as const,
+          weight: null,
           createdAt: '2026-02-05T00:00:00.000Z',
         },
         {
@@ -462,7 +474,8 @@ describe('graph-utils', () => {
           isDirected: true,
           sourceToTargetLabel: '裏の関係',
           targetToSourceLabel: '裏の関係',
-          layer: 'hidden' as const,
+          layer: 'general' as const,
+          weight: null,
           createdAt: '2026-02-05T00:01:00.000Z',
         },
       ];

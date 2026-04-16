@@ -27,6 +27,8 @@ export type RelationshipEdgeData = {
   sourceToTargetLabel: string | null;
   targetToSourceLabel: string | null;
   layer: RelationshipLayer;
+  /** 関係の重み・強度（0.0〜1.0、nullは重みなし） */
+  weight: number | null;
 };
 
 /**

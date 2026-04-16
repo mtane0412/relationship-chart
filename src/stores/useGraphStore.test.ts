@@ -1061,7 +1061,7 @@ describe('useGraphStore', () => {
       expect(result.current.relationships[0].sourcePersonId).toBe(personId1);
     });
 
-    it('関係はデフォルトで公開レイヤー（public）として追加される', () => {
+    it('関係はデフォルトで一般レイヤー（general）として追加される', () => {
       const { result } = renderHook(() => useGraphStore());
 
       // 2人の人物を追加
@@ -1090,8 +1090,8 @@ describe('useGraphStore', () => {
         });
       });
 
-      // デフォルトレイヤーが'public'であること
-      expect(result.current.relationships[0].layer).toBe('public');
+      // デフォルトレイヤーが'general'であること
+      expect(result.current.relationships[0].layer).toBe('general');
     });
 
     it('同じペア・同じレイヤーの関係は重複して追加できない', () => {
@@ -1120,7 +1120,7 @@ describe('useGraphStore', () => {
           isDirected: false,
           sourceToTargetLabel: '幼馴染',
           targetToSourceLabel: '幼馴染',
-          layer: 'public',
+          layer: 'general',
         });
       });
 
@@ -1134,7 +1134,7 @@ describe('useGraphStore', () => {
           isDirected: true,
           sourceToTargetLabel: '好き',
           targetToSourceLabel: null,
-          layer: 'public',
+          layer: 'general',
         });
       });
 
@@ -1160,7 +1160,7 @@ describe('useGraphStore', () => {
       const personId1 = result.current.persons[0].id;
       const personId2 = result.current.persons[1].id;
 
-      // 表（public）レイヤーで関係を追加
+      // 一般（general）レイヤーで関係を追加
       act(() => {
         result.current.addRelationship({
           sourcePersonId: personId1,
@@ -1168,26 +1168,26 @@ describe('useGraphStore', () => {
           isDirected: false,
           sourceToTargetLabel: '同居人・仲間',
           targetToSourceLabel: '同居人・仲間',
-          layer: 'public',
+          layer: 'general',
         });
       });
 
-      // 裏（hidden）レイヤーで別の関係を追加
+      // 感情（emotional）レイヤーで別の関係を追加
       act(() => {
         result.current.addRelationship({
           sourcePersonId: personId1,
           targetPersonId: personId2,
           isDirected: true,
-          sourceToTargetLabel: '正体を知っている',
-          targetToSourceLabel: '正体を知っている',
-          layer: 'hidden',
+          sourceToTargetLabel: '信頼',
+          targetToSourceLabel: null,
+          layer: 'emotional',
         });
       });
 
       // 2つの関係が追加されていること
       expect(result.current.relationships).toHaveLength(2);
-      expect(result.current.relationships[0].layer).toBe('public');
-      expect(result.current.relationships[1].layer).toBe('hidden');
+      expect(result.current.relationships[0].layer).toBe('general');
+      expect(result.current.relationships[1].layer).toBe('emotional');
     });
 
     it('layerを明示的に指定して関係を追加できる', () => {
@@ -2116,29 +2116,29 @@ describe('useGraphStore', () => {
       const { result } = renderHook(() => useGraphStore());
 
       // 全4レイヤーが表示状態であること
-      expect(result.current.visibleLayers).toContain('public');
-      expect(result.current.visibleLayers).toContain('hidden');
+      expect(result.current.visibleLayers).toContain('general');
       expect(result.current.visibleLayers).toContain('emotional');
       expect(result.current.visibleLayers).toContain('organizational');
+      expect(result.current.visibleLayers).toContain('awareness');
     });
 
     it('toggleLayerVisibilityでレイヤーのON/OFFを切り替えられる', () => {
       const { result } = renderHook(() => useGraphStore());
 
-      // hiddenレイヤーをOFF
+      // emotionalレイヤーをOFF
       act(() => {
-        result.current.toggleLayerVisibility('hidden');
+        result.current.toggleLayerVisibility('emotional');
       });
 
-      expect(result.current.visibleLayers).not.toContain('hidden');
-      expect(result.current.visibleLayers).toContain('public');
+      expect(result.current.visibleLayers).not.toContain('emotional');
+      expect(result.current.visibleLayers).toContain('general');
 
       // 再度ONに戻す
       act(() => {
-        result.current.toggleLayerVisibility('hidden');
+        result.current.toggleLayerVisibility('emotional');
       });
 
-      expect(result.current.visibleLayers).toContain('hidden');
+      expect(result.current.visibleLayers).toContain('emotional');
     });
   });
 

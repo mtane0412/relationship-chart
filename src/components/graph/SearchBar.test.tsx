@@ -61,7 +61,8 @@ describe('SearchBar', () => {
       isDirected: true,
       sourceToTargetLabel: '上司',
       targetToSourceLabel: '部下',
-      layer: 'public' as const,
+      layer: 'general' as const,
+      weight: null,
       createdAt: '2024-01-01T00:00:00Z',
     },
   ];

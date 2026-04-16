@@ -58,6 +58,7 @@ export function relationshipsToEdges(
       sourceToTargetLabel: relationship.sourceToTargetLabel,
       targetToSourceLabel: relationship.targetToSourceLabel,
       layer: relationship.layer,
+      weight: relationship.weight,
     },
   }));
 }
