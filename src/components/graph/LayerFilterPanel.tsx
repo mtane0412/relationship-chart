@@ -20,7 +20,7 @@ export const LayerFilterPanel = memo(() => {
   const toggleLayerVisibility = useGraphStore((state) => state.toggleLayerVisibility);
 
   return (
-    <Panel position="top-left" className="flex flex-col gap-1">
+    <Panel position="top-left" className="flex flex-col gap-1 mt-14">
       {RELATIONSHIP_LAYERS.map((layer) => {
         const isVisible = visibleLayers.has(layer.value);
         return (
