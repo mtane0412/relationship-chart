@@ -10,8 +10,8 @@ import { DEFAULT_FORCE_PARAMS } from '@/stores/useGraphStore';
 import { DEFAULT_EGO_LAYOUT_PARAMS } from './ego-layout';
 
 describe('migrateGraphState', () => {
-  // v6以降は変換不要
-  describe('v6以降のデータ', () => {
+  // v8以降は変換不要
+  describe('v8以降のデータ', () => {
     it('そのまま返す', () => {
       const state = {
         persons: [],
@@ -23,7 +23,7 @@ describe('migrateGraphState', () => {
         sidePanelOpen: true,
       };
 
-      const result = migrateGraphState(state, 6);
+      const result = migrateGraphState(state, 8);
 
       expect(result).toEqual(state);
     });
@@ -434,9 +434,271 @@ describe('migrateGraphState', () => {
     });
   });
 
+  // v6からv7への変換（layerフィールドの補完）→v8も連続適用される
+  describe('v6からv7への変換', () => {
+    it('layerフィールドがないrelationshipsにgeneralを補完する（v7→v8も連続適用）', () => {
+      const v6State = {
+        persons: [],
+        relationships: [
+          {
+            id: 'rel-1',
+            sourcePersonId: 'person-1',
+            targetPersonId: 'person-2',
+            isDirected: true,
+            sourceToTargetLabel: '幼馴染',
+            targetToSourceLabel: '幼馴染',
+            createdAt: '2024-01-01T00:00:00.000Z',
+            // layerフィールドなし
+          },
+        ],
+        forceEnabled: false,
+        selectedPersonIds: [],
+        forceParams: DEFAULT_FORCE_PARAMS,
+        sidePanelOpen: true,
+        egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+      };
+
+      const result = migrateGraphState(v6State, 6);
+
+      // layerフィールドのないrelationshipsにgeneralが補完される
+      expect(result).toMatchObject({
+        relationships: [
+          {
+            id: 'rel-1',
+            layer: 'general',
+            weight: null,
+          },
+        ],
+      });
+    });
+
+    it('hiddenレイヤーのrelationshipsはv8でgeneralにリネームされる', () => {
+      const v6State = {
+        persons: [],
+        relationships: [
+          {
+            id: 'rel-1',
+            sourcePersonId: 'person-1',
+            targetPersonId: 'person-2',
+            isDirected: true,
+            sourceToTargetLabel: '正体を知っている',
+            targetToSourceLabel: '正体を知っている',
+            layer: 'hidden',
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+        ],
+        forceEnabled: false,
+        selectedPersonIds: [],
+        forceParams: DEFAULT_FORCE_PARAMS,
+        sidePanelOpen: true,
+        egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+      };
+
+      const result = migrateGraphState(v6State, 6);
+
+      // v8でhidden→generalにリネームされる
+      expect(result).toMatchObject({
+        relationships: [
+          {
+            id: 'rel-1',
+            layer: 'general',
+            weight: null,
+          },
+        ],
+      });
+    });
+  });
+
+  // v7からv8への変換（レイヤーリネーム + weightフィールドの追加）
+  describe('v7からv8への変換', () => {
+    it('publicレイヤーをgeneralにリネームする', () => {
+      const v7State = {
+        persons: [],
+        relationships: [
+          {
+            id: 'rel-1',
+            sourcePersonId: 'person-1',
+            targetPersonId: 'person-2',
+            isDirected: false,
+            sourceToTargetLabel: '友人',
+            targetToSourceLabel: '友人',
+            layer: 'public',
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+        ],
+        forceEnabled: false,
+        selectedPersonIds: [],
+        forceParams: DEFAULT_FORCE_PARAMS,
+        sidePanelOpen: true,
+        egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+      };
+
+      const result = migrateGraphState(v7State, 7);
+
+      expect(result).toMatchObject({
+        relationships: [
+          { id: 'rel-1', layer: 'general', weight: null },
+        ],
+      });
+    });
+
+    it('hiddenレイヤーをgeneralにリネームする', () => {
+      const v7State = {
+        persons: [],
+        relationships: [
+          {
+            id: 'rel-1',
+            sourcePersonId: 'person-1',
+            targetPersonId: 'person-2',
+            isDirected: true,
+            sourceToTargetLabel: '正体を知っている',
+            targetToSourceLabel: null,
+            layer: 'hidden',
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+        ],
+        forceEnabled: false,
+        selectedPersonIds: [],
+        forceParams: DEFAULT_FORCE_PARAMS,
+        sidePanelOpen: true,
+        egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+      };
+
+      const result = migrateGraphState(v7State, 7);
+
+      expect(result).toMatchObject({
+        relationships: [
+          { id: 'rel-1', layer: 'general', weight: null },
+        ],
+      });
+    });
+
+    it('emotionalレイヤーはそのまま維持する', () => {
+      const v7State = {
+        persons: [],
+        relationships: [
+          {
+            id: 'rel-1',
+            sourcePersonId: 'person-1',
+            targetPersonId: 'person-2',
+            isDirected: true,
+            sourceToTargetLabel: '好き',
+            targetToSourceLabel: null,
+            layer: 'emotional',
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+        ],
+        forceEnabled: false,
+        selectedPersonIds: [],
+        forceParams: DEFAULT_FORCE_PARAMS,
+        sidePanelOpen: true,
+        egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+      };
+
+      const result = migrateGraphState(v7State, 7);
+
+      expect(result).toMatchObject({
+        relationships: [
+          { id: 'rel-1', layer: 'emotional', weight: null },
+        ],
+      });
+    });
+
+    it('organizationalレイヤーはそのまま維持する', () => {
+      const v7State = {
+        persons: [],
+        relationships: [
+          {
+            id: 'rel-1',
+            sourcePersonId: 'person-1',
+            targetPersonId: 'person-2',
+            isDirected: true,
+            sourceToTargetLabel: '上司',
+            targetToSourceLabel: null,
+            layer: 'organizational',
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+        ],
+        forceEnabled: false,
+        selectedPersonIds: [],
+        forceParams: DEFAULT_FORCE_PARAMS,
+        sidePanelOpen: true,
+        egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+      };
+
+      const result = migrateGraphState(v7State, 7);
+
+      expect(result).toMatchObject({
+        relationships: [
+          { id: 'rel-1', layer: 'organizational', weight: null },
+        ],
+      });
+    });
+
+    it('既存のweightフィールドがある場合はそのまま維持する', () => {
+      const v7State = {
+        persons: [],
+        relationships: [
+          {
+            id: 'rel-1',
+            sourcePersonId: 'person-1',
+            targetPersonId: 'person-2',
+            isDirected: true,
+            sourceToTargetLabel: '好き',
+            targetToSourceLabel: null,
+            layer: 'emotional',
+            weight: 0.8,
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+        ],
+        forceEnabled: false,
+        selectedPersonIds: [],
+        forceParams: DEFAULT_FORCE_PARAMS,
+        sidePanelOpen: true,
+        egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+      };
+
+      const result = migrateGraphState(v7State, 7);
+
+      expect(result).toMatchObject({
+        relationships: [
+          { id: 'rel-1', weight: 0.8 },
+        ],
+      });
+    });
+
+    it('複数のrelationshipsが混在している場合にすべて正しくマイグレーションされる', () => {
+      const v7State = {
+        persons: [],
+        relationships: [
+          { id: 'rel-1', sourcePersonId: 'p1', targetPersonId: 'p2',
+            isDirected: false, sourceToTargetLabel: '友人', targetToSourceLabel: '友人',
+            layer: 'public', createdAt: '2024-01-01T00:00:00.000Z' },
+          { id: 'rel-2', sourcePersonId: 'p1', targetPersonId: 'p2',
+            isDirected: true, sourceToTargetLabel: '好き', targetToSourceLabel: null,
+            layer: 'hidden', createdAt: '2024-01-01T00:00:00.000Z' },
+          { id: 'rel-3', sourcePersonId: 'p1', targetPersonId: 'p2',
+            isDirected: true, sourceToTargetLabel: '上司', targetToSourceLabel: null,
+            layer: 'emotional', createdAt: '2024-01-01T00:00:00.000Z' },
+        ],
+        forceEnabled: false,
+        selectedPersonIds: [],
+        forceParams: DEFAULT_FORCE_PARAMS,
+        sidePanelOpen: true,
+        egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+      };
+
+      const result = migrateGraphState(v7State, 7) as { relationships: Array<{ id: string; layer: string; weight: null }> };
+
+      expect(result.relationships[0]).toMatchObject({ id: 'rel-1', layer: 'general', weight: null });
+      expect(result.relationships[1]).toMatchObject({ id: 'rel-2', layer: 'general', weight: null });
+      expect(result.relationships[2]).toMatchObject({ id: 'rel-3', layer: 'emotional', weight: null });
+    });
+  });
+
   // 複数バージョンの連続マイグレーション
   describe('複数バージョンの連続マイグレーション', () => {
-    it('v0からv6まで連続で変換する', () => {
+    it('v0からv8まで連続で変換する', () => {
       const v0State = {
         persons: [],
         relationships: [
@@ -490,6 +752,13 @@ describe('migrateGraphState', () => {
       // v5 → v6: egoLayoutParams補完
       expect(result).toMatchObject({
         egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+      });
+
+      // v7 → v8: layer=generalに変換、weight=null補完
+      expect(result).toMatchObject({
+        relationships: [
+          { id: 'rel-1', layer: 'general', weight: null },
+        ],
       });
     });
   });

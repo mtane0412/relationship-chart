@@ -37,7 +37,7 @@ import {
 } from '@/lib/viewport-utils';
 
 describe('SingleSelectionPanel - 関係クリック遷移', () => {
-  const mockSetSelectedPersonIds = vi.fn();
+  const mockSelectPersonPairForEdit = vi.fn();
   const mockRemovePerson = vi.fn();
   const mockClearSelection = vi.fn();
   const mockGetNode = vi.fn();
@@ -65,6 +65,8 @@ describe('SingleSelectionPanel - 関係クリック遷移', () => {
     isDirected: true,
     sourceToTargetLabel: '親友',
     targetToSourceLabel: '親友', // bidirectional: 同じラベル
+    layer: 'general' as const,
+    weight: null,
     createdAt: '2024-01-03T00:00:00Z',
   };
 
@@ -76,7 +78,7 @@ describe('SingleSelectionPanel - 関係クリック遷移', () => {
       const state = {
         persons: [testPerson, otherPerson],
         relationships: [testRelationship],
-        setSelectedPersonIds: mockSetSelectedPersonIds,
+        selectPersonPairForEdit: mockSelectPersonPairForEdit,
         removePerson: mockRemovePerson,
         clearSelection: mockClearSelection,
       };
@@ -105,8 +107,8 @@ describe('SingleSelectionPanel - 関係クリック遷移', () => {
     await user.click(relationshipRow!);
 
     // setSelectedPersonIdsが正しい引数で呼ばれることを確認
-    expect(mockSetSelectedPersonIds).toHaveBeenCalledWith(['person-1', 'person-2']);
-    expect(mockSetSelectedPersonIds).toHaveBeenCalledTimes(1);
+    expect(mockSelectPersonPairForEdit).toHaveBeenCalledWith('person-1', 'person-2', 'rel-1');
+    expect(mockSelectPersonPairForEdit).toHaveBeenCalledTimes(1);
   });
 
   it('関係の削除ボタンが表示されないこと', () => {
@@ -131,8 +133,8 @@ describe('SingleSelectionPanel - 関係クリック遷移', () => {
     await user.keyboard('{Enter}');
 
     // setSelectedPersonIdsが正しい引数で呼ばれることを確認
-    expect(mockSetSelectedPersonIds).toHaveBeenCalledWith(['person-1', 'person-2']);
-    expect(mockSetSelectedPersonIds).toHaveBeenCalledTimes(1);
+    expect(mockSelectPersonPairForEdit).toHaveBeenCalledWith('person-1', 'person-2', 'rel-1');
+    expect(mockSelectPersonPairForEdit).toHaveBeenCalledTimes(1);
   });
 
   it('関係行でSpaceキーを押すと2人選択状態に遷移する', async () => {
@@ -149,8 +151,8 @@ describe('SingleSelectionPanel - 関係クリック遷移', () => {
     await user.keyboard(' ');
 
     // setSelectedPersonIdsが正しい引数で呼ばれることを確認
-    expect(mockSetSelectedPersonIds).toHaveBeenCalledWith(['person-1', 'person-2']);
-    expect(mockSetSelectedPersonIds).toHaveBeenCalledTimes(1);
+    expect(mockSelectPersonPairForEdit).toHaveBeenCalledWith('person-1', 'person-2', 'rel-1');
+    expect(mockSelectPersonPairForEdit).toHaveBeenCalledTimes(1);
   });
 
   it('関係行クリック時にビューポートが2ノードにフィットする', async () => {
@@ -197,7 +199,7 @@ describe('SingleSelectionPanel - 関係クリック遷移', () => {
 });
 
 describe('SingleSelectionPanel - アイコン付き表示', () => {
-  const mockSetSelectedPersonIds = vi.fn();
+  const mockSelectPersonPairForEdit = vi.fn();
   const mockRemovePerson = vi.fn();
   const mockClearSelection = vi.fn();
   const mockGetNode = vi.fn();
@@ -232,6 +234,8 @@ describe('SingleSelectionPanel - アイコン付き表示', () => {
     isDirected: true,
     sourceToTargetLabel: '親友',
     targetToSourceLabel: '親友', // bidirectional: 同じラベル
+    layer: 'general' as const,
+    weight: null,
     createdAt: '2024-01-04T00:00:00Z',
   };
 
@@ -242,6 +246,8 @@ describe('SingleSelectionPanel - アイコン付き表示', () => {
     isDirected: true,
     sourceToTargetLabel: '先輩',
     targetToSourceLabel: null, // one-way: 逆方向ラベルなし
+    layer: 'general' as const,
+    weight: null,
     createdAt: '2024-01-05T00:00:00Z',
   };
 
@@ -253,7 +259,7 @@ describe('SingleSelectionPanel - アイコン付き表示', () => {
       const state = {
         persons: [testPerson, otherPersonWithImage, otherPersonWithoutImage],
         relationships: [relationshipWithImage, relationshipWithoutImage],
-        setSelectedPersonIds: mockSetSelectedPersonIds,
+        selectPersonPairForEdit: mockSelectPersonPairForEdit,
         removePerson: mockRemovePerson,
         clearSelection: mockClearSelection,
       };
@@ -344,7 +350,7 @@ describe('SingleSelectionPanel - アイコン付き表示', () => {
 });
 
 describe('SingleSelectionPanel - dual-directed表示', () => {
-  const mockSetSelectedPersonIds = vi.fn();
+  const mockSelectPersonPairForEdit = vi.fn();
   const mockRemovePerson = vi.fn();
   const mockClearSelection = vi.fn();
   const mockGetNode = vi.fn();
@@ -372,6 +378,8 @@ describe('SingleSelectionPanel - dual-directed表示', () => {
     isDirected: true,
     sourceToTargetLabel: '好き',
     targetToSourceLabel: '無関心', // dual-directed: 異なるラベル
+    layer: 'general' as const,
+    weight: null,
     createdAt: '2024-01-03T00:00:00Z',
   };
 
@@ -383,7 +391,7 @@ describe('SingleSelectionPanel - dual-directed表示', () => {
       const state = {
         persons: [testPerson, otherPerson],
         relationships: [dualDirectedRelationship],
-        setSelectedPersonIds: mockSetSelectedPersonIds,
+        selectPersonPairForEdit: mockSelectPersonPairForEdit,
         removePerson: mockRemovePerson,
         clearSelection: mockClearSelection,
       };
@@ -442,7 +450,7 @@ describe('SingleSelectionPanel - dual-directed表示', () => {
     const firstRow = screen.getByText('好き').closest('div[role="button"]') as HTMLElement;
     await user.click(firstRow);
 
-    expect(mockSetSelectedPersonIds).toHaveBeenCalledWith(['person-1', 'person-2']);
+    expect(mockSelectPersonPairForEdit).toHaveBeenCalledWith('person-1', 'person-2', 'rel-1');
 
     vi.clearAllMocks();
 
@@ -450,12 +458,12 @@ describe('SingleSelectionPanel - dual-directed表示', () => {
     const secondRow = screen.getByText('無関心').closest('div[role="button"]') as HTMLElement;
     await user.click(secondRow);
 
-    expect(mockSetSelectedPersonIds).toHaveBeenCalledWith(['person-1', 'person-2']);
+    expect(mockSelectPersonPairForEdit).toHaveBeenCalledWith('person-1', 'person-2', 'rel-1');
   });
 });
 
 describe('SingleSelectionPanel - グループヘッダー', () => {
-  const mockSetSelectedPersonIds = vi.fn();
+  const mockSelectPersonPairForEdit = vi.fn();
   const mockRemovePerson = vi.fn();
   const mockClearSelection = vi.fn();
   const mockGetNode = vi.fn();
@@ -485,7 +493,7 @@ describe('SingleSelectionPanel - グループヘッダー', () => {
       const state = {
         persons: [testPerson, otherPerson],
         relationships: [], // 関係なし
-        setSelectedPersonIds: mockSetSelectedPersonIds,
+        selectPersonPairForEdit: mockSelectPersonPairForEdit,
         removePerson: mockRemovePerson,
         clearSelection: mockClearSelection,
       };
@@ -514,7 +522,7 @@ describe('SingleSelectionPanel - グループヘッダー', () => {
 });
 
 describe('SingleSelectionPanel - 無方向関係（undirected）', () => {
-  const mockSetSelectedPersonIds = vi.fn();
+  const mockSelectPersonPairForEdit = vi.fn();
   const mockRemovePerson = vi.fn();
   const mockClearSelection = vi.fn();
   const mockGetNode = vi.fn();
@@ -542,6 +550,8 @@ describe('SingleSelectionPanel - 無方向関係（undirected）', () => {
     isDirected: false, // 無方向
     sourceToTargetLabel: '同一人物',
     targetToSourceLabel: '同一人物',
+    layer: 'general' as const,
+    weight: null,
     createdAt: '2024-01-03T00:00:00Z',
   };
 
@@ -553,7 +563,7 @@ describe('SingleSelectionPanel - 無方向関係（undirected）', () => {
       const state = {
         persons: [testPerson, otherPerson],
         relationships: [undirectedRelationship],
-        setSelectedPersonIds: mockSetSelectedPersonIds,
+        selectPersonPairForEdit: mockSelectPersonPairForEdit,
         removePerson: mockRemovePerson,
         clearSelection: mockClearSelection,
       };

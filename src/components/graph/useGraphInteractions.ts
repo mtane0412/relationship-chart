@@ -10,7 +10,7 @@ import { useDialogStore } from '@/stores/useDialogStore';
 import { readFileAsDataUrl } from '@/lib/image-utils';
 import { findClosestTargetNode } from '@/lib/connection-target-detection';
 import type { GraphNode, RelationshipEdge } from '@/types/graph';
-import type { RelationshipType } from '@/types/relationship';
+import type { RelationshipType, RelationshipLayer, Relationship } from '@/types/relationship';
 import type { NodeKind } from '@/types/person';
 import type { ContextMenuState } from './useContextMenu';
 
@@ -70,6 +70,7 @@ export function useGraphInteractions({
   const removeRelationship = useGraphStore((state) => state.removeRelationship);
   const setSelectedPersonIds = useGraphStore((state) => state.setSelectedPersonIds);
   const clearSelection = useGraphStore((state) => state.clearSelection);
+  const selectPersonPairForEdit = useGraphStore((state) => state.selectPersonPairForEdit);
 
   // ダイアログストアから確認ダイアログとアラートダイアログを取得
   const openConfirm = useDialogStore((state) => state.openConfirm);
@@ -301,11 +302,12 @@ export function useGraphInteractions({
       }
 
       // setTimeoutで遅延させることで、React FlowのonSelectionChangeとの競合を避ける
+      // エッジIDを使って特定の関係（レイヤー）を初期表示する
       setTimeout(() => {
-        setSelectedPersonIds([edge.source, edge.target]);
+        selectPersonPairForEdit(edge.source, edge.target, edge.id);
       }, 0);
     },
-    [setSelectedPersonIds]
+    [selectPersonPairForEdit]
   );
 
   // エッジ接続開始ハンドラ
@@ -492,7 +494,9 @@ export function useGraphInteractions({
     (
       type: RelationshipType,
       sourceToTargetLabel: string,
-      targetToSourceLabel: string | null
+      targetToSourceLabel: string | null,
+      layer: RelationshipLayer,
+      weight: Relationship['weight']
     ) => {
       if (!pendingConnection) return;
 
@@ -512,6 +516,8 @@ export function useGraphInteractions({
           isDirected,
           sourceToTargetLabel: finalSourceToTargetLabel,
           targetToSourceLabel: finalTargetToSourceLabel,
+          layer,
+          weight,
         });
       } else {
         // 新規登録モード: 関係を追加
@@ -521,6 +527,8 @@ export function useGraphInteractions({
           isDirected,
           sourceToTargetLabel: finalSourceToTargetLabel,
           targetToSourceLabel: finalTargetToSourceLabel,
+          layer,
+          weight,
         });
       }
 

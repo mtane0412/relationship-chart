@@ -4,7 +4,7 @@
  */
 
 import type { Node as ReactFlowNode, Edge as ReactFlowEdge } from '@xyflow/react';
-import type { RelationshipType } from '@/types/relationship';
+import type { RelationshipLayer, RelationshipType } from '@/types/relationship';
 
 import type { NodeKind } from '@/types/person';
 
@@ -26,6 +26,13 @@ export type RelationshipEdgeData = {
   displayType: RelationshipType;
   sourceToTargetLabel: string | null;
   targetToSourceLabel: string | null;
+  layer: RelationshipLayer;
+  /** 関係の重み・強度（0.0〜1.0、nullは重みなし） */
+  weight: number | null;
+  /** 同一ペア内でのエッジのインデックス（0始まり）。並列描画オフセットの計算に使用 */
+  edgeIndex: number;
+  /** 同一ペア内のエッジ総数。並列描画オフセットの計算に使用 */
+  totalEdgesInPair: number;
 };
 
 /**

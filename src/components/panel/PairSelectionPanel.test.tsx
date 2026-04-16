@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ReactFlowProvider } from '@xyflow/react';
 import { PairSelectionPanel } from './PairSelectionPanel';
@@ -181,6 +181,8 @@ describe('PairSelectionPanel', () => {
             isDirected: true,
             sourceToTargetLabel: '友人',
             targetToSourceLabel: '友人', // bidirectional: 同じラベル
+            layer: 'general' as const,
+            weight: null,
             createdAt: '2024-01-01T00:00:00.000Z',
           },
         ],
@@ -328,6 +330,8 @@ describe('PairSelectionPanel', () => {
             isDirected: true,
             sourceToTargetLabel: '好き',
             targetToSourceLabel: '無関心', // dual-directed: 異なるラベル
+            layer: 'general' as const,
+            weight: null,
             createdAt: '2024-01-01T00:00:00.000Z',
           },
         ],
@@ -368,6 +372,8 @@ describe('PairSelectionPanel', () => {
             isDirected: true,
             sourceToTargetLabel: '上司',
             targetToSourceLabel: null, // one-way: 逆方向ラベルなし
+            layer: 'general' as const,
+            weight: null,
             createdAt: '2024-01-01T00:00:00.000Z',
           },
         ],
@@ -396,6 +402,8 @@ describe('PairSelectionPanel', () => {
             isDirected: true,
             sourceToTargetLabel: '上司',
             targetToSourceLabel: null, // one-way: 逆方向ラベルなし
+            layer: 'general' as const,
+            weight: null,
             createdAt: '2024-01-01T00:00:00.000Z',
           },
         ],
@@ -473,6 +481,8 @@ describe('PairSelectionPanel', () => {
             isDirected: true,
             sourceToTargetLabel: '上司',
             targetToSourceLabel: null, // one-way: 逆方向ラベルなし
+            layer: 'general' as const,
+            weight: null,
             createdAt: '2024-01-01T00:00:00.000Z',
           },
         ],
@@ -500,6 +510,348 @@ describe('PairSelectionPanel', () => {
         expect(state.relationships[0].sourcePersonId).toBe(person2.id);
         expect(state.relationships[0].targetPersonId).toBe(person1.id);
         expect(state.relationships[0].sourceToTargetLabel).toBe('マネージャー');
+      });
+    });
+  });
+
+  describe('レイヤー選択', () => {
+    it('レイヤー選択UIが表示される', async () => {
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      // レイヤー選択UIが表示されること
+      expect(screen.getByRole('combobox', { name: 'レイヤー' })).toBeInTheDocument();
+    });
+
+    it('デフォルトで「一般」レイヤーが選択されている', async () => {
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      // デフォルト値が「一般」（general）であること
+      const select = screen.getByRole('combobox', { name: 'レイヤー' });
+      expect(select).toHaveValue('general');
+    });
+
+    it('レイヤーを選択して関係を追加すると指定レイヤーで保存される', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      // awarenessレイヤーに変更（先に変更するとfixedラベルselectが表示される）
+      const layerSelect = screen.getByRole('combobox', { name: 'レイヤー' });
+      await user.selectOptions(layerSelect, 'awareness');
+
+      // awarenessのfixedラベルselectで「知っている」を選択
+      const labelSelect = screen.getByLabelText(/関係のラベル/);
+      await user.selectOptions(labelSelect, '知っている');
+
+      // 登録ボタンをクリック
+      const addButton = screen.getByRole('button', { name: '登録' });
+      await user.click(addButton);
+
+      await waitFor(() => {
+        const state = useGraphStore.getState();
+        expect(state.relationships).toHaveLength(1);
+        expect(state.relationships[0].layer).toBe('awareness');
+      });
+    });
+  });
+
+  describe('多層レイヤー: initialLayerプロップ', () => {
+    it('initialLayerを指定すると、そのレイヤーの関係が初期表示される', () => {
+      // generalとemotionalの2つの関係をセットアップ
+      useGraphStore.setState({
+        persons: [person1, person2],
+        relationships: [
+          {
+            id: 'rel-general',
+            sourcePersonId: person1.id,
+            targetPersonId: person2.id,
+            isDirected: true,
+            sourceToTargetLabel: '友人',
+            targetToSourceLabel: '友人',
+            layer: 'general',
+            weight: null,
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+          {
+            id: 'rel-emotional',
+            sourcePersonId: person1.id,
+            targetPersonId: person2.id,
+            isDirected: true,
+            sourceToTargetLabel: '好き',
+            targetToSourceLabel: null,
+            layer: 'emotional',
+            weight: 0.8,
+            createdAt: '2024-01-01T00:01:00.000Z',
+          },
+        ],
+        selectedPersonIds: [person1.id, person2.id],
+        forceEnabled: true,
+      });
+
+      // initialLayer='emotional' を指定して表示
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} initialLayer="emotional" />
+        </ReactFlowProvider>
+      );
+
+      // generalではなくemotionalの関係のラベルが表示されることを確認
+      const labelInput = screen.getByLabelText(/関係のラベル/) as HTMLInputElement;
+      expect(labelInput.value).toBe('好き');
+    });
+
+    it('initialLayerが未指定の場合、最初の関係のレイヤーが初期表示される', () => {
+      // generalのみの関係をセットアップ
+      useGraphStore.setState({
+        persons: [person1, person2],
+        relationships: [
+          {
+            id: 'rel-general',
+            sourcePersonId: person1.id,
+            targetPersonId: person2.id,
+            isDirected: true,
+            sourceToTargetLabel: '友人',
+            targetToSourceLabel: '友人',
+            layer: 'general',
+            weight: null,
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+        ],
+        selectedPersonIds: [person1.id, person2.id],
+        forceEnabled: true,
+      });
+
+      // initialLayerなしで表示
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const labelInput = screen.getByLabelText(/関係のラベル/) as HTMLInputElement;
+      expect(labelInput.value).toBe('友人');
+    });
+  });
+
+  describe('多層レイヤー: レイヤー切替時のフォーム内容', () => {
+    it('既存の関係があるペアを選択するとそのレイヤーのラベルが表示される', async () => {
+      const user = userEvent.setup();
+
+      // generalとemotionalの2つの関係をセットアップ
+      useGraphStore.setState({
+        persons: [person1, person2],
+        relationships: [
+          {
+            id: 'rel-general',
+            sourcePersonId: person1.id,
+            targetPersonId: person2.id,
+            isDirected: true,
+            sourceToTargetLabel: '友人',
+            targetToSourceLabel: '友人',
+            layer: 'general',
+            weight: null,
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+          {
+            id: 'rel-emotional',
+            sourcePersonId: person1.id,
+            targetPersonId: person2.id,
+            isDirected: true,
+            sourceToTargetLabel: '好き',
+            targetToSourceLabel: null,
+            layer: 'emotional',
+            weight: 0.8,
+            createdAt: '2024-01-01T00:01:00.000Z',
+          },
+        ],
+        selectedPersonIds: [person1.id, person2.id],
+        forceEnabled: true,
+      });
+
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      // 初期表示: 最初の関係（general）のラベルが表示される
+      const labelInput = screen.getByLabelText(/関係のラベル/) as HTMLInputElement;
+      expect(labelInput.value).toBe('友人');
+
+      // emotionalレイヤーに切り替え
+      const layerSelect = screen.getByRole('combobox', { name: 'レイヤー' });
+      await user.selectOptions(layerSelect, 'emotional');
+
+      // emotionalの関係のラベルに切り替わることを確認
+      await waitFor(() => {
+        const updatedInput = screen.getByLabelText(/関係のラベル/) as HTMLInputElement;
+        expect(updatedInput.value).toBe('好き');
+      });
+    });
+
+    it('既存の関係がないレイヤーに切り替えるとラベルがリセットされる', async () => {
+      const user = userEvent.setup();
+
+      // generalの関係のみセットアップ（emotionalはなし）
+      useGraphStore.setState({
+        persons: [person1, person2],
+        relationships: [
+          {
+            id: 'rel-general',
+            sourcePersonId: person1.id,
+            targetPersonId: person2.id,
+            isDirected: true,
+            sourceToTargetLabel: '友人',
+            targetToSourceLabel: '友人',
+            layer: 'general',
+            weight: null,
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+        ],
+        selectedPersonIds: [person1.id, person2.id],
+        forceEnabled: true,
+      });
+
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      // 初期状態: generalのラベル「友人」が表示されている
+      const labelInput = screen.getByLabelText(/関係のラベル/) as HTMLInputElement;
+      expect(labelInput.value).toBe('友人');
+
+      // emotionalレイヤーに切り替え（既存の関係なし）
+      const layerSelect = screen.getByRole('combobox', { name: 'レイヤー' });
+      await user.selectOptions(layerSelect, 'emotional');
+
+      // ラベルが空にリセットされることを確認（「友人」のままにならない）
+      await waitFor(() => {
+        const updatedInput = screen.getByLabelText(/関係のラベル/) as HTMLInputElement;
+        expect(updatedInput.value).toBe('');
+      });
+    });
+  });
+
+  describe('スキーマ対応UI（PairSelectionPanel）', () => {
+    it('awarenessレイヤー選択時に方向タイプ選択ボタンが非表示になる', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      // 初期状態ではタイプ選択ボタンが表示されている
+      expect(screen.getByRole('button', { name: '関係タイプを選択' })).toBeInTheDocument();
+
+      // awarenessレイヤーに変更
+      const layerSelect = screen.getByRole('combobox', { name: 'レイヤー' });
+      await user.selectOptions(layerSelect, 'awareness');
+
+      // 方向タイプ選択ボタンが非表示になることを確認
+      expect(screen.queryByRole('button', { name: '関係タイプを選択' })).not.toBeInTheDocument();
+    });
+
+    it('awarenessレイヤー選択時にラベル入力がselectになる', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      // awarenessレイヤーに変更
+      const layerSelect = screen.getByRole('combobox', { name: 'レイヤー' });
+      await user.selectOptions(layerSelect, 'awareness');
+
+      // ラベル入力がselectになることを確認
+      const labelSelect = screen.getByLabelText(/関係のラベル/) as HTMLSelectElement;
+      expect(labelSelect.tagName).toBe('SELECT');
+
+      // suggestedLabelsが選択肢として存在することを確認
+      expect(screen.getByRole('option', { name: '知っている' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: '知らない' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: '疑っている' })).toBeInTheDocument();
+    });
+
+    it('generalレイヤーではラベル入力にdatalistが紐付けられる', () => {
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      // generalレイヤーのラベル入力にlistプロパティが設定されていることを確認
+      const labelInput = screen.getByLabelText(/関係のラベル/) as HTMLInputElement;
+      expect(labelInput.list).not.toBeNull();
+    });
+
+    it('emotionalレイヤー選択時にweightスライダーが表示される', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      // 初期状態ではweightスライダーは非表示
+      expect(screen.queryByLabelText(/強度/)).not.toBeInTheDocument();
+
+      // emotionalレイヤーに変更
+      const layerSelect = screen.getByRole('combobox', { name: 'レイヤー' });
+      await user.selectOptions(layerSelect, 'emotional');
+
+      // weightスライダーが表示されることを確認
+      expect(screen.getByLabelText(/強度/)).toBeInTheDocument();
+    });
+
+    it('emotionalレイヤーでweightを設定して登録すると weight値が保存される', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      // emotionalレイヤーに変更
+      const layerSelect = screen.getByRole('combobox', { name: 'レイヤー' });
+      await user.selectOptions(layerSelect, 'emotional');
+
+      // ラベルを入力
+      const labelInput = screen.getByLabelText(/関係のラベル/);
+      await user.type(labelInput, '好き');
+
+      // weightスライダーを0.8に設定
+      const weightSlider = screen.getByLabelText(/強度/) as HTMLInputElement;
+      fireEvent.change(weightSlider, { target: { value: '0.8' } });
+
+      // 登録ボタンをクリック
+      const addButton = screen.getByRole('button', { name: '登録' });
+      await user.click(addButton);
+
+      await waitFor(() => {
+        const state = useGraphStore.getState();
+        expect(state.relationships).toHaveLength(1);
+        expect(state.relationships[0].weight).toBeCloseTo(0.8, 1);
+        expect(state.relationships[0].layer).toBe('emotional');
       });
     });
   });

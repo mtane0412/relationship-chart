@@ -7,7 +7,8 @@ import { create } from 'zustand';
 import { temporal } from 'zundo';
 import { nanoid } from 'nanoid';
 import type { Person } from '@/types/person';
-import type { Relationship } from '@/types/relationship';
+import type { Relationship, RelationshipLayer } from '@/types/relationship';
+import { DEFAULT_LAYER, RELATIONSHIP_LAYERS } from '@/types/relationship';
 import type { EgoLayoutParams } from '@/lib/ego-layout';
 import { DEFAULT_EGO_LAYOUT_PARAMS } from '@/lib/ego-layout';
 import type { ChartMeta, Chart } from '@/types/chart';
@@ -64,6 +65,8 @@ type GraphState = {
   egoLayoutParams: EgoLayoutParams;
   /** サイドパネルが開いているかどうか */
   sidePanelOpen: boolean;
+  /** 表示するレイヤーのSet（全レイヤーがデフォルト） */
+  visibleLayers: Set<RelationshipLayer>;
   /** アクティブな相関図ID */
   activeChartId: string | null;
   /** 相関図のメタデータリスト */
@@ -74,6 +77,8 @@ type GraphState = {
   isLoading: boolean;
   /** auto-save一時停止フラグ（破壊的操作中にtrueになる） */
   pauseAutoSave: boolean;
+  /** ペア編集時に表示する特定の関係ID（エッジクリック・関係一覧クリック時に設定） */
+  editingRelationshipId: string | null;
 };
 
 /**
@@ -87,11 +92,13 @@ const INITIAL_STATE: GraphState = {
   forceParams: DEFAULT_FORCE_PARAMS,
   egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
   sidePanelOpen: true,
+  visibleLayers: new Set(RELATIONSHIP_LAYERS.map((l) => l.value)),
   activeChartId: null,
   chartMetas: [],
   isInitialized: false,
   isLoading: false,
   pauseAutoSave: false,
+  editingRelationshipId: null,
 };
 
 /**
@@ -124,6 +131,32 @@ function buildChartFromState(state: GraphState): Chart | null {
     egoLayoutParams: state.egoLayoutParams,
     createdAt: meta.createdAt,
     updatedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * IndexedDB からロードしたChartのrelationshipsを正規化する
+ * 旧形式のデータ（layer/weight未定義、public/hiddenレイヤー名）を最新形式に変換する
+ * @param chart - IndexedDBからロードしたChart
+ * @returns 正規化されたChart
+ */
+function normalizeChartLayers(chart: Chart): Chart {
+  return {
+    ...chart,
+    relationships: chart.relationships.map((r) => {
+      // 旧レイヤー名のリネーム: public/hidden → general
+      const rawLayer = r.layer as string | undefined;
+      const layer =
+        rawLayer === 'public' || rawLayer === 'hidden' || !rawLayer
+          ? 'general'
+          : (rawLayer as Relationship['layer']);
+      return {
+        ...r,
+        layer,
+        // weightフィールドがない場合はnullを補完
+        weight: r.weight ?? null,
+      };
+    }),
   };
 }
 
@@ -214,10 +247,19 @@ type GraphActions = {
   setSelectedPersonIds: (personIds: string[]) => void;
 
   /**
-   * 新しい関係を追加する
-   * @param relationship - 追加する関係データ（idとcreatedAtは自動生成される）
+   * ペア編集のために2人を選択し、特定の関係を編集対象として記録する
+   * エッジクリック・関係一覧クリック時に使用する
+   * @param id1 - 人物1のID
+   * @param id2 - 人物2のID
+   * @param relationshipId - 編集対象の関係ID
    */
-  addRelationship: (relationship: Omit<Relationship, 'id' | 'createdAt'>) => void;
+  selectPersonPairForEdit: (id1: string, id2: string, relationshipId: string) => void;
+
+  /**
+   * 新しい関係を追加する
+   * @param relationship - 追加する関係データ（id・createdAt・layer・weightは省略可）
+   */
+  addRelationship: (relationship: Omit<Relationship, 'id' | 'createdAt' | 'layer' | 'weight'> & { layer?: Relationship['layer']; weight?: Relationship['weight'] }) => void;
 
   /**
    * 指定したIDの関係を更新する
@@ -270,6 +312,12 @@ type GraphActions = {
    * サイドパネルの開閉状態をトグルする
    */
   toggleSidePanel: () => void;
+
+  /**
+   * レイヤーの表示/非表示をトグルする
+   * @param layer - トグルするレイヤー
+   */
+  toggleLayerVisibility: (layer: RelationshipLayer) => void;
 
   /**
    * すべてのデータと状態を初期値にリセットする
@@ -402,22 +450,34 @@ export const useGraphStore = create<GraphStore>()(
         clearSelection: () =>
           set(() => ({
             selectedPersonIds: [],
+            editingRelationshipId: null,
           })),
 
         setSelectedPersonIds: (personIds) =>
           set(() => ({
             selectedPersonIds: personIds,
+            editingRelationshipId: null,
+          })),
+
+        selectPersonPairForEdit: (id1, id2, relationshipId) =>
+          set(() => ({
+            selectedPersonIds: [id1, id2],
+            editingRelationshipId: relationshipId,
           })),
 
         addRelationship: (relationship) =>
           set((state) => {
-            // 同じペアの関係が既に存在するかチェック（方向問わず）
+            // 追加するレイヤー（省略時はデフォルト）
+            const layer = relationship.layer ?? DEFAULT_LAYER;
+
+            // 同じペア・同じレイヤーの関係が既に存在するかチェック（方向問わず）
             const isDuplicate = state.relationships.some(
               (r) =>
-                (r.sourcePersonId === relationship.sourcePersonId &&
+                r.layer === layer &&
+                ((r.sourcePersonId === relationship.sourcePersonId &&
                   r.targetPersonId === relationship.targetPersonId) ||
-                (r.sourcePersonId === relationship.targetPersonId &&
-                  r.targetPersonId === relationship.sourcePersonId)
+                  (r.sourcePersonId === relationship.targetPersonId &&
+                    r.targetPersonId === relationship.sourcePersonId))
             );
 
             // 重複している場合は追加しない
@@ -430,6 +490,9 @@ export const useGraphStore = create<GraphStore>()(
                 ...state.relationships,
                 {
                   ...relationship,
+                  layer,
+                  // weightが指定されていない場合はnullを設定
+                  weight: relationship.weight ?? null,
                   id: nanoid(),
                   createdAt: new Date().toISOString(),
                 },
@@ -497,6 +560,18 @@ export const useGraphStore = create<GraphStore>()(
           set((state) => ({
             sidePanelOpen: !state.sidePanelOpen,
           })),
+
+        toggleLayerVisibility: (layer) =>
+          set((state) => {
+            // 現在のSetをコピーして更新（Setは参照型のためspreadでコピー）
+            const next = new Set(state.visibleLayers);
+            if (next.has(layer)) {
+              next.delete(layer);
+            } else {
+              next.add(layer);
+            }
+            return { visibleLayers: next };
+          }),
 
         resetAll: () => {
           // データフィールドのみリセット（チャート管理状態は保持）
@@ -610,11 +685,12 @@ export const useGraphStore = create<GraphStore>()(
             targetChartId = chartMetas[0].id;
           }
 
-          // 7. チャートをロード
-          const chart = await getChart(targetChartId);
-          if (!chart) {
+          // 7. チャートをロード（layerフィールドがない旧形式のデータを補完）
+          const rawChart = await getChart(targetChartId);
+          if (!rawChart) {
             throw new Error(`Chart not found: ${targetChartId}`);
           }
+          const chart = normalizeChartLayers(rawChart);
 
           // 8. ストアを更新
           set(() => ({
@@ -716,11 +792,12 @@ export const useGraphStore = create<GraphStore>()(
           // 1. 現在のチャートをIndexedDBに保存
           await saveCurrentChart(get);
 
-          // 2. 対象チャートをロード
-          const chart = await getChart(chartId);
-          if (!chart) {
+          // 2. 対象チャートをロード（layerフィールドがない旧形式のデータを補完）
+          const rawChart = await getChart(chartId);
+          if (!rawChart) {
             throw new Error(`Chart not found: ${chartId}`);
           }
+          const chart = normalizeChartLayers(rawChart);
 
           // 3. ストアを更新
           set(() => ({

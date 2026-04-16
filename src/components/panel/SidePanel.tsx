@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Settings } from 'lucide-react';
 import { DefaultPanel } from './DefaultPanel';
 import { SingleSelectionPanel } from './SingleSelectionPanel';
@@ -22,12 +22,27 @@ import { useGraphStore } from '@/stores/useGraphStore';
 export function SidePanel() {
   const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
   const persons = useGraphStore((state) => state.persons);
+  const relationships = useGraphStore((state) => state.relationships);
+  const editingRelationshipId = useGraphStore((state) => state.editingRelationshipId);
   const [showSettings, setShowSettings] = useState(false);
 
   // 選択された人物を取得
   const selectedPersons = selectedPersonIds
     .map((id) => persons.find((p) => p.id === id))
     .filter((p): p is NonNullable<typeof p> => p !== undefined);
+
+  // 編集対象の関係IDからレイヤーを取得（エッジクリック・関係一覧クリック時）
+  // 現在の2人選択に対応する関係のみ使用する（stale IDを無視するため）
+  const initialPairLayer = useMemo(() => {
+    if (!editingRelationshipId || selectedPersons.length !== 2) return null;
+    const rel = relationships.find((r) => r.id === editingRelationshipId);
+    if (!rel) return null;
+    const [id1, id2] = [selectedPersons[0].id, selectedPersons[1].id];
+    const belongsToCurrentPair =
+      (rel.sourcePersonId === id1 && rel.targetPersonId === id2) ||
+      (rel.sourcePersonId === id2 && rel.targetPersonId === id1);
+    return belongsToCurrentPair ? rel.layer : null;
+  }, [editingRelationshipId, relationships, selectedPersons]);
 
   // 選択数によってコンテンツを切り替え（selectedPersons.lengthを使用）
   let content;
@@ -39,11 +54,13 @@ export function SidePanel() {
     content = <SingleSelectionPanel person={selectedPersons[0]} />;
   } else if (selectedPersons.length === 2) {
     // 2人選択時: 関係登録パネル
-    // keyを設定してペアが変わった時にコンポーネントをリセット
+    // editingRelationshipIdが指定されている場合はそのレイヤーを初期表示する
+    // keyにinitialLayerを含めることでレイヤーが変わった時も確実にremountする
     content = (
       <PairSelectionPanel
-        key={`${selectedPersons[0].id}-${selectedPersons[1].id}`}
+        key={`${selectedPersons[0].id}-${selectedPersons[1].id}-${initialPairLayer ?? ''}`}
         persons={[selectedPersons[0], selectedPersons[1]]}
+        initialLayer={initialPairLayer ?? undefined}
       />
     );
   } else {

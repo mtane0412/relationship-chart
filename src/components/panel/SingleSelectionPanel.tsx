@@ -12,6 +12,7 @@ import { useDialogStore } from '@/stores/useDialogStore';
 import { useReactFlow } from '@xyflow/react';
 import type { Person } from '@/types/person';
 import type { Relationship } from '@/types/relationship';
+import { RELATIONSHIP_LAYERS } from '@/types/relationship';
 import { getRelationshipFromPerspective } from '@/lib/relationship-utils';
 import {
   VIEWPORT_ANIMATION_DURATION,
@@ -35,7 +36,7 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
   const persons = useGraphStore((state) => state.persons);
   const removePerson = useGraphStore((state) => state.removePerson);
   const clearSelection = useGraphStore((state) => state.clearSelection);
-  const setSelectedPersonIds = useGraphStore((state) => state.setSelectedPersonIds);
+  const selectPersonPairForEdit = useGraphStore((state) => state.selectPersonPairForEdit);
   const openConfirm = useDialogStore((state) => state.openConfirm);
   const { fitView } = useReactFlow();
 
@@ -148,8 +149,9 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
                     if (!otherPerson) return null;
 
                     // 関係クリックハンドラ: 2人選択状態に遷移 + ビューポート移動
+                    // クリックされた特定の関係（レイヤー）を初期表示するために関係IDも渡す
                     const handleRelationshipClick = () => {
-                      setSelectedPersonIds([person.id, otherPerson.id]);
+                      selectPersonPairForEdit(person.id, otherPerson.id, relItem.relationship.id);
 
                       // ビューポートを2つのノードにフィット（両ノードが画面内に収まるようズーム調整）
                       fitView({
@@ -199,6 +201,19 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
                           )}
                           <span className="text-gray-600 truncate">{otherPerson.name}</span>
                           <span className="font-medium text-gray-700 truncate">{relItem.label}</span>
+                          {/* レイヤー色バッジ */}
+                          {(() => {
+                            const layerDef = RELATIONSHIP_LAYERS.find(
+                              (l) => l.value === relItem.relationship.layer
+                            );
+                            return layerDef ? (
+                              <span
+                                className="shrink-0 w-2 h-2 rounded-full"
+                                style={{ backgroundColor: layerDef.color }}
+                                title={`${layerDef.label}（${layerDef.description}）`}
+                              />
+                            ) : null;
+                          })()}
                         </div>
                       </div>
                     );

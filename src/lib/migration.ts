@@ -84,8 +84,8 @@ type GraphStateV2 = {
  * @returns マイグレーション後の状態
  */
 export function migrateGraphState(persistedState: unknown, version: number): unknown {
-  // v6以降は変換不要
-  if (version >= 6) {
+  // v8以降は変換不要
+  if (version >= 8) {
     return persistedState;
   }
 
@@ -117,6 +117,8 @@ export function migrateGraphState(persistedState: unknown, version: number): unk
       isDirected: r.isDirected,
       sourceToTargetLabel: r.label,
       targetToSourceLabel: r.isDirected ? null : r.label, // undirectedの場合は同一ラベル
+      layer: 'general' as const, // v1データはlayerなし → generalをデフォルト設定
+      weight: null,
       createdAt: r.createdAt,
     }));
 
@@ -141,6 +143,8 @@ export function migrateGraphState(persistedState: unknown, version: number): unk
           isDirected: true,
           sourceToTargetLabel: r.sourceToTargetLabel,
           targetToSourceLabel: r.sourceToTargetLabel, // 同一ラベルにする
+          layer: 'general' as const, // v2データはlayerなし → generalをデフォルト設定
+          weight: null,
           createdAt: r.createdAt,
         };
       } else if (r.type === 'dual-directed') {
@@ -151,6 +155,8 @@ export function migrateGraphState(persistedState: unknown, version: number): unk
           isDirected: true,
           sourceToTargetLabel: r.sourceToTargetLabel,
           targetToSourceLabel: r.targetToSourceLabel, // そのまま維持
+          layer: 'general' as const,
+          weight: null,
           createdAt: r.createdAt,
         };
       } else if (r.type === 'one-way') {
@@ -161,6 +167,8 @@ export function migrateGraphState(persistedState: unknown, version: number): unk
           isDirected: true,
           sourceToTargetLabel: r.sourceToTargetLabel,
           targetToSourceLabel: null, // 片方向のみ
+          layer: 'general' as const,
+          weight: null,
           createdAt: r.createdAt,
         };
       } else {
@@ -172,6 +180,8 @@ export function migrateGraphState(persistedState: unknown, version: number): unk
           isDirected: false,
           sourceToTargetLabel: r.sourceToTargetLabel,
           targetToSourceLabel: r.sourceToTargetLabel, // 同一ラベルにする
+          layer: 'general' as const,
+          weight: null,
           createdAt: r.createdAt,
         };
       }
@@ -221,6 +231,45 @@ export function migrateGraphState(persistedState: unknown, version: number): unk
         ...v5State,
         egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
       };
+    }
+  }
+
+  // v6からv7への変換（layerフィールドを補完）
+  // v0〜v5からの変換後も必ずここを通るため、すべてのバージョンでlayerが補完される
+  if (version <= 6) {
+    const v6State = state as Partial<PersistedGraphState>;
+    if (v6State.relationships) {
+      v6State.relationships = v6State.relationships.map((r) => ({
+        ...r,
+        // layerフィールドがない場合はgeneralをデフォルト値として設定
+        // 既存データに'public'/'hidden'がある場合はv8マイグレーションでリネームされる
+        layer: ((r as Relationship & { layer?: string }).layer ?? 'general') as Relationship['layer'],
+      }));
+      state = v6State;
+    }
+  }
+
+  // v7からv8への変換（レイヤーリネーム + weightフィールド追加）
+  // public/hiddenをgeneralにリネームし、weightフィールドをnullで補完する
+  if (version <= 7) {
+    const v7State = state as Partial<PersistedGraphState>;
+    if (v7State.relationships) {
+      v7State.relationships = v7State.relationships.map((r) => {
+        // 旧レイヤー名（TypeScriptの型に含まれないが実データに存在しうる）
+        const oldLayer = (r as Relationship & { layer?: string }).layer as string | undefined;
+        // public/hiddenはgeneralに統合する（両者ともに「基本的な関係」次元として扱う）
+        const newLayer: Relationship['layer'] =
+          oldLayer === 'public' || oldLayer === 'hidden' || !oldLayer
+            ? 'general'
+            : (oldLayer as Relationship['layer']);
+        return {
+          ...r,
+          layer: newLayer,
+          // weightフィールドがない場合はnullを補完
+          weight: (r as Relationship & { weight?: number | null }).weight ?? null,
+        };
+      });
+      state = v7State;
     }
   }
 

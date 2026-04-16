@@ -1060,6 +1060,168 @@ describe('useGraphStore', () => {
       expect(result.current.relationships).toHaveLength(1);
       expect(result.current.relationships[0].sourcePersonId).toBe(personId1);
     });
+
+    it('関係はデフォルトで一般レイヤー（general）として追加される', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 2人の人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+        result.current.addPerson({
+          name: '佐藤花子',
+          imageDataUrl: 'data:image/jpeg;base64,def',
+        });
+      });
+
+      const personId1 = result.current.persons[0].id;
+      const personId2 = result.current.persons[1].id;
+
+      // layerを指定せず関係を追加
+      act(() => {
+        result.current.addRelationship({
+          sourcePersonId: personId1,
+          targetPersonId: personId2,
+          isDirected: true,
+          sourceToTargetLabel: '同僚',
+          targetToSourceLabel: '同僚',
+        });
+      });
+
+      // デフォルトレイヤーが'general'であること
+      expect(result.current.relationships[0].layer).toBe('general');
+    });
+
+    it('同じペア・同じレイヤーの関係は重複して追加できない', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 2人の人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '江戸川コナン',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+        result.current.addPerson({
+          name: '毛利蘭',
+          imageDataUrl: 'data:image/jpeg;base64,def',
+        });
+      });
+
+      const personId1 = result.current.persons[0].id;
+      const personId2 = result.current.persons[1].id;
+
+      // generalレイヤーで関係を追加
+      act(() => {
+        result.current.addRelationship({
+          sourcePersonId: personId1,
+          targetPersonId: personId2,
+          isDirected: false,
+          sourceToTargetLabel: '幼馴染',
+          targetToSourceLabel: '幼馴染',
+          layer: 'general',
+        });
+      });
+
+      expect(result.current.relationships).toHaveLength(1);
+
+      // 同じペア・同じレイヤー（general）で再度追加しようとする
+      act(() => {
+        result.current.addRelationship({
+          sourcePersonId: personId1,
+          targetPersonId: personId2,
+          isDirected: true,
+          sourceToTargetLabel: '好き',
+          targetToSourceLabel: null,
+          layer: 'general',
+        });
+      });
+
+      // 追加されない（1つのまま）
+      expect(result.current.relationships).toHaveLength(1);
+    });
+
+    it('同じペアでもレイヤーが異なれば複数の関係を追加できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 2人の人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '江戸川コナン',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+        result.current.addPerson({
+          name: '灰原哀',
+          imageDataUrl: 'data:image/jpeg;base64,def',
+        });
+      });
+
+      const personId1 = result.current.persons[0].id;
+      const personId2 = result.current.persons[1].id;
+
+      // 一般（general）レイヤーで関係を追加
+      act(() => {
+        result.current.addRelationship({
+          sourcePersonId: personId1,
+          targetPersonId: personId2,
+          isDirected: false,
+          sourceToTargetLabel: '同居人・仲間',
+          targetToSourceLabel: '同居人・仲間',
+          layer: 'general',
+        });
+      });
+
+      // 感情（emotional）レイヤーで別の関係を追加
+      act(() => {
+        result.current.addRelationship({
+          sourcePersonId: personId1,
+          targetPersonId: personId2,
+          isDirected: true,
+          sourceToTargetLabel: '信頼',
+          targetToSourceLabel: null,
+          layer: 'emotional',
+        });
+      });
+
+      // 2つの関係が追加されていること
+      expect(result.current.relationships).toHaveLength(2);
+      expect(result.current.relationships[0].layer).toBe('general');
+      expect(result.current.relationships[1].layer).toBe('emotional');
+    });
+
+    it('layerを明示的に指定して関係を追加できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 2人の人物を追加
+      act(() => {
+        result.current.addPerson({
+          name: '工藤新一',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+        });
+        result.current.addPerson({
+          name: '毛利蘭',
+          imageDataUrl: 'data:image/jpeg;base64,def',
+        });
+      });
+
+      const personId1 = result.current.persons[0].id;
+      const personId2 = result.current.persons[1].id;
+
+      // emotionalレイヤーで関係を追加
+      act(() => {
+        result.current.addRelationship({
+          sourcePersonId: personId1,
+          targetPersonId: personId2,
+          isDirected: true,
+          sourceToTargetLabel: '想い人',
+          targetToSourceLabel: null,
+          layer: 'emotional',
+        });
+      });
+
+      expect(result.current.relationships[0].layer).toBe('emotional');
+    });
   });
 
   describe('updateRelationship', () => {
@@ -1946,6 +2108,46 @@ describe('useGraphStore', () => {
       });
 
       expect(result.current.forceEnabled).toBe(false);
+    });
+  });
+
+  describe('visibleLayers', () => {
+    beforeEach(() => {
+      // visibleLayersをシングルトンストアの副作用から独立させるため毎テスト前に初期値に戻す
+      act(() => {
+        useGraphStore.setState({
+          visibleLayers: new Set(['general', 'emotional', 'organizational', 'awareness']),
+        });
+      });
+    });
+
+    it('初期状態で全レイヤーが表示されている', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 全4レイヤーが表示状態であること
+      expect(result.current.visibleLayers).toContain('general');
+      expect(result.current.visibleLayers).toContain('emotional');
+      expect(result.current.visibleLayers).toContain('organizational');
+      expect(result.current.visibleLayers).toContain('awareness');
+    });
+
+    it('toggleLayerVisibilityでレイヤーのON/OFFを切り替えられる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // emotionalレイヤーをOFF
+      act(() => {
+        result.current.toggleLayerVisibility('emotional');
+      });
+
+      expect(result.current.visibleLayers).not.toContain('emotional');
+      expect(result.current.visibleLayers).toContain('general');
+
+      // 再度ONに戻す
+      act(() => {
+        result.current.toggleLayerVisibility('emotional');
+      });
+
+      expect(result.current.visibleLayers).toContain('emotional');
     });
   });
 

@@ -27,6 +27,7 @@ export function useGraphDataSync() {
   const forceEnabled = useGraphStore((state) => state.forceEnabled);
   const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
   const updatePersonPositions = useGraphStore((state) => state.updatePersonPositions);
+  const visibleLayers = useGraphStore((state) => state.visibleLayers);
 
   // React Flowのノード/エッジ状態
   const [nodes, setNodes, onNodesChange] = useNodesState<GraphNode>([]);
@@ -69,7 +70,8 @@ export function useGraphDataSync() {
   // 選択状態の変更ではシミュレーション再初期化を避けるため、selectedPersonIdsを依存配列から除外
   useEffect(() => {
     const newNodes = personsToNodes(persons);
-    const newEdges = relationshipsToEdges(relationships);
+    // visibleLayersに基づいて非表示レイヤーのエッジを除外する
+    const newEdges = relationshipsToEdges(relationships, visibleLayers);
 
     // setNodesの関数型アップデータ内からRAFをスケジュールしています
     // React 18 StrictModeではアップデータが2回呼ばれる可能性がありますが、
@@ -155,7 +157,7 @@ export function useGraphDataSync() {
         collisionResolutionRafIdRef.current = null;
       }
     };
-  }, [persons, relationships, setNodes, setEdges, forceEnabled, updatePersonPositions]);
+  }, [persons, relationships, setNodes, setEdges, forceEnabled, updatePersonPositions, visibleLayers]);
 
   // 選択状態の変更時に既存ノード/エッジのselectedプロパティのみ更新
   // 配列参照を変更しないようにhasChangedフラグで最適化

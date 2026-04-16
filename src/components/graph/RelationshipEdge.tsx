@@ -19,6 +19,8 @@ import { useGraphStore } from '@/stores/useGraphStore';
 import { getEdgeIntersectionPoints } from '@/lib/node-intersection';
 import { calculateLabelPositionOnEdge } from '@/lib/edge-label-position';
 import type { RelationshipEdgeData } from '@/types/graph';
+import { RELATIONSHIP_LAYERS } from '@/types/relationship';
+import { calculateParallelEdgeOffset } from '@/lib/graph-utils';
 
 /**
  * 関係エッジコンポーネント
@@ -99,40 +101,50 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
     return null;
   }
 
-  // 直線のパスとラベル位置を計算
-  const [edgePath, labelX, labelY] = getStraightPath({
-    sourceX: sourcePoint.x,
-    sourceY: sourcePoint.y,
-    targetX: targetPoint.x,
-    targetY: targetPoint.y,
-  });
-
-  // dual-directed用の平行線を計算
+  // エッジの方向ベクトルと垂直単位ベクトルを計算（全エッジタイプで共通）
   const dx = targetPoint.x - sourcePoint.x;
   const dy = targetPoint.y - sourcePoint.y;
   const length = Math.sqrt(dx * dx + dy * dy);
-
-  // dual-directedの場合のみオフセット計算を行う
-  const isDualDirected = edgeData.displayType === 'dual-directed';
   // 垂直方向の単位ベクトル（時計回りに90度回転）
   // lengthが0の場合は0除算を避けてオフセット無し（単一路線）にフォールバック
-  const perpX = isDualDirected && length !== 0 ? -dy / length : 0;
-  const perpY = isDualDirected && length !== 0 ? dx / length : 0;
+  const perpX = length !== 0 ? -dy / length : 0;
+  const perpY = length !== 0 ? dx / length : 0;
 
-  // オフセット距離（2本の線の間隔）
-  const offset = 8;
+  // 同一ペア間の並列エッジオフセット計算
+  // 複数エッジが重ならないよう垂直方向にずらす
+  const pairOffset = calculateParallelEdgeOffset(
+    edgeData.edgeIndex ?? 0,
+    edgeData.totalEdgesInPair ?? 1
+  );
 
-  // 上側の線（source→target）
-  const topSourceX = sourcePoint.x + perpX * offset;
-  const topSourceY = sourcePoint.y + perpY * offset;
-  const topTargetX = targetPoint.x + perpX * offset;
-  const topTargetY = targetPoint.y + perpY * offset;
+  // ペアオフセットを適用した開始/終了点
+  const offsetSourceX = sourcePoint.x + perpX * pairOffset;
+  const offsetSourceY = sourcePoint.y + perpY * pairOffset;
+  const offsetTargetX = targetPoint.x + perpX * pairOffset;
+  const offsetTargetY = targetPoint.y + perpY * pairOffset;
 
-  // 下側の線（target→source）
-  const bottomSourceX = sourcePoint.x - perpX * offset;
-  const bottomSourceY = sourcePoint.y - perpY * offset;
-  const bottomTargetX = targetPoint.x - perpX * offset;
-  const bottomTargetY = targetPoint.y - perpY * offset;
+  // 直線のパスとラベル位置を計算（ペアオフセット適用済み）
+  const [edgePath, labelX, labelY] = getStraightPath({
+    sourceX: offsetSourceX,
+    sourceY: offsetSourceY,
+    targetX: offsetTargetX,
+    targetY: offsetTargetY,
+  });
+
+  // dual-directed用の追加オフセット（2本の平行線の間隔）
+  const DUAL_DIRECTED_OFFSET = 8;
+
+  // 上側の線（source→target）: ペアオフセット + dual-directedオフセット
+  const topSourceX = offsetSourceX + perpX * DUAL_DIRECTED_OFFSET;
+  const topSourceY = offsetSourceY + perpY * DUAL_DIRECTED_OFFSET;
+  const topTargetX = offsetTargetX + perpX * DUAL_DIRECTED_OFFSET;
+  const topTargetY = offsetTargetY + perpY * DUAL_DIRECTED_OFFSET;
+
+  // 下側の線（target→source）: ペアオフセット - dual-directedオフセット
+  const bottomSourceX = offsetSourceX - perpX * DUAL_DIRECTED_OFFSET;
+  const bottomSourceY = offsetSourceY - perpY * DUAL_DIRECTED_OFFSET;
+  const bottomTargetX = offsetTargetX - perpX * DUAL_DIRECTED_OFFSET;
+  const bottomTargetY = offsetTargetY - perpY * DUAL_DIRECTED_OFFSET;
 
   // 各線のパスを計算
   const [topPath] = getStraightPath({
@@ -178,28 +190,30 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
     removeRelationship(id);
   };
 
-  // マーカーの設定（選択状態に応じて色を変更）
+  // レイヤーの色を取得（デフォルトはgeneral = #64748b）
+  const layerColor =
+    RELATIONSHIP_LAYERS.find((l) => l.value === edgeData.layer)?.color ?? '#64748b';
+
+  // マーカーの設定（選択状態・レイヤーに応じて色を変更）
+  const markerSuffix = selected ? 'selected' : (edgeData.layer ?? 'general');
   const markerEnd =
-    edgeData.displayType === 'undirected'
-      ? undefined
-      : selected
-        ? 'url(#arrow-selected)'
-        : 'url(#arrow)';
+    edgeData.displayType === 'undirected' ? undefined : `url(#arrow-${markerSuffix})`;
   const markerStart =
     edgeData.displayType === 'bidirectional' || edgeData.displayType === 'dual-directed'
-      ? selected
-        ? 'url(#arrow-selected)'
-        : 'url(#arrow)'
+      ? `url(#arrow-${markerSuffix})`
       : undefined;
 
-  // エッジのスタイル（選択状態に応じて色と太さを変更）
+  // エッジのスタイル（選択状態・レイヤー・weightに応じて色と太さを変更）
+  const strokeColor = selected ? '#3b82f6' : layerColor;
+  // weightがある場合は1〜4pxの範囲でストローク幅を調整（weight: 0.0→1px, 1.0→4px）
+  const baseStrokeWidth = edgeData.weight !== null && edgeData.weight !== undefined ? edgeData.weight * 3 + 1 : 2;
   const edgeStyle = {
-    stroke: selected ? '#3b82f6' : '#64748b',
-    strokeWidth: selected ? 3.5 : 2,
+    stroke: strokeColor,
+    strokeWidth: selected ? 3.5 : baseStrokeWidth,
   };
   const dualDirectedEdgeStyle = {
-    stroke: selected ? '#3b82f6' : '#64748b',
-    strokeWidth: selected ? 3 : 2,
+    stroke: strokeColor,
+    strokeWidth: selected ? 3 : baseStrokeWidth,
   };
 
   return (
@@ -212,7 +226,7 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
             id={`${id}-top`}
             path={topPath}
             style={dualDirectedEdgeStyle}
-            markerEnd={selected ? 'url(#arrow-selected)' : 'url(#arrow)'}
+            markerEnd={`url(#arrow-${markerSuffix})`}
           />
 
           {/* 下側の線（target→source） */}
@@ -220,7 +234,7 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
             id={`${id}-bottom`}
             path={bottomPath}
             style={dualDirectedEdgeStyle}
-            markerEnd={selected ? 'url(#arrow-selected)' : 'url(#arrow)'}
+            markerEnd={`url(#arrow-${markerSuffix})`}
           />
         </>
       ) : (
