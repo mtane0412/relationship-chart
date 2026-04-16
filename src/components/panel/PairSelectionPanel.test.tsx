@@ -567,6 +567,84 @@ describe('PairSelectionPanel', () => {
     });
   });
 
+  describe('多層レイヤー: initialLayerプロップ', () => {
+    it('initialLayerを指定すると、そのレイヤーの関係が初期表示される', () => {
+      // generalとemotionalの2つの関係をセットアップ
+      useGraphStore.setState({
+        persons: [person1, person2],
+        relationships: [
+          {
+            id: 'rel-general',
+            sourcePersonId: person1.id,
+            targetPersonId: person2.id,
+            isDirected: true,
+            sourceToTargetLabel: '友人',
+            targetToSourceLabel: '友人',
+            layer: 'general',
+            weight: null,
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+          {
+            id: 'rel-emotional',
+            sourcePersonId: person1.id,
+            targetPersonId: person2.id,
+            isDirected: true,
+            sourceToTargetLabel: '好き',
+            targetToSourceLabel: null,
+            layer: 'emotional',
+            weight: 0.8,
+            createdAt: '2024-01-01T00:01:00.000Z',
+          },
+        ],
+        selectedPersonIds: [person1.id, person2.id],
+        forceEnabled: true,
+      });
+
+      // initialLayer='emotional' を指定して表示
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} initialLayer="emotional" />
+        </ReactFlowProvider>
+      );
+
+      // generalではなくemotionalの関係のラベルが表示されることを確認
+      const labelInput = screen.getByLabelText(/関係のラベル/) as HTMLInputElement;
+      expect(labelInput.value).toBe('好き');
+    });
+
+    it('initialLayerが未指定の場合、最初の関係のレイヤーが初期表示される', () => {
+      // generalのみの関係をセットアップ
+      useGraphStore.setState({
+        persons: [person1, person2],
+        relationships: [
+          {
+            id: 'rel-general',
+            sourcePersonId: person1.id,
+            targetPersonId: person2.id,
+            isDirected: true,
+            sourceToTargetLabel: '友人',
+            targetToSourceLabel: '友人',
+            layer: 'general',
+            weight: null,
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+        ],
+        selectedPersonIds: [person1.id, person2.id],
+        forceEnabled: true,
+      });
+
+      // initialLayerなしで表示
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const labelInput = screen.getByLabelText(/関係のラベル/) as HTMLInputElement;
+      expect(labelInput.value).toBe('友人');
+    });
+  });
+
   describe('多層レイヤー: レイヤー切替時のフォーム内容', () => {
     it('既存の関係があるペアを選択するとそのレイヤーのラベルが表示される', async () => {
       const user = userEvent.setup();

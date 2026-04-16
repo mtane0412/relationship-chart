@@ -70,6 +70,7 @@ export function useGraphInteractions({
   const removeRelationship = useGraphStore((state) => state.removeRelationship);
   const setSelectedPersonIds = useGraphStore((state) => state.setSelectedPersonIds);
   const clearSelection = useGraphStore((state) => state.clearSelection);
+  const selectPersonPairForEdit = useGraphStore((state) => state.selectPersonPairForEdit);
 
   // ダイアログストアから確認ダイアログとアラートダイアログを取得
   const openConfirm = useDialogStore((state) => state.openConfirm);
@@ -301,11 +302,12 @@ export function useGraphInteractions({
       }
 
       // setTimeoutで遅延させることで、React FlowのonSelectionChangeとの競合を避ける
+      // エッジIDを使って特定の関係（レイヤー）を初期表示する
       setTimeout(() => {
-        setSelectedPersonIds([edge.source, edge.target]);
+        selectPersonPairForEdit(edge.source, edge.target, edge.id);
       }, 0);
     },
-    [setSelectedPersonIds]
+    [selectPersonPairForEdit]
   );
 
   // エッジ接続開始ハンドラ

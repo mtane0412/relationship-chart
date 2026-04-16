@@ -26,6 +26,11 @@ const DEFAULT_WEIGHT_VALUE = 0.5;
 type PairSelectionPanelProps = {
   /** 選択されている2人の人物 */
   persons: [Person, Person];
+  /**
+   * 初期表示するレイヤー（エッジクリック時に特定のレイヤーを直接開く用）
+   * 未指定の場合は最初の既存関係のレイヤー、または DEFAULT_LAYER
+   */
+  initialLayer?: RelationshipLayer;
 };
 
 /**
@@ -109,7 +114,7 @@ function PersonMiniIcon({ person }: { person: Person }) {
 /**
  * 2人選択パネルコンポーネント
  */
-export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
+export function PairSelectionPanel({ persons, initialLayer }: PairSelectionPanelProps) {
   const relationships = useGraphStore((state) => state.relationships);
   const addRelationship = useGraphStore((state) => state.addRelationship);
   const updateRelationship = useGraphStore((state) => state.updateRelationship);
@@ -125,8 +130,9 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
   const hasItem = (person1.kind === 'item') || (person2.kind === 'item');
 
   // selectedLayerを先に定義してexistingRelationshipのuseMemoで参照できるようにする
-  // 初期値: ペア間の最初の既存関係のレイヤー（なければDEFAULT_LAYER）
+  // 初期値の優先順位: initialLayer prop → ペア間の最初の既存関係のレイヤー → DEFAULT_LAYER
   const [selectedLayer, setSelectedLayer] = useState<RelationshipLayer>(() => {
+    if (initialLayer) return initialLayer;
     const firstRel = relationships.find(
       (r) =>
         (r.sourcePersonId === person1.id && r.targetPersonId === person2.id) ||

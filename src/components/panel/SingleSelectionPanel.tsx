@@ -36,7 +36,7 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
   const persons = useGraphStore((state) => state.persons);
   const removePerson = useGraphStore((state) => state.removePerson);
   const clearSelection = useGraphStore((state) => state.clearSelection);
-  const setSelectedPersonIds = useGraphStore((state) => state.setSelectedPersonIds);
+  const selectPersonPairForEdit = useGraphStore((state) => state.selectPersonPairForEdit);
   const openConfirm = useDialogStore((state) => state.openConfirm);
   const { fitView } = useReactFlow();
 
@@ -149,8 +149,9 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
                     if (!otherPerson) return null;
 
                     // 関係クリックハンドラ: 2人選択状態に遷移 + ビューポート移動
+                    // クリックされた特定の関係（レイヤー）を初期表示するために関係IDも渡す
                     const handleRelationshipClick = () => {
-                      setSelectedPersonIds([person.id, otherPerson.id]);
+                      selectPersonPairForEdit(person.id, otherPerson.id, relItem.relationship.id);
 
                       // ビューポートを2つのノードにフィット（両ノードが画面内に収まるようズーム調整）
                       fitView({

@@ -77,6 +77,8 @@ type GraphState = {
   isLoading: boolean;
   /** auto-save一時停止フラグ（破壊的操作中にtrueになる） */
   pauseAutoSave: boolean;
+  /** ペア編集時に表示する特定の関係ID（エッジクリック・関係一覧クリック時に設定） */
+  editingRelationshipId: string | null;
 };
 
 /**
@@ -96,6 +98,7 @@ const INITIAL_STATE: GraphState = {
   isInitialized: false,
   isLoading: false,
   pauseAutoSave: false,
+  editingRelationshipId: null,
 };
 
 /**
@@ -242,6 +245,15 @@ type GraphActions = {
    * @param personIds - 選択する人物のIDリスト
    */
   setSelectedPersonIds: (personIds: string[]) => void;
+
+  /**
+   * ペア編集のために2人を選択し、特定の関係を編集対象として記録する
+   * エッジクリック・関係一覧クリック時に使用する
+   * @param id1 - 人物1のID
+   * @param id2 - 人物2のID
+   * @param relationshipId - 編集対象の関係ID
+   */
+  selectPersonPairForEdit: (id1: string, id2: string, relationshipId: string) => void;
 
   /**
    * 新しい関係を追加する
@@ -438,11 +450,19 @@ export const useGraphStore = create<GraphStore>()(
         clearSelection: () =>
           set(() => ({
             selectedPersonIds: [],
+            editingRelationshipId: null,
           })),
 
         setSelectedPersonIds: (personIds) =>
           set(() => ({
             selectedPersonIds: personIds,
+            editingRelationshipId: null,
+          })),
+
+        selectPersonPairForEdit: (id1, id2, relationshipId) =>
+          set(() => ({
+            selectedPersonIds: [id1, id2],
+            editingRelationshipId: relationshipId,
           })),
 
         addRelationship: (relationship) =>
