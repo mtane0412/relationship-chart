@@ -185,15 +185,23 @@ export function RelationshipRegistrationModal({
 
       // 初期値を設定（編集モードの場合は initialRelationship から、そうでなければデフォルト値）
       if (initialRelationship) {
-        setRelationshipType(initialRelationship.type);
         const restoredLayer = initialRelationship.layer ?? DEFAULT_LAYER;
+        const restoredLayerDef = RELATIONSHIP_LAYERS.find((l) => l.value === restoredLayer)!;
+        // allowDirectionOverride=falseのレイヤーでは方向をデフォルトに強制（保存データとの不整合を防ぐ）
+        const normalizedType = restoredLayerDef.allowDirectionOverride
+          ? initialRelationship.type
+          : restoredLayerDef.defaultDirected
+            ? 'one-way'
+            : 'undirected';
+        setRelationshipType(normalizedType);
         // fixedレイヤーの場合は候補外ラベルを正規化して復元
         setSourceToTargetLabel(
           normalizeLabelForLayer(initialRelationship.sourceToTargetLabel, restoredLayer)
         );
         setTargetToSourceLabel(initialRelationship.targetToSourceLabel || '');
         setSelectedLayer(restoredLayer);
-        setWeight(initialRelationship.weight ?? null);
+        // supportsWeight=falseのレイヤーではweightをnullに正規化（保存データとの不整合を防ぐ）
+        setWeight(restoredLayerDef.supportsWeight ? (initialRelationship.weight ?? null) : null);
       } else {
         // フォームをリセット（defaultTypeを使用）
         setRelationshipType(defaultType);
