@@ -263,7 +263,7 @@ export function useGraphContextMenuActions({
           onClick: async () => {
             closeContextMenu();
             const confirmed = await openConfirm({
-              message: `「${edge?.data?.sourceToTargetLabel || '不明な関係'}」を削除してもよろしいですか？`,
+              message: `「${edge?.data?.forwardLabel || edge?.data?.reverseLabel || '不明な関係'}」を削除してもよろしいですか？`,
               isDanger: true,
             });
             if (confirmed) {

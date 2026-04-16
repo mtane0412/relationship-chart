@@ -7,6 +7,7 @@ import { useEffect, useCallback, useRef } from 'react';
 import { useNodesState, useEdgesState, useReactFlow } from '@xyflow/react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { personsToNodes, relationshipsToEdges, syncNodePositionsToStore } from '@/lib/graph-utils';
+import type { RelationshipV9 } from '@/types/relationship';
 import { resolveCollisions, DEFAULT_COLLISION_OPTIONS } from '@/lib/collision-resolver';
 import type { Node } from '@xyflow/react';
 import type { GraphNode, RelationshipEdge } from '@/types/graph';
@@ -27,7 +28,7 @@ export function useGraphDataSync() {
   const forceEnabled = useGraphStore((state) => state.forceEnabled);
   const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
   const updatePersonPositions = useGraphStore((state) => state.updatePersonPositions);
-  const visibleLayers = useGraphStore((state) => state.visibleLayers);
+  // NOTE: visibleLayers は Phase 4 で edgeFilter に置き換え予定。Phase 2 では使用しない。
 
   // React Flowのノード/エッジ状態
   const [nodes, setNodes, onNodesChange] = useNodesState<GraphNode>([]);
@@ -70,8 +71,8 @@ export function useGraphDataSync() {
   // 選択状態の変更ではシミュレーション再初期化を避けるため、selectedPersonIdsを依存配列から除外
   useEffect(() => {
     const newNodes = personsToNodes(persons);
-    // visibleLayersに基づいて非表示レイヤーのエッジを除外する
-    const newEdges = relationshipsToEdges(relationships, visibleLayers);
+    // relationships は Phase 1 で v9 形式に変換済み（型は Relationship[] だが実体は RelationshipV9[]）
+    const newEdges = relationshipsToEdges(relationships as unknown as RelationshipV9[]);
 
     // setNodesの関数型アップデータ内からRAFをスケジュールしています
     // React 18 StrictModeではアップデータが2回呼ばれる可能性がありますが、
@@ -157,7 +158,7 @@ export function useGraphDataSync() {
         collisionResolutionRafIdRef.current = null;
       }
     };
-  }, [persons, relationships, setNodes, setEdges, forceEnabled, updatePersonPositions, visibleLayers]);
+  }, [persons, relationships, setNodes, setEdges, forceEnabled, updatePersonPositions]);
 
   // 選択状態の変更時に既存ノード/エッジのselectedプロパティのみ更新
   // 配列参照を変更しないようにhasChangedフラグで最適化

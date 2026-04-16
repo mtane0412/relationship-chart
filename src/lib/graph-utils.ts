@@ -4,9 +4,25 @@
  */
 
 import type { Person } from '@/types/person';
-import type { Relationship, RelationshipLayer } from '@/types/relationship';
+import type { RelationshipV9, RelationshipType } from '@/types/relationship';
 import type { GraphNode, RelationshipEdge } from '@/types/graph';
-import { getRelationshipDisplayType } from './relationship-utils';
+import { deriveEdgeVisual } from './relationship-visual';
+
+/**
+ * v9 形式の関係から表示タイプを導出する
+ *
+ * @param rel - RelationshipV9
+ * @returns RelationshipType
+ */
+function getV9DisplayType(rel: RelationshipV9): RelationshipType {
+  if (!rel.isDirected) return 'undirected';
+  const hasFwd = rel.forward.label !== null;
+  const hasRev = rel.reverse.label !== null;
+  if (hasFwd && hasRev) {
+    return rel.forward.label === rel.reverse.label ? 'bidirectional' : 'dual-directed';
+  }
+  return 'one-way';
+}
 
 /**
  * Person配列をGraphNode配列（PersonNodeまたはItemNode）に変換する
@@ -43,29 +59,21 @@ function getPairKey(idA: string, idB: string): string {
 }
 
 /**
- * Relationship配列をRelationshipEdge配列に変換する
- * @param relationships - 変換対象のRelationship配列
- * @param visibleLayers - 表示するレイヤーのSet。省略時は全レイヤーを表示
- * @returns RelationshipEdge配列（非表示レイヤーのエッジは除外される）
+ * RelationshipV9 配列を RelationshipEdge 配列に変換する
+ *
+ * @param relationships - 変換対象の RelationshipV9 配列
+ * @returns RelationshipEdge 配列
  *
  * @description
- * 同一ペア間に複数のエッジが存在する場合、edgeIndex/totalEdgesInPairを付与する。
- * source/targetの順序に関わらず同一ペアとして扱う（getPairKeyで正規化）。
- * この情報はRelationshipEdgeコンポーネントの並列描画オフセット計算に使用される。
+ * 同一ペア間に複数のエッジが存在する場合、edgeIndex/totalEdgesInPair を付与する。
+ * source/target の順序に関わらず同一ペアとして扱う（getPairKey で正規化）。
+ * この情報は RelationshipEdge コンポーネントの並列描画オフセット計算に使用される。
+ * エッジの色・線幅・破線は deriveEdgeVisual で決定する。
  */
-export function relationshipsToEdges(
-  relationships: Relationship[],
-  visibleLayers?: Set<RelationshipLayer>
-): RelationshipEdge[] {
-  // visibleLayersが指定されている場合は非表示レイヤーを除外する
-  const filtered =
-    visibleLayers !== undefined
-      ? relationships.filter((r) => visibleLayers.has(r.layer))
-      : relationships;
-
+export function relationshipsToEdges(relationships: RelationshipV9[]): RelationshipEdge[] {
   // ペアキーごとのエッジ数をカウントする（source/targetの順序を無視）
   const pairCountMap = new Map<string, number>();
-  for (const r of filtered) {
+  for (const r of relationships) {
     const key = getPairKey(r.sourcePersonId, r.targetPersonId);
     pairCountMap.set(key, (pairCountMap.get(key) ?? 0) + 1);
   }
@@ -73,7 +81,7 @@ export function relationshipsToEdges(
   // ペアキーごとのエッジインデックスを追跡する
   const pairIndexMap = new Map<string, number>();
 
-  return filtered.map((relationship) => {
+  return relationships.map((relationship) => {
     const key = getPairKey(relationship.sourcePersonId, relationship.targetPersonId);
     const edgeIndex = pairIndexMap.get(key) ?? 0;
     pairIndexMap.set(key, edgeIndex + 1);
@@ -85,11 +93,10 @@ export function relationshipsToEdges(
       target: relationship.targetPersonId,
       type: 'relationship' as const,
       data: {
-        displayType: getRelationshipDisplayType(relationship),
-        sourceToTargetLabel: relationship.sourceToTargetLabel,
-        targetToSourceLabel: relationship.targetToSourceLabel,
-        layer: relationship.layer,
-        weight: relationship.weight,
+        displayType: getV9DisplayType(relationship),
+        forwardLabel: relationship.forward.label,
+        reverseLabel: relationship.reverse.label,
+        visual: deriveEdgeVisual(relationship),
         edgeIndex,
         totalEdgesInPair,
       },

@@ -6,8 +6,32 @@
 import { describe, it, expect, vi } from 'vitest';
 import { personsToNodes, relationshipsToEdges, syncNodePositionsToStore, calculateParallelEdgeOffset } from './graph-utils';
 import type { Person } from '@/types/person';
-import type { Relationship } from '@/types/relationship';
+import type { RelationshipV9 } from '@/types/relationship';
 import type { GraphNode } from '@/types/graph';
+
+// ─── テストデータ ヘルパー ─────────────────────────────────────────────────────
+
+/**
+ * テスト用の RelationshipV9 を生成する
+ * すべてのフィールドをデフォルト（null/空）にして、引数で上書きする
+ */
+function makeRel(overrides: Partial<RelationshipV9> = {}): RelationshipV9 {
+  return {
+    id: 'rel-1',
+    sourcePersonId: 'person-1',
+    targetPersonId: 'person-2',
+    isDirected: false,
+    symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
+    forward: { label: null, affection: null, awareness: null, role: null },
+    reverse: { label: null, affection: null, awareness: null, role: null },
+    tags: [],
+    narrative: { summary: null, notes: null, turningPoints: [] },
+    colorOverride: null,
+    createdAt: '2026-02-05T00:00:00.000Z',
+    updatedAt: '2026-02-05T00:00:00.000Z',
+    ...overrides,
+  };
+}
 
 describe('graph-utils', () => {
   describe('personsToNodes', () => {
@@ -247,161 +271,97 @@ describe('graph-utils', () => {
   });
 
   describe('relationshipsToEdges', () => {
-    it('Relationship配列を空のEdge配列に変換できる', () => {
-      const relationships: Relationship[] = [];
-      const edges = relationshipsToEdges(relationships);
+    it('RelationshipV9 配列が空の場合は空のEdge配列を返す', () => {
+      // 前提条件: 空配列
+      const edges = relationshipsToEdges([]);
       expect(edges).toEqual([]);
     });
 
-    it('bidirectionalタイプのRelationshipをRelationshipEdgeに変換できる', () => {
-      const relationships: Relationship[] = [
-        {
-          id: 'rel-1',
-          sourcePersonId: 'person-1',
-          targetPersonId: 'person-2',
+    it('bidirectional（双方向同一ラベル）の RelationshipV9 を RelationshipEdge に変換できる', () => {
+      // 前提条件: isDirected=true, forward.label=reverse.label='親子'
+      const relationships: RelationshipV9[] = [
+        makeRel({
+          id: 'rel-親子',
           isDirected: true,
-          sourceToTargetLabel: '親子',
-          targetToSourceLabel: '親子',
-          layer: 'general' as const,
-          weight: null,
-          createdAt: '2026-02-05T00:00:00.000Z',
-        },
+          forward: { label: '親子', affection: null, awareness: null, role: null },
+          reverse: { label: '親子', affection: null, awareness: null, role: null },
+        }),
       ];
 
       const edges = relationshipsToEdges(relationships);
 
       expect(edges).toHaveLength(1);
-      expect(edges[0]).toEqual({
-        id: 'rel-1',
-        source: 'person-1',
-        target: 'person-2',
-        type: 'relationship',
-        data: {
-          displayType: 'bidirectional',
-          sourceToTargetLabel: '親子',
-          targetToSourceLabel: '親子',
-          layer: 'general',
-          weight: null,
-          edgeIndex: 0,
-          totalEdgesInPair: 1,
-        },
-      });
+      expect(edges[0].id).toBe('rel-親子');
+      expect(edges[0].source).toBe('person-1');
+      expect(edges[0].target).toBe('person-2');
+      expect(edges[0].type).toBe('relationship');
+      // bidirectional: 両方向ラベルが同一
+      expect(edges[0].data?.displayType).toBe('bidirectional');
+      expect(edges[0].data?.forwardLabel).toBe('親子');
+      expect(edges[0].data?.reverseLabel).toBe('親子');
+      // edgeIndex / totalEdgesInPair
+      expect(edges[0].data?.edgeIndex).toBe(0);
+      expect(edges[0].data?.totalEdgesInPair).toBe(1);
+      // visual が含まれること
+      expect(edges[0].data?.visual).toBeDefined();
     });
 
-    it('RelationshipのlayerがEdgeDataに含まれる', () => {
-      // 認知レイヤー（awareness）の関係がEdgeDataに正しく変換されることを検証
-      const relationships: Relationship[] = [
-        {
-          id: 'rel-1',
-          sourcePersonId: 'person-1',
-          targetPersonId: 'person-2',
+    it('dual-directed（両方向異なるラベル）の RelationshipV9 を RelationshipEdge に変換できる', () => {
+      // 前提条件: isDirected=true, forward.label='好き', reverse.label='無関心'
+      const relationships: RelationshipV9[] = [
+        makeRel({
           isDirected: true,
-          sourceToTargetLabel: '知っている',
-          targetToSourceLabel: null,
-          layer: 'awareness' as const,
-          weight: null,
-          createdAt: '2026-02-05T00:00:00.000Z',
-        },
-      ];
-
-      const edges = relationshipsToEdges(relationships);
-
-      expect(edges[0].data?.layer).toBe('awareness');
-    });
-
-    it('dual-directedタイプのRelationshipをRelationshipEdgeに変換できる', () => {
-      const relationships: Relationship[] = [
-        {
-          id: 'rel-1',
-          sourcePersonId: 'person-1',
-          targetPersonId: 'person-2',
-          isDirected: true,
-          sourceToTargetLabel: '好き',
-          targetToSourceLabel: '無関心',
-          layer: 'general' as const,
-          weight: null,
-          createdAt: '2026-02-05T00:00:00.000Z',
-        },
+          forward: { label: '好き', affection: null, awareness: null, role: null },
+          reverse: { label: '無関心', affection: null, awareness: null, role: null },
+        }),
       ];
 
       const edges = relationshipsToEdges(relationships);
 
       expect(edges).toHaveLength(1);
       expect(edges[0].data?.displayType).toBe('dual-directed');
-      expect(edges[0].data?.sourceToTargetLabel).toBe('好き');
-      expect(edges[0].data?.targetToSourceLabel).toBe('無関心');
+      expect(edges[0].data?.forwardLabel).toBe('好き');
+      expect(edges[0].data?.reverseLabel).toBe('無関心');
     });
 
-    it('one-wayタイプのRelationshipをRelationshipEdgeに変換できる', () => {
-      const relationships: Relationship[] = [
-        {
-          id: 'rel-1',
-          sourcePersonId: 'person-1',
-          targetPersonId: 'person-2',
+    it('one-way（片方向のみラベル）の RelationshipV9 を RelationshipEdge に変換できる', () => {
+      // 前提条件: isDirected=true, forward.label='片想い', reverse.label=null
+      const relationships: RelationshipV9[] = [
+        makeRel({
           isDirected: true,
-          sourceToTargetLabel: '片想い',
-          targetToSourceLabel: null,
-          layer: 'general' as const,
-          weight: null,
-          createdAt: '2026-02-05T00:00:00.000Z',
-        },
+          forward: { label: '片想い', affection: null, awareness: null, role: null },
+        }),
       ];
 
       const edges = relationshipsToEdges(relationships);
 
       expect(edges).toHaveLength(1);
       expect(edges[0].data?.displayType).toBe('one-way');
-      expect(edges[0].data?.sourceToTargetLabel).toBe('片想い');
-      expect(edges[0].data?.targetToSourceLabel).toBeNull();
+      expect(edges[0].data?.forwardLabel).toBe('片想い');
+      expect(edges[0].data?.reverseLabel).toBeNull();
     });
 
-    it('undirectedタイプのRelationshipをRelationshipEdgeに変換できる', () => {
-      const relationships: Relationship[] = [
-        {
-          id: 'rel-1',
-          sourcePersonId: 'person-1',
-          targetPersonId: 'person-2',
+    it('undirected（無方向）の RelationshipV9 を RelationshipEdge に変換できる', () => {
+      // 前提条件: isDirected=false
+      const relationships: RelationshipV9[] = [
+        makeRel({
           isDirected: false,
-          sourceToTargetLabel: '同一人物',
-          targetToSourceLabel: '同一人物',
-          layer: 'general' as const,
-          weight: null,
-          createdAt: '2026-02-05T00:00:00.000Z',
-        },
+          forward: { label: '同一人物', affection: null, awareness: null, role: null },
+          reverse: { label: '同一人物', affection: null, awareness: null, role: null },
+        }),
       ];
 
       const edges = relationshipsToEdges(relationships);
 
       expect(edges).toHaveLength(1);
       expect(edges[0].data?.displayType).toBe('undirected');
-      expect(edges[0].data?.sourceToTargetLabel).toBe('同一人物');
-      expect(edges[0].data?.targetToSourceLabel).toBe('同一人物');
     });
 
-    it('複数のRelationshipをRelationshipEdge配列に変換できる', () => {
-      const relationships: Relationship[] = [
-        {
-          id: 'rel-1',
-          sourcePersonId: 'person-1',
-          targetPersonId: 'person-2',
-          isDirected: true,
-          sourceToTargetLabel: '友人',
-          targetToSourceLabel: '友人',
-          layer: 'general' as const,
-          weight: null,
-          createdAt: '2026-02-05T00:00:00.000Z',
-        },
-        {
-          id: 'rel-2',
-          sourcePersonId: 'person-2',
-          targetPersonId: 'person-3',
-          isDirected: true,
-          sourceToTargetLabel: '同僚',
-          targetToSourceLabel: null,
-          layer: 'general' as const,
-          weight: null,
-          createdAt: '2026-02-05T00:01:00.000Z',
-        },
+    it('複数の RelationshipV9 を RelationshipEdge 配列に変換できる', () => {
+      // 前提条件: 2件の関係（別々のペア）
+      const relationships: RelationshipV9[] = [
+        makeRel({ id: 'rel-1', sourcePersonId: 'person-1', targetPersonId: 'person-2' }),
+        makeRel({ id: 'rel-2', sourcePersonId: 'person-2', targetPersonId: 'person-3' }),
       ];
 
       const edges = relationshipsToEdges(relationships);
@@ -411,81 +371,36 @@ describe('graph-utils', () => {
       expect(edges[1].id).toBe('rel-2');
     });
 
-    it('visibleLayersを指定すると非表示レイヤーのエッジが除外される', () => {
-      // 同じペア間の一般・感情・認知レイヤーの関係
-      const relationships: Relationship[] = [
-        {
-          id: 'rel-general',
-          sourcePersonId: 'person-1',
-          targetPersonId: 'person-2',
-          isDirected: false,
-          sourceToTargetLabel: '同僚',
-          targetToSourceLabel: '同僚',
-          layer: 'general' as const,
-          weight: null,
-          createdAt: '2026-02-05T00:00:00.000Z',
-        },
-        {
-          id: 'rel-awareness',
-          sourcePersonId: 'person-1',
-          targetPersonId: 'person-2',
-          isDirected: true,
-          sourceToTargetLabel: '知っている',
-          targetToSourceLabel: null,
-          layer: 'awareness' as const,
-          weight: null,
-          createdAt: '2026-02-05T00:01:00.000Z',
-        },
-        {
-          id: 'rel-emotional',
-          sourcePersonId: 'person-1',
-          targetPersonId: 'person-2',
-          isDirected: true,
-          sourceToTargetLabel: '信頼',
-          targetToSourceLabel: null,
-          layer: 'emotional' as const,
-          weight: null,
-          createdAt: '2026-02-05T00:02:00.000Z',
-        },
+    it('closeness が設定されている場合は visual.strokeWidth が 2px より太くなる', () => {
+      // 前提条件: closeness=1.0（最大値 → 4px）
+      const relationships: RelationshipV9[] = [
+        makeRel({
+          symmetric: {
+            closeness: 1.0,
+            trust: null,
+            tension: null,
+            secrecy: null,
+            kinship: null,
+          },
+        }),
       ];
 
-      // generalのみ表示
-      const edges = relationshipsToEdges(relationships, new Set(['general' as const]));
-
-      expect(edges).toHaveLength(1);
-      expect(edges[0].id).toBe('rel-general');
-    });
-
-    it('visibleLayersを省略すると全レイヤーのエッジが含まれる', () => {
-      const relationships: Relationship[] = [
-        {
-          id: 'rel-public',
-          sourcePersonId: 'person-1',
-          targetPersonId: 'person-2',
-          isDirected: false,
-          sourceToTargetLabel: '同僚',
-          targetToSourceLabel: '同僚',
-          layer: 'general' as const,
-          weight: null,
-          createdAt: '2026-02-05T00:00:00.000Z',
-        },
-        {
-          id: 'rel-hidden',
-          sourcePersonId: 'person-1',
-          targetPersonId: 'person-2',
-          isDirected: true,
-          sourceToTargetLabel: '裏の関係',
-          targetToSourceLabel: '裏の関係',
-          layer: 'general' as const,
-          weight: null,
-          createdAt: '2026-02-05T00:01:00.000Z',
-        },
-      ];
-
-      // visibleLayersを省略（全レイヤー表示）
       const edges = relationshipsToEdges(relationships);
 
-      expect(edges).toHaveLength(2);
+      // closeness=1.0 → strokeWidth=4
+      expect(edges[0].data?.visual.strokeWidth).toBe(4);
+    });
+
+    it('tags に TAG_COLOR_MAP のキーが含まれる場合は visual.color がそのタグの色になる', () => {
+      // 前提条件: '上司' タグ → #22c55e（緑）
+      const relationships: RelationshipV9[] = [
+        makeRel({ tags: ['上司'] }),
+      ];
+
+      const edges = relationshipsToEdges(relationships);
+
+      expect(edges[0].data?.visual.color).toBe('#22c55e');
+      expect(edges[0].data?.visual.markerKey).toBe('green');
     });
   });
 
@@ -556,23 +471,10 @@ describe('graph-utils', () => {
   });
 
   describe('relationshipsToEdges: 同一ペア間の並列描画インデックス', () => {
-    const baseRelationship = {
-      sourcePersonId: 'person-1',
-      targetPersonId: 'person-2',
-      isDirected: true,
-      createdAt: '2026-02-05T00:00:00.000Z',
-    };
-
     it('同じペアの関係が1件の場合、edgeIndex=0 / totalEdgesInPair=1 になる', () => {
-      const relationships: Relationship[] = [
-        {
-          ...baseRelationship,
-          id: 'rel-1',
-          sourceToTargetLabel: '好き',
-          targetToSourceLabel: null,
-          layer: 'general' as const,
-          weight: null,
-        },
+      // 前提条件: person-1 ↔ person-2 に1件の関係
+      const relationships: RelationshipV9[] = [
+        makeRel({ id: 'rel-1', isDirected: true }),
       ];
 
       const edges = relationshipsToEdges(relationships);
@@ -583,23 +485,10 @@ describe('graph-utils', () => {
     });
 
     it('同じペアの関係が2件の場合、edgeIndex=0,1 / totalEdgesInPair=2 になる', () => {
-      const relationships: Relationship[] = [
-        {
-          ...baseRelationship,
-          id: 'rel-1',
-          sourceToTargetLabel: '好き',
-          targetToSourceLabel: null,
-          layer: 'general' as const,
-          weight: null,
-        },
-        {
-          ...baseRelationship,
-          id: 'rel-2',
-          sourceToTargetLabel: '知っている',
-          targetToSourceLabel: null,
-          layer: 'awareness' as const,
-          weight: null,
-        },
+      // 前提条件: person-1 ↔ person-2 に2件の関係（v9ではペアに複数エッジが来るケースは稀だが可能）
+      const relationships: RelationshipV9[] = [
+        makeRel({ id: 'rel-1', isDirected: true }),
+        makeRel({ id: 'rel-2', isDirected: true }),
       ];
 
       const edges = relationshipsToEdges(relationships);
@@ -612,27 +501,10 @@ describe('graph-utils', () => {
     });
 
     it('逆方向の関係（source/targetが入れ替わり）も同一ペアとしてカウントされる', () => {
-      const relationships: Relationship[] = [
-        {
-          ...baseRelationship,
-          id: 'rel-1',
-          sourceToTargetLabel: '上司',
-          targetToSourceLabel: null,
-          layer: 'organizational' as const,
-          weight: null,
-        },
-        {
-          id: 'rel-2',
-          // source/targetが逆
-          sourcePersonId: 'person-2',
-          targetPersonId: 'person-1',
-          isDirected: true,
-          sourceToTargetLabel: '部下',
-          targetToSourceLabel: null,
-          layer: 'emotional' as const,
-          weight: null,
-          createdAt: '2026-02-05T00:00:00.000Z',
-        },
+      // 前提条件: person-1→person-2 と person-2→person-1 の2件
+      const relationships: RelationshipV9[] = [
+        makeRel({ id: 'rel-1', sourcePersonId: 'person-1', targetPersonId: 'person-2', isDirected: true }),
+        makeRel({ id: 'rel-2', sourcePersonId: 'person-2', targetPersonId: 'person-1', isDirected: true }),
       ];
 
       const edges = relationshipsToEdges(relationships);
@@ -643,26 +515,10 @@ describe('graph-utils', () => {
     });
 
     it('異なるペアの関係は独立してカウントされる', () => {
-      const relationships: Relationship[] = [
-        {
-          ...baseRelationship,
-          id: 'rel-1',
-          sourceToTargetLabel: '友人',
-          targetToSourceLabel: null,
-          layer: 'general' as const,
-          weight: null,
-        },
-        {
-          id: 'rel-2',
-          sourcePersonId: 'person-1',
-          targetPersonId: 'person-3', // 別のペア
-          isDirected: false,
-          sourceToTargetLabel: '同僚',
-          targetToSourceLabel: null,
-          layer: 'general' as const,
-          weight: null,
-          createdAt: '2026-02-05T00:00:00.000Z',
-        },
+      // 前提条件: person-1↔person-2 と person-1↔person-3 の2件
+      const relationships: RelationshipV9[] = [
+        makeRel({ id: 'rel-1', sourcePersonId: 'person-1', targetPersonId: 'person-2' }),
+        makeRel({ id: 'rel-2', sourcePersonId: 'person-1', targetPersonId: 'person-3' }),
       ];
 
       const edges = relationshipsToEdges(relationships);

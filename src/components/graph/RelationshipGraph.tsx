@@ -37,7 +37,15 @@ import { ContextMenu } from './ContextMenu';
 import { LayerFilterPanel } from './LayerFilterPanel';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { getRelationshipDisplayType } from '@/lib/relationship-utils';
-import { RELATIONSHIP_LAYERS } from '@/types/relationship';
+/** 固定 6 色の SVG マーカー定義（deriveEdgeVisual の markerKey と対応） */
+const EDGE_MARKER_COLORS = [
+  { key: 'red',    color: '#ef4444' },
+  { key: 'blue',   color: '#3b82f6' },
+  { key: 'green',  color: '#22c55e' },
+  { key: 'purple', color: '#8b5cf6' },
+  { key: 'orange', color: '#f97316' },
+  { key: 'gray',   color: '#64748b' },
+] as const;
 import { resolveCollisions, DEFAULT_COLLISION_OPTIONS } from '@/lib/collision-resolver';
 import { syncNodePositionsToStore } from '@/lib/graph-utils';
 import type { GraphNode } from '@/types/graph';
@@ -232,14 +240,13 @@ export function RelationshipGraph() {
         <SearchBar />
         <LayerFilterPanel />
 
-        {/* SVGマーカー定義（全エッジで共有） */}
+        {/* SVGマーカー定義（全エッジで共有）: 固定6色 + selected */}
         <svg>
           <defs>
-            {/* レイヤーごとの矢印マーカー */}
-            {RELATIONSHIP_LAYERS.map((layer) => (
+            {EDGE_MARKER_COLORS.map(({ key, color }) => (
               <marker
-                key={layer.value}
-                id={`arrow-${layer.value}`}
+                key={key}
+                id={`arrow-${key}`}
                 viewBox="0 0 10 10"
                 refX="8"
                 refY="5"
@@ -247,7 +254,7 @@ export function RelationshipGraph() {
                 markerHeight="6"
                 orient="auto-start-reverse"
               >
-                <path d="M 0 0 L 10 5 L 0 10 z" fill={layer.color} />
+                <path d="M 0 0 L 10 5 L 0 10 z" fill={color} />
               </marker>
             ))}
             {/* 選択時の矢印マーカー（青） */}

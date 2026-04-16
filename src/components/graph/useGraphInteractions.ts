@@ -429,7 +429,7 @@ export function useGraphInteractions({
         const firstEdge = edgesToDelete[0] as RelationshipEdge;
         messages.push(
           count === 1 && firstEdge
-            ? `「${firstEdge.data?.sourceToTargetLabel || '不明な関係'}」を削除してもよろしいですか？`
+            ? `「${firstEdge.data?.forwardLabel || firstEdge.data?.reverseLabel || '不明な関係'}」を削除してもよろしいですか？`
             : `${count}個の関係を削除してもよろしいですか？`
         );
       }
