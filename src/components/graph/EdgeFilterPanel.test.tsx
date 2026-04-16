@@ -22,17 +22,12 @@ describe('EdgeFilterPanel', () => {
   });
 
   describe('タグなし状態', () => {
-    it('相関図に関係が存在しない場合、タグフィルタは表示されない', () => {
+    it('相関図に関係が存在しない場合、パネル自体が非表示になる', () => {
       render(<EdgeFilterPanel />);
 
-      // タグ一覧は空なので「タグフィルタ」の項目がない
+      // タグも述語フィルタもないため何も表示されない
+      expect(screen.queryByText('エッジフィルター')).not.toBeInTheDocument();
       expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
-    });
-
-    it('「エッジフィルター」というタイトルが表示される', () => {
-      render(<EdgeFilterPanel />);
-
-      expect(screen.getByText('エッジフィルター')).toBeInTheDocument();
     });
   });
 
@@ -98,31 +93,31 @@ describe('EdgeFilterPanel', () => {
       expect(useGraphStore.getState().edgeFilter.tags.values).not.toContain('上司');
     });
 
-    it('フィルタが適用されている場合、「フィルター解除」ボタンが表示される', async () => {
+    it('フィルタが適用されている場合、「解除」ボタンが表示される', async () => {
       const user = userEvent.setup();
       render(<EdgeFilterPanel />);
 
       await user.click(screen.getByLabelText('上司'));
 
-      expect(screen.getByText('フィルター解除')).toBeInTheDocument();
+      expect(screen.getByText('解除')).toBeInTheDocument();
     });
 
-    it('「フィルター解除」ボタンをクリックするとedgeFilterがリセットされる', async () => {
+    it('「解除」ボタンをクリックするとedgeFilterがリセットされる', async () => {
       const user = userEvent.setup();
       render(<EdgeFilterPanel />);
 
       await user.click(screen.getByLabelText('上司'));
-      await user.click(screen.getByText('フィルター解除'));
+      await user.click(screen.getByText('解除'));
 
       const store = useGraphStore.getState();
       expect(store.edgeFilter.tags.values.size).toBe(0);
       expect(store.edgeFilter.predicates).toEqual([]);
     });
 
-    it('フィルタが未適用の場合、「フィルター解除」ボタンは表示されない', () => {
+    it('フィルタが未適用の場合、「解除」ボタンは表示されない', () => {
       render(<EdgeFilterPanel />);
 
-      expect(screen.queryByText('フィルター解除')).not.toBeInTheDocument();
+      expect(screen.queryByText('解除')).not.toBeInTheDocument();
     });
   });
 

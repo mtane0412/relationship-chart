@@ -9,6 +9,7 @@
 'use client';
 
 import { memo, useMemo } from 'react';
+import { Panel } from '@xyflow/react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import type { RelationshipV9 } from '@/types/relationship';
 
@@ -67,26 +68,32 @@ export const EdgeFilterPanel = memo(() => {
     });
   };
 
-  return (
-    <div className="px-3 py-2">
-      {/* ヘッダー */}
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-          エッジフィルター
-        </span>
-        {isFiltered && (
-          <button
-            type="button"
-            onClick={handleReset}
-            className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
-          >
-            フィルター解除
-          </button>
-        )}
-      </div>
+  // タグが0件かつフィルタ未適用ならパネル自体を非表示にする
+  if (allTags.length === 0 && !isFiltered) {
+    return null;
+  }
 
-      {/* タグチェックボックス一覧 */}
-      {allTags.length > 0 && (
+  return (
+    // ShareButton（top-left, 約40px高さ）の下に配置するため top オフセットを指定
+    <Panel position="top-left" style={{ top: '56px' }}>
+      <div className="bg-white rounded-lg shadow-md px-3 py-2 min-w-[120px] max-w-[180px]">
+        {/* ヘッダー */}
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+            エッジフィルター
+          </span>
+          {isFiltered && (
+            <button
+              type="button"
+              onClick={handleReset}
+              className="text-xs text-blue-600 hover:text-blue-800 hover:underline ml-2"
+            >
+              解除
+            </button>
+          )}
+        </div>
+
+        {/* タグチェックボックス一覧 */}
         <div className="space-y-1">
           {allTags.map((tag) => {
             const checked = edgeFilter.tags.values.has(tag);
@@ -109,8 +116,8 @@ export const EdgeFilterPanel = memo(() => {
             );
           })}
         </div>
-      )}
-    </div>
+      </div>
+    </Panel>
   );
 });
 
