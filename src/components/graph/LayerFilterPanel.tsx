@@ -13,14 +13,14 @@ import { RELATIONSHIP_LAYERS } from '@/types/relationship';
 
 /**
  * レイヤーフィルターパネルコンポーネント
- * キャンバス左下に配置され、レイヤーのON/OFFを切り替えられる
+ * キャンバス左上（共有ボタンの下）に配置され、レイヤーのON/OFFを切り替えられる
  */
 export const LayerFilterPanel = memo(() => {
   const visibleLayers = useGraphStore((state) => state.visibleLayers);
   const toggleLayerVisibility = useGraphStore((state) => state.toggleLayerVisibility);
 
   return (
-    <Panel position="bottom-left" className="flex flex-col gap-1">
+    <Panel position="top-left" className="flex flex-col gap-1">
       {RELATIONSHIP_LAYERS.map((layer) => {
         const isVisible = visibleLayers.has(layer.value);
         return (
