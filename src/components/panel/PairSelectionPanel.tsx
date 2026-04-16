@@ -124,16 +124,28 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
   // 物が含まれているかチェック
   const hasItem = (person1.kind === 'item') || (person2.kind === 'item');
 
-  // 2人の間の既存関係を取得（方向問わず）
-  // メモ化により、relationshipsまたはペアIDが変わった時のみ再計算
+  // selectedLayerを先に定義してexistingRelationshipのuseMemoで参照できるようにする
+  // 初期値: ペア間の最初の既存関係のレイヤー（なければDEFAULT_LAYER）
+  const [selectedLayer, setSelectedLayer] = useState<RelationshipLayer>(() => {
+    const firstRel = relationships.find(
+      (r) =>
+        (r.sourcePersonId === person1.id && r.targetPersonId === person2.id) ||
+        (r.sourcePersonId === person2.id && r.targetPersonId === person1.id)
+    );
+    return firstRel?.layer ?? DEFAULT_LAYER;
+  });
+
+  // 選択中レイヤーの既存関係を取得（レイヤーで絞り込み）
+  // selectedLayerが変わると、そのレイヤーの関係に切り替わる
   const existingRelationship = useMemo(
     () =>
       relationships.find(
         (r) =>
-          (r.sourcePersonId === person1.id && r.targetPersonId === person2.id) ||
-          (r.sourcePersonId === person2.id && r.targetPersonId === person1.id)
+          r.layer === selectedLayer &&
+          ((r.sourcePersonId === person1.id && r.targetPersonId === person2.id) ||
+           (r.sourcePersonId === person2.id && r.targetPersonId === person1.id))
       ),
-    [relationships, person1.id, person2.id]
+    [relationships, person1.id, person2.id, selectedLayer]
   );
 
   // 既存関係の向きを判定（person1がsourceかどうか）
@@ -168,9 +180,6 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
     return '';
   });
   const [isTypePickerOpen, setIsTypePickerOpen] = useState(false);
-  const [selectedLayer, setSelectedLayer] = useState<RelationshipLayer>(
-    () => existingRelationship?.layer ?? DEFAULT_LAYER
-  );
   // weightの状態（nullは未設定）
   const [weight, setWeight] = useState<number | null>(() => existingRelationship?.weight ?? null);
 
@@ -179,29 +188,16 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
 
   /**
    * レイヤー変更時の処理
-   * - allowDirectionOverride=falseのレイヤーに変更した場合、方向をdefaultDirectedに強制
-   * - supportsWeight=falseのレイヤーに変更した場合、weightをnullにリセット
+   * フォーム状態の更新（スキーマ適用・ラベルリセット）はuseEffectに委譲する
    */
   const handleLayerChange = (newLayer: RelationshipLayer) => {
-    const newLayerDef = RELATIONSHIP_LAYERS.find((l) => l.value === newLayer)!;
     setSelectedLayer(newLayer);
-
-    // 方向変更不可のレイヤーに切り替えた場合は方向をデフォルトに強制
-    if (!newLayerDef.allowDirectionOverride) {
-      setRelationshipType(newLayerDef.defaultDirected ? 'one-way' : 'undirected');
-      setIsTypePickerOpen(false);
-    }
-
-    // weight非対応レイヤーに切り替えた場合はweightをリセット
-    if (!newLayerDef.supportsWeight) {
-      setWeight(null);
-    } else if (weight === null) {
-      setWeight(DEFAULT_WEIGHT_VALUE);
-    }
+    setIsTypePickerOpen(false);
   };
 
-  // existingRelationshipの変化に応じてフォーム状態を再同期
-  // (undo/redo、関係の削除/追加などで変化する)
+  // existingRelationshipまたはselectedLayerの変化に応じてフォーム状態を再同期
+  // - undo/redo、関係の削除/追加
+  // - レイヤー切替（selectedLayer変更でexistingRelationshipも変わる）
   useEffect(() => {
     if (existingRelationship) {
       const displayType = getRelationshipDisplayType(existingRelationship);
@@ -217,13 +213,21 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
 
       setSourceToTargetLabel(nextSourceToTargetLabel);
       setTargetToSourceLabel(nextTargetToSourceLabel);
+      setWeight(existingRelationship.weight ?? null);
     } else {
-      // 関係が削除された場合は新規作成用のデフォルトにリセット
-      setRelationshipType('bidirectional');
+      // 選択中レイヤーにまだ関係がない場合（新規作成）はスキーマに基づいてリセット
+      const layerDef = RELATIONSHIP_LAYERS.find((l) => l.value === selectedLayer)!;
+      if (!layerDef.allowDirectionOverride) {
+        // 方向変更不可レイヤーはデフォルト方向に強制
+        setRelationshipType(layerDef.defaultDirected ? 'one-way' : 'undirected');
+      } else {
+        setRelationshipType('bidirectional');
+      }
       setSourceToTargetLabel('');
       setTargetToSourceLabel('');
+      setWeight(layerDef.supportsWeight ? DEFAULT_WEIGHT_VALUE : null);
     }
-  }, [existingRelationship, isReversed]);
+  }, [existingRelationship, isReversed, selectedLayer]);
 
   // 外部クリックでドロップダウンを閉じる
   useEffect(() => {

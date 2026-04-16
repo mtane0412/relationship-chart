@@ -567,6 +567,107 @@ describe('PairSelectionPanel', () => {
     });
   });
 
+  describe('多層レイヤー: レイヤー切替時のフォーム内容', () => {
+    it('既存の関係があるペアを選択するとそのレイヤーのラベルが表示される', async () => {
+      const user = userEvent.setup();
+
+      // generalとemotionalの2つの関係をセットアップ
+      useGraphStore.setState({
+        persons: [person1, person2],
+        relationships: [
+          {
+            id: 'rel-general',
+            sourcePersonId: person1.id,
+            targetPersonId: person2.id,
+            isDirected: true,
+            sourceToTargetLabel: '友人',
+            targetToSourceLabel: '友人',
+            layer: 'general',
+            weight: null,
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+          {
+            id: 'rel-emotional',
+            sourcePersonId: person1.id,
+            targetPersonId: person2.id,
+            isDirected: true,
+            sourceToTargetLabel: '好き',
+            targetToSourceLabel: null,
+            layer: 'emotional',
+            weight: 0.8,
+            createdAt: '2024-01-01T00:01:00.000Z',
+          },
+        ],
+        selectedPersonIds: [person1.id, person2.id],
+        forceEnabled: true,
+      });
+
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      // 初期表示: 最初の関係（general）のラベルが表示される
+      const labelInput = screen.getByLabelText(/関係のラベル/) as HTMLInputElement;
+      expect(labelInput.value).toBe('友人');
+
+      // emotionalレイヤーに切り替え
+      const layerSelect = screen.getByRole('combobox', { name: 'レイヤー' });
+      await user.selectOptions(layerSelect, 'emotional');
+
+      // emotionalの関係のラベルに切り替わることを確認
+      await waitFor(() => {
+        const updatedInput = screen.getByLabelText(/関係のラベル/) as HTMLInputElement;
+        expect(updatedInput.value).toBe('好き');
+      });
+    });
+
+    it('既存の関係がないレイヤーに切り替えるとラベルがリセットされる', async () => {
+      const user = userEvent.setup();
+
+      // generalの関係のみセットアップ（emotionalはなし）
+      useGraphStore.setState({
+        persons: [person1, person2],
+        relationships: [
+          {
+            id: 'rel-general',
+            sourcePersonId: person1.id,
+            targetPersonId: person2.id,
+            isDirected: true,
+            sourceToTargetLabel: '友人',
+            targetToSourceLabel: '友人',
+            layer: 'general',
+            weight: null,
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+        ],
+        selectedPersonIds: [person1.id, person2.id],
+        forceEnabled: true,
+      });
+
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      // 初期状態: generalのラベル「友人」が表示されている
+      const labelInput = screen.getByLabelText(/関係のラベル/) as HTMLInputElement;
+      expect(labelInput.value).toBe('友人');
+
+      // emotionalレイヤーに切り替え（既存の関係なし）
+      const layerSelect = screen.getByRole('combobox', { name: 'レイヤー' });
+      await user.selectOptions(layerSelect, 'emotional');
+
+      // ラベルが空にリセットされることを確認（「友人」のままにならない）
+      await waitFor(() => {
+        const updatedInput = screen.getByLabelText(/関係のラベル/) as HTMLInputElement;
+        expect(updatedInput.value).toBe('');
+      });
+    });
+  });
+
   describe('スキーマ対応UI（PairSelectionPanel）', () => {
     it('awarenessレイヤー選択時に方向タイプ選択ボタンが非表示になる', async () => {
       const user = userEvent.setup();
