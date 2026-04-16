@@ -140,13 +140,28 @@ export function RelationshipRegistrationModal({
   const currentLayerDef = RELATIONSHIP_LAYERS.find((l) => l.value === selectedLayer)!;
 
   /**
+   * fixedレイヤー用ラベル正規化
+   * - fixedレイヤーでは候補外のラベルを空文字に落とす
+   * - fixed以外のレイヤーではラベルをそのまま返す
+   */
+  const normalizeLabelForLayer = (label: string, layer: RelationshipLayer) => {
+    const layerDef = RELATIONSHIP_LAYERS.find((l) => l.value === layer);
+    if (!layerDef || layerDef.labelSystem !== 'fixed') return label;
+    return layerDef.suggestedLabels?.includes(label) ? label : '';
+  };
+
+  /**
    * レイヤー変更時の処理
    * - allowDirectionOverride=falseのレイヤーに変更した場合、方向をdefaultDirectedに強制
    * - supportsWeight=falseのレイヤーに変更した場合、weightをnullにリセット
+   * - fixedレイヤーに変更した場合、候補外ラベルを空文字に正規化
    */
   const handleLayerChange = (newLayer: RelationshipLayer) => {
     const newLayerDef = RELATIONSHIP_LAYERS.find((l) => l.value === newLayer)!;
     setSelectedLayer(newLayer);
+
+    // fixedレイヤーに切り替えた場合は候補外ラベルを正規化
+    setSourceToTargetLabel((prev) => normalizeLabelForLayer(prev, newLayer));
 
     // 方向変更不可のレイヤーに切り替えた場合は方向をデフォルトに強制
     if (!newLayerDef.allowDirectionOverride) {
@@ -171,9 +186,13 @@ export function RelationshipRegistrationModal({
       // 初期値を設定（編集モードの場合は initialRelationship から、そうでなければデフォルト値）
       if (initialRelationship) {
         setRelationshipType(initialRelationship.type);
-        setSourceToTargetLabel(initialRelationship.sourceToTargetLabel);
+        const restoredLayer = initialRelationship.layer ?? DEFAULT_LAYER;
+        // fixedレイヤーの場合は候補外ラベルを正規化して復元
+        setSourceToTargetLabel(
+          normalizeLabelForLayer(initialRelationship.sourceToTargetLabel, restoredLayer)
+        );
         setTargetToSourceLabel(initialRelationship.targetToSourceLabel || '');
-        setSelectedLayer(initialRelationship.layer ?? DEFAULT_LAYER);
+        setSelectedLayer(restoredLayer);
         setWeight(initialRelationship.weight ?? null);
       } else {
         // フォームをリセット（defaultTypeを使用）
@@ -188,8 +207,9 @@ export function RelationshipRegistrationModal({
 
   // フォーカス制御: selectedLayerが確定しDOMが更新された後に実行
   // justOpenedRefフラグでモーダルが新たに開いた直後のみフォーカスを当てる
+  // isOpenを依存に含めることで同じレイヤーで再オープンした場合もフォーカスを当てる
   useEffect(() => {
-    if (!justOpenedRef.current) return;
+    if (!isOpen || !justOpenedRef.current) return;
     justOpenedRef.current = false;
     const layerDef = RELATIONSHIP_LAYERS.find((l) => l.value === selectedLayer)!;
     if (layerDef.labelSystem === 'fixed') {
@@ -197,7 +217,7 @@ export function RelationshipRegistrationModal({
     } else {
       labelInputRef.current?.focus();
     }
-  }, [selectedLayer]);
+  }, [isOpen, selectedLayer]);
 
   // Escapeキーでキャンセル
   useEffect(() => {
@@ -460,6 +480,7 @@ export function RelationshipRegistrationModal({
                 <input
                   id="reverse-relationship-label"
                   type="text"
+                  list={currentLayerDef.labelSystem === 'semi-fixed' ? 'label-suggestions' : undefined}
                   value={targetToSourceLabel}
                   onChange={(e) => setTargetToSourceLabel(e.target.value)}
                   maxLength={MAX_RELATIONSHIP_LABEL_LENGTH}

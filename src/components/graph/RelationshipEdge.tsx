@@ -226,7 +226,7 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
             id={`${id}-top`}
             path={topPath}
             style={dualDirectedEdgeStyle}
-            markerEnd={selected ? 'url(#arrow-selected)' : 'url(#arrow)'}
+            markerEnd={`url(#arrow-${markerSuffix})`}
           />
 
           {/* 下側の線（target→source） */}
@@ -234,7 +234,7 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
             id={`${id}-bottom`}
             path={bottomPath}
             style={dualDirectedEdgeStyle}
-            markerEnd={selected ? 'url(#arrow-selected)' : 'url(#arrow)'}
+            markerEnd={`url(#arrow-${markerSuffix})`}
           />
         </>
       ) : (

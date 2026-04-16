@@ -2112,6 +2112,15 @@ describe('useGraphStore', () => {
   });
 
   describe('visibleLayers', () => {
+    beforeEach(() => {
+      // visibleLayersをシングルトンストアの副作用から独立させるため毎テスト前に初期値に戻す
+      act(() => {
+        useGraphStore.setState({
+          visibleLayers: new Set(['general', 'emotional', 'organizational', 'awareness']),
+        });
+      });
+    });
+
     it('初期状態で全レイヤーが表示されている', () => {
       const { result } = renderHook(() => useGraphStore());
 

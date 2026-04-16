@@ -1181,7 +1181,7 @@ describe('RelationshipRegistrationModal', () => {
       expect(onSubmit).toHaveBeenCalledWith('bidirectional', '好き', null, 'emotional', 0.8);
     });
 
-    it('emotionalレイヤーでweightをnull（未設定）のままonSubmitが呼ばれると weight=null が渡される', async () => {
+    it('emotionalレイヤーでweightを変更しない場合、デフォルト値（0.5）が渡される', async () => {
       const user = userEvent.setup();
       const onSubmit = vi.fn();
 
@@ -1207,9 +1207,8 @@ describe('RelationshipRegistrationModal', () => {
       const submitButton = screen.getByRole('button', { name: '登録' });
       await user.click(submitButton);
 
-      // weightがnullの場合はnullが渡されることを確認（スライダーを操作しない場合）
-      // デフォルトのweight値（0.5など）またはnullが渡されることを確認
-      expect(onSubmit).toHaveBeenCalledWith('bidirectional', '憧れ', null, 'emotional', expect.anything());
+      // emotionalレイヤー切り替え時にデフォルトのweight値（0.5）が設定される
+      expect(onSubmit).toHaveBeenCalledWith('bidirectional', '憧れ', null, 'emotional', 0.5);
     });
   });
 });
