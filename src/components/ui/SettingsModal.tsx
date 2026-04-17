@@ -14,6 +14,7 @@ import { X, Trash2, Bot, Eye, EyeOff } from 'lucide-react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { useDialogStore } from '@/stores/useDialogStore';
 import { useAiSettingsStore } from '@/stores/useAiSettingsStore';
+import { useOpenRouterModels } from '@/hooks/useOpenRouterModels';
 
 /**
  * SettingsModalのProps
@@ -45,14 +46,18 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [modelInput, setModelInput] = useState('');
 
-  // モーダルが開いた時に現在の設定値をフォームに反映
+  // OpenRouter モデル一覧（datalist サジェスト用）
+  const { models: modelSuggestions, fetchModels } = useOpenRouterModels();
+
+  // モーダルが開いた時に現在の設定値をフォームに反映し、モデル一覧をフェッチ
   useEffect(() => {
     if (isOpen) {
       setApiKeyInput(openRouterApiKey);
       setModelInput(openRouterModel);
       setShowApiKey(false);
+      fetchModels();
     }
-  }, [isOpen, openRouterApiKey, openRouterModel]);
+  }, [isOpen, openRouterApiKey, openRouterModel, fetchModels]);
 
   // モーダル表示時に最初のフォーカス可能な要素にフォーカス
   useEffect(() => {
@@ -243,11 +248,18 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   type="text"
                   value={modelInput}
                   onChange={(e) => setModelInput(e.target.value)}
+                  list="openrouter-model-suggestions"
                   placeholder="anthropic/claude-sonnet-4-5"
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
+                {/* OpenRouter APIから取得したモデルIDのサジェストリスト */}
+                <datalist id="openrouter-model-suggestions">
+                  {modelSuggestions.map((id) => (
+                    <option key={id} value={id} />
+                  ))}
+                </datalist>
                 <p className="mt-1 text-xs text-gray-400">
-                  OpenRouter のモデル ID を入力（例: anthropic/claude-3.5-haiku）
+                  OpenRouter のモデル ID を入力（例: anthropic/claude-sonnet-4-5）
                 </p>
               </div>
             </div>
