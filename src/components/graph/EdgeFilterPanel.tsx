@@ -157,6 +157,10 @@ export const EdgeFilterPanel = memo(() => {
   // フィルタが適用されているかどうか
   const isFiltered = edgeFilter.tags.values.length > 0 || edgeFilter.predicates.length > 0;
 
+  // タグチェックボックスのO(1)ルックアップ用Set
+  // allTags.map 内で includes(O(n)) を避けるためにメモ化する
+  const selectedTagSet = useMemo(() => new Set(edgeFilter.tags.values), [edgeFilter.tags.values]);
+
   /**
    * タグチェックボックスの変更ハンドラ
    * チェック時は tags.values にタグを追加、解除時は削除する
@@ -255,7 +259,7 @@ export const EdgeFilterPanel = memo(() => {
             {/* タグチェックボックス一覧（タグが多い場合はスクロール可能） */}
             <div className="space-y-1 max-h-48 overflow-y-auto mt-1">
               {allTags.map((tag) => {
-                const checked = edgeFilter.tags.values.includes(tag);
+                const checked = selectedTagSet.has(tag);
                 return (
                   <label
                     key={tag}
