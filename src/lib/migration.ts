@@ -136,16 +136,18 @@ function mergeLegacyGroup(group: LegacyRelationshipV8[]): RelationshipV9 {
     const stl = isReversed ? r.targetToSourceLabel : r.sourceToTargetLabel;
     const tsl = isReversed ? r.sourceToTargetLabel : r.targetToSourceLabel;
 
-    // 旧レイヤー名をタグとして保存（可逆性の保険）
-    const layerTag = `layer-${r.layer}`;
-    if (!tags.includes(layerTag)) {
-      tags.push(layerTag);
+    // 旧レイヤー名をタグとして保存（可逆性の保険。r.layer が undefined の v9 データは除外）
+    if (r.layer) {
+      const layerTag = `layer-${r.layer}`;
+      if (!tags.includes(layerTag)) {
+        tags.push(layerTag);
+      }
     }
 
     switch (r.layer) {
       case 'emotional': {
-        // weight → closeness（複数あれば最大値を採用）
-        if (r.weight !== null) {
+        // weight → closeness（複数あれば最大値を採用。undefined は null として扱う）
+        if (typeof r.weight === 'number') {
           closeness = closeness === null ? r.weight : Math.max(closeness, r.weight);
           // ラベルに否定的な感情語が含まれる場合は affection を負値にする
           const label = stl ?? '';
@@ -478,15 +480,26 @@ export function migrateGraphState(persistedState: unknown, version: number): unk
 
   // v0〜v7 から変換されてきた v8 形式のデータを v9 形式に変換する
   // migrateV8ToV9 はレイヤー分割された複数の v8 レコードをプロパティグラフ方式の1本に集約する。
-  // v9 形式データが渡された場合は冪等に通過するため、このブロックは常に実行してよい。
+  // v9 形式データ（layer フィールドを持たない）が渡された場合は変換をスキップする。
   {
     const v8State = state as Record<string, unknown>;
     if (Array.isArray(v8State.relationships)) {
-      const legacyRels = v8State.relationships as LegacyRelationshipV8[];
-      state = {
-        ...v8State,
-        relationships: migrateV8ToV9(legacyRels),
-      };
+      const relationships = v8State.relationships as Record<string, unknown>[];
+      // v8 レコードの特徴的なフィールド（layer / sourceToTargetLabel / weight）が存在するか確認
+      const hasLegacyFields = relationships.some(
+        (r) =>
+          r != null &&
+          typeof r === 'object' &&
+          ('layer' in r || 'sourceToTargetLabel' in r || 'targetToSourceLabel' in r || 'weight' in r)
+      );
+
+      if (hasLegacyFields) {
+        const legacyRels = v8State.relationships as LegacyRelationshipV8[];
+        state = {
+          ...v8State,
+          relationships: migrateV8ToV9(legacyRels),
+        };
+      }
     }
   }
 

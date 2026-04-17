@@ -192,8 +192,9 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
   // deriveEdgeVisual で導出された視覚属性を使用する
   const { color, strokeWidth: baseStrokeWidth, dashed, markerKey } = edgeData.visual;
 
-  // マーカーの設定（選択状態・視覚属性のマーカーキーに応じて色を変更）
-  const markerSuffix = selected ? 'selected' : markerKey;
+  // マーカーの設定（選択状態のときは blue マーカーを使用。非選択時は視覚属性のキーを使用）
+  // 'selected' キーの専用マーカーは定義されていないため blue で代替する
+  const markerSuffix = selected ? 'blue' : markerKey;
   const markerEnd =
     edgeData.displayType === 'undirected' ? undefined : `url(#arrow-${markerSuffix})`;
   const markerStart =
@@ -328,18 +329,18 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
           </>
         ) : (
           // bidirectional / one-way / undirected: 1つのラベルを中央に表示
+          // ラベルの有無に関わらず削除ボタンは常に表示する（ラベルなしエッジも削除可能にする）
           <>
-            {/* 存在するラベルを表示（forwardLabel優先、なければreverseLabel） */}
-            {(edgeData.forwardLabel || edgeData.reverseLabel) && (
-              <div
-                style={{
-                  position: 'absolute',
-                  transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
-                  pointerEvents: 'all',
-                }}
-                className="flex items-center gap-1.5"
-              >
-                {/* ラベルバッジ */}
+            <div
+              style={{
+                position: 'absolute',
+                transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+                pointerEvents: 'all',
+              }}
+              className="flex items-center gap-1.5"
+            >
+              {/* 存在するラベルを表示（forwardLabel優先、なければreverseLabel） */}
+              {(edgeData.forwardLabel || edgeData.reverseLabel) && (
                 <div
                   className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full shadow-lg border-2 border-blue-200 hover:border-blue-400 hover:shadow-xl transition-all duration-200 cursor-pointer"
                   onMouseEnter={handleMouseEnter}
@@ -349,29 +350,29 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
                     {edgeData.forwardLabel || edgeData.reverseLabel}
                   </div>
                 </div>
+              )}
 
-                {/* 削除ボタン */}
-                <button
-                  onClick={handleDelete}
-                  onMouseEnter={handleMouseEnter}
-                  onMouseLeave={handleMouseLeave}
-                  className={`w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 hover:scale-110 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300 ${
-                    isHovered ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-                  }`}
-                  aria-label="関係を削除"
-                  type="button"
+              {/* 削除ボタン（ラベルの有無に関わらず表示） */}
+              <button
+                onClick={handleDelete}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+                className={`w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 hover:scale-110 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300 ${
+                  isHovered ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                }`}
+                aria-label="関係を削除"
+                type="button"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="w-3.5 h-3.5"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    className="w-3.5 h-3.5"
-                  >
-                    <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-                  </svg>
-                </button>
-              </div>
-            )}
+                  <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                </svg>
+              </button>
+            </div>
           </>
         )}
       </EdgeLabelRenderer>

@@ -148,11 +148,16 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
 
   /**
    * isReversedを考慮してsource→target方向のラベルを返す
-   * - isReversed=false: existingRelationship.forward.label（person1→person2）
-   * - isReversed=true: existingRelationship.reverse.label（person1→person2 = stored reverse）
+   * - one-way: ラベルは常に forward.label に格納されているため isReversed に関わらず forward を参照する
+   * - 他のタイプ: isReversed=false なら forward.label、isReversed=true なら reverse.label
    */
   const [sourceToTargetLabel, setSourceToTargetLabel] = useState(() => {
     if (existingRelationship) {
+      const displayType = getRelationshipDisplayType(existingRelationship);
+      if (displayType === 'one-way') {
+        // one-way のラベルは常に forward.label に保存されている
+        return existingRelationship.forward.label ?? existingRelationship.reverse.label ?? '';
+      }
       return isReversed
         ? (existingRelationship.reverse.label ?? '')
         : (existingRelationship.forward.label ?? '');
@@ -162,11 +167,15 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
 
   /**
    * isReversedを考慮してtarget→source方向のラベルを返す
-   * - isReversed=false: existingRelationship.reverse.label（person2→person1）
-   * - isReversed=true: existingRelationship.forward.label（person2→person1 = stored forward）
+   * - one-way: 逆方向ラベルは存在しないため常に空文字
+   * - 他のタイプ: isReversed=false なら reverse.label、isReversed=true なら forward.label
    */
   const [targetToSourceLabel, setTargetToSourceLabel] = useState(() => {
     if (existingRelationship) {
+      const displayType = getRelationshipDisplayType(existingRelationship);
+      if (displayType === 'one-way') {
+        return '';
+      }
       return isReversed
         ? (existingRelationship.forward.label ?? '')
         : (existingRelationship.reverse.label ?? '');
@@ -182,13 +191,20 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
       const displayType = getRelationshipDisplayType(existingRelationship);
       setRelationshipType(displayType);
 
-      // isReversedを考慮してラベルを設定
-      setSourceToTargetLabel(
-        isReversed ? (existingRelationship.reverse.label ?? '') : (existingRelationship.forward.label ?? '')
-      );
-      setTargetToSourceLabel(
-        isReversed ? (existingRelationship.forward.label ?? '') : (existingRelationship.reverse.label ?? '')
-      );
+      // one-way のラベルは常に forward.label に保存されているため isReversed に関わらず参照する
+      if (displayType === 'one-way') {
+        setSourceToTargetLabel(
+          existingRelationship.forward.label ?? existingRelationship.reverse.label ?? ''
+        );
+        setTargetToSourceLabel('');
+      } else {
+        setSourceToTargetLabel(
+          isReversed ? (existingRelationship.reverse.label ?? '') : (existingRelationship.forward.label ?? '')
+        );
+        setTargetToSourceLabel(
+          isReversed ? (existingRelationship.forward.label ?? '') : (existingRelationship.reverse.label ?? '')
+        );
+      }
     } else {
       // 既存関係がない場合はフォームをリセット
       setRelationshipType('bidirectional');
@@ -275,9 +291,16 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
 
     if (existingRelationship) {
       // 既存の関係を更新（isReversedを考慮して forward/reverse を正しく設定）
+      // one-way の場合: ラベルは常に forward に保存し、reverse は null にする
       // isReversed=true の場合: stored.forward = person2→person1（= UI上のtarget→source）
-      const forwardLabel = isReversed ? finalTargetToSourceLabel : finalSourceToTargetLabel;
-      const reverseLabel = isReversed ? finalSourceToTargetLabel : finalTargetToSourceLabel;
+      const forwardLabel =
+        relationshipType === 'one-way'
+          ? finalSourceToTargetLabel
+          : isReversed ? finalTargetToSourceLabel : finalSourceToTargetLabel;
+      const reverseLabel =
+        relationshipType === 'one-way'
+          ? null
+          : isReversed ? finalSourceToTargetLabel : finalTargetToSourceLabel;
 
       updateRelationship(existingRelationship.id, {
         isDirected,

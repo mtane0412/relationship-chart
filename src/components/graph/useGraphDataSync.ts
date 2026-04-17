@@ -7,7 +7,6 @@ import { useEffect, useCallback, useRef } from 'react';
 import { useNodesState, useEdgesState, useReactFlow } from '@xyflow/react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { personsToNodes, relationshipsToEdges, syncNodePositionsToStore } from '@/lib/graph-utils';
-import type { RelationshipV9 } from '@/types/relationship';
 import { resolveCollisions, DEFAULT_COLLISION_OPTIONS } from '@/lib/collision-resolver';
 import type { Node } from '@xyflow/react';
 import type { GraphNode, RelationshipEdge } from '@/types/graph';
@@ -71,9 +70,8 @@ export function useGraphDataSync() {
   // 選択状態の変更ではシミュレーション再初期化を避けるため、selectedPersonIdsを依存配列から除外
   useEffect(() => {
     const newNodes = personsToNodes(persons);
-    // relationships は Phase 1 で v9 形式に変換済み（型は Relationship[] だが実体は RelationshipV9[]）
     // edgeFilter に基づいて表示するエッジを絞り込む
-    const newEdges = relationshipsToEdges(relationships as unknown as RelationshipV9[], edgeFilter);
+    const newEdges = relationshipsToEdges(relationships, edgeFilter);
 
     // setNodesの関数型アップデータ内からRAFをスケジュールしています
     // React 18 StrictModeではアップデータが2回呼ばれる可能性がありますが、

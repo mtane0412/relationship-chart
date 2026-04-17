@@ -522,10 +522,17 @@ export function useGraphInteractions({
 
       if (pendingConnection.existingRelationshipId) {
         // 編集モード: 既存の関係を更新
+        // 保存済みの関係の向きと UI の向きが逆の場合は forward/reverse を入れ替える
+        const existingRel = relationships.find(
+          (r) => r.id === pendingConnection.existingRelationshipId
+        );
+        const isReversed =
+          existingRel?.sourcePersonId === pendingConnection.targetPersonId &&
+          existingRel?.targetPersonId === pendingConnection.sourcePersonId;
         updateRelationship(pendingConnection.existingRelationshipId, {
           isDirected,
-          forward: { ...NULL_DIRECTIONAL, label: forwardLabel },
-          reverse: { ...NULL_DIRECTIONAL, label: reverseLabel },
+          forward: { ...NULL_DIRECTIONAL, label: isReversed ? reverseLabel : forwardLabel },
+          reverse: { ...NULL_DIRECTIONAL, label: isReversed ? forwardLabel : reverseLabel },
         });
       } else {
         // 新規登録モード: 関係を追加
@@ -545,7 +552,7 @@ export function useGraphInteractions({
       // モーダルを閉じる
       setPendingConnection(null);
     },
-    [pendingConnection, addRelationship, updateRelationship]
+    [pendingConnection, relationships, addRelationship, updateRelationship]
   );
 
   // 関係登録のキャンセルハンドラ

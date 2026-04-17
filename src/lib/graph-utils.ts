@@ -4,25 +4,10 @@
  */
 
 import type { Person } from '@/types/person';
-import type { RelationshipV9, RelationshipType, EdgeFilter } from '@/types/relationship';
+import type { RelationshipV9, EdgeFilter } from '@/types/relationship';
 import type { GraphNode, RelationshipEdge } from '@/types/graph';
 import { deriveEdgeVisual } from './relationship-visual';
-
-/**
- * v9 形式の関係から表示タイプを導出する
- *
- * @param rel - RelationshipV9
- * @returns RelationshipType
- */
-function getV9DisplayType(rel: RelationshipV9): RelationshipType {
-  if (!rel.isDirected) return 'undirected';
-  const hasFwd = rel.forward.label !== null;
-  const hasRev = rel.reverse.label !== null;
-  if (hasFwd && hasRev) {
-    return rel.forward.label === rel.reverse.label ? 'bidirectional' : 'dual-directed';
-  }
-  return 'one-way';
-}
+import { getRelationshipDisplayType } from './relationship-utils';
 
 /**
  * Person配列をGraphNode配列（PersonNodeまたはItemNode）に変換する
@@ -156,7 +141,7 @@ export function relationshipsToEdges(relationships: RelationshipV9[], edgeFilter
       target: relationship.targetPersonId,
       type: 'relationship' as const,
       data: {
-        displayType: getV9DisplayType(relationship),
+        displayType: getRelationshipDisplayType(relationship),
         forwardLabel: relationship.forward.label,
         reverseLabel: relationship.reverse.label,
         visual: deriveEdgeVisual(relationship),

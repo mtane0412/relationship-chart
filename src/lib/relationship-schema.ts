@@ -60,22 +60,25 @@ export const RelationshipNarrativeSchema = z.object({
   summary: z.string().nullable(),
   /** メモ・補足 */
   notes: z.string().nullable(),
-  /** ターニングポイントのリスト（省略可能。デフォルトは空配列） */
-  turningPoints: z
-    .array(
+  /**
+   * ターニングポイントのリスト（省略可能。null/undefined は空配列に正規化）
+   * RelationshipNarrative の turningPoints と型を一致させるため、
+   * 要素の at/note も null/undefined を空文字に正規化する。
+   */
+  turningPoints: z.preprocess(
+    (value) => (value == null ? [] : value),
+    z.array(
       z.object({
         /**
          * 発生時刻・場面の説明
          * ISO 8601 形式（例: "2024-01-01T00:00:00.000Z"）または日本語の日付・場面説明
          */
-        at: z.string().optional().nullable(),
+        at: z.preprocess((value) => (value == null ? '' : value), z.string()),
         /** 出来事の説明 */
-        note: z.string().optional().nullable(),
+        note: z.preprocess((value) => (value == null ? '' : value), z.string()),
       })
     )
-    .optional()
-    .nullable()
-    .default([]),
+  ),
 });
 
 /**
