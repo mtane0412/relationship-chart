@@ -1,14 +1,20 @@
 /**
  * SettingsModalコンポーネント
  * アプリケーション設定を管理するモーダル
+ *
+ * セクション:
+ *   1. AI設定 — OpenRouter APIキーとモデルの設定
+ *   2. データ管理 — すべてのデータのリセット
  */
 
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { X, Trash2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { X, Trash2, Bot, Eye, EyeOff } from 'lucide-react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { useDialogStore } from '@/stores/useDialogStore';
+import { useAiSettingsStore } from '@/stores/useAiSettingsStore';
+import { useOpenRouterModels } from '@/hooks/useOpenRouterModels';
 
 /**
  * SettingsModalのProps
@@ -29,6 +35,30 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const isConfirmOpenRef = useRef(false);
 
+  const openRouterApiKey = useAiSettingsStore((s) => s.openRouterApiKey);
+  const openRouterModel = useAiSettingsStore((s) => s.openRouterModel);
+  const setOpenRouterApiKey = useAiSettingsStore((s) => s.setOpenRouterApiKey);
+  const setOpenRouterModel = useAiSettingsStore((s) => s.setOpenRouterModel);
+
+  // APIキーの表示/非表示
+  const [showApiKey, setShowApiKey] = useState(false);
+  // フォーム内の一時的な値（入力中の値）
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [modelInput, setModelInput] = useState('');
+
+  // OpenRouter モデル一覧（datalist サジェスト用）
+  const { models: modelSuggestions, fetchModels } = useOpenRouterModels();
+
+  // モーダルが開いた時に現在の設定値をフォームに反映し、モデル一覧をフェッチ
+  useEffect(() => {
+    if (isOpen) {
+      setApiKeyInput(openRouterApiKey);
+      setModelInput(openRouterModel);
+      setShowApiKey(false);
+      fetchModels();
+    }
+  }, [isOpen, openRouterApiKey, openRouterModel, fetchModels]);
+
   // モーダル表示時に最初のフォーカス可能な要素にフォーカス
   useEffect(() => {
     if (!isOpen || !modalRef.current) return;
@@ -47,7 +77,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !isConfirmOpenRef.current) {
-        onClose();
+        handleClose();
         return;
       }
 
@@ -71,7 +101,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen]); // handleClose は isOpen の変化時に再生成されるため依存配列から除外
 
   // モーダルの外側をクリックした時にモーダルを閉じる
   useEffect(() => {
@@ -83,13 +113,23 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         !modalRef.current.contains(event.target as Node) &&
         !isConfirmOpenRef.current
       ) {
-        onClose();
+        handleClose();
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen, onClose]);
+  }, [isOpen]); // handleClose は isOpen の変化時に再生成されるため依存配列から除外
+
+  /**
+   * モーダルを閉じる前に設定を保存する
+   */
+  const handleClose = () => {
+    // フォームの現在値をストアに保存してから閉じる
+    setOpenRouterApiKey(apiKeyInput.trim());
+    setOpenRouterModel(modelInput.trim() || openRouterModel);
+    onClose();
+  };
 
   // すべてのデータをリセット
   const handleResetAllData = async () => {
@@ -120,7 +160,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <div
         ref={modalRef}
-        className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4"
+        className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto"
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-modal-title"
@@ -132,7 +172,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </h2>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
             aria-label="閉じる"
           >
@@ -141,7 +181,90 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         </div>
 
         {/* コンテンツ */}
-        <div className="p-4 space-y-4">
+        <div className="p-4 space-y-6">
+          {/* AI設定セクション */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Bot size={16} className="text-blue-600" />
+              <h3 className="text-sm font-semibold text-gray-700">AI設定（OpenRouter）</h3>
+            </div>
+
+            <p className="text-xs text-gray-500 mb-3">
+              テキストからの関係抽出に使用する AI の設定です。
+              APIキーは{' '}
+              <a
+                href="https://openrouter.ai/keys"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
+              >
+                OpenRouter ダッシュボード
+              </a>
+              {' '}から取得できます。
+            </p>
+
+            {/* APIキー入力 */}
+            <div className="space-y-3">
+              <div>
+                <label
+                  htmlFor="openrouter-api-key"
+                  className="block text-xs font-medium text-gray-600 mb-1"
+                >
+                  APIキー
+                </label>
+                <div className="relative">
+                  <input
+                    id="openrouter-api-key"
+                    type={showApiKey ? 'text' : 'password'}
+                    value={apiKeyInput}
+                    onChange={(e) => setApiKeyInput(e.target.value)}
+                    placeholder="sk-or-..."
+                    className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey((v) => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    aria-label={showApiKey ? 'APIキーを非表示' : 'APIキーを表示'}
+                  >
+                    {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-gray-400">
+                  APIキーはブラウザの localStorage にのみ保存されます。
+                </p>
+              </div>
+
+              {/* モデル入力 */}
+              <div>
+                <label
+                  htmlFor="openrouter-model"
+                  className="block text-xs font-medium text-gray-600 mb-1"
+                >
+                  モデル
+                </label>
+                <input
+                  id="openrouter-model"
+                  type="text"
+                  value={modelInput}
+                  onChange={(e) => setModelInput(e.target.value)}
+                  list="openrouter-model-suggestions"
+                  placeholder="anthropic/claude-sonnet-4-5"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {/* OpenRouter APIから取得したモデルIDのサジェストリスト */}
+                <datalist id="openrouter-model-suggestions">
+                  {modelSuggestions.map((id) => (
+                    <option key={id} value={id} />
+                  ))}
+                </datalist>
+                <p className="mt-1 text-xs text-gray-400">
+                  OpenRouter のモデル ID を入力（例: anthropic/claude-sonnet-4-5）
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* データ管理セクション */}
           <div>
             <h3 className="text-sm font-semibold text-gray-700 mb-2">データ管理</h3>
@@ -163,10 +286,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         <div className="flex justify-end gap-2 p-4 border-t border-gray-200">
           <button
             type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+            onClick={handleClose}
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors"
           >
-            閉じる
+            保存して閉じる
           </button>
         </div>
       </div>
