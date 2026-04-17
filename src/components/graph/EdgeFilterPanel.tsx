@@ -32,9 +32,13 @@ const NUMERIC_PREDICATE_CONFIG: { type: NumericPredicateType; label: string }[] 
 
 /**
  * predicates 配列から特定 type の述語を検索する
+ * ジェネリクスにより返り値の型が type に応じて絞り込まれるため型安全に参照できる
  */
-function findPredicate(predicates: EdgePredicate[], type: string): EdgePredicate | undefined {
-  return predicates.find((p) => p.type === type);
+function findPredicate<T extends EdgePredicate['type']>(
+  predicates: EdgePredicate[],
+  type: T,
+): Extract<EdgePredicate, { type: T }> | undefined {
+  return predicates.find((p) => p.type === type) as Extract<EdgePredicate, { type: T }> | undefined;
 }
 
 /**

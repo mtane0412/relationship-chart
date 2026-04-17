@@ -149,8 +149,11 @@ describe('EdgeFilterPanel', () => {
       expect(screen.getByText('条件')).toBeInTheDocument();
     });
 
-    it('4つの数値述語チェックボックス（親密度・信頼度・緊張度・秘匿性）が表示される', () => {
+    it('4つの数値述語チェックボックス（親密度・信頼度・緊張度・秘匿性）が表示される', async () => {
+      const user = userEvent.setup();
       render(<EdgeFilterPanel />);
+      // <details>を開いて内部要素を操作可能にする
+      await user.click(screen.getByText('条件'));
 
       expect(screen.getByLabelText('親密度を有効化')).toBeInTheDocument();
       expect(screen.getByLabelText('信頼度を有効化')).toBeInTheDocument();
@@ -158,14 +161,18 @@ describe('EdgeFilterPanel', () => {
       expect(screen.getByLabelText('秘匿性を有効化')).toBeInTheDocument();
     });
 
-    it('血縁ありチェックボックスが表示される', () => {
+    it('血縁ありチェックボックスが表示される', async () => {
+      const user = userEvent.setup();
       render(<EdgeFilterPanel />);
+      await user.click(screen.getByText('条件'));
 
       expect(screen.getByLabelText('血縁あり')).toBeInTheDocument();
     });
 
-    it('初期状態では全述語チェックボックスがオフになっている', () => {
+    it('初期状態では全述語チェックボックスがオフになっている', async () => {
+      const user = userEvent.setup();
       render(<EdgeFilterPanel />);
+      await user.click(screen.getByText('条件'));
 
       expect(screen.getByLabelText('親密度を有効化')).not.toBeChecked();
       expect(screen.getByLabelText('信頼度を有効化')).not.toBeChecked();
@@ -177,6 +184,7 @@ describe('EdgeFilterPanel', () => {
     it('親密度チェックボックスをONにするとpredicatesにcloseness_gteが追加される', async () => {
       const user = userEvent.setup();
       render(<EdgeFilterPanel />);
+      await user.click(screen.getByText('条件'));
 
       await user.click(screen.getByLabelText('親密度を有効化'));
 
@@ -187,6 +195,7 @@ describe('EdgeFilterPanel', () => {
     it('親密度チェックボックスをOFFにするとpredicatesからcloseness_gteが削除される', async () => {
       const user = userEvent.setup();
       render(<EdgeFilterPanel />);
+      await user.click(screen.getByText('条件'));
 
       // ON → OFF
       await user.click(screen.getByLabelText('親密度を有効化'));
@@ -199,6 +208,7 @@ describe('EdgeFilterPanel', () => {
     it('血縁ありチェックボックスをONにするとpredicatesにhas_kinshipが追加される', async () => {
       const user = userEvent.setup();
       render(<EdgeFilterPanel />);
+      await user.click(screen.getByText('条件'));
 
       await user.click(screen.getByLabelText('血縁あり'));
 
@@ -209,6 +219,7 @@ describe('EdgeFilterPanel', () => {
     it('血縁ありチェックボックスをOFFにするとpredicatesからhas_kinshipが削除される', async () => {
       const user = userEvent.setup();
       render(<EdgeFilterPanel />);
+      await user.click(screen.getByText('条件'));
 
       await user.click(screen.getByLabelText('血縁あり'));
       await user.click(screen.getByLabelText('血縁あり'));
@@ -220,6 +231,7 @@ describe('EdgeFilterPanel', () => {
     it('親密度チェックボックスON後にスライダーを変更するとpredicatesのvalueが更新される', async () => {
       const user = userEvent.setup();
       render(<EdgeFilterPanel />);
+      await user.click(screen.getByText('条件'));
 
       await user.click(screen.getByLabelText('親密度を有効化'));
       const slider = screen.getByLabelText('親密度スライダー');
@@ -231,8 +243,10 @@ describe('EdgeFilterPanel', () => {
       expect(pred).toEqual({ type: 'closeness_gte', value: 0.5 });
     });
 
-    it('チェックボックスがOFFの場合、スライダーはdisabledになっている', () => {
+    it('チェックボックスがOFFの場合、スライダーはdisabledになっている', async () => {
+      const user = userEvent.setup();
       render(<EdgeFilterPanel />);
+      await user.click(screen.getByText('条件'));
 
       const slider = screen.getByLabelText('親密度スライダー');
       expect(slider).toBeDisabled();
@@ -241,6 +255,7 @@ describe('EdgeFilterPanel', () => {
     it('述語フィルタが有効な場合、「解除」ボタンが表示される', async () => {
       const user = userEvent.setup();
       render(<EdgeFilterPanel />);
+      await user.click(screen.getByText('条件'));
 
       await user.click(screen.getByLabelText('親密度を有効化'));
 
@@ -250,6 +265,7 @@ describe('EdgeFilterPanel', () => {
     it('述語フィルタが有効な状態で「解除」をクリックするとpredicatesが空になる', async () => {
       const user = userEvent.setup();
       render(<EdgeFilterPanel />);
+      await user.click(screen.getByText('条件'));
 
       await user.click(screen.getByLabelText('親密度を有効化'));
       await user.click(screen.getByText('解除'));
