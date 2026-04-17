@@ -22,6 +22,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'", // Tailwind CSS / React Flowのインラインスタイルに必要
               "img-src 'self' data: blob:", // data: URL保存 + html-to-imageのblob使用に必要
               "font-src 'self'",
+              "connect-src 'self' https://openrouter.ai", // OpenRouter APIへのフェッチを許可（モデル一覧・関係抽出）
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",
