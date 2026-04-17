@@ -3,12 +3,13 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ReactFlowProvider } from '@xyflow/react';
 import { PairSelectionPanel } from './PairSelectionPanel';
 import { useGraphStore } from '@/stores/useGraphStore';
 import type { Person } from '@/types/person';
+import type { RelationshipV9 } from '@/types/relationship';
 
 // React Flowのモック
 vi.mock('@xyflow/react', async () => {
@@ -681,6 +682,856 @@ describe('PairSelectionPanel', () => {
         // colorOverrideは登録時にnullになっている
         expect(state.relationships[0].colorOverride).toBeNull();
       });
+    });
+  });
+
+  // ─── v9 定型フィールドのUI（issue #75）───────────────────────────────────────
+
+  /**
+   * symmetric フィールドのテスト用ベースとなる既存関係（closeness=nullのデフォルト状態）
+   */
+  const baseRelationship: RelationshipV9 = {
+    id: 'rel-v9',
+    sourcePersonId: person1.id,
+    targetPersonId: person2.id,
+    isDirected: true,
+    symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
+    forward: { label: '友人', affection: null, awareness: null, role: null },
+    reverse: { label: '友人', affection: null, awareness: null, role: null },
+    tags: [],
+    narrative: { summary: null, notes: null, turningPoints: [] },
+    colorOverride: null,
+    createdAt: '2024-01-01T00:00:00.000Z',
+    updatedAt: '2024-01-01T00:00:00.000Z',
+  };
+
+  describe('定型フィールドUI（symmetric）', () => {
+    beforeEach(() => {
+      useGraphStore.setState({
+        persons: [person1, person2],
+        relationships: [baseRelationship],
+        selectedPersonIds: [person1.id, person2.id],
+      });
+    });
+
+    it('「定型フィールド」アコーディオンを展開するとclosenessスライダーが表示される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      // 「定型フィールド」アコーディオンを展開
+      const accordion = screen.getByText('定型フィールド');
+      await user.click(accordion);
+
+      // closenessスライダーが表示される
+      await waitFor(() => {
+        expect(screen.getByRole('slider', { name: '親密度' })).toBeInTheDocument();
+      });
+    });
+
+    it('symmetric.closeness===nullのとき、「未設定」チェックがONでスライダーがdisabled', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const accordion = screen.getByText('定型フィールド');
+      await user.click(accordion);
+
+      await waitFor(() => {
+        // 「未設定」チェックがON
+        const checkbox = screen.getByRole('checkbox', { name: '親密度を未設定' });
+        expect(checkbox).toBeChecked();
+        // スライダーはdisabled
+        const slider = screen.getByRole('slider', { name: '親密度' });
+        expect(slider).toBeDisabled();
+      });
+    });
+
+    it('symmetric.closeness===0.5のとき、スライダーが0.5に初期化され「未設定」チェックがOFF', async () => {
+      // closeness=0.5 の関係を設定
+      useGraphStore.setState({
+        relationships: [{ ...baseRelationship, symmetric: { ...baseRelationship.symmetric, closeness: 0.5 } }],
+      });
+
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const accordion = screen.getByText('定型フィールド');
+      await user.click(accordion);
+
+      await waitFor(() => {
+        const checkbox = screen.getByRole('checkbox', { name: '親密度を未設定' });
+        expect(checkbox).not.toBeChecked();
+        const slider = screen.getByRole('slider', { name: '親密度' }) as HTMLInputElement;
+        expect(slider).not.toBeDisabled();
+        expect(Number(slider.value)).toBe(0.5);
+      });
+    });
+
+    it('「未設定」チェックをOFFにしてclosenessを0.7に設定し更新するとsymmetric.closeness===0.7が保存される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const accordion = screen.getByText('定型フィールド');
+      await user.click(accordion);
+
+      await waitFor(() => screen.getByRole('checkbox', { name: '親密度を未設定' }));
+
+      // 「未設定」チェックをOFF → スライダーが有効になる
+      const checkbox = screen.getByRole('checkbox', { name: '親密度を未設定' });
+      await user.click(checkbox);
+
+      // スライダーを0.7に設定（range inputはfireEventで直接変更する）
+      const slider = screen.getByRole('slider', { name: '親密度' });
+      fireEvent.change(slider, { target: { value: '0.7' } });
+
+      // 更新ボタンをクリック
+      const updateButton = screen.getByRole('button', { name: '更新' });
+      await user.click(updateButton);
+
+      await waitFor(() => {
+        const state = useGraphStore.getState();
+        expect(state.relationships[0].symmetric.closeness).toBe(0.7);
+      });
+    });
+
+    it('trustスライダーの値を0.6に設定して更新するとsymmetric.trust===0.6が保存される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const accordion = screen.getByText('定型フィールド');
+      await user.click(accordion);
+
+      await waitFor(() => screen.getByRole('checkbox', { name: '信頼度を未設定' }));
+
+      await user.click(screen.getByRole('checkbox', { name: '信頼度を未設定' }));
+      fireEvent.change(screen.getByRole('slider', { name: '信頼度' }), { target: { value: '0.6' } });
+      await user.click(screen.getByRole('button', { name: '更新' }));
+
+      await waitFor(() => {
+        expect(useGraphStore.getState().relationships[0].symmetric.trust).toBe(0.6);
+      });
+    });
+
+    it('tensionスライダーの値を0.4に設定して更新するとsymmetric.tension===0.4が保存される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const accordion = screen.getByText('定型フィールド');
+      await user.click(accordion);
+
+      await waitFor(() => screen.getByRole('checkbox', { name: '緊張・対立度を未設定' }));
+
+      await user.click(screen.getByRole('checkbox', { name: '緊張・対立度を未設定' }));
+      fireEvent.change(screen.getByRole('slider', { name: '緊張・対立度' }), { target: { value: '0.4' } });
+      await user.click(screen.getByRole('button', { name: '更新' }));
+
+      await waitFor(() => {
+        expect(useGraphStore.getState().relationships[0].symmetric.tension).toBe(0.4);
+      });
+    });
+
+    it('secrecyスライダーの値を0.9に設定して更新するとsymmetric.secrecy===0.9が保存される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const accordion = screen.getByText('定型フィールド');
+      await user.click(accordion);
+
+      await waitFor(() => screen.getByRole('checkbox', { name: '秘匿性を未設定' }));
+
+      await user.click(screen.getByRole('checkbox', { name: '秘匿性を未設定' }));
+      fireEvent.change(screen.getByRole('slider', { name: '秘匿性' }), { target: { value: '0.9' } });
+      await user.click(screen.getByRole('button', { name: '更新' }));
+
+      await waitFor(() => {
+        expect(useGraphStore.getState().relationships[0].symmetric.secrecy).toBe(0.9);
+      });
+    });
+
+    it('kinshipセレクトで「兄弟・姉妹」を選ぶとsymmetric.kinship===siblingが保存される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const accordion = screen.getByText('定型フィールド');
+      await user.click(accordion);
+
+      await waitFor(() => screen.getByRole('combobox', { name: '血縁・親族' }));
+
+      await user.selectOptions(screen.getByRole('combobox', { name: '血縁・親族' }), 'sibling');
+      await user.click(screen.getByRole('button', { name: '更新' }));
+
+      await waitFor(() => {
+        expect(useGraphStore.getState().relationships[0].symmetric.kinship).toBe('sibling');
+      });
+    });
+
+    it('kinshipセレクトで「（血縁なし）」を選ぶとsymmetric.kinship===nullが保存される', async () => {
+      // まずkinshipをsiblingに設定
+      useGraphStore.setState({
+        relationships: [{ ...baseRelationship, symmetric: { ...baseRelationship.symmetric, kinship: 'sibling' } }],
+      });
+
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const accordion = screen.getByText('定型フィールド');
+      await user.click(accordion);
+
+      await waitFor(() => screen.getByRole('combobox', { name: '血縁・親族' }));
+
+      await user.selectOptions(screen.getByRole('combobox', { name: '血縁・親族' }), '');
+      await user.click(screen.getByRole('button', { name: '更新' }));
+
+      await waitFor(() => {
+        expect(useGraphStore.getState().relationships[0].symmetric.kinship).toBeNull();
+      });
+    });
+  });
+
+  describe('定型フィールドUI（方向プロパティ）', () => {
+    beforeEach(() => {
+      useGraphStore.setState({
+        persons: [person1, person2],
+        relationships: [baseRelationship],
+        selectedPersonIds: [person1.id, person2.id],
+      });
+    });
+
+    it('「定型フィールド」アコーディオンを展開するとaffectionスライダーが表示される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const accordion = screen.getByText('定型フィールド');
+      await user.click(accordion);
+
+      await waitFor(() => {
+        // person1→person2方向のaffectionスライダー
+        expect(screen.getByRole('slider', { name: `${person1.name}→${person2.name} 好悪` })).toBeInTheDocument();
+      });
+    });
+
+    it('forward.affectionがnullのとき、「未設定」チェックがONでスライダーがdisabled', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const accordion = screen.getByText('定型フィールド');
+      await user.click(accordion);
+
+      await waitFor(() => {
+        const checkbox = screen.getByRole('checkbox', { name: `${person1.name}→${person2.name} 好悪を未設定` });
+        expect(checkbox).toBeChecked();
+        const slider = screen.getByRole('slider', { name: `${person1.name}→${person2.name} 好悪` });
+        expect(slider).toBeDisabled();
+      });
+    });
+
+    it('person1→person2方向のaffectionを0.8に設定して更新するとforward.affection===0.8が保存される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const accordion = screen.getByText('定型フィールド');
+      await user.click(accordion);
+
+      await waitFor(() => screen.getByRole('checkbox', { name: `${person1.name}→${person2.name} 好悪を未設定` }));
+
+      await user.click(screen.getByRole('checkbox', { name: `${person1.name}→${person2.name} 好悪を未設定` }));
+      fireEvent.change(screen.getByRole('slider', { name: `${person1.name}→${person2.name} 好悪` }), { target: { value: '0.8' } });
+      await user.click(screen.getByRole('button', { name: '更新' }));
+
+      await waitFor(() => {
+        expect(useGraphStore.getState().relationships[0].forward.affection).toBe(0.8);
+      });
+    });
+
+    it('isReversed=trueの関係では、UI上のperson1→person2の入力がstored reverse.affectionにマップされる', async () => {
+      // person2 → person1 方向の関係（isReversed=true になる）
+      useGraphStore.setState({
+        relationships: [{
+          ...baseRelationship,
+          sourcePersonId: person2.id,
+          targetPersonId: person1.id,
+          forward: { label: '上司', affection: null, awareness: null, role: null },
+          reverse: { label: null, affection: null, awareness: null, role: null },
+        }],
+      });
+
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const accordion = screen.getByText('定型フィールド');
+      await user.click(accordion);
+
+      await waitFor(() => screen.getByRole('checkbox', { name: `${person1.name}→${person2.name} 好悪を未設定` }));
+
+      // UI上の person1→person2 方向を入力（isReversed=true なので stored の reverse に入る）
+      await user.click(screen.getByRole('checkbox', { name: `${person1.name}→${person2.name} 好悪を未設定` }));
+      fireEvent.change(screen.getByRole('slider', { name: `${person1.name}→${person2.name} 好悪` }), { target: { value: '0.5' } });
+      await user.click(screen.getByRole('button', { name: '更新' }));
+
+      await waitFor(() => {
+        const rel = useGraphStore.getState().relationships[0];
+        // isReversed=true なので stored.reverse が person1→person2 側にマップされる
+        expect(rel.reverse.affection).toBe(0.5);
+        // stored.forward は変更されない
+        expect(rel.forward.affection).toBeNull();
+      });
+    });
+
+    it('awarenessセレクトで「認知済み」を選ぶとforward.awareness===knownが保存される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const accordion = screen.getByText('定型フィールド');
+      await user.click(accordion);
+
+      await waitFor(() => screen.getByRole('combobox', { name: `${person1.name}→${person2.name} 認知状況` }));
+
+      await user.selectOptions(
+        screen.getByRole('combobox', { name: `${person1.name}→${person2.name} 認知状況` }),
+        'known'
+      );
+      await user.click(screen.getByRole('button', { name: '更新' }));
+
+      await waitFor(() => {
+        expect(useGraphStore.getState().relationships[0].forward.awareness).toBe('known');
+      });
+    });
+
+    it('roleテキスト入力で「上司」を入れて更新するとforward.role===上司が保存される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const accordion = screen.getByText('定型フィールド');
+      await user.click(accordion);
+
+      await waitFor(() => screen.getByLabelText(`${person1.name}→${person2.name} 役割`));
+
+      await user.type(screen.getByLabelText(`${person1.name}→${person2.name} 役割`), '上司');
+      await user.click(screen.getByRole('button', { name: '更新' }));
+
+      await waitFor(() => {
+        expect(useGraphStore.getState().relationships[0].forward.role).toBe('上司');
+      });
+    });
+
+    it('person2→person1方向のroleテキストを「部下」にして更新するとreverse.role===部下が保存される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const accordion = screen.getByText('定型フィールド');
+      await user.click(accordion);
+
+      await waitFor(() => screen.getByLabelText(`${person2.name}→${person1.name} 役割`));
+
+      await user.type(screen.getByLabelText(`${person2.name}→${person1.name} 役割`), '部下');
+      await user.click(screen.getByRole('button', { name: '更新' }));
+
+      await waitFor(() => {
+        expect(useGraphStore.getState().relationships[0].reverse.role).toBe('部下');
+      });
+    });
+  });
+
+  describe('タグ入力UI（v9）', () => {
+    beforeEach(() => {
+      useGraphStore.setState({
+        persons: [person1, person2],
+        relationships: [baseRelationship],
+        selectedPersonIds: [person1.id, person2.id],
+      });
+    });
+
+    it('タグ入力フィールドが表示される', () => {
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      expect(screen.getByPlaceholderText(/タグを追加/)).toBeInTheDocument();
+    });
+
+    it('タグを入力してEnterを押すとチップとして追加される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const tagInput = screen.getByPlaceholderText(/タグを追加/);
+      await user.type(tagInput, '親友');
+      await user.keyboard('{Enter}');
+
+      await waitFor(() => {
+        expect(screen.getByText('親友')).toBeInTheDocument();
+      });
+    });
+
+    it('追加されたタグチップの「×」をクリックするとタグが削除される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const tagInput = screen.getByPlaceholderText(/タグを追加/);
+      await user.type(tagInput, '親友');
+      await user.keyboard('{Enter}');
+
+      await waitFor(() => screen.getByText('親友'));
+
+      // タグ削除ボタンをクリック
+      const deleteButton = screen.getByRole('button', { name: '親友を削除' });
+      await user.click(deleteButton);
+
+      await waitFor(() => {
+        expect(screen.queryByText('親友')).not.toBeInTheDocument();
+      });
+    });
+
+    it('重複するタグは追加されない', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const tagInput = screen.getByPlaceholderText(/タグを追加/);
+      await user.type(tagInput, '親友');
+      await user.keyboard('{Enter}');
+      await user.type(tagInput, '親友');
+      await user.keyboard('{Enter}');
+
+      await waitFor(() => {
+        // 「親友」チップが1つだけ存在する
+        const chips = screen.getAllByText('親友');
+        expect(chips).toHaveLength(1);
+      });
+    });
+
+    it('IME変換中（isComposing=true）のEnterではタグが追加されない', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const tagInput = screen.getByPlaceholderText(/タグを追加/);
+      await user.type(tagInput, '親友{Enter}');
+
+      // userEventはデフォルトでisComposing=falseなので通常の追加が起きる（IME開始イベントを送る方法なし）
+      // 代わりにキーボードイベントを手動でdispatchしてisComposing=trueを確認する
+      await user.clear(tagInput);
+      await user.type(tagInput, 'ライバル');
+      // isComposing=trueのEnterキーイベントを発火
+      fireEvent.keyDown(tagInput, { key: 'Enter', code: 'Enter', isComposing: true, nativeEvent: { isComposing: true } });
+
+      // isComposing=trueのEnterでは追加されない
+      await waitFor(() => {
+        expect(screen.queryByText('ライバル')).not.toBeInTheDocument();
+      });
+    });
+
+    it('datalistにSUGGESTED_TAGSの候補が含まれる', () => {
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      // datalistが存在することを確認
+      const datalist = document.getElementById('tag-suggestions');
+      expect(datalist).toBeInTheDocument();
+      expect(datalist?.querySelector('option[value="親友"]')).toBeInTheDocument();
+      expect(datalist?.querySelector('option[value="ライバル"]')).toBeInTheDocument();
+    });
+
+    it('タグを追加して更新ボタンをクリックするとtagsがストアに保存される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const tagInput = screen.getByPlaceholderText(/タグを追加/);
+      await user.type(tagInput, '幼馴染');
+      await user.keyboard('{Enter}');
+
+      await waitFor(() => screen.getByText('幼馴染'));
+
+      await user.click(screen.getByRole('button', { name: '更新' }));
+
+      await waitFor(() => {
+        expect(useGraphStore.getState().relationships[0].tags).toContain('幼馴染');
+      });
+    });
+
+    it('既存のタグが初期値としてチップ表示される', () => {
+      useGraphStore.setState({
+        relationships: [{ ...baseRelationship, tags: ['幼馴染', '親友'] }],
+      });
+
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      expect(screen.getByText('幼馴染')).toBeInTheDocument();
+      expect(screen.getByText('親友')).toBeInTheDocument();
+    });
+  });
+
+  describe('narrativeフィールドUI（v9）', () => {
+    beforeEach(() => {
+      useGraphStore.setState({
+        persons: [person1, person2],
+        relationships: [baseRelationship],
+        selectedPersonIds: [person1.id, person2.id],
+      });
+    });
+
+    it('「物語的情報」アコーディオンを展開するとsummary textareaが表示される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const accordion = screen.getByText('物語的情報');
+      await user.click(accordion);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('関係の概要')).toBeInTheDocument();
+        expect(screen.getByLabelText('メモ・補足')).toBeInTheDocument();
+      });
+    });
+
+    it('summaryに「幼馴染で高校まで同じ学校」を入力して更新するとnarrative.summaryに保存される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const accordion = screen.getByText('物語的情報');
+      await user.click(accordion);
+
+      await waitFor(() => screen.getByLabelText('関係の概要'));
+
+      await user.type(screen.getByLabelText('関係の概要'), '幼馴染で高校まで同じ学校');
+      await user.click(screen.getByRole('button', { name: '更新' }));
+
+      await waitFor(() => {
+        expect(useGraphStore.getState().relationships[0].narrative.summary).toBe('幼馴染で高校まで同じ学校');
+      });
+    });
+
+    it('notesに「仲違い後に和解した経緯あり」を入力して更新するとnarrative.notesに保存される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const accordion = screen.getByText('物語的情報');
+      await user.click(accordion);
+
+      await waitFor(() => screen.getByLabelText('メモ・補足'));
+
+      await user.type(screen.getByLabelText('メモ・補足'), '仲違い後に和解した経緯あり');
+      await user.click(screen.getByRole('button', { name: '更新' }));
+
+      await waitFor(() => {
+        expect(useGraphStore.getState().relationships[0].narrative.notes).toBe('仲違い後に和解した経緯あり');
+      });
+    });
+
+    it('「+ ターニングポイントを追加」を押すと空行が追加される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const accordion = screen.getByText('物語的情報');
+      await user.click(accordion);
+
+      await waitFor(() => screen.getByRole('button', { name: /ターニングポイントを追加/ }));
+
+      await user.click(screen.getByRole('button', { name: /ターニングポイントを追加/ }));
+
+      await waitFor(() => {
+        // at と note の入力フィールドが表示される
+        expect(screen.getByPlaceholderText(/時期・時点/)).toBeInTheDocument();
+        expect(screen.getByPlaceholderText(/出来事/)).toBeInTheDocument();
+      });
+    });
+
+    it('ターニングポイントのatとnoteを入力して更新するとnarrative.turningPointsに保存される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const accordion = screen.getByText('物語的情報');
+      await user.click(accordion);
+
+      await waitFor(() => screen.getByRole('button', { name: /ターニングポイントを追加/ }));
+
+      await user.click(screen.getByRole('button', { name: /ターニングポイントを追加/ }));
+
+      await waitFor(() => screen.getByPlaceholderText(/時期・時点/));
+
+      await user.type(screen.getByPlaceholderText(/時期・時点/), '高校入学時');
+      await user.type(screen.getByPlaceholderText(/出来事/), '初めて出会った');
+      await user.click(screen.getByRole('button', { name: '更新' }));
+
+      await waitFor(() => {
+        const turningPoints = useGraphStore.getState().relationships[0].narrative.turningPoints;
+        expect(turningPoints).toHaveLength(1);
+        expect(turningPoints[0].at).toBe('高校入学時');
+        expect(turningPoints[0].note).toBe('初めて出会った');
+      });
+    });
+
+    it('atもnoteも空のターニングポイント行は保存から除外される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const accordion = screen.getByText('物語的情報');
+      await user.click(accordion);
+
+      await waitFor(() => screen.getByRole('button', { name: /ターニングポイントを追加/ }));
+
+      // 空行を追加してそのまま更新
+      await user.click(screen.getByRole('button', { name: /ターニングポイントを追加/ }));
+      await user.click(screen.getByRole('button', { name: '更新' }));
+
+      await waitFor(() => {
+        const turningPoints = useGraphStore.getState().relationships[0].narrative.turningPoints;
+        expect(turningPoints).toHaveLength(0);
+      });
+    });
+
+    it('ターニングポイント行の削除ボタンをクリックするとその行が消える', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const accordion = screen.getByText('物語的情報');
+      await user.click(accordion);
+
+      await waitFor(() => screen.getByRole('button', { name: /ターニングポイントを追加/ }));
+
+      await user.click(screen.getByRole('button', { name: /ターニングポイントを追加/ }));
+
+      await waitFor(() => screen.getByPlaceholderText(/時期・時点/));
+
+      // 削除ボタンをクリック
+      await user.click(screen.getByRole('button', { name: 'このターニングポイントを削除' }));
+
+      await waitFor(() => {
+        expect(screen.queryByPlaceholderText(/時期・時点/)).not.toBeInTheDocument();
+      });
+    });
+
+    it('既存のnarrative.summaryが初期値としてtextareaに反映される', async () => {
+      useGraphStore.setState({
+        relationships: [{
+          ...baseRelationship,
+          narrative: { summary: '幼馴染で高校まで同じ学校', notes: null, turningPoints: [] },
+        }],
+      });
+
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      const accordion = screen.getByText('物語的情報');
+      await user.click(accordion);
+
+      await waitFor(() => {
+        const summaryInput = screen.getByLabelText('関係の概要') as HTMLTextAreaElement;
+        expect(summaryInput.value).toBe('幼馴染で高校まで同じ学校');
+      });
+    });
+  });
+
+  describe('colorOverrideフィールドUI（v9）', () => {
+    beforeEach(() => {
+      useGraphStore.setState({
+        persons: [person1, person2],
+        relationships: [baseRelationship],
+        selectedPersonIds: [person1.id, person2.id],
+      });
+    });
+
+    it('colorOverride===nullのとき「タグから派生」と表示されカラーピッカーが非表示', () => {
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      expect(screen.getByText('タグから派生')).toBeInTheDocument();
+      expect(screen.queryByLabelText('エッジの色')).not.toBeInTheDocument();
+    });
+
+    it('「上書きする」ボタンをクリックするとカラーピッカーが現れる', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      await user.click(screen.getByRole('button', { name: '色を上書きする' }));
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('エッジの色')).toBeInTheDocument();
+      });
+    });
+
+    it('カラーピッカーで色を設定して更新するとcolorOverrideに保存される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      await user.click(screen.getByRole('button', { name: '色を上書きする' }));
+
+      await waitFor(() => screen.getByLabelText('エッジの色'));
+
+      fireEvent.change(screen.getByLabelText('エッジの色'), { target: { value: '#ff0000' } });
+      await user.click(screen.getByRole('button', { name: '更新' }));
+
+      await waitFor(() => {
+        expect(useGraphStore.getState().relationships[0].colorOverride).toBe('#ff0000');
+      });
+    });
+
+    it('「クリア」ボタンでcolorOverrideがnullに戻る', async () => {
+      useGraphStore.setState({
+        relationships: [{ ...baseRelationship, colorOverride: '#ff0000' }],
+      });
+
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      // 既存のcolorOverrideがある場合はピッカーが表示されている
+      await waitFor(() => screen.getByLabelText('エッジの色'));
+
+      await user.click(screen.getByRole('button', { name: '色をクリア' }));
+      await user.click(screen.getByRole('button', { name: '更新' }));
+
+      await waitFor(() => {
+        expect(useGraphStore.getState().relationships[0].colorOverride).toBeNull();
+      });
+    });
+
+    it('既存のcolorOverrideがある場合、カラーピッカーが最初から表示される', () => {
+      useGraphStore.setState({
+        relationships: [{ ...baseRelationship, colorOverride: '#0000ff' }],
+      });
+
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      expect(screen.getByLabelText('エッジの色')).toBeInTheDocument();
     });
   });
 });
