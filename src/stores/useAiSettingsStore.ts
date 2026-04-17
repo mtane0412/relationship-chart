@@ -15,17 +15,6 @@ import { persist } from 'zustand/middleware';
 /** デフォルトモデル（OpenRouter 経由の Anthropic Claude Sonnet 4.5） */
 export const DEFAULT_OPENROUTER_MODEL = 'anthropic/claude-sonnet-4-5';
 
-/** 人気モデルの候補リスト（設定 UI のサジェストに使用） */
-export const OPENROUTER_MODEL_SUGGESTIONS = [
-  'anthropic/claude-sonnet-4-5',
-  'anthropic/claude-3.5-haiku',
-  'anthropic/claude-3.5-sonnet',
-  'openai/gpt-4o',
-  'openai/gpt-4o-mini',
-  'google/gemini-2.0-flash-001',
-  'meta-llama/llama-3.3-70b-instruct',
-] as const;
-
 /**
  * AI設定ストアの状態型
  */

@@ -13,10 +13,7 @@ import { useEffect, useRef, useState } from 'react';
 import { X, Trash2, Bot, Eye, EyeOff } from 'lucide-react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { useDialogStore } from '@/stores/useDialogStore';
-import {
-  useAiSettingsStore,
-  OPENROUTER_MODEL_SUGGESTIONS,
-} from '@/stores/useAiSettingsStore';
+import { useAiSettingsStore } from '@/stores/useAiSettingsStore';
 
 /**
  * SettingsModalのProps
@@ -246,16 +243,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   type="text"
                   value={modelInput}
                   onChange={(e) => setModelInput(e.target.value)}
-                  list="openrouter-model-suggestions"
                   placeholder="anthropic/claude-sonnet-4-5"
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                {/* モデルのサジェストリスト */}
-                <datalist id="openrouter-model-suggestions">
-                  {OPENROUTER_MODEL_SUGGESTIONS.map((model) => (
-                    <option key={model} value={model} />
-                  ))}
-                </datalist>
                 <p className="mt-1 text-xs text-gray-400">
                   OpenRouter のモデル ID を入力（例: anthropic/claude-3.5-haiku）
                 </p>
