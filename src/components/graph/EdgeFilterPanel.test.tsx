@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EdgeFilterPanel } from './EdgeFilterPanel';
 import { useGraphStore } from '@/stores/useGraphStore';
@@ -224,7 +224,6 @@ describe('EdgeFilterPanel', () => {
       await user.click(screen.getByLabelText('親密度を有効化'));
       const slider = screen.getByLabelText('親密度スライダー');
       // fireEvent で input イベントを発火してスライダー値を変更
-      const { fireEvent } = await import('@testing-library/react');
       fireEvent.change(slider, { target: { value: '0.5' } });
 
       const { predicates } = useGraphStore.getState().edgeFilter;

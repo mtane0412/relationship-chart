@@ -40,11 +40,14 @@ function findPredicate(predicates: EdgePredicate[], type: string): EdgePredicate
 /**
  * predicates 配列に述語を追加/更新する（immutable）
  * 同じ type の述語が既にある場合は上書き、なければ末尾に追加する
+ * 単一パスで処理することで効率的に配列を操作する
  */
 function upsertPredicate(predicates: EdgePredicate[], pred: EdgePredicate): EdgePredicate[] {
-  const exists = predicates.some((p) => p.type === pred.type);
-  if (exists) {
-    return predicates.map((p) => (p.type === pred.type ? pred : p));
+  const idx = predicates.findIndex((p) => p.type === pred.type);
+  if (idx >= 0) {
+    const next = [...predicates];
+    next[idx] = pred;
+    return next;
   }
   return [...predicates, pred];
 }
@@ -195,8 +198,9 @@ export const EdgeFilterPanel = memo(() => {
    */
   const handleHasKinshipToggle = useCallback((checked: boolean) => {
     const current = edgeFilter.predicates;
+    // upsertPredicate を使って重複追加を防ぐ
     const next = checked
-      ? [...current, { type: 'has_kinship' as const }]
+      ? upsertPredicate(current, { type: 'has_kinship' })
       : removePredicate(current, 'has_kinship');
     updateEdgeFilter({ predicates: next });
   }, [edgeFilter.predicates, updateEdgeFilter]);
