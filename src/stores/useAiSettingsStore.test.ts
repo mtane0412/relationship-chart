@@ -9,7 +9,8 @@ import { useAiSettingsStore } from './useAiSettingsStore';
 
 describe('useAiSettingsStore', () => {
   beforeEach(() => {
-    // 各テスト前にストアをリセット
+    // persist ミドルウェアによる localStorage 汚染をクリアしてからストアをリセット
+    localStorage.clear();
     act(() => {
       useAiSettingsStore.setState({
         openRouterApiKey: '',

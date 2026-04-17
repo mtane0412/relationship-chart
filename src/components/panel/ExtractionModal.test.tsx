@@ -24,20 +24,28 @@ vi.mock('@/hooks/useExtractRelationships', () => ({
 // useGraphStore をモック
 const mockAddPerson = vi.fn();
 const mockAddRelationship = vi.fn();
-vi.mock('@/stores/useGraphStore', () => ({
-  useGraphStore: vi.fn((selector: (s: ReturnType<typeof getMockStore>) => unknown) => {
-    const store = getMockStore();
-    return selector ? selector(store) : store;
-  }),
-}));
 
 function getMockStore() {
   return {
-    persons: [],
+    persons: [] as { id: string; name: string }[],
     addPerson: mockAddPerson,
     addRelationship: mockAddRelationship,
   };
 }
+
+vi.mock('@/stores/useGraphStore', () => {
+  // handleConfirm の 2 パス目で useGraphStore.getState() を使用するため、
+  // getState も含めてモックする
+  const mockUseGraphStore = vi.fn((selector: (s: ReturnType<typeof getMockStore>) => unknown) => {
+    const store = getMockStore();
+    return selector ? selector(store) : store;
+  });
+  Object.defineProperty(mockUseGraphStore, 'getState', {
+    value: () => getMockStore(),
+    writable: true,
+  });
+  return { useGraphStore: mockUseGraphStore };
+});
 
 import { useExtractRelationships } from '@/hooks/useExtractRelationships';
 const mockUseExtractRelationships = vi.mocked(useExtractRelationships);

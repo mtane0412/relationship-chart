@@ -8,8 +8,7 @@
  *
  * レスポンス:
  *   200: LlmExtractionResult（persons / relationships の配列）
- *   400: バリデーションエラー
- *   401: APIキー未指定
+ *   400: バリデーションエラー（テキスト未入力・長すぎ・APIキー未指定など）
  *   500: LLM呼び出しエラー
  *
  * Vercel AI SDK の generateObject + jsonSchema ヘルパーを使用し、
@@ -51,7 +50,7 @@ const RequestBodySchema = z.object({
 /**
  * プロンプトインジェクション対策のため人物名をサニタイズする
  * - 制御文字・改行を除去
- * - Markdown 特殊記号をエスケープ
+ * - Markdown 特殊記号を除去
  * @param name - サニタイズ対象の人物名
  */
 function sanitizePersonName(name: string): string {

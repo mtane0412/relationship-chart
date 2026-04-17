@@ -171,20 +171,24 @@ export function ExtractionModal({ isOpen, onClose }: ExtractionModalProps) {
 
   /**
    * 確認ボタンをクリックした時の処理
-   * 抽出結果を resolveExtractionResult でストア投入用データに変換してから追加する。
+   *
+   * 2パスで人物と関係をストアに追加する:
+   *   1. resolveExtractionResult で新規人物を特定し addPerson で追加（ストアが ID を生成）
+   *   2. 追加後のストア状態で再度 resolveExtractionResult を呼び出し、
+   *      ストア上の正確な ID で関係を解決してから addRelationship で追加
    */
   const handleConfirm = () => {
     if (!extractionResult) return;
 
-    const { newPersons, relationships } = resolveExtractionResult(
-      extractionResult,
-      persons,
-      new Map()
-    );
-
+    // 1パス目: 新規人物を特定して追加（ストアが ID を生成）
+    const { newPersons } = resolveExtractionResult(extractionResult, persons, new Map());
     for (const person of newPersons) {
       addPerson({ name: person.name, kind: person.kind });
     }
+
+    // 2パス目: 追加後のストア状態で関係を解決（新規人物のストア ID が確定済み）
+    const currentPersons = useGraphStore.getState().persons;
+    const { relationships } = resolveExtractionResult(extractionResult, currentPersons, new Map());
     for (const rel of relationships) {
       addRelationship(rel);
     }
@@ -223,8 +227,9 @@ export function ExtractionModal({ isOpen, onClose }: ExtractionModalProps) {
           </div>
           <button
             type="button"
-            onClick={onClose}
-            className="p-2 rounded hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+            onClick={isLoading ? undefined : onClose}
+            disabled={isLoading}
+            className="p-2 rounded hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             aria-label="閉じる"
           >
             <X size={20} />

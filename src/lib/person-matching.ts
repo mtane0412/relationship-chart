@@ -41,9 +41,9 @@ export function matchPersonByName(name: string, existingPersons: Person[]): Pers
 
 /**
  * ストア投入用の新規人物データの型
- * addPerson の引数形式に合わせる（id / createdAt は自動生成のため除外）
+ * id は resolveExtractionResult 内で関係解決のために事前生成する（createdAt は除外）
  */
-type NewPersonData = Omit<Person, 'createdAt'> & { id: string };
+type NewPersonData = Omit<Person, 'createdAt'>;
 
 /**
  * ストア投入用の新規関係データの型
@@ -82,46 +82,49 @@ export function resolveExtractionResult(
   existingPersons: Person[],
   userOverrides: Map<string, string>
 ): ExtractionResolutionResult {
-  // 名前 → Person ID の解決マップを構築
+  // 正規化名 → Person ID の解決マップ（重複検出にも使用）
   const nameToId = new Map<string, string>();
 
-  // 新規追加する人物（ID を事前生成）
+  // 新規追加する人物（ID を事前生成して関係解決に使用）
   const newPersons: NewPersonData[] = [];
 
   for (const llmPerson of result.persons) {
-    const name = llmPerson.name;
+    const normalizedName = normalizeName(llmPerson.name);
+
+    // 重複チェック（LLM が同一人物を正規化後に同名で複数出力した場合のスキップ）
+    if (nameToId.has(normalizedName)) continue;
 
     // 1. ユーザーオーバーライドを優先
     // 正規化した名前でルックアップし、大文字小文字・空白の差異を吸収する
-    const overrideId = userOverrides.get(normalizeName(name));
+    const overrideId = userOverrides.get(normalizedName);
     if (overrideId !== undefined) {
-      nameToId.set(name, overrideId);
+      nameToId.set(normalizedName, overrideId);
       continue;
     }
 
     // 2. 既存人物と照合
-    const matched = matchPersonByName(name, existingPersons);
+    const matched = matchPersonByName(llmPerson.name, existingPersons);
     if (matched) {
-      nameToId.set(name, matched.id);
+      nameToId.set(normalizedName, matched.id);
       continue;
     }
 
-    // 3. 新規人物として追加
+    // 3. 新規人物として追加（ID を事前生成して関係の ID 解決で使用）
     const newId = nanoid();
-    nameToId.set(name, newId);
+    nameToId.set(normalizedName, newId);
     newPersons.push({
       id: newId,
-      name,
+      name: llmPerson.name,
       kind: llmPerson.kind ?? undefined,
     });
   }
 
-  // 関係の解決
+  // 関係の解決（正規化名でルックアップして空白・大文字小文字の揺れを吸収）
   const relationships: NewRelationshipData[] = [];
 
   for (const llmRel of result.relationships) {
-    const sourcePersonId = nameToId.get(llmRel.sourcePersonName);
-    const targetPersonId = nameToId.get(llmRel.targetPersonName);
+    const sourcePersonId = nameToId.get(normalizeName(llmRel.sourcePersonName));
+    const targetPersonId = nameToId.get(normalizeName(llmRel.targetPersonName));
 
     // いずれかの人物が解決できない場合はスキップ
     if (sourcePersonId === undefined || targetPersonId === undefined) {
