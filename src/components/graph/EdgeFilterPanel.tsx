@@ -155,19 +155,17 @@ export const EdgeFilterPanel = memo(() => {
   }, [relationships]);
 
   // フィルタが適用されているかどうか
-  const isFiltered = edgeFilter.tags.values.size > 0 || edgeFilter.predicates.length > 0;
+  const isFiltered = edgeFilter.tags.values.length > 0 || edgeFilter.predicates.length > 0;
 
   /**
    * タグチェックボックスの変更ハンドラ
    * チェック時は tags.values にタグを追加、解除時は削除する
    */
   const handleTagToggle = useCallback((tag: string, checked: boolean) => {
-    const newValues = new Set(edgeFilter.tags.values);
-    if (checked) {
-      newValues.add(tag);
-    } else {
-      newValues.delete(tag);
-    }
+    const newValues = checked
+      // 重複排除して追加
+      ? [...new Set([...edgeFilter.tags.values, tag])]
+      : edgeFilter.tags.values.filter((v) => v !== tag);
     updateEdgeFilter({
       tags: { mode: edgeFilter.tags.mode, values: newValues },
     });
@@ -215,7 +213,7 @@ export const EdgeFilterPanel = memo(() => {
    */
   const handleReset = () => {
     updateEdgeFilter({
-      tags: { mode: 'any', values: new Set() },
+      tags: { mode: 'any', values: [] },
       predicates: [],
     });
   };
@@ -257,7 +255,7 @@ export const EdgeFilterPanel = memo(() => {
             {/* タグチェックボックス一覧（タグが多い場合はスクロール可能） */}
             <div className="space-y-1 max-h-48 overflow-y-auto mt-1">
               {allTags.map((tag) => {
-                const checked = edgeFilter.tags.values.has(tag);
+                const checked = edgeFilter.tags.values.includes(tag);
                 return (
                   <label
                     key={tag}

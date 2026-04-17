@@ -75,7 +75,7 @@ describe('useGraphStore', () => {
     // sidePanelOpenもリセット
     store.setSidePanelOpen(true);
     // edgeFilterもリセット
-    store.updateEdgeFilter({ tags: { mode: 'any', values: new Set() }, predicates: [] });
+    store.updateEdgeFilter({ tags: { mode: 'any', values: [] }, predicates: [] });
   });
 
   describe('初期状態', () => {
@@ -2206,7 +2206,7 @@ describe('useGraphStore', () => {
       const { result } = renderHook(() => useGraphStore());
 
       expect(result.current.edgeFilter.tags.mode).toBe('any');
-      expect(result.current.edgeFilter.tags.values.size).toBe(0);
+      expect(result.current.edgeFilter.tags.values.length).toBe(0);
       expect(result.current.edgeFilter.predicates).toEqual([]);
     });
 
@@ -2215,11 +2215,11 @@ describe('useGraphStore', () => {
 
       act(() => {
         result.current.updateEdgeFilter({
-          tags: { mode: 'any', values: new Set(['上司', '部下']) },
+          tags: { mode: 'any', values: ['上司', '部下'] },
         });
       });
 
-      expect(result.current.edgeFilter.tags.values).toEqual(new Set(['上司', '部下']));
+      expect(result.current.edgeFilter.tags.values).toEqual(['上司', '部下']);
       expect(result.current.edgeFilter.predicates).toEqual([]);
     });
 
@@ -2233,7 +2233,7 @@ describe('useGraphStore', () => {
       });
 
       expect(result.current.edgeFilter.predicates).toEqual([{ type: 'closeness_gte', value: 0.5 }]);
-      expect(result.current.edgeFilter.tags.values.size).toBe(0);
+      expect(result.current.edgeFilter.tags.values.length).toBe(0);
     });
 
     it('updateEdgeFilter: パッチ更新は既存のフィールドを保持する', () => {
@@ -2251,13 +2251,13 @@ describe('useGraphStore', () => {
       // tags のみ更新し、predicates が変わっていないことを確認する
       act(() => {
         result.current.updateEdgeFilter({
-          tags: { mode: 'all', values: new Set(['上司']) },
+          tags: { mode: 'all', values: ['上司'] },
         });
       });
 
       // タグフィールドが更新されている
       expect(result.current.edgeFilter.tags.mode).toBe('all');
-      expect(result.current.edgeFilter.tags.values).toEqual(new Set(['上司']));
+      expect(result.current.edgeFilter.tags.values).toEqual(['上司']);
       // predicates はパッチ更新によって変更されていない
       expect(result.current.edgeFilter.predicates).toEqual([{ type: 'closeness_gte', value: 0.5 }]);
     });
@@ -2267,7 +2267,7 @@ describe('useGraphStore', () => {
 
       act(() => {
         result.current.updateEdgeFilter({
-          tags: { mode: 'all', values: new Set(['友人']) },
+          tags: { mode: 'all', values: ['友人'] },
         });
       });
 

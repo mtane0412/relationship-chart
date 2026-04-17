@@ -204,7 +204,7 @@ export type EdgePredicate =
 export type EdgeFilter = {
   tags: {
     mode: 'any' | 'all';
-    values: Set<string>;
+    values: string[];
   };
   predicates: EdgePredicate[];
 };
@@ -213,7 +213,7 @@ export type EdgeFilter = {
  * エッジフィルタの初期値（全エッジを表示）
  */
 export const INITIAL_EDGE_FILTER: EdgeFilter = {
-  tags: { mode: 'any', values: new Set() },
+  tags: { mode: 'any', values: [] },
   predicates: [],
 };
 

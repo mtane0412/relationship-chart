@@ -58,14 +58,14 @@ function getPairKey(idA: string, idB: string): string {
  */
 export function matchesEdgeFilter(relationship: RelationshipV9, filter: EdgeFilter): boolean {
   // タグフィルタ: values が空なら全通過
-  if (filter.tags.values.size > 0) {
+  if (filter.tags.values.length > 0) {
     if (filter.tags.mode === 'any') {
       // いずれか1つのタグが一致すればOK
-      const hasMatch = relationship.tags.some((tag) => filter.tags.values.has(tag));
+      const hasMatch = relationship.tags.some((tag) => filter.tags.values.includes(tag));
       if (!hasMatch) return false;
     } else {
       // 全てのフィルタタグが relationship.tags に含まれる必要がある
-      const allMatch = [...filter.tags.values].every((tag) => relationship.tags.includes(tag));
+      const allMatch = filter.tags.values.every((tag) => relationship.tags.includes(tag));
       if (!allMatch) return false;
     }
   }

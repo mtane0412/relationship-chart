@@ -19,7 +19,7 @@ describe('EdgeFilterPanel', () => {
     [...store.relationships].forEach((rel) => store.removeRelationship(rel.id));
     store.clearSelection();
     // edgeFilter をリセット
-    store.updateEdgeFilter({ tags: { mode: 'any', values: new Set() }, predicates: [] });
+    store.updateEdgeFilter({ tags: { mode: 'any', values: [] }, predicates: [] });
   });
 
   describe('タグなし状態', () => {
@@ -111,7 +111,7 @@ describe('EdgeFilterPanel', () => {
       await user.click(screen.getByText('解除'));
 
       const store = useGraphStore.getState();
-      expect(store.edgeFilter.tags.values.size).toBe(0);
+      expect(store.edgeFilter.tags.values.length).toBe(0);
       expect(store.edgeFilter.predicates).toEqual([]);
     });
 
