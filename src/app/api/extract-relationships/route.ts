@@ -4,22 +4,26 @@
  * POST /api/extract-relationships
  *
  * リクエストボディ:
- *   { text: string, existingPersonNames: string[] }
+ *   { text: string, existingPersonNames: string[], apiKey: string, model: string }
  *
  * レスポンス:
  *   200: LlmExtractionResult（persons / relationships の配列）
  *   400: バリデーションエラー
- *   500: APIキー未設定またはLLM呼び出しエラー
+ *   401: APIキー未指定
+ *   500: LLM呼び出しエラー
  *
  * Vercel AI SDK の generateObject + jsonSchema ヘルパーを使用し、
  * zod v4 との互換性問題を回避している。
  * （zod v4 のスキーマを直接 generateObject に渡せないため、
  *   z.toJSONSchema() で JSON Schema に変換してから渡す）
+ *
+ * APIキーはクライアントから受け取り、サーバー側では永続化しない。
+ * OpenRouter 経由で各プロバイダのモデルにアクセスする。
  */
 
 import { NextResponse } from 'next/server';
 import { generateObject, jsonSchema } from 'ai';
-import { createAnthropic } from '@ai-sdk/anthropic';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { z } from 'zod';
 import {
   LlmExtractionResultSchema,
@@ -38,6 +42,10 @@ const RequestBodySchema = z.object({
   text: z.string().min(1).max(MAX_TEXT_LENGTH),
   /** 既存の人物名リスト（LLM に渡してマッチングを促す。最大 200 件） */
   existingPersonNames: z.array(z.string()).max(MAX_EXISTING_PERSON_NAMES),
+  /** OpenRouter APIキー（クライアントの設定から渡す） */
+  apiKey: z.string().min(1),
+  /** 使用するモデル（OpenRouter モデル ID 形式: "provider/model-name"） */
+  model: z.string().min(1),
 });
 
 /**
@@ -90,14 +98,6 @@ ${text}`;
  * テキストから人物・関係を抽出して返す。
  */
 export async function POST(request: Request): Promise<NextResponse> {
-  // APIキーの確認
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json(
-      { error: 'ANTHROPIC_API_KEY が設定されていません。' },
-      { status: 500 }
-    );
-  }
-
   // リクエストボディのパース
   let body: unknown;
   try {
@@ -115,10 +115,11 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  const { text, existingPersonNames } = parsed.data;
+  const { text, existingPersonNames, apiKey, model } = parsed.data;
 
   try {
-    const anthropic = createAnthropic();
+    // OpenRouter プロバイダを初期化（クライアントから受け取った APIキーを使用）
+    const openrouter = createOpenRouter({ apiKey });
     const prompt = buildPrompt(text, existingPersonNames);
 
     // zod v4 は generateObject に直接渡せないため、
@@ -133,7 +134,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     });
 
     const { object } = await generateObject({
-      model: anthropic('claude-sonnet-4-6'),
+      model: openrouter.chat(model),
       schema,
       prompt,
     });

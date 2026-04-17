@@ -1,6 +1,6 @@
 /**
  * useExtractRelationships フックのユニットテスト
- * fetch をモックして、状態遷移を検証する。
+ * fetch と useAiSettingsStore をモックして、状態遷移を検証する。
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -16,6 +16,21 @@ vi.mock('@/stores/useGraphStore', () => ({
   }),
 }));
 
+// useAiSettingsStore をモック（APIキー・モデルの取得のため）
+const mockIsConfigured = vi.fn(() => true);
+vi.mock('@/stores/useAiSettingsStore', () => ({
+  useAiSettingsStore: vi.fn(
+    (selector: (s: { openRouterApiKey: string; openRouterModel: string; isConfigured: () => boolean }) => unknown) => {
+      const store = {
+        openRouterApiKey: 'sk-or-test-key',
+        openRouterModel: 'anthropic/claude-sonnet-4-5',
+        isConfigured: mockIsConfigured,
+      };
+      return selector ? selector(store) : store;
+    }
+  ),
+}));
+
 const validResult = {
   persons: [{ name: '田中太郎', kind: 'person' }],
   relationships: [],
@@ -24,6 +39,7 @@ const validResult = {
 describe('useExtractRelationships', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsConfigured.mockReturnValue(true);
   });
 
   afterEach(() => {
@@ -36,6 +52,20 @@ describe('useExtractRelationships', () => {
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBeNull();
     expect(result.current.extractionResult).toBeNull();
+  });
+
+  it('APIキー未設定の場合は即座にエラーをセットすること', async () => {
+    // APIキー未設定状態にする
+    mockIsConfigured.mockReturnValue(false);
+
+    const { result } = renderHook(() => useExtractRelationships());
+
+    await act(async () => {
+      await result.current.extract('テスト');
+    });
+
+    expect(result.current.error).toContain('OpenRouter APIキー');
+    expect(result.current.isLoading).toBe(false);
   });
 
   it('extract 呼び出し中は isLoading が true になること', async () => {
@@ -142,7 +172,7 @@ describe('useExtractRelationships', () => {
     expect(result.current.isLoading).toBe(false);
   });
 
-  it('既存人物名がリクエストに含まれること', async () => {
+  it('既存人物名と APIキー・モデルがリクエストに含まれること', async () => {
     const mockFetch = vi.fn(() =>
       Promise.resolve(new Response(JSON.stringify(validResult), { status: 200 }))
     );
@@ -159,5 +189,7 @@ describe('useExtractRelationships', () => {
     const requestInit = calls[0][1];
     const body = JSON.parse(requestInit.body as string);
     expect(body.existingPersonNames).toContain('田中太郎');
+    expect(body.apiKey).toBe('sk-or-test-key');
+    expect(body.model).toBe('anthropic/claude-sonnet-4-5');
   });
 });

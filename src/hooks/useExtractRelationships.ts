@@ -4,6 +4,9 @@
  * /api/extract-relationships へのリクエストを管理し、
  * ローディング・エラー・結果の状態を提供する。
  *
+ * useAiSettingsStore から OpenRouter APIキーとモデルを取得してリクエストに含める。
+ * APIキーが未設定の場合は即座にエラーをセットする。
+ *
  * 使用例:
  *   const { extract, isLoading, error, extractionResult, reset } = useExtractRelationships();
  *   await extract('田中と山田は親友で...'); // 抽出実行
@@ -13,6 +16,7 @@
 
 import { useState, useCallback } from 'react';
 import { useGraphStore } from '@/stores/useGraphStore';
+import { useAiSettingsStore } from '@/stores/useAiSettingsStore';
 import { LlmExtractionResultSchema, type LlmExtractionResult } from '@/lib/llm-extraction-schema';
 
 /** フックの戻り値型 */
@@ -33,6 +37,7 @@ export type UseExtractRelationshipsReturn = {
  * LLM テキスト→関係抽出フック
  *
  * useGraphStore から既存人物名を取得し、
+ * useAiSettingsStore から APIキーとモデルを取得して、
  * /api/extract-relationships に POST して抽出結果を返す。
  */
 export function useExtractRelationships(): UseExtractRelationshipsReturn {
@@ -41,9 +46,20 @@ export function useExtractRelationships(): UseExtractRelationshipsReturn {
   const [extractionResult, setExtractionResult] = useState<LlmExtractionResult | null>(null);
 
   const persons = useGraphStore((s) => s.persons);
+  const openRouterApiKey = useAiSettingsStore((s) => s.openRouterApiKey);
+  const openRouterModel = useAiSettingsStore((s) => s.openRouterModel);
+  const isConfigured = useAiSettingsStore((s) => s.isConfigured);
 
   const extract = useCallback(
     async (text: string) => {
+      // APIキー未設定チェック
+      if (!isConfigured()) {
+        setError(
+          'OpenRouter APIキーが設定されていません。設定モーダルからAPIキーを入力してください。'
+        );
+        return;
+      }
+
       setIsLoading(true);
       setError(null);
       setExtractionResult(null);
@@ -54,7 +70,12 @@ export function useExtractRelationships(): UseExtractRelationshipsReturn {
         const response = await fetch('/api/extract-relationships', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text, existingPersonNames }),
+          body: JSON.stringify({
+            text,
+            existingPersonNames,
+            apiKey: openRouterApiKey,
+            model: openRouterModel,
+          }),
         });
 
         const data: unknown = await response.json();
@@ -80,7 +101,7 @@ export function useExtractRelationships(): UseExtractRelationshipsReturn {
         setIsLoading(false);
       }
     },
-    [persons]
+    [persons, openRouterApiKey, openRouterModel, isConfigured]
   );
 
   const reset = useCallback(() => {
