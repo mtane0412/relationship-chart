@@ -110,7 +110,7 @@ type NullableSliderProps = {
   step: number;
   /** null のときのスライダーデフォルト値 */
   defaultValue: number;
-  /** 値変更コールバック（未設定解除時に呼ばれる） */
+  /** スライダーの値変更時に呼ばれるコールバック */
   onValueChange: (value: number) => void;
   /** null トグルコールバック（true=未設定, false=値あり） */
   onNullToggle: (isNull: boolean) => void;
@@ -203,12 +203,13 @@ function TurningPointsEditor({ value, onChange }: TurningPointsEditorProps) {
   return (
     <div className="space-y-2">
       <span className="text-xs font-medium text-gray-700">ターニングポイント</span>
-      {value.map((row) => (
+      {value.map((row, index) => (
         <div key={row.id} className="flex gap-1 items-start">
           <input
             type="text"
             value={row.at}
             onChange={(e) => handleChange(row.id, 'at', e.target.value)}
+            aria-label={`ターニングポイント${index + 1}の時期・時点`}
             placeholder="時期・時点"
             className="w-24 shrink-0 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
@@ -216,6 +217,7 @@ function TurningPointsEditor({ value, onChange }: TurningPointsEditorProps) {
             type="text"
             value={row.note}
             onChange={(e) => handleChange(row.id, 'note', e.target.value)}
+            aria-label={`ターニングポイント${index + 1}の出来事`}
             placeholder="出来事"
             className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
@@ -308,6 +310,7 @@ function TagChipInput({ value, onChange, suggestions, datalistId: datalistIdProp
         onChange={(e) => setInputValue(e.target.value)}
         onKeyDown={handleKeyDown}
         list={datalistId}
+        aria-label="タグを追加"
         placeholder="タグを追加（Enter で確定）"
         className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
       />

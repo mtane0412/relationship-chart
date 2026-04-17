@@ -1459,7 +1459,7 @@ describe('PairSelectionPanel', () => {
       );
 
       expect(screen.getByText('タグから派生')).toBeInTheDocument();
-      expect(screen.queryByRole('textbox', { name: /エッジの色/ })).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('エッジの色')).not.toBeInTheDocument();
     });
 
     it('「上書きする」ボタンをクリックするとカラーピッカーが現れる', async () => {
