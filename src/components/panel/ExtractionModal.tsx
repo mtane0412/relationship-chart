@@ -141,23 +141,25 @@ export function ExtractionModal({ isOpen, onClose }: ExtractionModalProps) {
     if (isOpen) {
       setText('');
       reset();
-      setTimeout(() => textareaRef.current?.focus(), 50);
+      // フォーカスを遅延させて DOM 更新後に実行する
+      const timer = setTimeout(() => textareaRef.current?.focus(), 50);
+      return () => clearTimeout(timer);
     }
   }, [isOpen, reset]);
 
-  // Escape キーで閉じる
+  // Escape キーで閉じる（ローディング中は無効）
   useEffect(() => {
     if (!isOpen) return;
 
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && !isLoading) {
         onClose();
       }
     };
 
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [isOpen, onClose]);
+  }, [isOpen, isLoading, onClose]);
 
   /**
    * 抽出ボタンをクリックした時の処理
@@ -199,7 +201,7 @@ export function ExtractionModal({ isOpen, onClose }: ExtractionModalProps) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={onClose}
+      onClick={isLoading ? undefined : onClose}
       role="dialog"
       aria-modal="true"
       aria-labelledby="extraction-modal-title"

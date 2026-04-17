@@ -29,23 +29,43 @@ import {
 /** リクエストボディの最大テキスト長 */
 const MAX_TEXT_LENGTH = 10000;
 
+/** existingPersonNames の最大件数（プロンプト長制限のため） */
+const MAX_EXISTING_PERSON_NAMES = 200;
+
 /** リクエストボディのバリデーションスキーマ */
 const RequestBodySchema = z.object({
   /** 関係を抽出するテキスト（1〜10000文字） */
   text: z.string().min(1).max(MAX_TEXT_LENGTH),
-  /** 既存の人物名リスト（LLM に渡してマッチングを促す） */
-  existingPersonNames: z.array(z.string()),
+  /** 既存の人物名リスト（LLM に渡してマッチングを促す。最大 200 件） */
+  existingPersonNames: z.array(z.string()).max(MAX_EXISTING_PERSON_NAMES),
 });
+
+/**
+ * プロンプトインジェクション対策のため人物名をサニタイズする
+ * - 制御文字・改行を除去
+ * - Markdown 特殊記号をエスケープ
+ * @param name - サニタイズ対象の人物名
+ */
+function sanitizePersonName(name: string): string {
+  return name
+    .replace(/[\r\n\t]/g, ' ') // 改行・タブを空白に
+    .replace(/[#\-`*_[\]()!]/g, '') // Markdown 特殊記号を除去
+    .trim();
+}
 
 /**
  * LLM に渡すプロンプトを構築する
  * @param text - ユーザーが入力したテキスト
- * @param existingPersonNames - 既存の人物名リスト
+ * @param existingPersonNames - 既存の人物名リスト（サニタイズ済み）
  */
 function buildPrompt(text: string, existingPersonNames: string[]): string {
+  const sanitizedNames = existingPersonNames
+    .map(sanitizePersonName)
+    .filter((n) => n.length > 0);
+
   const existingNamesSection =
-    existingPersonNames.length > 0
-      ? `\n\n## 既存の人物（相関図に登録済み）\n以下の人物はすでに相関図に登録されています。テキスト中にこれらの人物が登場する場合は、必ず同じ名前を使用してください：\n${existingPersonNames.map((n) => `- ${n}`).join('\n')}`
+    sanitizedNames.length > 0
+      ? `\n\n## 既存の人物（相関図に登録済み）\n以下の人物はすでに相関図に登録されています。テキスト中にこれらの人物が登場する場合は、必ず同じ名前を使用してください：\n${sanitizedNames.map((n) => `- ${n}`).join('\n')}`
       : '';
 
   return `あなたはテキストから人物（またはアイテム）間の関係を抽出するアシスタントです。
@@ -120,10 +140,8 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     return NextResponse.json(object, { status: 200 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : '不明なエラー';
-    return NextResponse.json(
-      { error: `関係の抽出に失敗しました。${message}` },
-      { status: 500 }
-    );
+    // 内部エラーはサーバーログに記録し、クライアントには汎用メッセージのみ返す
+    console.error('[extract-relationships] LLM呼び出しエラー:', error);
+    return NextResponse.json({ error: '関係の抽出に失敗しました。' }, { status: 500 });
   }
 }

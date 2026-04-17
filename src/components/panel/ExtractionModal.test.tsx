@@ -54,8 +54,8 @@ describe('ExtractionModal', () => {
 
   it('isOpen=true の場合はテキスト入力ステップが表示されること', () => {
     render(<ExtractionModal isOpen={true} onClose={vi.fn()} />);
-    expect(screen.getByRole('dialog')).toBeDefined();
-    expect(screen.getByRole('textbox')).toBeDefined();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
   });
 
   it('テキスト入力なしでは送信ボタンが無効化されること', () => {
@@ -159,8 +159,22 @@ describe('ExtractionModal', () => {
       isLoading: false,
       error: null,
       extractionResult: {
-        persons: [{ name: '新キャラ', kind: 'person' }],
-        relationships: [],
+        persons: [
+          { name: '新キャラA', kind: 'person' },
+          { name: '新キャラB', kind: 'person' },
+        ],
+        relationships: [
+          {
+            sourcePersonName: '新キャラA',
+            targetPersonName: '新キャラB',
+            isDirected: false,
+            symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
+            forward: { label: '友人', affection: null, awareness: null, role: null },
+            reverse: { label: null, affection: null, awareness: null, role: null },
+            tags: ['友人'],
+            narrative: { summary: null, notes: null, turningPoints: [] },
+          },
+        ],
       },
       reset: mockReset,
     });
@@ -170,6 +184,7 @@ describe('ExtractionModal', () => {
 
     await waitFor(() => {
       expect(mockAddPerson).toHaveBeenCalled();
+      expect(mockAddRelationship).toHaveBeenCalled();
     });
   });
 });

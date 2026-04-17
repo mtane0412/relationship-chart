@@ -36,6 +36,12 @@ describe('LlmPersonSchema', () => {
     const result = LlmPersonSchema.safeParse(invalid);
     expect(result.success).toBe(false);
   });
+
+  it('kind が不正な値の場合はパース失敗すること', () => {
+    const invalid = { name: '無効キャラ', kind: 'invalid_kind' };
+    const result = LlmPersonSchema.safeParse(invalid);
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('LlmRelationshipSchema', () => {
@@ -104,6 +110,15 @@ describe('LlmRelationshipSchema', () => {
     const result = LlmRelationshipSchema.safeParse(invalid);
     expect(result.success).toBe(false);
   });
+
+  it('affection が範囲外（-1.5）の場合はパース失敗すること', () => {
+    const invalid = {
+      ...validRelationship,
+      forward: { ...validRelationship.forward, affection: -1.5 },
+    };
+    const result = LlmRelationshipSchema.safeParse(invalid);
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('LlmExtractionResultSchema', () => {
@@ -153,10 +168,13 @@ describe('getLlmExtractionJsonSchema', () => {
 
   it('persons と relationships プロパティが含まれること', () => {
     const schema = getLlmExtractionJsonSchema();
-    const props = (schema as { properties?: Record<string, unknown> }).properties;
-    expect(props).toBeDefined();
-    expect(props).toHaveProperty('persons');
-    expect(props).toHaveProperty('relationships');
+    // ランタイム型ガードで properties の存在を確認してからアクセス
+    expect(schema !== null && typeof schema === 'object' && 'properties' in schema).toBe(true);
+    const props = (schema as Record<string, unknown>).properties;
+    expect(props !== null && typeof props === 'object').toBe(true);
+    const propsObj = props as Record<string, unknown>;
+    expect(propsObj).toHaveProperty('persons');
+    expect(propsObj).toHaveProperty('relationships');
   });
 
   it('生成されたスキーマが JSON シリアライズ可能であること', () => {

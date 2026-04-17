@@ -3,7 +3,7 @@
  * fetch をモックして、状態遷移を検証する。
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useExtractRelationships } from './useExtractRelationships';
 
@@ -24,6 +24,11 @@ const validResult = {
 describe('useExtractRelationships', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    // グローバルスタブを確実にクリーンアップ
+    vi.unstubAllGlobals();
   });
 
   it('初期状態が正しいこと', () => {
@@ -48,9 +53,8 @@ describe('useExtractRelationships', () => {
 
     expect(result.current.isLoading).toBe(true);
 
-    // クリーンアップ
+    // テスト終了のために pending なプロミスを解決する
     resolvePromise(new Response(JSON.stringify(validResult), { status: 200 }));
-    vi.unstubAllGlobals();
   });
 
   it('成功時に extractionResult がセットされること', async () => {
@@ -70,8 +74,6 @@ describe('useExtractRelationships', () => {
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBeNull();
     expect(result.current.extractionResult).toEqual(validResult);
-
-    vi.unstubAllGlobals();
   });
 
   it('APIエラー時に error がセットされること', async () => {
@@ -91,10 +93,10 @@ describe('useExtractRelationships', () => {
     });
 
     expect(result.current.isLoading).toBe(false);
-    expect(result.current.error).toBeTruthy();
+    // エラーメッセージが文字列として設定されていること
+    expect(typeof result.current.error).toBe('string');
+    expect(result.current.error).toContain('APIエラー');
     expect(result.current.extractionResult).toBeNull();
-
-    vi.unstubAllGlobals();
   });
 
   it('ネットワークエラー時に error がセットされること', async () => {
@@ -109,10 +111,10 @@ describe('useExtractRelationships', () => {
       await result.current.extract('テスト');
     });
 
-    expect(result.current.error).toBeTruthy();
+    // エラーメッセージがネットワークエラーを示していること
+    expect(typeof result.current.error).toBe('string');
+    expect(result.current.error).toMatch(/Network error/i);
     expect(result.current.isLoading).toBe(false);
-
-    vi.unstubAllGlobals();
   });
 
   it('reset 後に状態がリセットされること', async () => {
@@ -138,8 +140,6 @@ describe('useExtractRelationships', () => {
     expect(result.current.extractionResult).toBeNull();
     expect(result.current.error).toBeNull();
     expect(result.current.isLoading).toBe(false);
-
-    vi.unstubAllGlobals();
   });
 
   it('既存人物名がリクエストに含まれること', async () => {
@@ -154,10 +154,10 @@ describe('useExtractRelationships', () => {
       await result.current.extract('テスト');
     });
 
-    const callArgs = mockFetch.mock.calls[0] as unknown as [string, RequestInit];
-    const body = JSON.parse(callArgs[1].body as string);
+    // fetch の第2引数（RequestInit）から body を取り出して検証
+    const calls = mockFetch.mock.calls as unknown as [string, RequestInit][];
+    const requestInit = calls[0][1];
+    const body = JSON.parse(requestInit.body as string);
     expect(body.existingPersonNames).toContain('田中太郎');
-
-    vi.unstubAllGlobals();
   });
 });

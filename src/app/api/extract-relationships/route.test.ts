@@ -24,6 +24,9 @@ import { generateObject } from 'ai';
 
 const mockGenerateObject = vi.mocked(generateObject);
 
+/** generateObject の戻り値型 */
+type GenerateObjectResult = Awaited<ReturnType<typeof generateObject>>;
+
 const validExtractionResult = {
   persons: [
     { name: '田中太郎', kind: 'person' },
@@ -58,7 +61,7 @@ describe('POST /api/extract-relationships', () => {
   });
 
   it('正常なテキストに対して抽出結果を返すこと', async () => {
-    mockGenerateObject.mockResolvedValueOnce({ object: validExtractionResult } as ReturnType<typeof generateObject> extends Promise<infer T> ? T : never);
+    mockGenerateObject.mockResolvedValueOnce({ object: validExtractionResult } as GenerateObjectResult);
 
     const req = makeRequest({ text: '田中太郎と山田花子は幼なじみで、田中は山田のことが好き。', existingPersonNames: [] });
     const res = await POST(req);
@@ -83,6 +86,7 @@ describe('POST /api/extract-relationships', () => {
   });
 
   it('text が長すぎる場合は 400 を返すこと', async () => {
+    // MAX_TEXT_LENGTH（10000文字）を超える 10001 文字のテキストを送信
     const req = makeRequest({ text: 'a'.repeat(10001), existingPersonNames: [] });
     const res = await POST(req);
     expect(res.status).toBe(400);
@@ -110,13 +114,16 @@ describe('POST /api/extract-relationships', () => {
   });
 
   it('existingPersonNames が指定された場合はプロンプトに含まれること', async () => {
-    mockGenerateObject.mockResolvedValueOnce({ object: { persons: [], relationships: [] } } as ReturnType<typeof generateObject> extends Promise<infer T> ? T : never);
+    mockGenerateObject.mockResolvedValueOnce({ object: { persons: [], relationships: [] } } as GenerateObjectResult);
 
     const req = makeRequest({
       text: '田中は上司で山田は部下',
       existingPersonNames: ['田中太郎', '山田花子'],
     });
-    await POST(req);
+    const res = await POST(req);
+
+    // リクエストが成功していること
+    expect(res.status).toBe(200);
 
     const callArgs = mockGenerateObject.mock.calls[0][0];
     // プロンプトに既存人物名が含まれていること

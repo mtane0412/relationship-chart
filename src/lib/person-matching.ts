@@ -20,7 +20,7 @@ import type { LlmExtractionResult } from './llm-extraction-schema';
  * @param name - 正規化対象の名前
  * @returns 正規化後の名前
  */
-function normalizeName(name: string): string {
+export function normalizeName(name: string): string {
   return name
     .trim()
     .replace(/[\s\u3000]+/g, ' ') // 全角スペース・連続スペースを半角スペース1つに
@@ -72,8 +72,9 @@ export type ExtractionResolutionResult = {
  *
  * @param result - LLM が出力した抽出結果
  * @param existingPersons - 既存人物の配列
- * @param userOverrides - ユーザーによる名前→ID のマッピング（Map<人物名, Person ID>）
- *   - 値が既存 Person ID: その人物にマップ
+ * @param userOverrides - ユーザーによる正規化済み名前→ID のマッピング（Map<正規化人物名, Person ID>）
+ *   キーは normalizeName() で正規化した人物名（大文字小文字・空白を統一）。
+ *   値が既存 Person ID の場合はその人物にマップする。
  * @returns 解決済みの新規人物リストと関係リスト
  */
 export function resolveExtractionResult(
@@ -91,7 +92,8 @@ export function resolveExtractionResult(
     const name = llmPerson.name;
 
     // 1. ユーザーオーバーライドを優先
-    const overrideId = userOverrides.get(name);
+    // 正規化した名前でルックアップし、大文字小文字・空白の差異を吸収する
+    const overrideId = userOverrides.get(normalizeName(name));
     if (overrideId !== undefined) {
       nameToId.set(name, overrideId);
       continue;
