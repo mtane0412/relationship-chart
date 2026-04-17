@@ -7,8 +7,8 @@ import { create } from 'zustand';
 import { temporal } from 'zundo';
 import { nanoid } from 'nanoid';
 import type { Person } from '@/types/person';
-import type { Relationship, RelationshipLayer } from '@/types/relationship';
-import { DEFAULT_LAYER, RELATIONSHIP_LAYERS } from '@/types/relationship';
+import type { RelationshipV9, DirectionalProps, SymmetricProps, RelationshipNarrative, EdgeFilter } from '@/types/relationship';
+import { INITIAL_EDGE_FILTER } from '@/types/relationship';
 import type { EgoLayoutParams } from '@/lib/ego-layout';
 import { DEFAULT_EGO_LAYOUT_PARAMS } from '@/lib/ego-layout';
 import type { ChartMeta, Chart } from '@/types/chart';
@@ -24,7 +24,7 @@ import {
   getChartOrder,
   setChartOrder,
 } from '@/lib/chart-db';
-import { migrateGraphState } from '@/lib/migration';
+import { migrateGraphState, migrateV8ToV9 } from '@/lib/migration';
 
 /**
  * force-directedレイアウトのパラメータ型
@@ -53,8 +53,8 @@ export const DEFAULT_FORCE_PARAMS: ForceParams = {
 type GraphState = {
   /** 人物のリスト */
   persons: Person[];
-  /** 関係のリスト */
-  relationships: Relationship[];
+  /** 関係のリスト（v9 プロパティグラフ形式） */
+  relationships: RelationshipV9[];
   /** force-directedレイアウトが有効かどうか */
   forceEnabled: boolean;
   /** 選択中の人物のIDリスト（複数選択対応） */
@@ -65,8 +65,6 @@ type GraphState = {
   egoLayoutParams: EgoLayoutParams;
   /** サイドパネルが開いているかどうか */
   sidePanelOpen: boolean;
-  /** 表示するレイヤーのSet（全レイヤーがデフォルト） */
-  visibleLayers: Set<RelationshipLayer>;
   /** アクティブな相関図ID */
   activeChartId: string | null;
   /** 相関図のメタデータリスト */
@@ -79,6 +77,8 @@ type GraphState = {
   pauseAutoSave: boolean;
   /** ペア編集時に表示する特定の関係ID（エッジクリック・関係一覧クリック時に設定） */
   editingRelationshipId: string | null;
+  /** エッジフィルタ（タグ・述語による絞り込み、セッション内のみ保持） */
+  edgeFilter: EdgeFilter;
 };
 
 /**
@@ -92,14 +92,82 @@ const INITIAL_STATE: GraphState = {
   forceParams: DEFAULT_FORCE_PARAMS,
   egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
   sidePanelOpen: true,
-  visibleLayers: new Set(RELATIONSHIP_LAYERS.map((l) => l.value)),
   activeChartId: null,
   chartMetas: [],
   isInitialized: false,
   isLoading: false,
   pauseAutoSave: false,
   editingRelationshipId: null,
+  edgeFilter: INITIAL_EDGE_FILTER,
 };
+
+/**
+ * 2 つの RelationshipV9 をマージする
+ *
+ * @description
+ * 既存エッジ (base) に新しいデータ (incoming) をマージする。
+ * null でないフィールドのみ上書きし、tags は union で統合、
+ * narrative.notes は改行で追記する。
+ *
+ * @param base - 既存のエッジ
+ * @param incoming - マージする新しいデータ（id/createdAt/updatedAt を除く）
+ * @param now - updatedAt に設定する現在時刻（ISO 8601 文字列）
+ * @returns マージ後の RelationshipV9
+ */
+function mergeRelationshipV9(
+  base: RelationshipV9,
+  incoming: Omit<RelationshipV9, 'id' | 'createdAt' | 'updatedAt'>,
+  now: string
+): RelationshipV9 {
+  // DirectionalProps のマージ（null でないフィールドのみ上書き）
+  const mergeDirectional = (b: DirectionalProps, i: DirectionalProps): DirectionalProps => ({
+    label: i.label !== null ? i.label : b.label,
+    affection: i.affection !== null ? i.affection : b.affection,
+    awareness: i.awareness !== null ? i.awareness : b.awareness,
+    role: i.role !== null ? i.role : b.role,
+  });
+
+  // SymmetricProps のマージ（null でないフィールドのみ上書き）
+  const mergeSymmetric = (b: SymmetricProps, i: SymmetricProps): SymmetricProps => ({
+    closeness: i.closeness !== null ? i.closeness : b.closeness,
+    trust: i.trust !== null ? i.trust : b.trust,
+    tension: i.tension !== null ? i.tension : b.tension,
+    secrecy: i.secrecy !== null ? i.secrecy : b.secrecy,
+    kinship: i.kinship !== null ? i.kinship : b.kinship,
+  });
+
+  // RelationshipNarrative のマージ（notes は改行で追記）
+  const mergeNarrative = (b: RelationshipNarrative, i: RelationshipNarrative): RelationshipNarrative => {
+    const mergedNotes =
+      b.notes && i.notes
+        ? `${b.notes}\n${i.notes}`
+        : i.notes ?? b.notes;
+    return {
+      summary: i.summary !== null ? i.summary : b.summary,
+      notes: mergedNotes,
+      // at + note をキーとして重複排除する（同一ターニングポイントが重複登録されないようにする）
+      turningPoints: [...b.turningPoints, ...i.turningPoints].filter(
+        (tp, index, arr) =>
+          arr.findIndex((t) => t.at === tp.at && t.note === tp.note) === index
+      ),
+    };
+  };
+
+  // tags は union（重複排除）
+  const mergedTags = Array.from(new Set([...base.tags, ...incoming.tags]));
+
+  return {
+    ...base,
+    isDirected: incoming.isDirected,
+    symmetric: mergeSymmetric(base.symmetric, incoming.symmetric),
+    forward: mergeDirectional(base.forward, incoming.forward),
+    reverse: mergeDirectional(base.reverse, incoming.reverse),
+    tags: mergedTags,
+    narrative: mergeNarrative(base.narrative, incoming.narrative),
+    colorOverride: incoming.colorOverride !== null ? incoming.colorOverride : base.colorOverride,
+    updatedAt: now,
+  };
+}
 
 /**
  * 現在のストア状態からChartオブジェクトを構築する
@@ -129,34 +197,35 @@ function buildChartFromState(state: GraphState): Chart | null {
     forceEnabled: state.forceEnabled,
     forceParams: state.forceParams,
     egoLayoutParams: state.egoLayoutParams,
+    // v9 形式であることを明示する（ロード時の再マイグレーションを防ぐ）
+    schemaVersion: 9,
     createdAt: meta.createdAt,
     updatedAt: new Date().toISOString(),
   };
 }
 
 /**
- * IndexedDB からロードしたChartのrelationshipsを正規化する
- * 旧形式のデータ（layer/weight未定義、public/hiddenレイヤー名）を最新形式に変換する
- * @param chart - IndexedDBからロードしたChart
- * @returns 正規化されたChart
+ * IndexedDB からロードした Chart の relationships を v9 形式に正規化する。
+ * `schemaVersion` が未定義または 9 未満の場合に `migrateV8ToV9` を適用し、
+ * `schemaVersion: 9` を付与して返す。v9 以降のデータはそのまま返す。
+ *
+ * @param chart - IndexedDB からロードした Chart（任意のスキーマバージョン）
+ * @returns v9 形式に正規化された Chart（schemaVersion: 9 付き）
  */
-function normalizeChartLayers(chart: Chart): Chart {
+function normalizeChartRelationships(chart: Chart): Chart {
+  // v9 以降は変換不要
+  if ((chart.schemaVersion ?? 0) >= 9) {
+    return chart;
+  }
+
+  // v8 以前のデータを v9 形式に変換する
+  const legacyRels = chart.relationships as unknown as Parameters<typeof migrateV8ToV9>[0];
+  const v9Rels = migrateV8ToV9(legacyRels);
+
   return {
     ...chart,
-    relationships: chart.relationships.map((r) => {
-      // 旧レイヤー名のリネーム: public/hidden → general
-      const rawLayer = r.layer as string | undefined;
-      const layer =
-        rawLayer === 'public' || rawLayer === 'hidden' || !rawLayer
-          ? 'general'
-          : (rawLayer as Relationship['layer']);
-      return {
-        ...r,
-        layer,
-        // weightフィールドがない場合はnullを補完
-        weight: r.weight ?? null,
-      };
-    }),
+    relationships: v9Rels,
+    schemaVersion: 9,
   };
 }
 
@@ -256,17 +325,22 @@ type GraphActions = {
   selectPersonPairForEdit: (id1: string, id2: string, relationshipId: string) => void;
 
   /**
-   * 新しい関係を追加する
-   * @param relationship - 追加する関係データ（id・createdAt・layer・weightは省略可）
+   * 新しい関係を追加する（v9 プロパティグラフ形式）
+   *
+   * 同一ペア（sourcePersonId/targetPersonId の順不同）の関係が既に存在する場合は
+   * 既存エッジにマージする（null でないフィールドを上書き、tags は union、
+   * narrative.notes は追記）。存在しない場合は新規追加する。
+   *
+   * @param relationship - 追加する関係データ（id・createdAt・updatedAt は自動生成）
    */
-  addRelationship: (relationship: Omit<Relationship, 'id' | 'createdAt' | 'layer' | 'weight'> & { layer?: Relationship['layer']; weight?: Relationship['weight'] }) => void;
+  addRelationship: (relationship: Omit<RelationshipV9, 'id' | 'createdAt' | 'updatedAt'>) => void;
 
   /**
-   * 指定したIDの関係を更新する
+   * 指定したIDの関係を更新する（v9 プロパティグラフ形式）
    * @param relationshipId - 更新する関係のID
-   * @param updates - 更新する内容（idとcreatedAtは更新不可）
+   * @param updates - 更新する内容（id・sourcePersonId・targetPersonId・createdAt は更新不可）
    */
-  updateRelationship: (relationshipId: string, updates: Partial<Omit<Relationship, 'id' | 'createdAt'>>) => void;
+  updateRelationship: (relationshipId: string, updates: Partial<Omit<RelationshipV9, 'id' | 'createdAt' | 'sourcePersonId' | 'targetPersonId'>>) => void;
 
   /**
    * 指定したIDの関係を削除する
@@ -314,10 +388,10 @@ type GraphActions = {
   toggleSidePanel: () => void;
 
   /**
-   * レイヤーの表示/非表示をトグルする
-   * @param layer - トグルするレイヤー
+   * エッジフィルタを部分更新する（セッション内のみ有効）
+   * @param patch - 更新するフィールド（指定したもののみ更新）
    */
-  toggleLayerVisibility: (layer: RelationshipLayer) => void;
+  updateEdgeFilter: (patch: Partial<EdgeFilter>) => void;
 
   /**
    * すべてのデータと状態を初期値にリセットする
@@ -467,37 +541,34 @@ export const useGraphStore = create<GraphStore>()(
 
         addRelationship: (relationship) =>
           set((state) => {
-            // 追加するレイヤー（省略時はデフォルト）
-            const layer = relationship.layer ?? DEFAULT_LAYER;
+            const now = new Date().toISOString();
 
-            // 同じペア・同じレイヤーの関係が既に存在するかチェック（方向問わず）
-            const isDuplicate = state.relationships.some(
+            // 同一ペアの既存エッジを検索（source/target の順序に依存しない）
+            const existingIndex = state.relationships.findIndex(
               (r) =>
-                r.layer === layer &&
-                ((r.sourcePersonId === relationship.sourcePersonId &&
+                (r.sourcePersonId === relationship.sourcePersonId &&
                   r.targetPersonId === relationship.targetPersonId) ||
-                  (r.sourcePersonId === relationship.targetPersonId &&
-                    r.targetPersonId === relationship.sourcePersonId))
+                (r.sourcePersonId === relationship.targetPersonId &&
+                  r.targetPersonId === relationship.sourcePersonId)
             );
 
-            // 重複している場合は追加しない
-            if (isDuplicate) {
-              return state;
+            if (existingIndex === -1) {
+              // 新規ペア: 新しいエッジを追加
+              const newRel: RelationshipV9 = {
+                ...relationship,
+                id: nanoid(),
+                createdAt: now,
+                updatedAt: now,
+              };
+              return { relationships: [...state.relationships, newRel] };
             }
 
-            return {
-              relationships: [
-                ...state.relationships,
-                {
-                  ...relationship,
-                  layer,
-                  // weightが指定されていない場合はnullを設定
-                  weight: relationship.weight ?? null,
-                  id: nanoid(),
-                  createdAt: new Date().toISOString(),
-                },
-              ],
-            };
+            // 既存ペア: null でないフィールドをマージ
+            const existing = state.relationships[existingIndex];
+            const merged = mergeRelationshipV9(existing, relationship, now);
+            const updatedRelationships = [...state.relationships];
+            updatedRelationships[existingIndex] = merged;
+            return { relationships: updatedRelationships };
           }),
 
         updateRelationship: (relationshipId, updates) =>
@@ -506,11 +577,11 @@ export const useGraphStore = create<GraphStore>()(
               if (relationship.id !== relationshipId) {
                 return relationship;
               }
-              // 接続先の変更は禁止し、ラベル/タイプのみ更新可能にする
-              const { sourcePersonId: _sourcePersonId, targetPersonId: _targetPersonId, ...safeUpdates } = updates;
+              // v9 形式でフィールドを部分更新（updatedAt を現在時刻に更新）
               return {
                 ...relationship,
-                ...safeUpdates,
+                ...updates,
+                updatedAt: new Date().toISOString(),
               };
             }),
           })),
@@ -561,17 +632,13 @@ export const useGraphStore = create<GraphStore>()(
             sidePanelOpen: !state.sidePanelOpen,
           })),
 
-        toggleLayerVisibility: (layer) =>
-          set((state) => {
-            // 現在のSetをコピーして更新（Setは参照型のためspreadでコピー）
-            const next = new Set(state.visibleLayers);
-            if (next.has(layer)) {
-              next.delete(layer);
-            } else {
-              next.add(layer);
-            }
-            return { visibleLayers: next };
-          }),
+        updateEdgeFilter: (patch) =>
+          set((state) => ({
+            edgeFilter: {
+              ...state.edgeFilter,
+              ...patch,
+            },
+          })),
 
         resetAll: () => {
           // データフィールドのみリセット（チャート管理状態は保持）
@@ -685,12 +752,16 @@ export const useGraphStore = create<GraphStore>()(
             targetChartId = chartMetas[0].id;
           }
 
-          // 7. チャートをロード（layerフィールドがない旧形式のデータを補完）
+          // 7. チャートをロード（v8 以前のデータは v9 形式に変換して書き戻す）
           const rawChart = await getChart(targetChartId);
           if (!rawChart) {
             throw new Error(`Chart not found: ${targetChartId}`);
           }
-          const chart = normalizeChartLayers(rawChart);
+          const chart = normalizeChartRelationships(rawChart);
+          // v8→v9 変換が行われた場合は IndexedDB に書き戻す（次回ロード時の再変換を防ぐ）
+          if (rawChart.schemaVersion !== chart.schemaVersion) {
+            await saveChart(chart);
+          }
 
           // 8. ストアを更新
           set(() => ({
@@ -792,12 +863,16 @@ export const useGraphStore = create<GraphStore>()(
           // 1. 現在のチャートをIndexedDBに保存
           await saveCurrentChart(get);
 
-          // 2. 対象チャートをロード（layerフィールドがない旧形式のデータを補完）
+          // 2. 対象チャートをロード（v8 以前のデータは v9 形式に変換して書き戻す）
           const rawChart = await getChart(chartId);
           if (!rawChart) {
             throw new Error(`Chart not found: ${chartId}`);
           }
-          const chart = normalizeChartLayers(rawChart);
+          const chart = normalizeChartRelationships(rawChart);
+          // v8→v9 変換が行われた場合は IndexedDB に書き戻す（次回ロード時の再変換を防ぐ）
+          if (rawChart.schemaVersion !== chart.schemaVersion) {
+            await saveChart(chart);
+          }
 
           // 3. ストアを更新
           set(() => ({

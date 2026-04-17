@@ -4,7 +4,7 @@
  */
 
 import type { Person } from '@/types/person';
-import type { Relationship } from '@/types/relationship';
+import type { RelationshipV9 as Relationship } from '@/types/relationship';
 
 /**
  * EGO Layoutのパラメータ型

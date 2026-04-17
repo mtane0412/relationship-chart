@@ -1,12 +1,47 @@
 /**
  * 検索ロジックのテスト
- * searchGraph関数の動作を検証する
+ * searchGraph関数の動作を検証する（v9 RelationshipV9 形式）
  */
 
 import { describe, it, expect } from 'vitest';
 import { searchGraph, type SearchResult } from './search-utils';
 import type { Person } from '@/types/person';
-import type { Relationship } from '@/types/relationship';
+import type { RelationshipV9 } from '@/types/relationship';
+
+/** テスト用の最小 RelationshipV9 を生成するヘルパー */
+function makeSearchRel(overrides: {
+  id: string;
+  sourcePersonId: string;
+  targetPersonId: string;
+  isDirected?: boolean;
+  forwardLabel?: string | null;
+  reverseLabel?: string | null;
+}): RelationshipV9 {
+  return {
+    id: overrides.id,
+    sourcePersonId: overrides.sourcePersonId,
+    targetPersonId: overrides.targetPersonId,
+    isDirected: overrides.isDirected ?? true,
+    symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
+    forward: {
+      label: overrides.forwardLabel ?? null,
+      affection: null,
+      awareness: null,
+      role: null,
+    },
+    reverse: {
+      label: overrides.reverseLabel ?? null,
+      affection: null,
+      awareness: null,
+      role: null,
+    },
+    tags: [],
+    narrative: { summary: null, notes: null, turningPoints: [] },
+    colorOverride: null,
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z',
+  };
+}
 
 describe('searchGraph', () => {
   // テスト用データ
@@ -28,40 +63,31 @@ describe('searchGraph', () => {
     },
   ];
 
-  const relationships: Relationship[] = [
-    {
+  const relationships: RelationshipV9[] = [
+    makeSearchRel({
       id: 'rel1',
       sourcePersonId: 'person1',
       targetPersonId: 'person2',
       isDirected: true,
-      sourceToTargetLabel: '上司',
-      targetToSourceLabel: '部下',
-      layer: 'general' as const,
-      weight: null,
-      createdAt: '2024-01-01T00:00:00Z',
-    },
-    {
+      forwardLabel: '上司',
+      reverseLabel: '部下',
+    }),
+    makeSearchRel({
       id: 'rel2',
       sourcePersonId: 'person1',
       targetPersonId: 'person3',
       isDirected: false,
-      sourceToTargetLabel: '友人',
-      targetToSourceLabel: null,
-      layer: 'general' as const,
-      weight: null,
-      createdAt: '2024-01-02T00:00:00Z',
-    },
-    {
+      forwardLabel: '友人',
+      reverseLabel: null,
+    }),
+    makeSearchRel({
       id: 'rel3',
       sourcePersonId: 'person2',
       targetPersonId: 'person3',
       isDirected: true,
-      sourceToTargetLabel: '先輩',
-      targetToSourceLabel: '後輩',
-      layer: 'general' as const,
-      weight: null,
-      createdAt: '2024-01-03T00:00:00Z',
-    },
+      forwardLabel: '先輩',
+      reverseLabel: '後輩',
+    }),
   ];
 
   describe('空クエリの場合', () => {
@@ -148,7 +174,7 @@ describe('searchGraph', () => {
   });
 
   describe('関係ラベル検索', () => {
-    it('sourceToTargetLabelで検索できる', () => {
+    it('forward.label（source→target方向ラベル）で検索できる', () => {
       const result = searchGraph('上司', persons, relationships);
       expect(result).toHaveLength(1);
       expect(result[0]).toEqual({
@@ -165,7 +191,7 @@ describe('searchGraph', () => {
       });
     });
 
-    it('targetToSourceLabelで検索すると起点と終点が入れ替わる', () => {
+    it('reverse.label（target→source方向ラベル）で検索すると起点と終点が入れ替わる', () => {
       const result = searchGraph('部下', persons, relationships);
       expect(result).toHaveLength(1);
       // 逆方向のラベルなので、起点と終点が入れ替わる
@@ -212,21 +238,16 @@ describe('searchGraph', () => {
         },
       ];
 
-      const relationshipsWithImages: Relationship[] = [
-        {
-          id: 'r1',
-          sourcePersonId: 'p1',
-          targetPersonId: 'p2',
-          isDirected: true,
-          sourceToTargetLabel: '友達',
-          targetToSourceLabel: null,
-          layer: 'general' as const,
-          weight: null,
-          createdAt: '2024-01-01T00:00:00Z',
-        },
-      ];
+      const relWithImages = makeSearchRel({
+        id: 'r1',
+        sourcePersonId: 'p1',
+        targetPersonId: 'p2',
+        isDirected: true,
+        forwardLabel: '友達',
+        reverseLabel: null,
+      });
 
-      const result = searchGraph('友達', personsWithImages, relationshipsWithImages);
+      const result = searchGraph('友達', personsWithImages, [relWithImages]);
       expect(result).toHaveLength(1);
       expect(result[0]).toEqual({
         kind: 'relationship',
@@ -256,22 +277,17 @@ describe('searchGraph', () => {
         },
       ];
 
-      const bidirectionalRelationships: Relationship[] = [
-        {
-          id: 'r1',
-          sourcePersonId: 'p1',
-          targetPersonId: 'p2',
-          isDirected: true,
-          sourceToTargetLabel: '親子',
-          targetToSourceLabel: '親子',
-          layer: 'general' as const,
-          weight: null,
-          createdAt: '2024-01-01T00:00:00Z',
-        },
-      ];
+      const bidirectionalRel = makeSearchRel({
+        id: 'r1',
+        sourcePersonId: 'p1',
+        targetPersonId: 'p2',
+        isDirected: true,
+        forwardLabel: '親子',
+        reverseLabel: '親子',
+      });
 
-      const result = searchGraph('親子', bidirectionalPersons, bidirectionalRelationships);
-      // 双方向関係でsourceToTargetLabelとtargetToSourceLabelが同じ場合は1件のみ
+      const result = searchGraph('親子', bidirectionalPersons, [bidirectionalRel]);
+      // 双方向関係でforward.labelとreverse.labelが同じ場合は1件のみ
       expect(result).toHaveLength(1);
       expect(result[0]).toEqual({
         kind: 'relationship',
@@ -301,22 +317,17 @@ describe('searchGraph', () => {
         },
       ];
 
-      const dualDirectedRelationships: Relationship[] = [
-        {
-          id: 'r1',
-          sourcePersonId: 'conan',
-          targetPersonId: 'ran',
-          isDirected: true,
-          sourceToTargetLabel: '正体を隠している',
-          targetToSourceLabel: '新一?',
-          layer: 'general' as const,
-          weight: null,
-          createdAt: '2024-01-01T00:00:00Z',
-        },
-      ];
+      const dualDirectedRel = makeSearchRel({
+        id: 'r1',
+        sourcePersonId: 'conan',
+        targetPersonId: 'ran',
+        isDirected: true,
+        forwardLabel: '正体を隠している',
+        reverseLabel: '新一?',
+      });
 
       // 順方向のラベルを検索
-      const forwardResult = searchGraph('正体を隠している', dualDirectedPersons, dualDirectedRelationships);
+      const forwardResult = searchGraph('正体を隠している', dualDirectedPersons, [dualDirectedRel]);
       expect(forwardResult).toHaveLength(1);
       expect(forwardResult[0]).toEqual({
         kind: 'relationship',
@@ -332,7 +343,7 @@ describe('searchGraph', () => {
       });
 
       // 逆方向のラベルを検索（起点と終点が入れ替わる）
-      const reverseResult = searchGraph('新一?', dualDirectedPersons, dualDirectedRelationships);
+      const reverseResult = searchGraph('新一?', dualDirectedPersons, [dualDirectedRel]);
       expect(reverseResult).toHaveLength(1);
       expect(reverseResult[0]).toEqual({
         kind: 'relationship',
@@ -387,21 +398,16 @@ describe('searchGraph', () => {
         },
       ];
 
-      const testRelationships: Relationship[] = [
-        {
-          id: 'r1',
-          sourcePersonId: 'p1',
-          targetPersonId: 'p2',
-          isDirected: false,
-          sourceToTargetLabel: '友人',
-          targetToSourceLabel: null,
-          layer: 'general' as const,
-          weight: null,
-          createdAt: '2024-01-01T00:00:00Z',
-        },
-      ];
+      const testRel = makeSearchRel({
+        id: 'r1',
+        sourcePersonId: 'p1',
+        targetPersonId: 'p2',
+        isDirected: false,
+        forwardLabel: '友人',
+        reverseLabel: null,
+      });
 
-      const result = searchGraph('友人', testPersons, testRelationships);
+      const result = searchGraph('友人', testPersons, [testRel]);
       expect(result).toHaveLength(3);
       expect(result[0].kind).toBe('person');
       expect(result[1].kind).toBe('person');

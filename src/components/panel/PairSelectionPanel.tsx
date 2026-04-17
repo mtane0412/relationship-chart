@@ -1,6 +1,7 @@
 /**
  * PairSelectionPanelコンポーネント
  * 2人の人物が選択されている場合に表示されるパネル
+ * v9プロパティグラフ方式対応：レイヤー選択・重みスライダーを廃止
  */
 
 'use client';
@@ -14,11 +15,7 @@ import { MAX_RELATIONSHIP_LABEL_LENGTH } from '@/lib/validation-constants';
 import { getRelationshipDisplayType } from '@/lib/relationship-utils';
 import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils';
 import type { Person } from '@/types/person';
-import type { RelationshipLayer, RelationshipType } from '@/types/relationship';
-import { RELATIONSHIP_LAYERS, DEFAULT_LAYER } from '@/types/relationship';
-
-/** weightスライダーのデフォルト値 */
-const DEFAULT_WEIGHT_VALUE = 0.5;
+import type { RelationshipType } from '@/types/relationship';
 
 /**
  * PairSelectionPanelのプロパティ
@@ -26,11 +23,6 @@ const DEFAULT_WEIGHT_VALUE = 0.5;
 type PairSelectionPanelProps = {
   /** 選択されている2人の人物 */
   persons: [Person, Person];
-  /**
-   * 初期表示するレイヤー（エッジクリック時に特定のレイヤーを直接開く用）
-   * 未指定の場合は最初の既存関係のレイヤー、または DEFAULT_LAYER
-   */
-  initialLayer?: RelationshipLayer;
 };
 
 /**
@@ -114,7 +106,7 @@ function PersonMiniIcon({ person }: { person: Person }) {
 /**
  * 2人選択パネルコンポーネント
  */
-export function PairSelectionPanel({ persons, initialLayer }: PairSelectionPanelProps) {
+export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
   const relationships = useGraphStore((state) => state.relationships);
   const addRelationship = useGraphStore((state) => state.addRelationship);
   const updateRelationship = useGraphStore((state) => state.updateRelationship);
@@ -129,33 +121,18 @@ export function PairSelectionPanel({ persons, initialLayer }: PairSelectionPanel
   // 物が含まれているかチェック
   const hasItem = (person1.kind === 'item') || (person2.kind === 'item');
 
-  // selectedLayerを先に定義してexistingRelationshipのuseMemoで参照できるようにする
-  // 初期値の優先順位: initialLayer prop → ペア間の最初の既存関係のレイヤー → DEFAULT_LAYER
-  const [selectedLayer, setSelectedLayer] = useState<RelationshipLayer>(() => {
-    if (initialLayer) return initialLayer;
-    const firstRel = relationships.find(
-      (r) =>
-        (r.sourcePersonId === person1.id && r.targetPersonId === person2.id) ||
-        (r.sourcePersonId === person2.id && r.targetPersonId === person1.id)
-    );
-    return firstRel?.layer ?? DEFAULT_LAYER;
-  });
-
-  // 選択中レイヤーの既存関係を取得（レイヤーで絞り込み）
-  // selectedLayerが変わると、そのレイヤーの関係に切り替わる
+  // ペア間の既存関係を取得（v9はペア単位で1つのみ）
   const existingRelationship = useMemo(
     () =>
       relationships.find(
         (r) =>
-          r.layer === selectedLayer &&
-          ((r.sourcePersonId === person1.id && r.targetPersonId === person2.id) ||
-           (r.sourcePersonId === person2.id && r.targetPersonId === person1.id))
+          (r.sourcePersonId === person1.id && r.targetPersonId === person2.id) ||
+          (r.sourcePersonId === person2.id && r.targetPersonId === person1.id)
       ),
-    [relationships, person1.id, person2.id, selectedLayer]
+    [relationships, person1.id, person2.id]
   );
 
   // 既存関係の向きを判定（person1がsourceかどうか）
-  // メモ化により、existingRelationshipまたはperson2.idが変わった時のみ再計算
   const isReversed = useMemo(
     () => (existingRelationship ? existingRelationship.sourcePersonId === person2.id : false),
     [existingRelationship, person2.id]
@@ -168,72 +145,73 @@ export function PairSelectionPanel({ persons, initialLayer }: PairSelectionPanel
     }
     return 'bidirectional';
   });
+
+  /**
+   * isReversedを考慮してsource→target方向のラベルを返す
+   * - one-way: ラベルは常に forward.label に格納されているため isReversed に関わらず forward を参照する
+   * - 他のタイプ: isReversed=false なら forward.label、isReversed=true なら reverse.label
+   */
   const [sourceToTargetLabel, setSourceToTargetLabel] = useState(() => {
     if (existingRelationship) {
+      const displayType = getRelationshipDisplayType(existingRelationship);
+      if (displayType === 'one-way') {
+        // one-way のラベルは常に forward.label に保存されている
+        return existingRelationship.forward.label ?? existingRelationship.reverse.label ?? '';
+      }
       return isReversed
-        ? existingRelationship.targetToSourceLabel || existingRelationship.sourceToTargetLabel || ''
-        : existingRelationship.sourceToTargetLabel || '';
+        ? (existingRelationship.reverse.label ?? '')
+        : (existingRelationship.forward.label ?? '');
     }
     return '';
   });
+
+  /**
+   * isReversedを考慮してtarget→source方向のラベルを返す
+   * - one-way: 逆方向ラベルは存在しないため常に空文字
+   * - 他のタイプ: isReversed=false なら reverse.label、isReversed=true なら forward.label
+   */
   const [targetToSourceLabel, setTargetToSourceLabel] = useState(() => {
     if (existingRelationship) {
       const displayType = getRelationshipDisplayType(existingRelationship);
+      if (displayType === 'one-way') {
+        return '';
+      }
       return isReversed
-        ? (displayType === 'dual-directed' ? existingRelationship.sourceToTargetLabel || '' : '')
-        : (existingRelationship.targetToSourceLabel || '');
+        ? (existingRelationship.forward.label ?? '')
+        : (existingRelationship.reverse.label ?? '');
     }
     return '';
   });
   const [isTypePickerOpen, setIsTypePickerOpen] = useState(false);
-  // weightの状態（nullは未設定）
-  const [weight, setWeight] = useState<number | null>(() => existingRelationship?.weight ?? null);
 
-  // 現在選択されているレイヤーのスキーマ定義
-  const currentLayerDef = RELATIONSHIP_LAYERS.find((l) => l.value === selectedLayer)!;
-
-  /**
-   * レイヤー変更時の処理
-   * フォーム状態の更新（スキーマ適用・ラベルリセット）はuseEffectに委譲する
-   */
-  const handleLayerChange = (newLayer: RelationshipLayer) => {
-    setSelectedLayer(newLayer);
-    setIsTypePickerOpen(false);
-  };
-
-  // existingRelationshipまたはselectedLayerの変化に応じてフォーム状態を再同期
+  // existingRelationshipまたはisReversedの変化に応じてフォーム状態を再同期
   // - undo/redo、関係の削除/追加
-  // - レイヤー切替（selectedLayer変更でexistingRelationshipも変わる）
   useEffect(() => {
     if (existingRelationship) {
       const displayType = getRelationshipDisplayType(existingRelationship);
       setRelationshipType(displayType);
 
-      const nextSourceToTargetLabel = isReversed
-        ? existingRelationship.targetToSourceLabel || existingRelationship.sourceToTargetLabel || ''
-        : existingRelationship.sourceToTargetLabel || '';
-
-      const nextTargetToSourceLabel = isReversed
-        ? (displayType === 'dual-directed' ? existingRelationship.sourceToTargetLabel || '' : '')
-        : (existingRelationship.targetToSourceLabel || '');
-
-      setSourceToTargetLabel(nextSourceToTargetLabel);
-      setTargetToSourceLabel(nextTargetToSourceLabel);
-      setWeight(existingRelationship.weight ?? null);
-    } else {
-      // 選択中レイヤーにまだ関係がない場合（新規作成）はスキーマに基づいてリセット
-      const layerDef = RELATIONSHIP_LAYERS.find((l) => l.value === selectedLayer)!;
-      if (!layerDef.allowDirectionOverride) {
-        // 方向変更不可レイヤーはデフォルト方向に強制
-        setRelationshipType(layerDef.defaultDirected ? 'one-way' : 'undirected');
+      // one-way のラベルは常に forward.label に保存されているため isReversed に関わらず参照する
+      if (displayType === 'one-way') {
+        setSourceToTargetLabel(
+          existingRelationship.forward.label ?? existingRelationship.reverse.label ?? ''
+        );
+        setTargetToSourceLabel('');
       } else {
-        setRelationshipType('bidirectional');
+        setSourceToTargetLabel(
+          isReversed ? (existingRelationship.reverse.label ?? '') : (existingRelationship.forward.label ?? '')
+        );
+        setTargetToSourceLabel(
+          isReversed ? (existingRelationship.forward.label ?? '') : (existingRelationship.reverse.label ?? '')
+        );
       }
+    } else {
+      // 既存関係がない場合はフォームをリセット
+      setRelationshipType('bidirectional');
       setSourceToTargetLabel('');
       setTargetToSourceLabel('');
-      setWeight(layerDef.supportsWeight ? DEFAULT_WEIGHT_VALUE : null);
     }
-  }, [existingRelationship, isReversed, selectedLayer]);
+  }, [existingRelationship, isReversed]);
 
   // 外部クリックでドロップダウンを閉じる
   useEffect(() => {
@@ -312,32 +290,35 @@ export function PairSelectionPanel({ persons, initialLayer }: PairSelectionPanel
     }
 
     if (existingRelationship) {
-      // 既存の関係を更新
-      const updates = isReversed
-        ? {
-            isDirected,
-            sourceToTargetLabel: finalTargetToSourceLabel || finalSourceToTargetLabel,
-            targetToSourceLabel: relationshipType === 'dual-directed' ? finalSourceToTargetLabel : finalTargetToSourceLabel,
-            weight,
-          }
-        : {
-            isDirected,
-            sourceToTargetLabel: finalSourceToTargetLabel,
-            targetToSourceLabel: finalTargetToSourceLabel,
-            weight,
-          };
+      // 既存の関係を更新（isReversedを考慮して forward/reverse を正しく設定）
+      // one-way の場合: ラベルは常に forward に保存し、reverse は null にする
+      // isReversed=true の場合: stored.forward = person2→person1（= UI上のtarget→source）
+      const forwardLabel =
+        relationshipType === 'one-way'
+          ? finalSourceToTargetLabel
+          : isReversed ? finalTargetToSourceLabel : finalSourceToTargetLabel;
+      const reverseLabel =
+        relationshipType === 'one-way'
+          ? null
+          : isReversed ? finalSourceToTargetLabel : finalTargetToSourceLabel;
 
-      updateRelationship(existingRelationship.id, updates);
+      updateRelationship(existingRelationship.id, {
+        isDirected,
+        forward: { ...existingRelationship.forward, label: forwardLabel },
+        reverse: { ...existingRelationship.reverse, label: reverseLabel },
+      });
     } else {
-      // 新規の関係を追加
+      // 新規の関係を追加（v9形式）
       addRelationship({
         sourcePersonId: person1.id,
         targetPersonId: person2.id,
         isDirected,
-        sourceToTargetLabel: finalSourceToTargetLabel,
-        targetToSourceLabel: finalTargetToSourceLabel,
-        layer: selectedLayer,
-        weight,
+        forward: { label: finalSourceToTargetLabel, affection: null, awareness: null, role: null },
+        reverse: { label: finalTargetToSourceLabel, affection: null, awareness: null, role: null },
+        symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
+        tags: [],
+        narrative: { summary: null, notes: null, turningPoints: [] },
+        colorOverride: null,
       });
     }
   };
@@ -403,105 +384,101 @@ export function PairSelectionPanel({ persons, initialLayer }: PairSelectionPanel
             </span>
           </div>
 
-          {/* 現在選択中の関係アイコン（クリックで展開）: allowDirectionOverride=falseのレイヤーでは非表示 */}
+          {/* 関係タイプ選択（クリックで展開） */}
           <div className="relative">
-            {currentLayerDef.allowDirectionOverride && (
-              <>
+            <button
+              type="button"
+              onClick={() => setIsTypePickerOpen(!isTypePickerOpen)}
+              aria-label="関係タイプを選択"
+              className="w-10 h-10 flex items-center justify-center rounded bg-gray-100 hover:bg-gray-200 transition-colors"
+              data-toggle="relationship-type"
+            >
+              {relationshipType === 'one-way' && (
+                isReversed ? <ArrowLeft className="w-6 h-6" /> : <ArrowRight className="w-6 h-6" />
+              )}
+              {relationshipType === 'bidirectional' && <BidirectionalArrow className="w-6 h-6" />}
+              {relationshipType === 'dual-directed' && <ArrowLeftRight className="w-6 h-6" />}
+              {relationshipType === 'undirected' && <Minus className="w-6 h-6" />}
+            </button>
+
+            {/* 関係タイプ選択ドロップダウン */}
+            {isTypePickerOpen && (
+              <div
+                className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white border border-gray-300 rounded-md shadow-lg p-1 flex gap-1 z-10"
+                data-dropdown="relationship-type"
+              >
+                {/* 片方向 (one-way): isReversed の状態に合わせて矢印の向きを変える */}
                 <button
                   type="button"
-                  onClick={() => setIsTypePickerOpen(!isTypePickerOpen)}
-                  aria-label="関係タイプを選択"
-                  className="w-10 h-10 flex items-center justify-center rounded bg-gray-100 hover:bg-gray-200 transition-colors"
-                  data-toggle="relationship-type"
+                  onClick={() => {
+                    setRelationshipType('one-way');
+                    setIsTypePickerOpen(false);
+                  }}
+                  aria-pressed={relationshipType === 'one-way'}
+                  aria-label="片方向"
+                  className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
+                    relationshipType === 'one-way'
+                      ? 'bg-blue-100 ring-2 ring-blue-500'
+                      : 'hover:bg-gray-100'
+                  }`}
                 >
-                  {relationshipType === 'one-way' && (
-                    isReversed ? <ArrowLeft className="w-6 h-6" /> : <ArrowRight className="w-6 h-6" />
-                  )}
-                  {relationshipType === 'bidirectional' && <BidirectionalArrow className="w-6 h-6" />}
-                  {relationshipType === 'dual-directed' && <ArrowLeftRight className="w-6 h-6" />}
-                  {relationshipType === 'undirected' && <Minus className="w-6 h-6" />}
+                  {isReversed ? <ArrowLeft className="w-6 h-6" /> : <ArrowRight className="w-6 h-6" />}
                 </button>
 
-                {/* 関係タイプ選択ドロップダウン */}
-                {isTypePickerOpen && (
-                  <div
-                    className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white border border-gray-300 rounded-md shadow-lg p-1 flex gap-1 z-10"
-                    data-dropdown="relationship-type"
-                  >
-                    {/* 片方向 (one-way) */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setRelationshipType('one-way');
-                        setIsTypePickerOpen(false);
-                      }}
-                      aria-pressed={relationshipType === 'one-way'}
-                      aria-label="片方向"
-                      className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
-                        relationshipType === 'one-way'
-                          ? 'bg-blue-100 ring-2 ring-blue-500'
-                          : 'hover:bg-gray-100'
-                      }`}
-                    >
-                      <ArrowRight className="w-6 h-6" />
-                    </button>
+                {/* 双方向 (bidirectional) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRelationshipType('bidirectional');
+                    setIsTypePickerOpen(false);
+                  }}
+                  aria-pressed={relationshipType === 'bidirectional'}
+                  aria-label="双方向"
+                  className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
+                    relationshipType === 'bidirectional'
+                      ? 'bg-blue-100 ring-2 ring-blue-500'
+                      : 'hover:bg-gray-100'
+                  }`}
+                >
+                  <BidirectionalArrow className="w-6 h-6" />
+                </button>
 
-                    {/* 双方向 (bidirectional) */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setRelationshipType('bidirectional');
-                        setIsTypePickerOpen(false);
-                      }}
-                      aria-pressed={relationshipType === 'bidirectional'}
-                      aria-label="双方向"
-                      className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
-                        relationshipType === 'bidirectional'
-                          ? 'bg-blue-100 ring-2 ring-blue-500'
-                          : 'hover:bg-gray-100'
-                      }`}
-                    >
-                      <BidirectionalArrow className="w-6 h-6" />
-                    </button>
+                {/* 片方向×2 (dual-directed) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRelationshipType('dual-directed');
+                    setIsTypePickerOpen(false);
+                  }}
+                  aria-pressed={relationshipType === 'dual-directed'}
+                  aria-label="片方向×2"
+                  className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
+                    relationshipType === 'dual-directed'
+                      ? 'bg-blue-100 ring-2 ring-blue-500'
+                      : 'hover:bg-gray-100'
+                  }`}
+                >
+                  <ArrowLeftRight className="w-6 h-6" />
+                </button>
 
-                    {/* 片方向×2 (dual-directed) */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setRelationshipType('dual-directed');
-                        setIsTypePickerOpen(false);
-                      }}
-                      aria-pressed={relationshipType === 'dual-directed'}
-                      aria-label="片方向×2"
-                      className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
-                        relationshipType === 'dual-directed'
-                          ? 'bg-blue-100 ring-2 ring-blue-500'
-                          : 'hover:bg-gray-100'
-                      }`}
-                    >
-                      <ArrowLeftRight className="w-6 h-6" />
-                    </button>
-
-                    {/* 無方向 (undirected) */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setRelationshipType('undirected');
-                        setIsTypePickerOpen(false);
-                      }}
-                      aria-pressed={relationshipType === 'undirected'}
-                      aria-label="無方向"
-                      className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
-                        relationshipType === 'undirected'
-                          ? 'bg-blue-100 ring-2 ring-blue-500'
-                          : 'hover:bg-gray-100'
-                      }`}
-                    >
-                      <Minus className="w-6 h-6" />
-                    </button>
-                  </div>
-                )}
-              </>
+                {/* 無方向 (undirected) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRelationshipType('undirected');
+                    setIsTypePickerOpen(false);
+                  }}
+                  aria-pressed={relationshipType === 'undirected'}
+                  aria-label="無方向"
+                  className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
+                    relationshipType === 'undirected'
+                      ? 'bg-blue-100 ring-2 ring-blue-500'
+                      : 'hover:bg-gray-100'
+                  }`}
+                >
+                  <Minus className="w-6 h-6" />
+                </button>
+              </div>
             )}
           </div>
 
@@ -536,55 +513,9 @@ export function PairSelectionPanel({ persons, initialLayer }: PairSelectionPanel
           </div>
         </div>
 
-        {/* レイヤー選択 */}
-        <div className="mb-4">
-          <label
-            htmlFor="relationship-layer"
-            className="block text-sm font-medium text-gray-700 mb-2"
-          >
-            レイヤー
-          </label>
-          <select
-            id="relationship-layer"
-            value={selectedLayer}
-            onChange={(e) => handleLayerChange(e.target.value as RelationshipLayer)}
-            aria-label="レイヤー"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-          >
-            {RELATIONSHIP_LAYERS.map((layer) => (
-              <option key={layer.value} value={layer.value}>
-                {layer.label}（{layer.description}）
-              </option>
-            ))}
-          </select>
-        </div>
-
         {/* ラベル入力 */}
-        {currentLayerDef.labelSystem === 'fixed' ? (
-          // fixed: suggestedLabels からselectで選択
-          <div className="mb-4">
-            <label
-              htmlFor="relationship-label"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              関係のラベル
-            </label>
-            <select
-              id="relationship-label"
-              value={sourceToTargetLabel}
-              onChange={(e) => setSourceToTargetLabel(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">選択してください</option>
-              {currentLayerDef.suggestedLabels?.map((label) => (
-                <option key={label} value={label}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : relationshipType === 'dual-directed' ? (
-          // dual-directed: 2つのラベル入力セット（semi-fixed/free）
+        {relationshipType === 'dual-directed' ? (
+          // dual-directed: 2つのラベル入力セット
           <>
             <div className="mb-4">
               <label
@@ -602,20 +533,12 @@ export function PairSelectionPanel({ persons, initialLayer }: PairSelectionPanel
               <input
                 id="relationship-label"
                 type="text"
-                list={currentLayerDef.labelSystem === 'semi-fixed' ? 'label-suggestions' : undefined}
                 value={sourceToTargetLabel}
                 onChange={(e) => setSourceToTargetLabel(e.target.value)}
                 maxLength={MAX_RELATIONSHIP_LABEL_LENGTH}
                 placeholder={getPlaceholder('dual-directed', false, hasItem)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
-              {currentLayerDef.labelSystem === 'semi-fixed' && currentLayerDef.suggestedLabels && (
-                <datalist id="label-suggestions">
-                  {currentLayerDef.suggestedLabels.map((label) => (
-                    <option key={label} value={label}>{label}</option>
-                  ))}
-                </datalist>
-              )}
             </div>
             <div className="mb-4">
               <label
@@ -642,7 +565,7 @@ export function PairSelectionPanel({ persons, initialLayer }: PairSelectionPanel
             </div>
           </>
         ) : (
-          // one-way / bidirectional / undirected: 単一ラベル入力（semi-fixed/free）
+          // one-way / bidirectional / undirected: 単一ラベル入力
           <div className="mb-4">
             <label
               htmlFor="relationship-label"
@@ -661,64 +584,12 @@ export function PairSelectionPanel({ persons, initialLayer }: PairSelectionPanel
             <input
               id="relationship-label"
               type="text"
-              list={currentLayerDef.labelSystem === 'semi-fixed' ? 'label-suggestions' : undefined}
               value={sourceToTargetLabel}
               onChange={(e) => setSourceToTargetLabel(e.target.value)}
               maxLength={MAX_RELATIONSHIP_LABEL_LENGTH}
               placeholder={getPlaceholder(relationshipType, false, hasItem)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
-            {currentLayerDef.labelSystem === 'semi-fixed' && currentLayerDef.suggestedLabels && (
-              <datalist id="label-suggestions">
-                {currentLayerDef.suggestedLabels.map((label) => (
-                  <option key={label} value={label}>{label}</option>
-                ))}
-              </datalist>
-            )}
-          </div>
-        )}
-
-        {/* weightスライダー（supportsWeight=trueのレイヤーのみ表示） */}
-        {currentLayerDef.supportsWeight && (
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              強度
-            </label>
-            {weight === null ? (
-              // 未設定状態: 「強度を設定する」ボタンで有効化
-              <button
-                type="button"
-                onClick={() => setWeight(DEFAULT_WEIGHT_VALUE)}
-                className="px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-              >
-                強度を設定する
-              </button>
-            ) : (
-              // 設定済み状態: スライダーと「未設定にする」ボタン
-              <div className="space-y-2">
-                <input
-                  id="relationship-weight"
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={weight}
-                  onChange={(e) => setWeight(parseFloat(e.target.value))}
-                  className="w-full"
-                  aria-label={`強度: ${weight.toFixed(1)}`}
-                />
-                <div className="flex justify-between items-center text-xs text-gray-500">
-                  <span>{weight.toFixed(1)}</span>
-                  <button
-                    type="button"
-                    onClick={() => setWeight(null)}
-                    className="text-gray-500 hover:text-gray-700 underline"
-                  >
-                    未設定にする
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         )}
 

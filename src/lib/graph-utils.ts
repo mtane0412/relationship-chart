@@ -4,8 +4,9 @@
  */
 
 import type { Person } from '@/types/person';
-import type { Relationship, RelationshipLayer } from '@/types/relationship';
+import type { RelationshipV9, EdgeFilter } from '@/types/relationship';
 import type { GraphNode, RelationshipEdge } from '@/types/graph';
+import { deriveEdgeVisual } from './relationship-visual';
 import { getRelationshipDisplayType } from './relationship-utils';
 
 /**
@@ -43,25 +44,80 @@ function getPairKey(idA: string, idB: string): string {
 }
 
 /**
- * Relationship配列をRelationshipEdge配列に変換する
- * @param relationships - 変換対象のRelationship配列
- * @param visibleLayers - 表示するレイヤーのSet。省略時は全レイヤーを表示
- * @returns RelationshipEdge配列（非表示レイヤーのエッジは除外される）
+ * エッジフィルタ条件に関係が一致するか判定する
+ *
+ * @param relationship - 判定対象の RelationshipV9
+ * @param filter - エッジフィルタ（タグフィルタ + 述語フィルタ）
+ * @returns フィルタを通過すれば true
  *
  * @description
- * 同一ペア間に複数のエッジが存在する場合、edgeIndex/totalEdgesInPairを付与する。
- * source/targetの順序に関わらず同一ペアとして扱う（getPairKeyで正規化）。
- * この情報はRelationshipEdgeコンポーネントの並列描画オフセット計算に使用される。
+ * タグフィルタ: values が空なら全通過。mode='any' なら関係タグのいずれかが一致すればOK、
+ *               mode='all' なら全フィルタタグが関係タグに含まれる必要がある。
+ * 述語フィルタ: 全述語を AND で評価（1つでも失敗すれば除外）。
+ *               定型数値が null の場合は述語を満たさないとみなす。
  */
-export function relationshipsToEdges(
-  relationships: Relationship[],
-  visibleLayers?: Set<RelationshipLayer>
-): RelationshipEdge[] {
-  // visibleLayersが指定されている場合は非表示レイヤーを除外する
-  const filtered =
-    visibleLayers !== undefined
-      ? relationships.filter((r) => visibleLayers.has(r.layer))
-      : relationships;
+export function matchesEdgeFilter(relationship: RelationshipV9, filter: EdgeFilter): boolean {
+  // タグフィルタ: values が空なら全通過
+  if (filter.tags.values.size > 0) {
+    if (filter.tags.mode === 'any') {
+      // いずれか1つのタグが一致すればOK
+      const hasMatch = relationship.tags.some((tag) => filter.tags.values.has(tag));
+      if (!hasMatch) return false;
+    } else {
+      // 全てのフィルタタグが relationship.tags に含まれる必要がある
+      const allMatch = [...filter.tags.values].every((tag) => relationship.tags.includes(tag));
+      if (!allMatch) return false;
+    }
+  }
+
+  // 述語フィルタ: 全述語を AND 評価
+  for (const pred of filter.predicates) {
+    switch (pred.type) {
+      case 'closeness_gte':
+        if (relationship.symmetric.closeness === null || relationship.symmetric.closeness < pred.value) return false;
+        break;
+      case 'trust_gte':
+        if (relationship.symmetric.trust === null || relationship.symmetric.trust < pred.value) return false;
+        break;
+      case 'tension_gte':
+        if (relationship.symmetric.tension === null || relationship.symmetric.tension < pred.value) return false;
+        break;
+      case 'secrecy_gte':
+        if (relationship.symmetric.secrecy === null || relationship.symmetric.secrecy < pred.value) return false;
+        break;
+      case 'has_kinship':
+        if (relationship.symmetric.kinship === null) return false;
+        break;
+      default: {
+        // 未知の述語タイプに対して exhaustive check を行う
+        const _exhaustive: never = pred;
+        throw new Error(`未知の述語タイプ: ${JSON.stringify(_exhaustive)}`);
+      }
+    }
+  }
+
+  return true;
+}
+
+/**
+ * RelationshipV9 配列を RelationshipEdge 配列に変換する
+ *
+ * @param relationships - 変換対象の RelationshipV9 配列
+ * @param edgeFilter - エッジフィルタ（指定した場合は条件に一致する関係のみ変換）
+ * @returns RelationshipEdge 配列
+ *
+ * @description
+ * 同一ペア間に複数のエッジが存在する場合、edgeIndex/totalEdgesInPair を付与する。
+ * source/target の順序に関わらず同一ペアとして扱う（getPairKey で正規化）。
+ * この情報は RelationshipEdge コンポーネントの並列描画オフセット計算に使用される。
+ * エッジの色・線幅・破線は deriveEdgeVisual で決定する。
+ * edgeFilter が指定された場合は先にフィルタリングし、残った関係のみを変換する。
+ */
+export function relationshipsToEdges(relationships: RelationshipV9[], edgeFilter?: EdgeFilter): RelationshipEdge[] {
+  // edgeFilter が指定されている場合は先にフィルタリング
+  const filtered = edgeFilter
+    ? relationships.filter((r) => matchesEdgeFilter(r, edgeFilter))
+    : relationships;
 
   // ペアキーごとのエッジ数をカウントする（source/targetの順序を無視）
   const pairCountMap = new Map<string, number>();
@@ -86,10 +142,9 @@ export function relationshipsToEdges(
       type: 'relationship' as const,
       data: {
         displayType: getRelationshipDisplayType(relationship),
-        sourceToTargetLabel: relationship.sourceToTargetLabel,
-        targetToSourceLabel: relationship.targetToSourceLabel,
-        layer: relationship.layer,
-        weight: relationship.weight,
+        forwardLabel: relationship.forward.label,
+        reverseLabel: relationship.reverse.label,
+        visual: deriveEdgeVisual(relationship),
         edgeIndex,
         totalEdgesInPair,
       },

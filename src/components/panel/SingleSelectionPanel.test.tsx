@@ -15,7 +15,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SingleSelectionPanel } from './SingleSelectionPanel';
 import type { Person } from '@/types/person';
-import type { Relationship } from '@/types/relationship';
+import type { RelationshipV9 } from '@/types/relationship';
 
 // useGraphStoreのモック
 vi.mock('@/stores/useGraphStore', () => ({
@@ -58,16 +58,20 @@ describe('SingleSelectionPanel - 関係クリック遷移', () => {
     createdAt: '2024-01-02T00:00:00Z',
   };
 
-  const testRelationship: Relationship = {
+  const testRelationship: RelationshipV9 = {
     id: 'rel-1',
     sourcePersonId: 'person-1',
     targetPersonId: 'person-2',
     isDirected: true,
-    sourceToTargetLabel: '親友',
-    targetToSourceLabel: '親友', // bidirectional: 同じラベル
-    layer: 'general' as const,
-    weight: null,
+    symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
+    // bidirectional: 同じラベル
+    forward: { label: '親友', affection: null, awareness: null, role: null },
+    reverse: { label: '親友', affection: null, awareness: null, role: null },
+    tags: [],
+    narrative: { summary: null, notes: null, turningPoints: [] },
+    colorOverride: null,
     createdAt: '2024-01-03T00:00:00Z',
+    updatedAt: '2024-01-03T00:00:00Z',
   };
 
   beforeEach(() => {
@@ -227,28 +231,36 @@ describe('SingleSelectionPanel - アイコン付き表示', () => {
     createdAt: '2024-01-03T00:00:00Z',
   };
 
-  const relationshipWithImage: Relationship = {
+  const relationshipWithImage: RelationshipV9 = {
     id: 'rel-1',
     sourcePersonId: 'person-1',
     targetPersonId: 'person-2',
     isDirected: true,
-    sourceToTargetLabel: '親友',
-    targetToSourceLabel: '親友', // bidirectional: 同じラベル
-    layer: 'general' as const,
-    weight: null,
+    symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
+    // bidirectional: 同じラベル
+    forward: { label: '親友', affection: null, awareness: null, role: null },
+    reverse: { label: '親友', affection: null, awareness: null, role: null },
+    tags: [],
+    narrative: { summary: null, notes: null, turningPoints: [] },
+    colorOverride: null,
     createdAt: '2024-01-04T00:00:00Z',
+    updatedAt: '2024-01-04T00:00:00Z',
   };
 
-  const relationshipWithoutImage: Relationship = {
+  const relationshipWithoutImage: RelationshipV9 = {
     id: 'rel-2',
     sourcePersonId: 'person-1',
     targetPersonId: 'person-3',
     isDirected: true,
-    sourceToTargetLabel: '先輩',
-    targetToSourceLabel: null, // one-way: 逆方向ラベルなし
-    layer: 'general' as const,
-    weight: null,
+    symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
+    // one-way: 逆方向ラベルなし
+    forward: { label: '先輩', affection: null, awareness: null, role: null },
+    reverse: { label: null, affection: null, awareness: null, role: null },
+    tags: [],
+    narrative: { summary: null, notes: null, turningPoints: [] },
+    colorOverride: null,
     createdAt: '2024-01-05T00:00:00Z',
+    updatedAt: '2024-01-05T00:00:00Z',
   };
 
   beforeEach(() => {
@@ -371,16 +383,20 @@ describe('SingleSelectionPanel - dual-directed表示', () => {
     createdAt: '2024-01-02T00:00:00Z',
   };
 
-  const dualDirectedRelationship: Relationship = {
+  const dualDirectedRelationship: RelationshipV9 = {
     id: 'rel-1',
     sourcePersonId: 'person-1',
     targetPersonId: 'person-2',
     isDirected: true,
-    sourceToTargetLabel: '好き',
-    targetToSourceLabel: '無関心', // dual-directed: 異なるラベル
-    layer: 'general' as const,
-    weight: null,
+    symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
+    // dual-directed: 異なるラベル
+    forward: { label: '好き', affection: null, awareness: null, role: null },
+    reverse: { label: '無関心', affection: null, awareness: null, role: null },
+    tags: [],
+    narrative: { summary: null, notes: null, turningPoints: [] },
+    colorOverride: null,
     createdAt: '2024-01-03T00:00:00Z',
+    updatedAt: '2024-01-03T00:00:00Z',
   };
 
   beforeEach(() => {
@@ -543,16 +559,19 @@ describe('SingleSelectionPanel - 無方向関係（undirected）', () => {
     createdAt: '2024-01-02T00:00:00Z',
   };
 
-  const undirectedRelationship: Relationship = {
+  const undirectedRelationship: RelationshipV9 = {
     id: 'rel-1',
     sourcePersonId: 'person-1',
     targetPersonId: 'person-2',
     isDirected: false, // 無方向
-    sourceToTargetLabel: '同一人物',
-    targetToSourceLabel: '同一人物',
-    layer: 'general' as const,
-    weight: null,
+    symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
+    forward: { label: '同一人物', affection: null, awareness: null, role: null },
+    reverse: { label: '同一人物', affection: null, awareness: null, role: null },
+    tags: [],
+    narrative: { summary: null, notes: null, turningPoints: [] },
+    colorOverride: null,
     createdAt: '2024-01-03T00:00:00Z',
+    updatedAt: '2024-01-03T00:00:00Z',
   };
 
   beforeEach(() => {

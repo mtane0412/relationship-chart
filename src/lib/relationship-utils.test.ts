@@ -1,107 +1,83 @@
 /**
  * relationship-utils.tsのテスト
- * 関係のユーティリティ関数の検証
+ * 関係のユーティリティ関数の検証（v9 RelationshipV9 形式）
  */
 
 import { describe, it, expect } from 'vitest';
-import type { Relationship } from '@/types/relationship';
+import type { RelationshipV9 } from '@/types/relationship';
 import { getRelationshipDisplayType, getRelationshipFromPerspective } from './relationship-utils';
+
+/** テスト用の最小 RelationshipV9 を生成するヘルパー */
+function makeRel(
+  overrides: {
+    id?: string;
+    sourcePersonId?: string;
+    targetPersonId?: string;
+    isDirected?: boolean;
+    forwardLabel?: string | null;
+    reverseLabel?: string | null;
+  } = {}
+): RelationshipV9 {
+  return {
+    id: overrides.id ?? '1',
+    sourcePersonId: overrides.sourcePersonId ?? 'personA',
+    targetPersonId: overrides.targetPersonId ?? 'personB',
+    isDirected: overrides.isDirected ?? true,
+    symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
+    forward: {
+      label: overrides.forwardLabel ?? null,
+      affection: null,
+      awareness: null,
+      role: null,
+    },
+    reverse: {
+      label: overrides.reverseLabel ?? null,
+      affection: null,
+      awareness: null,
+      role: null,
+    },
+    tags: [],
+    narrative: { summary: null, notes: null, turningPoints: [] },
+    colorOverride: null,
+    createdAt: '2024-01-01T00:00:00.000Z',
+    updatedAt: '2024-01-01T00:00:00.000Z',
+  };
+}
 
 describe('getRelationshipDisplayType', () => {
   it('双方向（両方向に同一ラベル）を返す', () => {
-    const relationship: Relationship = {
-      id: '1',
-      sourcePersonId: 'person1',
-      targetPersonId: 'person2',
-      isDirected: true,
-      sourceToTargetLabel: '好き',
-      targetToSourceLabel: '好き',
-      layer: 'general' as const,
-      weight: null,
-      createdAt: '2024-01-01T00:00:00.000Z',
-    };
-
+    const relationship = makeRel({ forwardLabel: '好き', reverseLabel: '好き' });
     expect(getRelationshipDisplayType(relationship)).toBe('bidirectional');
   });
 
-  it('片方向（片方向のみラベルあり）を返す', () => {
-    const relationship: Relationship = {
-      id: '2',
-      sourcePersonId: 'person1',
-      targetPersonId: 'person2',
-      isDirected: true,
-      sourceToTargetLabel: '好き',
-      targetToSourceLabel: null,
-      layer: 'general' as const,
-      weight: null,
-      createdAt: '2024-01-01T00:00:00.000Z',
-    };
-
+  it('片方向（forward.labelのみラベルあり）を返す', () => {
+    const relationship = makeRel({ forwardLabel: '好き', reverseLabel: null });
     expect(getRelationshipDisplayType(relationship)).toBe('one-way');
   });
 
-  it('逆方向の片方向（targetToSourceのみラベルあり）を返す', () => {
-    const relationship: Relationship = {
-      id: '3',
-      sourcePersonId: 'person1',
-      targetPersonId: 'person2',
-      isDirected: true,
-      sourceToTargetLabel: null,
-      targetToSourceLabel: '好き',
-      layer: 'general' as const,
-      weight: null,
-      createdAt: '2024-01-01T00:00:00.000Z',
-    };
-
+  it('逆方向の片方向（reverse.labelのみラベルあり）を返す', () => {
+    const relationship = makeRel({ forwardLabel: null, reverseLabel: '好き' });
     expect(getRelationshipDisplayType(relationship)).toBe('one-way');
   });
 
   it('片方向×2（両方向に異なるラベル）を返す', () => {
-    const relationship: Relationship = {
-      id: '4',
-      sourcePersonId: 'person1',
-      targetPersonId: 'person2',
-      isDirected: true,
-      sourceToTargetLabel: '好き',
-      targetToSourceLabel: '嫌い',
-      layer: 'general' as const,
-      weight: null,
-      createdAt: '2024-01-01T00:00:00.000Z',
-    };
-
+    const relationship = makeRel({ forwardLabel: '好き', reverseLabel: '嫌い' });
     expect(getRelationshipDisplayType(relationship)).toBe('dual-directed');
   });
 
   it('無方向を返す', () => {
-    const relationship: Relationship = {
-      id: '5',
-      sourcePersonId: 'person1',
-      targetPersonId: 'person2',
+    const relationship = makeRel({
       isDirected: false,
-      sourceToTargetLabel: '同一人物',
-      targetToSourceLabel: '同一人物',
-      layer: 'general' as const,
-      weight: null,
-      createdAt: '2024-01-01T00:00:00.000Z',
-    };
-
+      forwardLabel: '同一人物',
+      reverseLabel: '同一人物',
+    });
     expect(getRelationshipDisplayType(relationship)).toBe('undirected');
   });
 });
 
 describe('getRelationshipFromPerspective', () => {
   describe('双方向の関係', () => {
-    const relationship: Relationship = {
-      id: '1',
-      sourcePersonId: 'personA',
-      targetPersonId: 'personB',
-      isDirected: true,
-      sourceToTargetLabel: '親子',
-      targetToSourceLabel: '親子',
-      layer: 'general' as const,
-      weight: null,
-      createdAt: '2024-01-01T00:00:00.000Z',
-    };
+    const relationship = makeRel({ forwardLabel: '親子', reverseLabel: '親子' });
 
     it('source側から見た関係を返す', () => {
       const result = getRelationshipFromPerspective(relationship, 'personA');
@@ -119,17 +95,7 @@ describe('getRelationshipFromPerspective', () => {
   });
 
   describe('片方向の関係（source→target）', () => {
-    const relationship: Relationship = {
-      id: '2',
-      sourcePersonId: 'personA',
-      targetPersonId: 'personB',
-      isDirected: true,
-      sourceToTargetLabel: '片想い',
-      targetToSourceLabel: null,
-      layer: 'general' as const,
-      weight: null,
-      createdAt: '2024-01-01T00:00:00.000Z',
-    };
+    const relationship = makeRel({ forwardLabel: '片想い', reverseLabel: null });
 
     it('source側から見た関係を返す', () => {
       const result = getRelationshipFromPerspective(relationship, 'personA');
@@ -147,17 +113,7 @@ describe('getRelationshipFromPerspective', () => {
   });
 
   describe('逆方向の片方向の関係（target→source）', () => {
-    const relationship: Relationship = {
-      id: '3',
-      sourcePersonId: 'personA',
-      targetPersonId: 'personB',
-      isDirected: true,
-      sourceToTargetLabel: null,
-      targetToSourceLabel: '片想い',
-      layer: 'general' as const,
-      weight: null,
-      createdAt: '2024-01-01T00:00:00.000Z',
-    };
+    const relationship = makeRel({ forwardLabel: null, reverseLabel: '片想い' });
 
     it('source側から見た関係を返す', () => {
       const result = getRelationshipFromPerspective(relationship, 'personA');
@@ -175,17 +131,7 @@ describe('getRelationshipFromPerspective', () => {
   });
 
   describe('片方向×2の関係', () => {
-    const relationship: Relationship = {
-      id: '4',
-      sourcePersonId: 'personA',
-      targetPersonId: 'personB',
-      isDirected: true,
-      sourceToTargetLabel: '好き',
-      targetToSourceLabel: '嫌い',
-      layer: 'general' as const,
-      weight: null,
-      createdAt: '2024-01-01T00:00:00.000Z',
-    };
+    const relationship = makeRel({ forwardLabel: '好き', reverseLabel: '嫌い' });
 
     it('source側から見た関係を返す', () => {
       const result = getRelationshipFromPerspective(relationship, 'personA');
@@ -205,17 +151,11 @@ describe('getRelationshipFromPerspective', () => {
   });
 
   describe('無方向の関係', () => {
-    const relationship: Relationship = {
-      id: '5',
-      sourcePersonId: 'personA',
-      targetPersonId: 'personB',
+    const relationship = makeRel({
       isDirected: false,
-      sourceToTargetLabel: '同一人物',
-      targetToSourceLabel: '同一人物',
-      layer: 'general' as const,
-      weight: null,
-      createdAt: '2024-01-01T00:00:00.000Z',
-    };
+      forwardLabel: '同一人物',
+      reverseLabel: '同一人物',
+    });
 
     it('source側から見た関係を返す', () => {
       const result = getRelationshipFromPerspective(relationship, 'personA');
@@ -234,18 +174,7 @@ describe('getRelationshipFromPerspective', () => {
 
   describe('エッジケース', () => {
     it('関係者以外の人物IDを指定した場合は空配列を返す', () => {
-      const relationship: Relationship = {
-        id: '6',
-        sourcePersonId: 'personA',
-        targetPersonId: 'personB',
-        isDirected: true,
-        sourceToTargetLabel: '好き',
-        targetToSourceLabel: null,
-        layer: 'general' as const,
-        weight: null,
-        createdAt: '2024-01-01T00:00:00.000Z',
-      };
-
+      const relationship = makeRel({ forwardLabel: '好き', reverseLabel: null });
       const result = getRelationshipFromPerspective(relationship, 'personC');
       expect(result).toEqual([]);
     });

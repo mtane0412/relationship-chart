@@ -4,7 +4,7 @@
  */
 
 import type { Person } from '@/types/person';
-import type { Relationship, RelationshipType } from '@/types/relationship';
+import type { RelationshipV9, RelationshipType } from '@/types/relationship';
 import { getRelationshipDisplayType } from './relationship-utils';
 
 /**
@@ -52,7 +52,7 @@ const MAX_RESULTS = 20;
 export function searchGraph(
   query: string,
   persons: Person[],
-  relationships: Relationship[]
+  relationships: RelationshipV9[]
 ): SearchResult[] {
   // 空クエリの場合は空配列を返す
   const trimmedQuery = query.trim();
@@ -88,13 +88,13 @@ export function searchGraph(
 
     const displayType = getRelationshipDisplayType(rel);
 
-    // sourceToTargetLabelを検索
-    if (rel.sourceToTargetLabel && rel.sourceToTargetLabel.toLowerCase().includes(lowerQuery)) {
-      matchedLabels.add(rel.sourceToTargetLabel);
+    // forward.label（source→target方向ラベル）を検索
+    if (rel.forward.label && rel.forward.label.toLowerCase().includes(lowerQuery)) {
+      matchedLabels.add(rel.forward.label);
       relationshipResults.push({
         kind: 'relationship',
         id: rel.id,
-        label: rel.sourceToTargetLabel,
+        label: rel.forward.label,
         sourcePersonId: rel.sourcePersonId,
         targetPersonId: rel.targetPersonId,
         relationshipType: displayType,
@@ -105,17 +105,17 @@ export function searchGraph(
       });
     }
 
-    // targetToSourceLabelを検索（sourceToTargetLabelと異なる場合のみ追加）
+    // reverse.label（target→source方向ラベル）を検索（forward.labelと異なる場合のみ追加）
     if (
-      rel.targetToSourceLabel &&
-      rel.targetToSourceLabel.toLowerCase().includes(lowerQuery) &&
-      !matchedLabels.has(rel.targetToSourceLabel)
+      rel.reverse.label &&
+      rel.reverse.label.toLowerCase().includes(lowerQuery) &&
+      !matchedLabels.has(rel.reverse.label)
     ) {
       // 逆方向のラベルなので、起点と終点を入れ替えて表示
       relationshipResults.push({
         kind: 'relationship',
         id: rel.id,
-        label: rel.targetToSourceLabel,
+        label: rel.reverse.label,
         sourcePersonId: rel.targetPersonId,
         targetPersonId: rel.sourcePersonId,
         relationshipType: displayType,

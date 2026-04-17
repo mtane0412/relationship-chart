@@ -7,7 +7,51 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useGraphStore } from './useGraphStore';
 import type { Person } from '@/types/person';
+import type { RelationshipV9 } from '@/types/relationship';
 import { initDB, closeDB } from '@/lib/chart-db';
+
+/**
+ * テスト用のv9形式の関係オブジェクトを生成するヘルパー関数
+ * 最小限の必須フィールドのみ指定し、残りはデフォルト値を設定する
+ */
+function makeV9Rel(
+  overrides: Partial<Omit<RelationshipV9, 'id' | 'createdAt' | 'updatedAt'>> & {
+    sourcePersonId: string;
+    targetPersonId: string;
+  }
+): Omit<RelationshipV9, 'id' | 'createdAt' | 'updatedAt'> {
+  return {
+    sourcePersonId: overrides.sourcePersonId,
+    targetPersonId: overrides.targetPersonId,
+    isDirected: overrides.isDirected ?? false,
+    symmetric: overrides.symmetric ?? {
+      closeness: null,
+      trust: null,
+      tension: null,
+      secrecy: null,
+      kinship: null,
+    },
+    forward: overrides.forward ?? {
+      label: null,
+      affection: null,
+      awareness: null,
+      role: null,
+    },
+    reverse: overrides.reverse ?? {
+      label: null,
+      affection: null,
+      awareness: null,
+      role: null,
+    },
+    tags: overrides.tags ?? [],
+    narrative: overrides.narrative ?? {
+      summary: null,
+      notes: null,
+      turningPoints: [],
+    },
+    colorOverride: overrides.colorOverride ?? null,
+  };
+}
 
 describe('useGraphStore', () => {
   beforeEach(() => {
@@ -30,6 +74,8 @@ describe('useGraphStore', () => {
     store.resetEgoLayoutParams();
     // sidePanelOpenもリセット
     store.setSidePanelOpen(true);
+    // edgeFilterもリセット
+    store.updateEdgeFilter({ tags: { mode: 'any', values: new Set() }, predicates: [] });
   });
 
   describe('初期状態', () => {
@@ -165,13 +211,15 @@ describe('useGraphStore', () => {
 
       // 2人の間に関係を追加
       act(() => {
-        result.current.addRelationship({
-          sourcePersonId: personId1,
-          targetPersonId: personId2,
-          isDirected: false,
-          sourceToTargetLabel: '友人',
-          targetToSourceLabel: '友人',
-        });
+        result.current.addRelationship(
+            makeV9Rel({
+              sourcePersonId: personId1,
+              targetPersonId: personId2,
+              isDirected: false,
+              forward: { label: '友人', affection: null, awareness: null, role: null },
+              reverse: { label: '友人', affection: null, awareness: null, role: null },
+            })
+          );
       });
 
       expect(result.current.relationships).toHaveLength(1);
@@ -378,13 +426,15 @@ describe('useGraphStore', () => {
 
       // 人物と物の間に関係を追加
       act(() => {
-        result.current.addRelationship({
-          sourcePersonId: personId,
-          targetPersonId: itemId,
-          isDirected: true,
-          sourceToTargetLabel: '所有',
-          targetToSourceLabel: null,
-        });
+        result.current.addRelationship(
+            makeV9Rel({
+              sourcePersonId: personId,
+              targetPersonId: itemId,
+              isDirected: true,
+              forward: { label: '所有', affection: null, awareness: null, role: null },
+              reverse: { label: null, affection: null, awareness: null, role: null },
+            })
+          );
       });
 
       expect(result.current.relationships).toHaveLength(1);
@@ -909,13 +959,15 @@ describe('useGraphStore', () => {
 
       // bidirectional関係を追加
       act(() => {
-        result.current.addRelationship({
-          sourcePersonId: personId1,
-          targetPersonId: personId2,
-          isDirected: true,
-          sourceToTargetLabel: '親子',
-          targetToSourceLabel: '親子',
-        });
+        result.current.addRelationship(
+            makeV9Rel({
+              sourcePersonId: personId1,
+              targetPersonId: personId2,
+              isDirected: true,
+              forward: { label: '親子', affection: null, awareness: null, role: null },
+              reverse: { label: '親子', affection: null, awareness: null, role: null },
+            })
+          );
       });
 
       expect(result.current.relationships).toHaveLength(1);
@@ -923,8 +975,8 @@ describe('useGraphStore', () => {
         sourcePersonId: personId1,
         targetPersonId: personId2,
         isDirected: true,
-        sourceToTargetLabel: '親子',
-        targetToSourceLabel: '親子',
+        forward: { label: '親子' },
+        reverse: { label: '親子' },
       });
     });
 
@@ -948,13 +1000,15 @@ describe('useGraphStore', () => {
 
       // dual-directed関係を追加
       act(() => {
-        result.current.addRelationship({
-          sourcePersonId: personId1,
-          targetPersonId: personId2,
-          isDirected: true,
-          sourceToTargetLabel: '好き',
-          targetToSourceLabel: '無関心',
-        });
+        result.current.addRelationship(
+            makeV9Rel({
+              sourcePersonId: personId1,
+              targetPersonId: personId2,
+              isDirected: true,
+              forward: { label: '好き', affection: null, awareness: null, role: null },
+              reverse: { label: '無関心', affection: null, awareness: null, role: null },
+            })
+          );
       });
 
       expect(result.current.relationships).toHaveLength(1);
@@ -962,8 +1016,8 @@ describe('useGraphStore', () => {
         sourcePersonId: personId1,
         targetPersonId: personId2,
         isDirected: true,
-        sourceToTargetLabel: '好き',
-        targetToSourceLabel: '無関心',
+        forward: { label: '好き' },
+        reverse: { label: '無関心' },
       });
     });
 
@@ -987,31 +1041,36 @@ describe('useGraphStore', () => {
 
       // 1つ目の関係を追加
       act(() => {
-        result.current.addRelationship({
-          sourcePersonId: personId1,
-          targetPersonId: personId2,
-          isDirected: true,
-          sourceToTargetLabel: '片想い',
-          targetToSourceLabel: null,
-        });
+        result.current.addRelationship(
+            makeV9Rel({
+              sourcePersonId: personId1,
+              targetPersonId: personId2,
+              isDirected: true,
+              forward: { label: '片想い', affection: null, awareness: null, role: null },
+              reverse: { label: null, affection: null, awareness: null, role: null },
+            })
+          );
       });
 
       expect(result.current.relationships).toHaveLength(1);
 
       // 同じペアの2つ目の関係を追加しようとする
       act(() => {
-        result.current.addRelationship({
-          sourcePersonId: personId1,
-          targetPersonId: personId2,
-          isDirected: true,
-          sourceToTargetLabel: '友人',
-          targetToSourceLabel: '友人',
-        });
+        result.current.addRelationship(
+            makeV9Rel({
+              sourcePersonId: personId1,
+              targetPersonId: personId2,
+              isDirected: true,
+              forward: { label: '友人', affection: null, awareness: null, role: null },
+              reverse: { label: '友人', affection: null, awareness: null, role: null },
+            })
+          );
       });
 
-      // 追加されない（1つのまま）
+      // 追加されない（1つのまま: マージ方式）
       expect(result.current.relationships).toHaveLength(1);
-      expect(result.current.relationships[0].sourceToTargetLabel).toBe('片想い');
+      // マージ: 2つ目のforward.label（非null）が上書きされる
+      expect(result.current.relationships[0].forward.label).toBe('友人');
     });
 
     it('同じペアの関係が既に存在する場合は追加しない（target→source）', () => {
@@ -1034,26 +1093,30 @@ describe('useGraphStore', () => {
 
       // 1つ目の関係を追加（A→B）
       act(() => {
-        result.current.addRelationship({
-          sourcePersonId: personId1,
-          targetPersonId: personId2,
-          isDirected: true,
-          sourceToTargetLabel: '片想い',
-          targetToSourceLabel: null,
-        });
+        result.current.addRelationship(
+            makeV9Rel({
+              sourcePersonId: personId1,
+              targetPersonId: personId2,
+              isDirected: true,
+              forward: { label: '片想い', affection: null, awareness: null, role: null },
+              reverse: { label: null, affection: null, awareness: null, role: null },
+            })
+          );
       });
 
       expect(result.current.relationships).toHaveLength(1);
 
       // 逆向きの関係を追加しようとする（B→A）
       act(() => {
-        result.current.addRelationship({
-          sourcePersonId: personId2,
-          targetPersonId: personId1,
-          isDirected: true,
-          sourceToTargetLabel: '同僚',
-          targetToSourceLabel: null,
-        });
+        result.current.addRelationship(
+            makeV9Rel({
+              sourcePersonId: personId2,
+              targetPersonId: personId1,
+              isDirected: true,
+              forward: { label: '同僚', affection: null, awareness: null, role: null },
+              reverse: { label: null, affection: null, awareness: null, role: null },
+            })
+          );
       });
 
       // 追加されない（1つのまま）
@@ -1061,7 +1124,7 @@ describe('useGraphStore', () => {
       expect(result.current.relationships[0].sourcePersonId).toBe(personId1);
     });
 
-    it('関係はデフォルトで一般レイヤー（general）として追加される', () => {
+    it('タグなしで関係を追加できる（v9ではlayerの代わりにtagsを使用）', () => {
       const { result } = renderHook(() => useGraphStore());
 
       // 2人の人物を追加
@@ -1079,19 +1142,21 @@ describe('useGraphStore', () => {
       const personId1 = result.current.persons[0].id;
       const personId2 = result.current.persons[1].id;
 
-      // layerを指定せず関係を追加
+      // タグを指定せず関係を追加
       act(() => {
-        result.current.addRelationship({
-          sourcePersonId: personId1,
-          targetPersonId: personId2,
-          isDirected: true,
-          sourceToTargetLabel: '同僚',
-          targetToSourceLabel: '同僚',
-        });
+        result.current.addRelationship(
+          makeV9Rel({
+            sourcePersonId: personId1,
+            targetPersonId: personId2,
+            isDirected: true,
+            forward: { label: '同僚', affection: null, awareness: null, role: null },
+            reverse: { label: '同僚', affection: null, awareness: null, role: null },
+          })
+        );
       });
 
-      // デフォルトレイヤーが'general'であること
-      expect(result.current.relationships[0].layer).toBe('general');
+      // v9ではlayerフィールドはなく、tagsが空配列であることを確認
+      expect(result.current.relationships[0].tags).toEqual([]);
     });
 
     it('同じペア・同じレイヤーの関係は重複して追加できない', () => {
@@ -1114,35 +1179,37 @@ describe('useGraphStore', () => {
 
       // generalレイヤーで関係を追加
       act(() => {
-        result.current.addRelationship({
-          sourcePersonId: personId1,
-          targetPersonId: personId2,
-          isDirected: false,
-          sourceToTargetLabel: '幼馴染',
-          targetToSourceLabel: '幼馴染',
-          layer: 'general',
-        });
+        result.current.addRelationship(
+            makeV9Rel({
+              sourcePersonId: personId1,
+              targetPersonId: personId2,
+              isDirected: false,
+              forward: { label: '幼馴染', affection: null, awareness: null, role: null },
+              reverse: { label: '幼馴染', affection: null, awareness: null, role: null },
+            })
+          );
       });
 
       expect(result.current.relationships).toHaveLength(1);
 
       // 同じペア・同じレイヤー（general）で再度追加しようとする
       act(() => {
-        result.current.addRelationship({
-          sourcePersonId: personId1,
-          targetPersonId: personId2,
-          isDirected: true,
-          sourceToTargetLabel: '好き',
-          targetToSourceLabel: null,
-          layer: 'general',
-        });
+        result.current.addRelationship(
+            makeV9Rel({
+              sourcePersonId: personId1,
+              targetPersonId: personId2,
+              isDirected: true,
+              forward: { label: '好き', affection: null, awareness: null, role: null },
+              reverse: { label: null, affection: null, awareness: null, role: null },
+            })
+          );
       });
 
       // 追加されない（1つのまま）
       expect(result.current.relationships).toHaveLength(1);
     });
 
-    it('同じペアでもレイヤーが異なれば複数の関係を追加できる', () => {
+    it('同じペアへの2度目のaddRelationshipはマージされる（v9のマージ動作）', () => {
       const { result } = renderHook(() => useGraphStore());
 
       // 2人の人物を追加
@@ -1160,37 +1227,41 @@ describe('useGraphStore', () => {
       const personId1 = result.current.persons[0].id;
       const personId2 = result.current.persons[1].id;
 
-      // 一般（general）レイヤーで関係を追加
+      // 最初の関係を追加（ラベル: 同居人・仲間）
       act(() => {
-        result.current.addRelationship({
-          sourcePersonId: personId1,
-          targetPersonId: personId2,
-          isDirected: false,
-          sourceToTargetLabel: '同居人・仲間',
-          targetToSourceLabel: '同居人・仲間',
-          layer: 'general',
-        });
+        result.current.addRelationship(
+          makeV9Rel({
+            sourcePersonId: personId1,
+            targetPersonId: personId2,
+            isDirected: false,
+            forward: { label: '同居人・仲間', affection: null, awareness: null, role: null },
+            reverse: { label: '同居人・仲間', affection: null, awareness: null, role: null },
+          })
+        );
       });
 
-      // 感情（emotional）レイヤーで別の関係を追加
+      // 同じペアへ追加（forward.labelがnon-nullなのでマージで上書きされる）
       act(() => {
-        result.current.addRelationship({
-          sourcePersonId: personId1,
-          targetPersonId: personId2,
-          isDirected: true,
-          sourceToTargetLabel: '信頼',
-          targetToSourceLabel: null,
-          layer: 'emotional',
-        });
+        result.current.addRelationship(
+          makeV9Rel({
+            sourcePersonId: personId1,
+            targetPersonId: personId2,
+            isDirected: true,
+            forward: { label: '信頼', affection: null, awareness: null, role: null },
+            reverse: { label: null, affection: null, awareness: null, role: null },
+          })
+        );
       });
 
-      // 2つの関係が追加されていること
-      expect(result.current.relationships).toHaveLength(2);
-      expect(result.current.relationships[0].layer).toBe('general');
-      expect(result.current.relationships[1].layer).toBe('emotional');
+      // v9ではマージされるため関係は1つのまま
+      expect(result.current.relationships).toHaveLength(1);
+      // isDirectedはマージで更新される
+      expect(result.current.relationships[0].isDirected).toBe(true);
+      // forward.labelは新しいラベルに上書きされる
+      expect(result.current.relationships[0].forward.label).toBe('信頼');
     });
 
-    it('layerを明示的に指定して関係を追加できる', () => {
+    it('tagsを指定して関係を追加できる（v9ではlayerの代わりにtagsを使用）', () => {
       const { result } = renderHook(() => useGraphStore());
 
       // 2人の人物を追加
@@ -1208,19 +1279,21 @@ describe('useGraphStore', () => {
       const personId1 = result.current.persons[0].id;
       const personId2 = result.current.persons[1].id;
 
-      // emotionalレイヤーで関係を追加
+      // tagsを指定して関係を追加
       act(() => {
-        result.current.addRelationship({
-          sourcePersonId: personId1,
-          targetPersonId: personId2,
-          isDirected: true,
-          sourceToTargetLabel: '想い人',
-          targetToSourceLabel: null,
-          layer: 'emotional',
-        });
+        result.current.addRelationship(
+          makeV9Rel({
+            sourcePersonId: personId1,
+            targetPersonId: personId2,
+            isDirected: true,
+            tags: ['片想い'],
+            forward: { label: '想い人', affection: null, awareness: null, role: null },
+            reverse: { label: null, affection: null, awareness: null, role: null },
+          })
+          );
       });
 
-      expect(result.current.relationships[0].layer).toBe('emotional');
+      expect(result.current.relationships[0].tags).toContain('片想い');
     });
   });
 
@@ -1245,13 +1318,15 @@ describe('useGraphStore', () => {
 
       // 関係を追加
       act(() => {
-        result.current.addRelationship({
-          sourcePersonId: personId1,
-          targetPersonId: personId2,
-          isDirected: true,
-          sourceToTargetLabel: '片想い',
-          targetToSourceLabel: null,
-        });
+        result.current.addRelationship(
+            makeV9Rel({
+              sourcePersonId: personId1,
+              targetPersonId: personId2,
+              isDirected: true,
+              forward: { label: '片想い', affection: null, awareness: null, role: null },
+              reverse: { label: null, affection: null, awareness: null, role: null },
+            })
+          );
       });
 
       const relationshipId = result.current.relationships[0].id;
@@ -1260,15 +1335,16 @@ describe('useGraphStore', () => {
       act(() => {
         result.current.updateRelationship(relationshipId, {
           isDirected: true,
-          targetToSourceLabel: '片想い',
+          reverse: { label: '片想い', affection: null, awareness: null, role: null },
         });
       });
 
       expect(result.current.relationships[0]).toMatchObject({
         id: relationshipId,
         isDirected: true,
-        sourceToTargetLabel: '片想い', // ラベルは変更されない
-        targetToSourceLabel: '片想い',
+        // forward.label は変更されないことを確認
+        forward: { label: '片想い' },
+        reverse: { label: '片想い' },
       });
     });
 
@@ -1292,13 +1368,15 @@ describe('useGraphStore', () => {
 
       // 関係を追加
       act(() => {
-        result.current.addRelationship({
-          sourcePersonId: personId1,
-          targetPersonId: personId2,
-          isDirected: true,
-          sourceToTargetLabel: '友人',
-          targetToSourceLabel: '友人',
-        });
+        result.current.addRelationship(
+            makeV9Rel({
+              sourcePersonId: personId1,
+              targetPersonId: personId2,
+              isDirected: true,
+              forward: { label: '友人', affection: null, awareness: null, role: null },
+              reverse: { label: '友人', affection: null, awareness: null, role: null },
+            })
+          );
       });
 
       const relationshipId = result.current.relationships[0].id;
@@ -1306,16 +1384,16 @@ describe('useGraphStore', () => {
       // ラベルを更新
       act(() => {
         result.current.updateRelationship(relationshipId, {
-          sourceToTargetLabel: '親友',
-          targetToSourceLabel: '親友',
+          forward: { label: '親友', affection: null, awareness: null, role: null },
+          reverse: { label: '親友', affection: null, awareness: null, role: null },
         });
       });
 
       expect(result.current.relationships[0]).toMatchObject({
         id: relationshipId,
         isDirected: true,
-        sourceToTargetLabel: '親友',
-        targetToSourceLabel: '親友',
+        forward: { label: '親友' },
+        reverse: { label: '親友' },
       });
     });
 
@@ -1339,13 +1417,15 @@ describe('useGraphStore', () => {
 
       // dual-directed関係を追加
       act(() => {
-        result.current.addRelationship({
-          sourcePersonId: personId1,
-          targetPersonId: personId2,
-          isDirected: true,
-          sourceToTargetLabel: '好き',
-          targetToSourceLabel: '無関心',
-        });
+        result.current.addRelationship(
+            makeV9Rel({
+              sourcePersonId: personId1,
+              targetPersonId: personId2,
+              isDirected: true,
+              forward: { label: '好き', affection: null, awareness: null, role: null },
+              reverse: { label: '無関心', affection: null, awareness: null, role: null },
+            })
+          );
       });
 
       const relationshipId = result.current.relationships[0].id;
@@ -1353,16 +1433,16 @@ describe('useGraphStore', () => {
       // 両方のラベルを更新
       act(() => {
         result.current.updateRelationship(relationshipId, {
-          sourceToTargetLabel: '愛している',
-          targetToSourceLabel: '嫌い',
+          forward: { label: '愛している', affection: null, awareness: null, role: null },
+          reverse: { label: '嫌い', affection: null, awareness: null, role: null },
         });
       });
 
       expect(result.current.relationships[0]).toMatchObject({
         id: relationshipId,
         isDirected: true,
-        sourceToTargetLabel: '愛している',
-        targetToSourceLabel: '嫌い',
+        forward: { label: '愛している' },
+        reverse: { label: '嫌い' },
       });
     });
 
@@ -1386,27 +1466,29 @@ describe('useGraphStore', () => {
 
       // 関係を追加
       act(() => {
-        result.current.addRelationship({
-          sourcePersonId: personId1,
-          targetPersonId: personId2,
-          isDirected: true,
-          sourceToTargetLabel: '友人',
-          targetToSourceLabel: '友人',
-        });
+        result.current.addRelationship(
+            makeV9Rel({
+              sourcePersonId: personId1,
+              targetPersonId: personId2,
+              isDirected: true,
+              forward: { label: '友人', affection: null, awareness: null, role: null },
+              reverse: { label: '友人', affection: null, awareness: null, role: null },
+            })
+          );
       });
 
       // 存在しないIDで更新を試みる
       act(() => {
         result.current.updateRelationship('non-existent-id', {
-          sourceToTargetLabel: '敵',
+          forward: { label: '敵', affection: null, awareness: null, role: null },
         });
       });
 
       // 既存の関係は変更されていない
       expect(result.current.relationships[0]).toMatchObject({
         isDirected: true,
-        sourceToTargetLabel: '友人',
-        targetToSourceLabel: '友人',
+        forward: { label: '友人' },
+        reverse: { label: '友人' },
       });
     });
   });
@@ -1430,8 +1512,8 @@ describe('useGraphStore', () => {
               sourcePersonId: 'p1',
               targetPersonId: 'p2',
               isDirected: false,
-              sourceToTargetLabel: '友人',
-              targetToSourceLabel: '友人',
+              forward: { label: '友人' },
+              reverse: { label: '友人' },
               createdAt: '2026-01-01T00:02:00.000Z',
             },
           ],
@@ -1452,8 +1534,8 @@ describe('useGraphStore', () => {
         sourcePersonId: 'p1',
         targetPersonId: 'p2',
         isDirected: false,
-        sourceToTargetLabel: '友人',
-        targetToSourceLabel: '友人',
+        forward: { label: '友人' },
+        reverse: { label: '友人' },
       });
     });
 
@@ -1473,8 +1555,8 @@ describe('useGraphStore', () => {
               sourcePersonId: 'p1',
               targetPersonId: 'p2',
               isDirected: true,
-              sourceToTargetLabel: '上司',
-              targetToSourceLabel: null,
+              forward: { label: '上司' },
+              reverse: { label: null },
               createdAt: '2026-01-01T00:02:00.000Z',
             },
           ],
@@ -1495,8 +1577,8 @@ describe('useGraphStore', () => {
         sourcePersonId: 'p1',
         targetPersonId: 'p2',
         isDirected: true,
-        sourceToTargetLabel: '上司',
-        targetToSourceLabel: null,
+        forward: { label: '上司' },
+        reverse: { label: null },
       });
     });
 
@@ -1517,8 +1599,8 @@ describe('useGraphStore', () => {
               sourcePersonId: 'p1',
               targetPersonId: 'p2',
               isDirected: false,
-              sourceToTargetLabel: '友人',
-              targetToSourceLabel: '友人',
+              forward: { label: '友人' },
+              reverse: { label: '友人' },
               createdAt: '2026-01-01T00:03:00.000Z',
             },
             {
@@ -1526,8 +1608,8 @@ describe('useGraphStore', () => {
               sourcePersonId: 'p2',
               targetPersonId: 'p3',
               isDirected: true,
-              sourceToTargetLabel: '上司',
-              targetToSourceLabel: null,
+              forward: { label: '上司' },
+              reverse: { label: null },
               createdAt: '2026-01-01T00:04:00.000Z',
             },
           ],
@@ -1545,13 +1627,13 @@ describe('useGraphStore', () => {
       expect(result.current.relationships).toHaveLength(2);
       expect(result.current.relationships[0]).toMatchObject({
         isDirected: false,
-        sourceToTargetLabel: '友人',
-        targetToSourceLabel: '友人',
+        forward: { label: '友人' },
+        reverse: { label: '友人' },
       });
       expect(result.current.relationships[1]).toMatchObject({
         isDirected: true,
-        sourceToTargetLabel: '上司',
-        targetToSourceLabel: null,
+        forward: { label: '上司' },
+        reverse: { label: null },
       });
     });
   });
@@ -1575,8 +1657,8 @@ describe('useGraphStore', () => {
               sourcePersonId: 'p1',
               targetPersonId: 'p2',
               type: 'bidirectional',
-              sourceToTargetLabel: '友人',
-              targetToSourceLabel: null,
+              forward: { label: '友人' },
+              reverse: { label: null },
               createdAt: '2026-01-01T00:02:00.000Z',
             },
           ],
@@ -1597,8 +1679,9 @@ describe('useGraphStore', () => {
         sourcePersonId: 'p1',
         targetPersonId: 'p2',
         isDirected: true,
-        sourceToTargetLabel: '友人',
-        targetToSourceLabel: '友人', // 同一ラベルに変換される
+        forward: { label: '友人' },
+        // 同一ラベルに変換される
+        reverse: { label: '友人' }
       });
     });
 
@@ -1616,8 +1699,8 @@ describe('useGraphStore', () => {
               sourcePersonId: 'p1',
               targetPersonId: 'p2',
               type: 'dual-directed',
-              sourceToTargetLabel: '好き',
-              targetToSourceLabel: '嫌い',
+              forward: { label: '好き' },
+              reverse: { label: '嫌い' },
               createdAt: '2026-01-01T00:02:00.000Z',
             },
           ],
@@ -1638,8 +1721,9 @@ describe('useGraphStore', () => {
         sourcePersonId: 'p1',
         targetPersonId: 'p2',
         isDirected: true,
-        sourceToTargetLabel: '好き',
-        targetToSourceLabel: '嫌い', // ラベルはそのまま維持
+        forward: { label: '好き' },
+        // ラベルはそのまま維持
+        reverse: { label: '嫌い' }
       });
     });
 
@@ -1657,8 +1741,8 @@ describe('useGraphStore', () => {
               sourcePersonId: 'p1',
               targetPersonId: 'p2',
               type: 'one-way',
-              sourceToTargetLabel: '片想い',
-              targetToSourceLabel: null,
+              forward: { label: '片想い' },
+              reverse: { label: null },
               createdAt: '2026-01-01T00:02:00.000Z',
             },
           ],
@@ -1679,8 +1763,9 @@ describe('useGraphStore', () => {
         sourcePersonId: 'p1',
         targetPersonId: 'p2',
         isDirected: true,
-        sourceToTargetLabel: '片想い',
-        targetToSourceLabel: null, // nullのまま
+        forward: { label: '片想い' },
+        // nullのまま
+        reverse: { label: null }
       });
     });
 
@@ -1698,8 +1783,8 @@ describe('useGraphStore', () => {
               sourcePersonId: 'p1',
               targetPersonId: 'p2',
               type: 'undirected',
-              sourceToTargetLabel: '同一人物',
-              targetToSourceLabel: null,
+              forward: { label: '同一人物' },
+              reverse: { label: null },
               createdAt: '2026-01-01T00:02:00.000Z',
             },
           ],
@@ -1720,8 +1805,9 @@ describe('useGraphStore', () => {
         sourcePersonId: 'p1',
         targetPersonId: 'p2',
         isDirected: false,
-        sourceToTargetLabel: '同一人物',
-        targetToSourceLabel: '同一人物', // 同一ラベルに変換される
+        forward: { label: '同一人物' },
+        // 同一ラベルに変換される
+        reverse: { label: '同一人物' }
       });
     });
   });
@@ -1980,13 +2066,15 @@ describe('useGraphStore', () => {
 
       // 関係を追加
       act(() => {
-        result.current.addRelationship({
-          sourcePersonId: personId1,
-          targetPersonId: personId2,
-          isDirected: false,
-          sourceToTargetLabel: '友人',
-          targetToSourceLabel: '友人',
-        });
+        result.current.addRelationship(
+            makeV9Rel({
+              sourcePersonId: personId1,
+              targetPersonId: personId2,
+              isDirected: false,
+              forward: { label: '友人', affection: null, awareness: null, role: null },
+              reverse: { label: '友人', affection: null, awareness: null, role: null },
+            })
+          );
       });
 
       expect(result.current.relationships).toHaveLength(1);
@@ -2019,13 +2107,15 @@ describe('useGraphStore', () => {
 
       // 関係を追加
       act(() => {
-        result.current.addRelationship({
-          sourcePersonId: personId1,
-          targetPersonId: personId2,
-          isDirected: false,
-          sourceToTargetLabel: '友人',
-          targetToSourceLabel: '友人',
-        });
+        result.current.addRelationship(
+            makeV9Rel({
+              sourcePersonId: personId1,
+              targetPersonId: personId2,
+              isDirected: false,
+              forward: { label: '友人', affection: null, awareness: null, role: null },
+              reverse: { label: '友人', affection: null, awareness: null, role: null },
+            })
+          );
       });
 
       const relationshipId = result.current.relationships[0].id;
@@ -2111,43 +2201,77 @@ describe('useGraphStore', () => {
     });
   });
 
-  describe('visibleLayers', () => {
-    beforeEach(() => {
-      // visibleLayersをシングルトンストアの副作用から独立させるため毎テスト前に初期値に戻す
+  describe('edgeFilter', () => {
+    it('初期状態のedgeFilterはタグなし・述語なしのフィルタ（全表示）になっている', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      expect(result.current.edgeFilter.tags.mode).toBe('any');
+      expect(result.current.edgeFilter.tags.values.size).toBe(0);
+      expect(result.current.edgeFilter.predicates).toEqual([]);
+    });
+
+    it('updateEdgeFilter: タグフィルタを設定できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
       act(() => {
-        useGraphStore.setState({
-          visibleLayers: new Set(['general', 'emotional', 'organizational', 'awareness']),
+        result.current.updateEdgeFilter({
+          tags: { mode: 'any', values: new Set(['上司', '部下']) },
         });
       });
+
+      expect(result.current.edgeFilter.tags.values).toEqual(new Set(['上司', '部下']));
+      expect(result.current.edgeFilter.predicates).toEqual([]);
     });
 
-    it('初期状態で全レイヤーが表示されている', () => {
+    it('updateEdgeFilter: 述語フィルタを設定できる', () => {
       const { result } = renderHook(() => useGraphStore());
 
-      // 全4レイヤーが表示状態であること
-      expect(result.current.visibleLayers).toContain('general');
-      expect(result.current.visibleLayers).toContain('emotional');
-      expect(result.current.visibleLayers).toContain('organizational');
-      expect(result.current.visibleLayers).toContain('awareness');
+      act(() => {
+        result.current.updateEdgeFilter({
+          predicates: [{ type: 'closeness_gte', value: 0.5 }],
+        });
+      });
+
+      expect(result.current.edgeFilter.predicates).toEqual([{ type: 'closeness_gte', value: 0.5 }]);
+      expect(result.current.edgeFilter.tags.values.size).toBe(0);
     });
 
-    it('toggleLayerVisibilityでレイヤーのON/OFFを切り替えられる', () => {
+    it('updateEdgeFilter: パッチ更新は既存のフィールドを保持する', () => {
       const { result } = renderHook(() => useGraphStore());
 
-      // emotionalレイヤーをOFF
+      // 事前に predicates を非空の値にセットする
       act(() => {
-        result.current.toggleLayerVisibility('emotional');
+        result.current.updateEdgeFilter({
+          predicates: [{ type: 'closeness_gte', value: 0.5 }],
+        });
       });
 
-      expect(result.current.visibleLayers).not.toContain('emotional');
-      expect(result.current.visibleLayers).toContain('general');
+      expect(result.current.edgeFilter.predicates).toEqual([{ type: 'closeness_gte', value: 0.5 }]);
 
-      // 再度ONに戻す
+      // tags のみ更新し、predicates が変わっていないことを確認する
       act(() => {
-        result.current.toggleLayerVisibility('emotional');
+        result.current.updateEdgeFilter({
+          tags: { mode: 'all', values: new Set(['上司']) },
+        });
       });
 
-      expect(result.current.visibleLayers).toContain('emotional');
+      // タグフィールドが更新されている
+      expect(result.current.edgeFilter.tags.mode).toBe('all');
+      expect(result.current.edgeFilter.tags.values).toEqual(new Set(['上司']));
+      // predicates はパッチ更新によって変更されていない
+      expect(result.current.edgeFilter.predicates).toEqual([{ type: 'closeness_gte', value: 0.5 }]);
+    });
+
+    it('updateEdgeFilter: タグのモードを any から all に変更できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      act(() => {
+        result.current.updateEdgeFilter({
+          tags: { mode: 'all', values: new Set(['友人']) },
+        });
+      });
+
+      expect(result.current.edgeFilter.tags.mode).toBe('all');
     });
   });
 
@@ -2172,13 +2296,15 @@ describe('useGraphStore', () => {
 
       // 関係を追加
       act(() => {
-        result.current.addRelationship({
-          sourcePersonId: personId1,
-          targetPersonId: personId2,
-          isDirected: false,
-          sourceToTargetLabel: '友人',
-          targetToSourceLabel: '友人',
-        });
+        result.current.addRelationship(
+            makeV9Rel({
+              sourcePersonId: personId1,
+              targetPersonId: personId2,
+              isDirected: false,
+              forward: { label: '友人', affection: null, awareness: null, role: null },
+              reverse: { label: '友人', affection: null, awareness: null, role: null },
+            })
+          );
       });
 
       // UI状態を変更

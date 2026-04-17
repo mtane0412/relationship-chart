@@ -4,7 +4,7 @@
  */
 
 import type { Person } from './person';
-import type { Relationship } from './relationship';
+import type { RelationshipV9 } from './relationship';
 import type { ForceParams } from '@/stores/useGraphStore';
 import type { EgoLayoutParams } from '@/lib/ego-layout';
 
@@ -17,6 +17,7 @@ import type { EgoLayoutParams } from '@/lib/ego-layout';
  * @property forceEnabled - force-directedレイアウトが有効かどうか
  * @property forceParams - force-directedレイアウトのパラメータ
  * @property egoLayoutParams - EGO Layoutのパラメータ
+ * @property schemaVersion - 関係スキーマのバージョン（undefined は v8 以前）
  * @property createdAt - 作成日時（ISO 8601形式の文字列）
  * @property updatedAt - 最終更新日時（ISO 8601形式の文字列）
  */
@@ -24,10 +25,12 @@ export type Chart = {
   id: string;
   name: string;
   persons: Person[];
-  relationships: Relationship[];
+  relationships: RelationshipV9[];
   forceEnabled: boolean;
   forceParams: ForceParams;
   egoLayoutParams: EgoLayoutParams;
+  /** 関係スキーマのバージョン（undefined は v8 以前として扱う） */
+  schemaVersion?: number;
   createdAt: string;
   updatedAt: string;
 };

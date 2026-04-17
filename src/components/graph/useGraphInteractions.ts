@@ -10,9 +10,21 @@ import { useDialogStore } from '@/stores/useDialogStore';
 import { readFileAsDataUrl } from '@/lib/image-utils';
 import { findClosestTargetNode } from '@/lib/connection-target-detection';
 import type { GraphNode, RelationshipEdge } from '@/types/graph';
-import type { RelationshipType, RelationshipLayer, Relationship } from '@/types/relationship';
+import type { RelationshipType } from '@/types/relationship';
 import type { NodeKind } from '@/types/person';
 import type { ContextMenuState } from './useContextMenu';
+
+/**
+ * 方向プロパティの null 初期値（ラベル・感情・認知・役割がすべて未設定の状態）
+ * handleRegisterRelationship 内で毎回生成するのを避けるためモジュールレベル定数として定義する
+ */
+const NULL_DIRECTIONAL = { label: null, affection: null, awareness: null, role: null } as const;
+
+/**
+ * 対称プロパティの null 初期値（親密度・信頼・緊張・秘匿・血縁がすべて未設定の状態）
+ * handleRegisterRelationship 内で毎回生成するのを避けるためモジュールレベル定数として定義する
+ */
+const NULL_SYMMETRIC = { closeness: null, trust: null, tension: null, secrecy: null, kinship: null } as const;
 
 /**
  * 画像D&D/ペースト時の登録待ちデータ
@@ -429,7 +441,7 @@ export function useGraphInteractions({
         const firstEdge = edgesToDelete[0] as RelationshipEdge;
         messages.push(
           count === 1 && firstEdge
-            ? `「${firstEdge.data?.sourceToTargetLabel || '不明な関係'}」を削除してもよろしいですか？`
+            ? `「${firstEdge.data?.forwardLabel || firstEdge.data?.reverseLabel || '不明な関係'}」を削除してもよろしいですか？`
             : `${count}個の関係を削除してもよろしいですか？`
         );
       }
@@ -489,35 +501,38 @@ export function useGraphInteractions({
     setPendingRegistration(null);
   }, []);
 
-  // 関係登録・更新ハンドラ（UI層のRelationshipTypeを新データモデルに変換）
+  // 関係登録・更新ハンドラ（UI層のRelationshipTypeを v9 データモデルに変換）
   const handleRegisterRelationship = useCallback(
     (
       type: RelationshipType,
       sourceToTargetLabel: string,
-      targetToSourceLabel: string | null,
-      layer: RelationshipLayer,
-      weight: Relationship['weight']
+      targetToSourceLabel: string | null
     ) => {
       if (!pendingConnection) return;
 
-      // UI層のRelationshipTypeを新データモデルに変換
+      // UI層のRelationshipTypeを v9 フィールドに変換
       const isDirected = type !== 'undirected';
-      const finalSourceToTargetLabel = sourceToTargetLabel.trim();
-      const finalTargetToSourceLabel =
+      const forwardLabel = sourceToTargetLabel.trim() || null;
+      const reverseLabel =
         type === 'dual-directed'
           ? targetToSourceLabel?.trim() || null
           : type === 'bidirectional' || type === 'undirected'
-            ? finalSourceToTargetLabel // 双方向・無方向は同じラベル
+            ? forwardLabel // 双方向・無方向は同じラベル
             : null; // one-wayは逆方向ラベルなし
 
       if (pendingConnection.existingRelationshipId) {
         // 編集モード: 既存の関係を更新
+        // 保存済みの関係の向きと UI の向きが逆の場合は forward/reverse を入れ替える
+        const existingRel = relationships.find(
+          (r) => r.id === pendingConnection.existingRelationshipId
+        );
+        const isReversed =
+          existingRel?.sourcePersonId === pendingConnection.targetPersonId &&
+          existingRel?.targetPersonId === pendingConnection.sourcePersonId;
         updateRelationship(pendingConnection.existingRelationshipId, {
           isDirected,
-          sourceToTargetLabel: finalSourceToTargetLabel,
-          targetToSourceLabel: finalTargetToSourceLabel,
-          layer,
-          weight,
+          forward: { ...NULL_DIRECTIONAL, label: isReversed ? reverseLabel : forwardLabel },
+          reverse: { ...NULL_DIRECTIONAL, label: isReversed ? forwardLabel : reverseLabel },
         });
       } else {
         // 新規登録モード: 関係を追加
@@ -525,17 +540,19 @@ export function useGraphInteractions({
           sourcePersonId: pendingConnection.sourcePersonId,
           targetPersonId: pendingConnection.targetPersonId,
           isDirected,
-          sourceToTargetLabel: finalSourceToTargetLabel,
-          targetToSourceLabel: finalTargetToSourceLabel,
-          layer,
-          weight,
+          forward: { ...NULL_DIRECTIONAL, label: forwardLabel },
+          reverse: { ...NULL_DIRECTIONAL, label: reverseLabel },
+          symmetric: NULL_SYMMETRIC,
+          tags: [],
+          narrative: { summary: null, notes: null, turningPoints: [] },
+          colorOverride: null,
         });
       }
 
       // モーダルを閉じる
       setPendingConnection(null);
     },
-    [pendingConnection, addRelationship, updateRelationship]
+    [pendingConnection, relationships, addRelationship, updateRelationship]
   );
 
   // 関係登録のキャンセルハンドラ
