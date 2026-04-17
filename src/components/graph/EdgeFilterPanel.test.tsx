@@ -122,6 +122,144 @@ describe('EdgeFilterPanel', () => {
     });
   });
 
+  describe('述語フィルタ（条件セクション）', () => {
+    beforeEach(() => {
+      // 人物と関係を追加する（パネルを表示させるために必要）
+      const store = useGraphStore.getState();
+      store.addPerson({ name: '山田太郎' });
+      store.addPerson({ name: '佐藤花子' });
+      const [p1, p2] = useGraphStore.getState().persons;
+
+      store.addRelationship({
+        sourcePersonId: p1.id,
+        targetPersonId: p2.id,
+        isDirected: false,
+        forward: { label: '友人', affection: null, awareness: null, role: null },
+        reverse: { label: '友人', affection: null, awareness: null, role: null },
+        symmetric: { closeness: 0.5, trust: 0.3, tension: 0.1, secrecy: 0.2, kinship: 'parent' },
+        tags: [],
+        narrative: { summary: null, notes: null, turningPoints: [] },
+        colorOverride: null,
+      });
+    });
+
+    it('「条件」セクションが表示される', () => {
+      render(<EdgeFilterPanel />);
+
+      expect(screen.getByText('条件')).toBeInTheDocument();
+    });
+
+    it('4つの数値述語チェックボックス（親密度・信頼度・緊張度・秘匿性）が表示される', () => {
+      render(<EdgeFilterPanel />);
+
+      expect(screen.getByLabelText('親密度を有効化')).toBeInTheDocument();
+      expect(screen.getByLabelText('信頼度を有効化')).toBeInTheDocument();
+      expect(screen.getByLabelText('緊張度を有効化')).toBeInTheDocument();
+      expect(screen.getByLabelText('秘匿性を有効化')).toBeInTheDocument();
+    });
+
+    it('血縁ありチェックボックスが表示される', () => {
+      render(<EdgeFilterPanel />);
+
+      expect(screen.getByLabelText('血縁あり')).toBeInTheDocument();
+    });
+
+    it('初期状態では全述語チェックボックスがオフになっている', () => {
+      render(<EdgeFilterPanel />);
+
+      expect(screen.getByLabelText('親密度を有効化')).not.toBeChecked();
+      expect(screen.getByLabelText('信頼度を有効化')).not.toBeChecked();
+      expect(screen.getByLabelText('緊張度を有効化')).not.toBeChecked();
+      expect(screen.getByLabelText('秘匿性を有効化')).not.toBeChecked();
+      expect(screen.getByLabelText('血縁あり')).not.toBeChecked();
+    });
+
+    it('親密度チェックボックスをONにするとpredicatesにcloseness_gteが追加される', async () => {
+      const user = userEvent.setup();
+      render(<EdgeFilterPanel />);
+
+      await user.click(screen.getByLabelText('親密度を有効化'));
+
+      const { predicates } = useGraphStore.getState().edgeFilter;
+      expect(predicates).toContainEqual({ type: 'closeness_gte', value: 0 });
+    });
+
+    it('親密度チェックボックスをOFFにするとpredicatesからcloseness_gteが削除される', async () => {
+      const user = userEvent.setup();
+      render(<EdgeFilterPanel />);
+
+      // ON → OFF
+      await user.click(screen.getByLabelText('親密度を有効化'));
+      await user.click(screen.getByLabelText('親密度を有効化'));
+
+      const { predicates } = useGraphStore.getState().edgeFilter;
+      expect(predicates.find((p) => p.type === 'closeness_gte')).toBeUndefined();
+    });
+
+    it('血縁ありチェックボックスをONにするとpredicatesにhas_kinshipが追加される', async () => {
+      const user = userEvent.setup();
+      render(<EdgeFilterPanel />);
+
+      await user.click(screen.getByLabelText('血縁あり'));
+
+      const { predicates } = useGraphStore.getState().edgeFilter;
+      expect(predicates).toContainEqual({ type: 'has_kinship' });
+    });
+
+    it('血縁ありチェックボックスをOFFにするとpredicatesからhas_kinshipが削除される', async () => {
+      const user = userEvent.setup();
+      render(<EdgeFilterPanel />);
+
+      await user.click(screen.getByLabelText('血縁あり'));
+      await user.click(screen.getByLabelText('血縁あり'));
+
+      const { predicates } = useGraphStore.getState().edgeFilter;
+      expect(predicates.find((p) => p.type === 'has_kinship')).toBeUndefined();
+    });
+
+    it('親密度チェックボックスON後にスライダーを変更するとpredicatesのvalueが更新される', async () => {
+      const user = userEvent.setup();
+      render(<EdgeFilterPanel />);
+
+      await user.click(screen.getByLabelText('親密度を有効化'));
+      const slider = screen.getByLabelText('親密度スライダー');
+      // fireEvent で input イベントを発火してスライダー値を変更
+      const { fireEvent } = await import('@testing-library/react');
+      fireEvent.change(slider, { target: { value: '0.5' } });
+
+      const { predicates } = useGraphStore.getState().edgeFilter;
+      const pred = predicates.find((p) => p.type === 'closeness_gte');
+      expect(pred).toEqual({ type: 'closeness_gte', value: 0.5 });
+    });
+
+    it('チェックボックスがOFFの場合、スライダーはdisabledになっている', () => {
+      render(<EdgeFilterPanel />);
+
+      const slider = screen.getByLabelText('親密度スライダー');
+      expect(slider).toBeDisabled();
+    });
+
+    it('述語フィルタが有効な場合、「解除」ボタンが表示される', async () => {
+      const user = userEvent.setup();
+      render(<EdgeFilterPanel />);
+
+      await user.click(screen.getByLabelText('親密度を有効化'));
+
+      expect(screen.getByText('解除')).toBeInTheDocument();
+    });
+
+    it('述語フィルタが有効な状態で「解除」をクリックするとpredicatesが空になる', async () => {
+      const user = userEvent.setup();
+      render(<EdgeFilterPanel />);
+
+      await user.click(screen.getByLabelText('親密度を有効化'));
+      await user.click(screen.getByText('解除'));
+
+      const { predicates } = useGraphStore.getState().edgeFilter;
+      expect(predicates).toEqual([]);
+    });
+  });
+
   describe('複数関係のタグ集計', () => {
     beforeEach(() => {
       const store = useGraphStore.getState();
