@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ReactFlowProvider } from '@xyflow/react';
 import { PairSelectionPanel } from './PairSelectionPanel';
@@ -723,7 +723,7 @@ describe('PairSelectionPanel', () => {
       );
 
       // 「定型フィールド」アコーディオンを展開
-      const accordion = screen.getByRole('button', { name: /定型フィールド/ });
+      const accordion = screen.getByText('定型フィールド');
       await user.click(accordion);
 
       // closenessスライダーが表示される
@@ -740,7 +740,7 @@ describe('PairSelectionPanel', () => {
         </ReactFlowProvider>
       );
 
-      const accordion = screen.getByRole('button', { name: /定型フィールド/ });
+      const accordion = screen.getByText('定型フィールド');
       await user.click(accordion);
 
       await waitFor(() => {
@@ -766,7 +766,7 @@ describe('PairSelectionPanel', () => {
         </ReactFlowProvider>
       );
 
-      const accordion = screen.getByRole('button', { name: /定型フィールド/ });
+      const accordion = screen.getByText('定型フィールド');
       await user.click(accordion);
 
       await waitFor(() => {
@@ -786,7 +786,7 @@ describe('PairSelectionPanel', () => {
         </ReactFlowProvider>
       );
 
-      const accordion = screen.getByRole('button', { name: /定型フィールド/ });
+      const accordion = screen.getByText('定型フィールド');
       await user.click(accordion);
 
       await waitFor(() => screen.getByRole('checkbox', { name: '親密度を未設定' }));
@@ -796,7 +796,6 @@ describe('PairSelectionPanel', () => {
       await user.click(checkbox);
 
       // スライダーを0.7に設定（range inputはfireEventで直接変更する）
-      const { fireEvent } = await import('@testing-library/react');
       const slider = screen.getByRole('slider', { name: '親密度' });
       fireEvent.change(slider, { target: { value: '0.7' } });
 
@@ -812,14 +811,13 @@ describe('PairSelectionPanel', () => {
 
     it('trustスライダーの値を0.6に設定して更新するとsymmetric.trust===0.6が保存される', async () => {
       const user = userEvent.setup();
-      const { fireEvent } = await import('@testing-library/react');
       render(
         <ReactFlowProvider>
           <PairSelectionPanel persons={[person1, person2]} />
         </ReactFlowProvider>
       );
 
-      const accordion = screen.getByRole('button', { name: /定型フィールド/ });
+      const accordion = screen.getByText('定型フィールド');
       await user.click(accordion);
 
       await waitFor(() => screen.getByRole('checkbox', { name: '信頼度を未設定' }));
@@ -835,14 +833,13 @@ describe('PairSelectionPanel', () => {
 
     it('tensionスライダーの値を0.4に設定して更新するとsymmetric.tension===0.4が保存される', async () => {
       const user = userEvent.setup();
-      const { fireEvent } = await import('@testing-library/react');
       render(
         <ReactFlowProvider>
           <PairSelectionPanel persons={[person1, person2]} />
         </ReactFlowProvider>
       );
 
-      const accordion = screen.getByRole('button', { name: /定型フィールド/ });
+      const accordion = screen.getByText('定型フィールド');
       await user.click(accordion);
 
       await waitFor(() => screen.getByRole('checkbox', { name: '緊張・対立度を未設定' }));
@@ -858,14 +855,13 @@ describe('PairSelectionPanel', () => {
 
     it('secrecyスライダーの値を0.9に設定して更新するとsymmetric.secrecy===0.9が保存される', async () => {
       const user = userEvent.setup();
-      const { fireEvent } = await import('@testing-library/react');
       render(
         <ReactFlowProvider>
           <PairSelectionPanel persons={[person1, person2]} />
         </ReactFlowProvider>
       );
 
-      const accordion = screen.getByRole('button', { name: /定型フィールド/ });
+      const accordion = screen.getByText('定型フィールド');
       await user.click(accordion);
 
       await waitFor(() => screen.getByRole('checkbox', { name: '秘匿性を未設定' }));
@@ -887,7 +883,7 @@ describe('PairSelectionPanel', () => {
         </ReactFlowProvider>
       );
 
-      const accordion = screen.getByRole('button', { name: /定型フィールド/ });
+      const accordion = screen.getByText('定型フィールド');
       await user.click(accordion);
 
       await waitFor(() => screen.getByRole('combobox', { name: '血縁・親族' }));
@@ -913,7 +909,7 @@ describe('PairSelectionPanel', () => {
         </ReactFlowProvider>
       );
 
-      const accordion = screen.getByRole('button', { name: /定型フィールド/ });
+      const accordion = screen.getByText('定型フィールド');
       await user.click(accordion);
 
       await waitFor(() => screen.getByRole('combobox', { name: '血縁・親族' }));
@@ -944,7 +940,7 @@ describe('PairSelectionPanel', () => {
         </ReactFlowProvider>
       );
 
-      const accordion = screen.getByRole('button', { name: /定型フィールド/ });
+      const accordion = screen.getByText('定型フィールド');
       await user.click(accordion);
 
       await waitFor(() => {
@@ -961,7 +957,7 @@ describe('PairSelectionPanel', () => {
         </ReactFlowProvider>
       );
 
-      const accordion = screen.getByRole('button', { name: /定型フィールド/ });
+      const accordion = screen.getByText('定型フィールド');
       await user.click(accordion);
 
       await waitFor(() => {
@@ -974,14 +970,13 @@ describe('PairSelectionPanel', () => {
 
     it('person1→person2方向のaffectionを0.8に設定して更新するとforward.affection===0.8が保存される', async () => {
       const user = userEvent.setup();
-      const { fireEvent } = await import('@testing-library/react');
       render(
         <ReactFlowProvider>
           <PairSelectionPanel persons={[person1, person2]} />
         </ReactFlowProvider>
       );
 
-      const accordion = screen.getByRole('button', { name: /定型フィールド/ });
+      const accordion = screen.getByText('定型フィールド');
       await user.click(accordion);
 
       await waitFor(() => screen.getByRole('checkbox', { name: `${person1.name}→${person2.name} 好悪を未設定` }));
@@ -1008,14 +1003,13 @@ describe('PairSelectionPanel', () => {
       });
 
       const user = userEvent.setup();
-      const { fireEvent } = await import('@testing-library/react');
       render(
         <ReactFlowProvider>
           <PairSelectionPanel persons={[person1, person2]} />
         </ReactFlowProvider>
       );
 
-      const accordion = screen.getByRole('button', { name: /定型フィールド/ });
+      const accordion = screen.getByText('定型フィールド');
       await user.click(accordion);
 
       await waitFor(() => screen.getByRole('checkbox', { name: `${person1.name}→${person2.name} 好悪を未設定` }));
@@ -1042,7 +1036,7 @@ describe('PairSelectionPanel', () => {
         </ReactFlowProvider>
       );
 
-      const accordion = screen.getByRole('button', { name: /定型フィールド/ });
+      const accordion = screen.getByText('定型フィールド');
       await user.click(accordion);
 
       await waitFor(() => screen.getByRole('combobox', { name: `${person1.name}→${person2.name} 認知状況` }));
@@ -1066,7 +1060,7 @@ describe('PairSelectionPanel', () => {
         </ReactFlowProvider>
       );
 
-      const accordion = screen.getByRole('button', { name: /定型フィールド/ });
+      const accordion = screen.getByText('定型フィールド');
       await user.click(accordion);
 
       await waitFor(() => screen.getByLabelText(`${person1.name}→${person2.name} 役割`));
@@ -1087,7 +1081,7 @@ describe('PairSelectionPanel', () => {
         </ReactFlowProvider>
       );
 
-      const accordion = screen.getByRole('button', { name: /定型フィールド/ });
+      const accordion = screen.getByText('定型フィールド');
       await user.click(accordion);
 
       await waitFor(() => screen.getByLabelText(`${person2.name}→${person1.name} 役割`));
@@ -1194,7 +1188,6 @@ describe('PairSelectionPanel', () => {
 
       // userEventはデフォルトでisComposing=falseなので通常の追加が起きる（IME開始イベントを送る方法なし）
       // 代わりにキーボードイベントを手動でdispatchしてisComposing=trueを確認する
-      const { fireEvent } = await import('@testing-library/react');
       await user.clear(tagInput);
       await user.type(tagInput, 'ライバル');
       // isComposing=trueのEnterキーイベントを発火
@@ -1274,7 +1267,7 @@ describe('PairSelectionPanel', () => {
         </ReactFlowProvider>
       );
 
-      const accordion = screen.getByRole('button', { name: /物語的情報/ });
+      const accordion = screen.getByText('物語的情報');
       await user.click(accordion);
 
       await waitFor(() => {
@@ -1291,7 +1284,7 @@ describe('PairSelectionPanel', () => {
         </ReactFlowProvider>
       );
 
-      const accordion = screen.getByRole('button', { name: /物語的情報/ });
+      const accordion = screen.getByText('物語的情報');
       await user.click(accordion);
 
       await waitFor(() => screen.getByLabelText('関係の概要'));
@@ -1312,7 +1305,7 @@ describe('PairSelectionPanel', () => {
         </ReactFlowProvider>
       );
 
-      const accordion = screen.getByRole('button', { name: /物語的情報/ });
+      const accordion = screen.getByText('物語的情報');
       await user.click(accordion);
 
       await waitFor(() => screen.getByLabelText('メモ・補足'));
@@ -1333,7 +1326,7 @@ describe('PairSelectionPanel', () => {
         </ReactFlowProvider>
       );
 
-      const accordion = screen.getByRole('button', { name: /物語的情報/ });
+      const accordion = screen.getByText('物語的情報');
       await user.click(accordion);
 
       await waitFor(() => screen.getByRole('button', { name: /ターニングポイントを追加/ }));
@@ -1355,7 +1348,7 @@ describe('PairSelectionPanel', () => {
         </ReactFlowProvider>
       );
 
-      const accordion = screen.getByRole('button', { name: /物語的情報/ });
+      const accordion = screen.getByText('物語的情報');
       await user.click(accordion);
 
       await waitFor(() => screen.getByRole('button', { name: /ターニングポイントを追加/ }));
@@ -1384,7 +1377,7 @@ describe('PairSelectionPanel', () => {
         </ReactFlowProvider>
       );
 
-      const accordion = screen.getByRole('button', { name: /物語的情報/ });
+      const accordion = screen.getByText('物語的情報');
       await user.click(accordion);
 
       await waitFor(() => screen.getByRole('button', { name: /ターニングポイントを追加/ }));
@@ -1407,7 +1400,7 @@ describe('PairSelectionPanel', () => {
         </ReactFlowProvider>
       );
 
-      const accordion = screen.getByRole('button', { name: /物語的情報/ });
+      const accordion = screen.getByText('物語的情報');
       await user.click(accordion);
 
       await waitFor(() => screen.getByRole('button', { name: /ターニングポイントを追加/ }));
@@ -1439,7 +1432,7 @@ describe('PairSelectionPanel', () => {
         </ReactFlowProvider>
       );
 
-      const accordion = screen.getByRole('button', { name: /物語的情報/ });
+      const accordion = screen.getByText('物語的情報');
       await user.click(accordion);
 
       await waitFor(() => {
@@ -1486,7 +1479,6 @@ describe('PairSelectionPanel', () => {
 
     it('カラーピッカーで色を設定して更新するとcolorOverrideに保存される', async () => {
       const user = userEvent.setup();
-      const { fireEvent } = await import('@testing-library/react');
       render(
         <ReactFlowProvider>
           <PairSelectionPanel persons={[person1, person2]} />

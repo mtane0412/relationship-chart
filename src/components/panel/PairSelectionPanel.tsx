@@ -11,7 +11,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useId } from 'react';
 import { nanoid } from 'nanoid';
 import { useReactFlow } from '@xyflow/react';
 import { ArrowRight, ArrowLeft, ArrowLeftRight, Minus } from 'lucide-react';
@@ -23,6 +23,12 @@ import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils
 import type { Person } from '@/types/person';
 import type { RelationshipType, KinshipKind, AwarenessKind } from '@/types/relationship';
 import { SUGGESTED_TAGS } from '@/types/relationship';
+
+/**
+ * colorOverride が null のときのカラーピッカーデフォルト色
+ * Tailwind の indigo-500 (#6366f1) に相当する
+ */
+const DEFAULT_EDGE_COLOR = '#6366f1';
 
 /** PairSelectionPanelのプロパティ */
 type PairSelectionPanelProps = {
@@ -121,8 +127,10 @@ function NullableSlider({
   onNullToggle,
 }: NullableSliderProps) {
   const isNull = value === null;
-  const sliderId = `slider-${label}`;
-  const checkboxId = `nullable-${label}`;
+  // useId() でインスタンス固有の ID を生成し、ラベル文字列による重複 ID を防ぐ
+  const baseId = useId();
+  const sliderId = `${baseId}-slider`;
+  const checkboxId = `${baseId}-nullable`;
   // 未設定時にスライダーが表示する内部値（デフォルト値か現在値）
   const displayValue = value ?? defaultValue;
 
@@ -240,10 +248,15 @@ type TagChipInputProps = {
   value: string[];
   onChange: (tags: string[]) => void;
   suggestions: readonly string[];
+  /** datalist 要素の ID（省略時は useId() で生成） */
+  datalistId?: string;
 };
 
-function TagChipInput({ value, onChange, suggestions }: TagChipInputProps) {
+function TagChipInput({ value, onChange, suggestions, datalistId: datalistIdProp }: TagChipInputProps) {
   const [inputValue, setInputValue] = useState('');
+  // 呼び出し元から ID が渡されていれば使い、なければ useId() で一意な ID を生成する
+  const generatedId = useId();
+  const datalistId = datalistIdProp ?? `${generatedId}-tag-suggestions`;
 
   const addTag = (raw: string) => {
     const tag = raw.trim();
@@ -264,8 +277,6 @@ function TagChipInput({ value, onChange, suggestions }: TagChipInputProps) {
       addTag(inputValue);
     }
   };
-
-  const datalistId = 'tag-suggestions';
 
   return (
     <div className="space-y-2">
@@ -925,23 +936,13 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
           value={tags}
           onChange={setTags}
           suggestions={SUGGESTED_TAGS}
+          datalistId="tag-suggestions"
         />
 
         {/* ─── 定型フィールド アコーディオン ─── */}
         <details className="border border-gray-200 rounded-md">
           <summary className="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-600 cursor-pointer select-none hover:bg-gray-50 list-none">
-            <button
-              type="button"
-              className="flex-1 text-left"
-              onClick={(e) => {
-                // detailsのsummaryをbuttonで包むとclickが2重になるため、
-                // detailsのtoggleに任せてbutton自身のデフォルト動作を抑制しない
-                e.currentTarget.closest('details')?.toggleAttribute('open');
-                e.preventDefault();
-              }}
-            >
-              定型フィールド
-            </button>
+            定型フィールド
           </summary>
           <div className="px-3 pb-3 space-y-4 border-t border-gray-100 pt-3">
 
@@ -1107,16 +1108,7 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
         {/* ─── 物語的情報 アコーディオン ─── */}
         <details className="border border-gray-200 rounded-md">
           <summary className="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-600 cursor-pointer select-none hover:bg-gray-50 list-none">
-            <button
-              type="button"
-              className="flex-1 text-left"
-              onClick={(e) => {
-                e.currentTarget.closest('details')?.toggleAttribute('open');
-                e.preventDefault();
-              }}
-            >
-              物語的情報
-            </button>
+            物語的情報
           </summary>
           <div className="px-3 pb-3 space-y-3 border-t border-gray-100 pt-3">
             {/* summary */}
@@ -1160,7 +1152,7 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
               <input
                 id="color-override-picker"
                 type="color"
-                value={colorOverride ?? '#6366f1'}
+                value={colorOverride ?? DEFAULT_EDGE_COLOR}
                 onChange={(e) => setColorOverride(e.target.value)}
                 aria-label="エッジの色"
                 className="w-8 h-8 rounded border border-gray-300 cursor-pointer p-0.5"
@@ -1181,7 +1173,7 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
                 type="button"
                 onClick={() => {
                   setColorPickerEnabled(true);
-                  if (!colorOverride) setColorOverride('#6366f1');
+                  if (!colorOverride) setColorOverride(DEFAULT_EDGE_COLOR);
                 }}
                 aria-label="色を上書きする"
                 className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
