@@ -12,6 +12,7 @@ import {
   filterPersonsByQuery,
   findCommonPrefix,
   findMentionRanges,
+  findRawEndPosition,
 } from './mention-utils';
 import type { Person } from '@/types/person';
 
@@ -152,6 +153,48 @@ describe('findCommonPrefix', () => {
   });
 });
 
+describe('findRawEndPosition', () => {
+  it('空白なし: 正規化後の長さ=元の長さ', () => {
+    // 「山田太郎」は正規化しても長さが変わらないので rawEndPos = 4
+    expect(findRawEndPosition('山田太郎', 4)).toBe(4);
+  });
+
+  it('半角スペース1つ: 正規化後の長さ=元の長さ', () => {
+    // 「山田 太郎」は正規化後も「山田 太郎」(5文字) → rawEndPos = 5
+    expect(findRawEndPosition('山田 太郎', 5)).toBe(5);
+  });
+
+  it('連続した半角スペース: 正規化後は1文字分だが元は2文字分', () => {
+    // 「山田  太郎」(スペース2つ, 6文字) の正規化後は「山田 太郎」(5文字) → rawEndPos = 6
+    expect(findRawEndPosition('山田  太郎', 5)).toBe(6);
+  });
+
+  it('全角スペース: 正規化後は半角スペース1つに', () => {
+    // 「山田\u3000太郎」(全角スペース, 5文字) の正規化後は「山田 太郎」(5文字) → rawEndPos = 5
+    expect(findRawEndPosition('山田\u3000太郎', 5)).toBe(5);
+  });
+
+  it('半角英字のスペース1つ: rawEndPos = 11', () => {
+    // 「alice smith」は正規化後も「alice smith」(11文字) → rawEndPos = 11
+    expect(findRawEndPosition('alice smith', 11)).toBe(11);
+  });
+
+  it('半角英字の連続スペース: 正規化後は1つ分だが元は2文字分', () => {
+    // 「alice  smith」(スペース2つ, 12文字) の正規化後は「alice smith」(11文字) → rawEndPos = 12
+    expect(findRawEndPosition('alice  smith', 11)).toBe(12);
+  });
+
+  it('先頭に半角スペースがある場合: trim相当でスキップ', () => {
+    // 「 山田太郎」(先頭スペース付き, 5文字) の正規化後は「山田太郎」(4文字) → rawEndPos = 5
+    expect(findRawEndPosition(' 山田太郎', 4)).toBe(5);
+  });
+
+  it('正規化後の長さが足りない場合は null を返す', () => {
+    // 「山田」(2文字) に対して normalizedTargetLength=5 は不足
+    expect(findRawEndPosition('山田', 5)).toBeNull();
+  });
+});
+
 describe('findMentionRanges', () => {
   it('有効なメンションの開始・終了インデックスを返す', () => {
     // '@田中花子 と @山田太郎'
@@ -184,6 +227,39 @@ describe('findMentionRanges', () => {
     const ranges = findMentionRanges('普通のテキスト', テスト人物リスト);
     expect(ranges).toHaveLength(0);
   });
+
+  it('登録名の連続スペースが入力では1つ: インデックスが入力の文字数に合う', () => {
+    // 登録名「山田  太郎」(スペース2つ) に対し、入力は「@山田 太郎」(スペース1つ, 5文字)
+    // endIndex は入力テキスト上の "@山田 太郎" の末尾 = 6 になるべき
+    const 連続スペース人物: Person[] = [
+      { id: 'id-double-space', name: '山田  太郎', createdAt: '2024-01-01T00:00:00.000Z' },
+    ];
+    const text = '@山田 太郎 は元気';
+    const ranges = findMentionRanges(text, 連続スペース人物);
+    expect(ranges).toHaveLength(1);
+    expect(text.slice(ranges[0].start, ranges[0].end)).toBe('@山田 太郎');
+  });
+
+  it('入力に全角スペース: 登録名の半角スペースと正規化でマッチ', () => {
+    // 登録名「山田 太郎」(半角スペース) に対し、入力は「@山田\u3000太郎」(全角スペース)
+    // endIndex は入力テキスト上の "@山田\u3000太郎" の末尾 = 6 になるべき
+    const 半角スペース人物: Person[] = [
+      { id: 'id-half-space', name: '山田 太郎', createdAt: '2024-01-01T00:00:00.000Z' },
+    ];
+    const text = '@山田\u3000太郎 は元気';
+    const ranges = findMentionRanges(text, 半角スペース人物);
+    expect(ranges).toHaveLength(1);
+    expect(text.slice(ranges[0].start, ranges[0].end)).toBe('@山田\u3000太郎');
+  });
+
+  it('入力に連続スペース、登録名は1つ: インデックスが入力の文字数に合う', () => {
+    // 登録名「Alice Smith」に対し、入力は「@alice  smith」(スペース2つ)
+    // endIndex は入力テキスト上の "@alice  smith" の末尾 = 13 になるべき
+    const text = '@alice  smith の話';
+    const ranges = findMentionRanges(text, テスト人物リスト);
+    expect(ranges).toHaveLength(1);
+    expect(text.slice(ranges[0].start, ranges[0].end)).toBe('@alice  smith');
+  });
 });
 
 describe('parseMentions', () => {
@@ -215,6 +291,30 @@ describe('parseMentions', () => {
   it('大文字小文字を区別せずにマッチする', () => {
     const text = '@alice smith の話';
     const result = parseMentions(text, テスト人物リスト);
+    expect(result.referencedPersonIds).toContain('id-dave');
+  });
+
+  it('登録名の連続スペースが入力では1つ: 正しいIDを返す', () => {
+    // 登録名「山田  太郎」(スペース2つ) に対し、入力は「@山田 太郎」(スペース1つ)
+    const 連続スペース人物: Person[] = [
+      { id: 'id-double-space', name: '山田  太郎', createdAt: '2024-01-01T00:00:00.000Z' },
+    ];
+    const result = parseMentions('@山田 太郎 は元気', 連続スペース人物);
+    expect(result.referencedPersonIds).toContain('id-double-space');
+  });
+
+  it('入力に全角スペース、登録名は半角スペース: 正しいIDを返す', () => {
+    // 登録名「山田 太郎」(半角スペース) に対し、入力は「@山田\u3000太郎」(全角スペース)
+    const 半角スペース人物: Person[] = [
+      { id: 'id-half-space', name: '山田 太郎', createdAt: '2024-01-01T00:00:00.000Z' },
+    ];
+    const result = parseMentions('@山田\u3000太郎 は元気', 半角スペース人物);
+    expect(result.referencedPersonIds).toContain('id-half-space');
+  });
+
+  it('入力に連続スペース、登録名は1つ: 正しいIDを返す', () => {
+    // 登録名「Alice Smith」に対し、入力は「@alice  smith」(スペース2つ)
+    const result = parseMentions('@alice  smith の話', テスト人物リスト);
     expect(result.referencedPersonIds).toContain('id-dave');
   });
 });

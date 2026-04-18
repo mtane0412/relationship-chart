@@ -26,6 +26,93 @@ const MENTION_TERMINATORS = new Set([
 ]);
 
 /**
+ * 正規化後の文字列長に対応する、元テキスト上の位置を返す
+ *
+ * normalizeName() は連続空白→1文字・全角空白→半角への圧縮と trim() を行うため、
+ * 正規化前後で文字列長が変わりうる。この関数は rawText を1文字ずつ走査し、
+ * normalizeName と同じルールで文字数を数え、normalizedTargetLength 文字分の
+ * 正規化文字を消費した時点の rawText 上の位置（インデックス）を返す。
+ *
+ * 用途: 正規化でマッチした名前が、入力テキスト上で何文字分を占めるかを求める。
+ *
+ * @param rawText - 走査対象の元テキスト（@ の直後から始まる部分文字列）
+ * @param normalizedTargetLength - 正規化後の目標文字数
+ * @returns 目標文字数を消費した rawText 上の位置、到達できない場合は null
+ */
+export function findRawEndPosition(rawText: string, normalizedTargetLength: number): number | null {
+  // normalizeName の trim() 相当: 先頭の空白・全角スペースをスキップ
+  let rawPos = 0;
+  while (rawPos < rawText.length && /[\s\u3000]/.test(rawText[rawPos])) {
+    rawPos++;
+  }
+
+  let normalizedCount = 0;
+
+  while (rawPos < rawText.length && normalizedCount < normalizedTargetLength) {
+    const ch = rawText[rawPos];
+
+    if (/[\s\u3000]/.test(ch)) {
+      // 連続する空白（半角・全角問わず）をすべて消費して、正規化後は1文字分にカウント
+      while (rawPos < rawText.length && /[\s\u3000]/.test(rawText[rawPos])) {
+        rawPos++;
+      }
+      normalizedCount++;
+    } else {
+      // 空白以外は1文字消費して1文字分にカウント（小文字化は文字数に影響しない）
+      rawPos++;
+      normalizedCount++;
+    }
+  }
+
+  return normalizedCount === normalizedTargetLength ? rawPos : null;
+}
+
+/**
+ * matchMentionAt の戻り値型
+ */
+type MentionMatch = {
+  /** マッチした人物 */
+  person: Person;
+  /** @ の直後からメンション末尾までの rawText 上のオフセット（バイト数ではなく文字数） */
+  rawEndOffset: number;
+};
+
+/**
+ * 指定した @ の位置から始まるメンションを検索する
+ *
+ * sortedPersons（名前の長さ降順）を順に試行し、
+ * 正規化後の名前と一致するものが見つかれば MentionMatch を返す。
+ * 一致しない場合は null を返す。
+ *
+ * findMentionRanges と parseMentions で共通する重複ロジックを統合するための内部ヘルパー。
+ *
+ * @param text - 解析対象の全テキスト
+ * @param atIndex - @ の位置（text[atIndex] === '@' であること）
+ * @param sortedPersons - 名前の長さ降順にソート済みの人物リスト
+ * @returns マッチ結果、または null
+ */
+function matchMentionAt(text: string, atIndex: number, sortedPersons: Person[]): MentionMatch | null {
+  const afterAt = text.slice(atIndex + 1);
+
+  for (const person of sortedPersons) {
+    const normalizedName = normalizeName(person.name);
+    // afterAt の正規化後 normalizedName.length 文字分が、元テキストで何文字かを求める
+    const rawEndPos = findRawEndPosition(afterAt, normalizedName.length);
+    if (rawEndPos === null) continue;
+
+    // 実際に切り出して正規化し、登録名の正規化と一致するか確認
+    if (normalizeName(afterAt.slice(0, rawEndPos)) !== normalizedName) continue;
+
+    // 名前の直後が区切り文字（またはテキスト末尾）であることを確認（単語境界チェック）
+    if (isMentionTerminator(text[atIndex + 1 + rawEndPos])) {
+      return { person, rawEndOffset: rawEndPos };
+    }
+  }
+
+  return null;
+}
+
+/**
  * 与えられた文字がメンションの区切り文字かどうかを判定する
  *
  * @param char - 検査する文字（undefined の場合はテキスト末尾 = 区切りとみなす）
@@ -144,25 +231,12 @@ export function findMentionRanges(text: string, persons: Person[], presorted = f
       continue;
     }
 
-    const afterAt = text.slice(i + 1);
-    let matched = false;
-
-    for (const person of sortedPersons) {
-      const normalizedName = normalizeName(person.name);
-      const normalizedAfterAt = normalizeName(afterAt.slice(0, person.name.length + 5));
-
-      if (normalizedAfterAt.startsWith(normalizedName)) {
-        const endIndex = i + 1 + person.name.length;
-        if (isMentionTerminator(text[endIndex])) {
-          ranges.push({ start: i, end: endIndex });
-          i = endIndex;
-          matched = true;
-          break;
-        }
-      }
-    }
-
-    if (!matched) {
+    const match = matchMentionAt(text, i, sortedPersons);
+    if (match !== null) {
+      const endIndex = i + 1 + match.rawEndOffset;
+      ranges.push({ start: i, end: endIndex });
+      i = endIndex;
+    } else {
       i++;
     }
   }
@@ -226,27 +300,11 @@ export function parseMentions(text: string, persons: Person[]): ParseMentionsRes
     }
 
     // @ の直後から始まるテキストを人物名と照合（最長一致）
-    const afterAt = text.slice(i + 1);
-    let matched = false;
-
-    for (const person of sortedPersons) {
-      const normalizedName = normalizeName(person.name);
-      const normalizedAfterAt = normalizeName(afterAt.slice(0, person.name.length + 5));
-
-      // 正規化した名前で前方一致を確認
-      if (normalizedAfterAt.startsWith(normalizedName)) {
-        // 名前の後が区切り文字であること（単語境界チェック）を確認
-        const endIndex = i + 1 + person.name.length;
-        if (isMentionTerminator(text[endIndex])) {
-          referencedIds.add(person.id);
-          i = endIndex;
-          matched = true;
-          break;
-        }
-      }
-    }
-
-    if (!matched) {
+    const match = matchMentionAt(text, i, sortedPersons);
+    if (match !== null) {
+      referencedIds.add(match.person.id);
+      i = i + 1 + match.rawEndOffset;
+    } else {
       i++;
     }
   }
