@@ -11,6 +11,7 @@ import {
   parseMentions,
   filterPersonsByQuery,
   findCommonPrefix,
+  findMentionRanges,
 } from './mention-utils';
 import type { Person } from '@/types/person';
 
@@ -148,6 +149,40 @@ describe('findCommonPrefix', () => {
   it('大文字小文字が異なる場合は小文字プレフィックスで返す', () => {
     // 'Alice' と 'Alicia' → 'Alic' が共通
     expect(findCommonPrefix(['Alice', 'Alicia'])).toBe('Alic');
+  });
+});
+
+describe('findMentionRanges', () => {
+  it('有効なメンションの開始・終了インデックスを返す', () => {
+    // '@田中花子 と @山田太郎'
+    // 0:@ 1:田 2:中 3:花 4:子 5:空 6:と 7:空 8:@ 9:山 10:田 11:太 12:郎
+    const text = '@田中花子 と @山田太郎';
+    const ranges = findMentionRanges(text, テスト人物リスト);
+    expect(ranges).toHaveLength(2);
+    expect(ranges[0]).toEqual({ start: 0, end: 5 }); // '@田中花子'
+    expect(ranges[1]).toEqual({ start: 8, end: 13 }); // '@山田太郎'
+  });
+
+  it('存在しない名前はスキップする', () => {
+    const text = '@存在しない と @田中花子';
+    const ranges = findMentionRanges(text, テスト人物リスト);
+    expect(ranges).toHaveLength(1);
+    expect(text.slice(ranges[0].start, ranges[0].end)).toBe('@田中花子');
+  });
+
+  it('人物が存在しない場合は空配列を返す', () => {
+    const ranges = findMentionRanges('@田中花子', []);
+    expect(ranges).toHaveLength(0);
+  });
+
+  it('テキストが空の場合は空配列を返す', () => {
+    const ranges = findMentionRanges('', テスト人物リスト);
+    expect(ranges).toHaveLength(0);
+  });
+
+  it('@がない場合は空配列を返す', () => {
+    const ranges = findMentionRanges('普通のテキスト', テスト人物リスト);
+    expect(ranges).toHaveLength(0);
   });
 });
 

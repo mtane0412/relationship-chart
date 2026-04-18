@@ -79,6 +79,78 @@ export function filterPersonsByQuery(query: string, persons: Person[]): Person[]
 }
 
 /**
+ * テキスト内で有効なメンション（既存人物に一致する @名前）の位置情報
+ */
+export type MentionRange = {
+  /** @ の位置（インデックス） */
+  start: number;
+  /** 名前の末尾の次の位置（end は含まない: text.slice(start, end) で "@名前" を取得） */
+  end: number;
+};
+
+/**
+ * テキスト内の有効なメンション（既存人物に一致する @名前）の位置を返す
+ *
+ * parseMentions と同じアルゴリズムで最長一致を使用するが、
+ * 人物IDではなく位置情報（start/end インデックス）を返す。
+ * ハイライトオーバーレイのレンダリングに使用する。
+ *
+ * @param text - 解析対象のテキスト
+ * @param persons - 照合に使用する人物リスト
+ * @returns 有効なメンションの位置情報リスト
+ */
+export function findMentionRanges(text: string, persons: Person[]): MentionRange[] {
+  if (!text || persons.length === 0) return [];
+
+  const ranges: MentionRange[] = [];
+  const sortedPersons = [...persons].sort((a, b) => b.name.length - a.name.length);
+
+  let i = 0;
+  while (i < text.length) {
+    if (text[i] !== '@') {
+      i++;
+      continue;
+    }
+
+    const afterAt = text.slice(i + 1);
+    let matched = false;
+
+    for (const person of sortedPersons) {
+      const normalizedName = normalizeName(person.name);
+      const normalizedAfterAt = normalizeName(afterAt.slice(0, person.name.length + 5));
+
+      if (normalizedAfterAt.startsWith(normalizedName)) {
+        const endIndex = i + 1 + person.name.length;
+        const charAfterName = text[endIndex];
+        if (
+          charAfterName === undefined ||
+          charAfterName === ' ' ||
+          charAfterName === '\n' ||
+          charAfterName === '\r' ||
+          charAfterName === '\u3000' ||
+          charAfterName === '。' ||
+          charAfterName === '、' ||
+          charAfterName === '.' ||
+          charAfterName === ',' ||
+          charAfterName === '@'
+        ) {
+          ranges.push({ start: i, end: endIndex });
+          i = endIndex;
+          matched = true;
+          break;
+        }
+      }
+    }
+
+    if (!matched) {
+      i++;
+    }
+  }
+
+  return ranges;
+}
+
+/**
  * 文字列配列の最長共通プレフィックスを返す（Tab補完用）
  *
  * ターミナル補完のように、複数候補に共通する先頭部分を返す。

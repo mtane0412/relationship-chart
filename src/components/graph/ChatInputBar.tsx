@@ -13,13 +13,13 @@
 
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Sparkles, Loader2, X } from 'lucide-react';
 import { useExtractRelationships } from '@/hooks/useExtractRelationships';
 import { useMention } from '@/hooks/useMention';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { resolveExtractionResult } from '@/lib/person-matching';
-import { findCommonPrefix } from '@/lib/mention-utils';
+import { findCommonPrefix, findMentionRanges } from '@/lib/mention-utils';
 import { MentionDropdown } from './MentionDropdown';
 import { ExtractionPreviewPanel } from './ExtractionPreviewPanel';
 import type { Person } from '@/types/person';
@@ -30,6 +30,61 @@ const MAX_TEXT_LENGTH = 10000;
 const MAX_TEXTAREA_HEIGHT = 180;
 
 /**
+ * テキストを解析して @メンション部分をハイライトした React ノードを返す
+ *
+ * 有効なメンション（既存人物に一致する @名前）は青色バッジとして表示し、
+ * それ以外は通常テキストとしてそのまま表示する。
+ *
+ * @param text - 入力テキスト
+ * @param persons - 照合に使用する人物リスト
+ * @returns ハイライト済みの React ノード
+ */
+function renderHighlightedText(text: string, persons: Person[]): React.ReactNode {
+  if (!text) return null;
+
+  const ranges = findMentionRanges(text, persons);
+  if (ranges.length === 0) {
+    return <span className="text-gray-900">{text}</span>;
+  }
+
+  const nodes: React.ReactNode[] = [];
+  let pos = 0;
+
+  for (const range of ranges) {
+    // メンション前の通常テキスト
+    if (pos < range.start) {
+      nodes.push(
+        <span key={`t-${pos}`} className="text-gray-900">
+          {text.slice(pos, range.start)}
+        </span>
+      );
+    }
+    // ハイライトされた @メンション
+    nodes.push(
+      <mark
+        key={`m-${range.start}`}
+        className="bg-blue-100 text-blue-700 rounded-sm not-italic font-medium"
+        style={{ padding: '0 1px' }}
+      >
+        {text.slice(range.start, range.end)}
+      </mark>
+    );
+    pos = range.end;
+  }
+
+  // 残りの通常テキスト
+  if (pos < text.length) {
+    nodes.push(
+      <span key={`t-${pos}`} className="text-gray-900">
+        {text.slice(pos)}
+      </span>
+    );
+  }
+
+  return <>{nodes}</>;
+}
+
+/**
  * ChatInputBar コンポーネント
  *
  * RelationshipGraph のキャンバス内、画面下部に absolute 配置される。
@@ -38,6 +93,8 @@ export function ChatInputBar() {
   const [text, setText] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  /** ハイライトオーバーレイの DOM 参照（スクロール同期に使用） */
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   const { extract, isLoading, error, extractionResult, reset } = useExtractRelationships();
 
@@ -63,7 +120,22 @@ export function ChatInputBar() {
     const textarea = textareaRef.current;
     if (!textarea) return;
     textarea.style.height = 'auto';
-    textarea.style.height = `${Math.min(textarea.scrollHeight, MAX_TEXTAREA_HEIGHT)}px`;
+    const newHeight = Math.min(textarea.scrollHeight, MAX_TEXTAREA_HEIGHT);
+    textarea.style.height = `${newHeight}px`;
+    // オーバーレイの高さも同期
+    if (overlayRef.current) {
+      overlayRef.current.style.height = `${newHeight}px`;
+    }
+  }, []);
+
+  /**
+   * textarea のスクロール位置をオーバーレイに同期する
+   * （textarea がスクロールした時にオーバーレイも追従させる）
+   */
+  const syncScroll = useCallback(() => {
+    if (textareaRef.current && overlayRef.current) {
+      overlayRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
   }, []);
 
   /**
@@ -366,36 +438,72 @@ export function ChatInputBar() {
             </div>
           )}
 
-          {/* テキスト入力エリア */}
+          {/* テキスト入力エリア（ハイライトオーバーレイ + textarea の重ね合わせ） */}
           <div className="flex items-end gap-2 px-4 py-3">
-            <textarea
-              ref={textareaRef}
-              value={text}
-              onChange={handleChange}
-              onKeyDown={handleKeyDown}
-              onSelect={(e) => {
-                // カーソル移動時にメンション検出を更新
-                const cursorPos = (e.target as HTMLTextAreaElement).selectionStart ?? 0;
-                handleTextChange(text, cursorPos);
-              }}
-              disabled={isLoading}
-              maxLength={MAX_TEXT_LENGTH}
-              rows={1}
-              placeholder={
-                isLoading
-                  ? 'テキストを解析中...'
-                  : '人物関係のテキストを入力（@で人物を指定）'
-              }
-              aria-label="AI テキスト入力"
-              aria-controls={mentionQuery !== null ? 'mention-listbox' : undefined}
-              aria-activedescendant={
-                mentionQuery !== null && selectedIndex >= 0
-                  ? `mention-option-${selectedIndex}`
-                  : undefined
-              }
-              className="flex-1 resize-none outline-none text-sm text-gray-900 placeholder-gray-400 bg-transparent min-h-[24px] leading-relaxed disabled:opacity-60"
-              style={{ maxHeight: `${MAX_TEXTAREA_HEIGHT}px`, overflowY: 'auto' }}
-            />
+            {/* textarea とオーバーレイを relative コンテナで包む */}
+            <div className="relative flex-1" style={{ minHeight: '24px' }}>
+              {/*
+               * ハイライトオーバーレイ
+               * - textarea と同じフォント・行間を持つ div
+               * - pointer-events: none で textarea のインタラクションを妨げない
+               * - 有効な @メンション を青色ハイライトで表示
+               */}
+              <div
+                ref={overlayRef}
+                aria-hidden="true"
+                className="absolute inset-0 text-sm leading-relaxed pointer-events-none overflow-hidden select-none"
+                style={{
+                  whiteSpace: 'pre-wrap',
+                  overflowWrap: 'break-word',
+                  wordBreak: 'break-word',
+                  // textarea のデフォルトパディングと揃えるため同じ値を指定
+                  padding: 0,
+                }}
+              >
+                {renderHighlightedText(text, persons)}
+                {/* 末尾スペース: 最終行が空行の場合に高さが崩れないようにする */}
+                {'\u00a0'}
+              </div>
+
+              {/* 実際の入力 textarea（テキストは透明、カーソルのみ表示） */}
+              <textarea
+                ref={textareaRef}
+                value={text}
+                onChange={handleChange}
+                onKeyDown={handleKeyDown}
+                onScroll={syncScroll}
+                onSelect={(e) => {
+                  // カーソル移動時にメンション検出を更新
+                  const cursorPos = (e.target as HTMLTextAreaElement).selectionStart ?? 0;
+                  handleTextChange(text, cursorPos);
+                }}
+                disabled={isLoading}
+                maxLength={MAX_TEXT_LENGTH}
+                rows={1}
+                placeholder={
+                  isLoading
+                    ? 'テキストを解析中...'
+                    : '人物関係のテキストを入力（@で人物を指定）'
+                }
+                aria-label="AI テキスト入力"
+                aria-controls={mentionQuery !== null ? 'mention-listbox' : undefined}
+                aria-activedescendant={
+                  mentionQuery !== null && selectedIndex >= 0
+                    ? `mention-option-${selectedIndex}`
+                    : undefined
+                }
+                className="relative w-full resize-none outline-none text-sm leading-relaxed bg-transparent placeholder-gray-400 disabled:opacity-60"
+                style={{
+                  // テキストを透明化してオーバーレイの色を見せる
+                  color: 'transparent',
+                  caretColor: '#111827', // gray-900: カーソルは通常通り表示
+                  maxHeight: `${MAX_TEXTAREA_HEIGHT}px`,
+                  overflowY: 'auto',
+                  minHeight: '24px',
+                  padding: 0,
+                }}
+              />
+            </div>
 
             {/* 送信ボタン / ローディングスピナー */}
             <button
