@@ -34,6 +34,7 @@ import { useGraphContextMenuActions } from './useGraphContextMenuActions';
 import { useContextMenu } from './useContextMenu';
 import { ContextMenu } from './ContextMenu';
 import { EdgeFilterPanel } from './EdgeFilterPanel';
+import { ChatInputBar } from './ChatInputBar';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { getRelationshipDisplayType } from '@/lib/relationship-utils';
 /** 固定 6 色の SVG マーカー定義（deriveEdgeVisual の markerKey と対応） */
@@ -305,6 +306,9 @@ export function RelationshipGraph() {
           </button>
         </div>
       )}
+
+      {/* フローティングチャット入力バー */}
+      <ChatInputBar />
 
       {/* 人物登録モーダル */}
       <PersonRegistrationModal
