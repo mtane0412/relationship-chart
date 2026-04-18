@@ -209,4 +209,30 @@ describe('getLlmExtractionJsonSchema', () => {
     const schema = getLlmExtractionJsonSchema();
     expect(() => JSON.stringify(schema)).not.toThrow();
   });
+
+  it('全オブジェクトに required が設定されていること（Azure/OpenAI strict mode 対応）', () => {
+    // Azure strict mode は全 object に required 配列が必要
+    const schema = getLlmExtractionJsonSchema() as Record<string, unknown>;
+    // トップレベルに required が設定されていること
+    expect(Array.isArray(schema.required)).toBe(true);
+    // relationships の items（LlmRelationshipSchema）に required が設定されていること
+    const relItems = (schema as Record<string, Record<string, Record<string, Record<string, unknown>>>>)
+      .properties?.relationships?.items;
+    expect(Array.isArray((relItems as Record<string, unknown>)?.required)).toBe(true);
+  });
+
+  it('relationships.items.properties.properties に required が含まれること（Azure strict mode 対応）', () => {
+    // Azure エラーログ: context=('properties','relationships','items','properties','properties')
+    // で required が不足していた問題への対応
+    const schema = getLlmExtractionJsonSchema() as Record<string, unknown>;
+    const relItems = (schema as Record<string, Record<string, Record<string, Record<string, unknown>>>>)
+      .properties?.relationships?.items as Record<string, unknown> | undefined;
+    const propSchema = (relItems?.properties as Record<string, unknown> | undefined)
+      ?.properties as Record<string, unknown> | undefined;
+
+    expect(Array.isArray(propSchema?.required)).toBe(true);
+    // closeness が required に含まれていること（Azure エラーメッセージで指摘されたキー）
+    expect((propSchema?.required as string[]).includes('closeness')).toBe(true);
+    expect(propSchema?.additionalProperties).toBe(false);
+  });
 });

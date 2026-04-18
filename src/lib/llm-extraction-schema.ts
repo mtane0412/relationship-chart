@@ -112,11 +112,53 @@ export type LlmPerson = z.infer<typeof LlmPersonSchema>;
 export type LlmRelationship = z.infer<typeof LlmRelationshipSchema>;
 
 /**
+ * JSON Schema を OpenAI/Azure strict mode 準拠に再帰変換する
+ *
+ * strict mode の要件:
+ * - 全オブジェクトに required（全プロパティキーの配列）が必要
+ * - additionalProperties: false が必要
+ *
+ * zod v4 の z.toJSONSchema() は optional フィールドを required に含めないため、
+ * この関数で後処理として補完する。
+ */
+function makeStrictJsonSchema(schema: unknown): unknown {
+  if (typeof schema !== 'object' || schema === null) return schema;
+  if (Array.isArray(schema)) return schema.map(makeStrictJsonSchema);
+
+  const obj = schema as Record<string, unknown>;
+  const result: Record<string, unknown> = {};
+
+  // 全キーを再帰的に処理してコピー
+  for (const [key, value] of Object.entries(obj)) {
+    result[key] = makeStrictJsonSchema(value);
+  }
+
+  // type: 'object' かつ properties がある場合は strict mode 対応を追加
+  if (
+    result.type === 'object' &&
+    result.properties != null &&
+    typeof result.properties === 'object' &&
+    !Array.isArray(result.properties)
+  ) {
+    const props = result.properties as Record<string, unknown>;
+    // 全プロパティキーを required に設定（既存の required は上書き）
+    result.required = Object.keys(props);
+    result.additionalProperties = false;
+  }
+
+  return result;
+}
+
+/**
  * LlmExtractionResultSchema を JSON Schema 形式に変換して返す。
  * Vercel AI SDK の jsonSchema() ヘルパーに渡すために使用する。
  *
- * @returns JSON Schema オブジェクト（JSON シリアライズ可能）
+ * OpenAI/Azure strict mode 準拠のため、makeStrictJsonSchema で後処理を行い
+ * 全オブジェクトに required と additionalProperties: false を付与する。
+ *
+ * @returns JSON Schema オブジェクト（JSON シリアライズ可能、strict mode 準拠）
  */
 export function getLlmExtractionJsonSchema(): Record<string, unknown> {
-  return z.toJSONSchema(LlmExtractionResultSchema) as Record<string, unknown>;
+  const rawSchema = z.toJSONSchema(LlmExtractionResultSchema) as Record<string, unknown>;
+  return makeStrictJsonSchema(rawSchema) as Record<string, unknown>;
 }
