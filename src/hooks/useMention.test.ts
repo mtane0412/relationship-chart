@@ -112,14 +112,15 @@ describe('useMention', () => {
   });
 
   describe('selectedIndex のキーボードナビゲーション', () => {
-    it('ドロップダウン表示時に selectedIndex は -1 で始まる', () => {
+    it('ドロップダウン表示時に selectedIndex は 0（最初の候補が選択済み）で始まる', () => {
       const { result } = renderHook(() => useMention(テスト人物リスト));
 
       act(() => {
         result.current.handleTextChange('@', 1);
       });
 
-      expect(result.current.selectedIndex).toBe(-1);
+      // 初期選択は 0（最初の候補）
+      expect(result.current.selectedIndex).toBe(0);
     });
 
     it('ArrowDown で selectedIndex が増加する', () => {
@@ -128,7 +129,7 @@ describe('useMention', () => {
       act(() => {
         result.current.handleTextChange('@', 1);
       });
-
+      // 初期は 0 なので ArrowDown で 1 になる
       act(() => {
         result.current.handleMentionKeyDown({
           key: 'ArrowDown',
@@ -137,24 +138,16 @@ describe('useMention', () => {
         } as unknown as React.KeyboardEvent);
       });
 
-      expect(result.current.selectedIndex).toBe(0);
+      expect(result.current.selectedIndex).toBe(1);
     });
 
-    it('ArrowUp で selectedIndex が減少する（下限は -1）', () => {
+    it('ArrowUp で selectedIndex が減少する（下限は 0）', () => {
       const { result } = renderHook(() => useMention(テスト人物リスト));
 
       act(() => {
         result.current.handleTextChange('@', 1);
       });
-
-      // まず下に2つ移動
-      act(() => {
-        result.current.handleMentionKeyDown({
-          key: 'ArrowDown',
-          preventDefault: () => {},
-          nativeEvent: { isComposing: false },
-        } as unknown as React.KeyboardEvent);
-      });
+      // 初期は 0 → ArrowDown で 1
       act(() => {
         result.current.handleMentionKeyDown({
           key: 'ArrowDown',
@@ -164,7 +157,7 @@ describe('useMention', () => {
       });
       expect(result.current.selectedIndex).toBe(1);
 
-      // 上に戻る
+      // ArrowUp で 0 に戻る
       act(() => {
         result.current.handleMentionKeyDown({
           key: 'ArrowUp',
@@ -174,7 +167,7 @@ describe('useMention', () => {
       });
       expect(result.current.selectedIndex).toBe(0);
 
-      // -1 以下にならない
+      // 0 以下にはならない（下限は 0）
       act(() => {
         result.current.handleMentionKeyDown({
           key: 'ArrowUp',
@@ -182,7 +175,7 @@ describe('useMention', () => {
           nativeEvent: { isComposing: false },
         } as unknown as React.KeyboardEvent);
       });
-      expect(result.current.selectedIndex).toBe(-1);
+      expect(result.current.selectedIndex).toBe(0);
     });
 
     it('Escape でドロップダウンが閉じる', () => {

@@ -19,6 +19,7 @@ import { useExtractRelationships } from '@/hooks/useExtractRelationships';
 import { useMention } from '@/hooks/useMention';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { resolveExtractionResult } from '@/lib/person-matching';
+import { findCommonPrefix } from '@/lib/mention-utils';
 import { MentionDropdown } from './MentionDropdown';
 import { ExtractionPreviewPanel } from './ExtractionPreviewPanel';
 import type { Person } from '@/types/person';
@@ -46,6 +47,7 @@ export function ChatInputBar() {
 
   const {
     mentionQuery,
+    mentionStartIndex,
     selectedIndex,
     filteredPersons,
     handleTextChange,
@@ -103,14 +105,12 @@ export function ChatInputBar() {
         if (e.key === 'Enter') {
           if (e.nativeEvent.isComposing) return;
 
-          const allOptions = [...filteredPersons];
-          if (selectedIndex >= 0 && selectedIndex < allOptions.length) {
+          if (selectedIndex >= 0 && selectedIndex < filteredPersons.length) {
             e.preventDefault();
-            const person = allOptions[selectedIndex];
+            const person = filteredPersons[selectedIndex];
             const cursorPos = textareaRef.current?.selectionStart ?? text.length;
             const { newText, newCursorPos } = selectMention(person, text, cursorPos);
             setText(newText);
-            // カーソルを挿入後の位置に移動（次のレンダリング後）
             setTimeout(() => {
               if (textareaRef.current) {
                 textareaRef.current.selectionStart = newCursorPos;
@@ -128,6 +128,48 @@ export function ChatInputBar() {
             handleCreateNew(mentionQuery.trim());
             return;
           }
+        }
+
+        // Tab: ターミナル補完（共通プレフィックスを補完 or 唯一の候補を選択）
+        if (e.key === 'Tab') {
+          if (e.nativeEvent.isComposing) return;
+          e.preventDefault();
+
+          if (filteredPersons.length === 1) {
+            // 候補が 1 件のみ: そのまま選択（Enterと同じ動作）
+            const cursorPos = textareaRef.current?.selectionStart ?? text.length;
+            const { newText, newCursorPos } = selectMention(filteredPersons[0], text, cursorPos);
+            setText(newText);
+            setTimeout(() => {
+              if (textareaRef.current) {
+                textareaRef.current.selectionStart = newCursorPos;
+                textareaRef.current.selectionEnd = newCursorPos;
+                adjustHeight();
+              }
+            }, 0);
+          } else if (filteredPersons.length > 1) {
+            // 複数候補: 共通プレフィックスまで補完（ターミナル補完）
+            const commonPrefix = findCommonPrefix(filteredPersons.map((p) => p.name));
+            if (commonPrefix.length > mentionQuery.length) {
+              // @ の次の文字からカーソルまでを共通プレフィックスで置換
+              const cursorPos = textareaRef.current?.selectionStart ?? text.length;
+              const before = text.slice(0, mentionStartIndex + 1); // @ を含む
+              const after = text.slice(cursorPos);
+              const newText = before + commonPrefix + after;
+              const newCursorPos = mentionStartIndex + 1 + commonPrefix.length;
+              setText(newText);
+              // メンション状態を更新
+              handleTextChange(newText, newCursorPos);
+              setTimeout(() => {
+                if (textareaRef.current) {
+                  textareaRef.current.selectionStart = newCursorPos;
+                  textareaRef.current.selectionEnd = newCursorPos;
+                  adjustHeight();
+                }
+              }, 0);
+            }
+          }
+          return;
         }
       }
 

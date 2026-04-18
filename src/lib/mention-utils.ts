@@ -79,6 +79,35 @@ export function filterPersonsByQuery(query: string, persons: Person[]): Person[]
 }
 
 /**
+ * 文字列配列の最長共通プレフィックスを返す（Tab補完用）
+ *
+ * ターミナル補完のように、複数候補に共通する先頭部分を返す。
+ * 配列が空または共通プレフィックスがない場合は空文字列を返す。
+ *
+ * @param strs - 比較対象の文字列配列
+ * @returns 最長共通プレフィックス
+ */
+export function findCommonPrefix(strs: string[]): string {
+  if (strs.length === 0) return '';
+  if (strs.length === 1) return strs[0];
+
+  const first = strs[0];
+  let prefix = '';
+
+  for (let i = 0; i < first.length; i++) {
+    const char = first[i];
+    // すべての文字列がこの文字で一致するか確認
+    if (strs.every((s) => s[i] === char)) {
+      prefix += char;
+    } else {
+      break;
+    }
+  }
+
+  return prefix;
+}
+
+/**
  * テキスト内の @名前 参照を解析し、対応する人物IDを返す
  *
  * @ の後のテキストに対して、既存人物名との最長一致を試みる。

@@ -80,10 +80,11 @@ export function useMention(persons: Person[]): UseMentionReturn {
     if (result !== null) {
       setMentionQuery(result.query);
       setMentionStartIndex(result.startIndex);
-      setSelectedIndex(-1);
+      // ドロップダウン表示時は常に最初の候補（0）を選択済みにする
+      setSelectedIndex(0);
     } else {
       setMentionQuery(null);
-      setSelectedIndex(-1);
+      setSelectedIndex(0);
     }
   }, []);
 
@@ -100,14 +101,13 @@ export function useMention(persons: Person[]): UseMentionReturn {
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       setSelectedIndex((prev) => {
-        const next = prev + 1;
-        // フィルタリングされた候補数は呼び出し時点では不明なので、
-        // 上限チェックは MentionDropdown 側で実施する
-        return next;
+        // 上限チェックは MentionDropdown 側で実施する（候補数は呼び出し時点では不明）
+        return prev + 1;
       });
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setSelectedIndex((prev) => Math.max(prev - 1, -1));
+      // 下限は 0（最初の候補から上には行かない）
+      setSelectedIndex((prev) => Math.max(prev - 1, 0));
     }
   }, [mentionQuery]);
 

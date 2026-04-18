@@ -10,6 +10,7 @@ import {
   extractMentionQuery,
   parseMentions,
   filterPersonsByQuery,
+  findCommonPrefix,
 } from './mention-utils';
 import type { Person } from '@/types/person';
 
@@ -120,6 +121,33 @@ describe('filterPersonsByQuery', () => {
     ];
     const result = filterPersonsByQuery('山田', 全角スペース人物);
     expect(result).toHaveLength(1);
+  });
+});
+
+describe('findCommonPrefix', () => {
+  it('共通プレフィックスを返す', () => {
+    expect(findCommonPrefix(['田中花子', '田中一郎', '田中太郎'])).toBe('田中');
+  });
+
+  it('1件のみの場合はその文字列をそのまま返す', () => {
+    expect(findCommonPrefix(['山田太郎'])).toBe('山田太郎');
+  });
+
+  it('共通プレフィックスがない場合は空文字列を返す', () => {
+    expect(findCommonPrefix(['田中', '山田', '鈴木'])).toBe('');
+  });
+
+  it('配列が空の場合は空文字列を返す', () => {
+    expect(findCommonPrefix([])).toBe('');
+  });
+
+  it('完全一致の場合はその文字列を返す', () => {
+    expect(findCommonPrefix(['田中', '田中'])).toBe('田中');
+  });
+
+  it('大文字小文字が異なる場合は小文字プレフィックスで返す', () => {
+    // 'Alice' と 'Alicia' → 'Alic' が共通
+    expect(findCommonPrefix(['Alice', 'Alicia'])).toBe('Alic');
   });
 });
 
