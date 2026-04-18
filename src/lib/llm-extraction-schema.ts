@@ -81,8 +81,15 @@ export const LlmRelationshipSchema = z.object({
   tags: z.array(z.string()),
   /** 自由記述 */
   narrative: LlmNarrativeSchema,
-  /** ドメイン属性 */
-  properties: LlmRelationshipPropertiesSchema,
+  /**
+   * ドメイン属性
+   * LLM が null を出力した場合・省略した場合は空オブジェクトに正規化する
+   * （プロンプトが属性をフラットに説明するため、LLM が省略するケースへの対応）
+   */
+  properties: z.preprocess(
+    (v) => (v == null ? {} : v),
+    LlmRelationshipPropertiesSchema
+  ),
 });
 
 /**

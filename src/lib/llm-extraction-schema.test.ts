@@ -73,6 +73,24 @@ describe('LlmRelationshipSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('properties が null の場合は空オブジェクトに正規化されること（LLM が null を出力した際の対応）', () => {
+    const data = { ...validRelationship, properties: null };
+    const result = LlmRelationshipSchema.safeParse(data);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.properties).toEqual({});
+    }
+  });
+
+  it('properties が省略された場合は空オブジェクトに正規化されること（LLM が省略した際の対応）', () => {
+    const { properties: _, ...dataWithoutProperties } = validRelationship;
+    const result = LlmRelationshipSchema.safeParse(dataWithoutProperties);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.properties).toEqual({});
+    }
+  });
+
   it('properties が空オブジェクトでも有効であること', () => {
     const minimal = {
       sourcePersonName: 'A',
