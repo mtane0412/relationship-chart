@@ -28,10 +28,13 @@ const MENTION_TERMINATORS = new Set([
 /**
  * 正規化後の文字列長に対応する、元テキスト上の位置を返す
  *
- * normalizeName() は連続空白→1文字・全角空白→半角への圧縮と trim() を行うため、
- * 正規化前後で文字列長が変わりうる。この関数は rawText を1文字ずつ走査し、
- * normalizeName と同じルールで文字数を数え、normalizedTargetLength 文字分の
- * 正規化文字を消費した時点の rawText 上の位置（インデックス）を返す。
+ * normalizeName() は連続空白→1文字・全角空白→半角への圧縮・trim()・toLowerCase() を行うため、
+ * 正規化前後で文字列長が変わりうる。この関数は rawText の前方から1文字ずつスキャンしながら
+ * normalizeName(rawText.slice(0, rawPos)).length を実際に測定し、
+ * 正規化後の文字数が normalizedTargetLength に達した時点の rawPos を返す。
+ *
+ * normalizeName を実際に呼び出すことで、toLowerCase() によって文字数が増えるUnicode文字
+ * （例: 'İ'（U+0130）→ 'i\u0307'（2文字））にも正確に対応できる。
  *
  * 用途: 正規化でマッチした名前が、入力テキスト上で何文字分を占めるかを求める。
  *
@@ -40,31 +43,19 @@ const MENTION_TERMINATORS = new Set([
  * @returns 目標文字数を消費した rawText 上の位置、到達できない場合は null
  */
 export function findRawEndPosition(rawText: string, normalizedTargetLength: number): number | null {
-  // normalizeName の trim() 相当: 先頭の空白・全角スペースをスキップ
-  let rawPos = 0;
-  while (rawPos < rawText.length && /[\s\u3000]/.test(rawText[rawPos])) {
-    rawPos++;
-  }
-
-  let normalizedCount = 0;
-
-  while (rawPos < rawText.length && normalizedCount < normalizedTargetLength) {
-    const ch = rawText[rawPos];
-
-    if (/[\s\u3000]/.test(ch)) {
-      // 連続する空白（半角・全角問わず）をすべて消費して、正規化後は1文字分にカウント
-      while (rawPos < rawText.length && /[\s\u3000]/.test(rawText[rawPos])) {
-        rawPos++;
-      }
-      normalizedCount++;
-    } else {
-      // 空白以外は1文字消費して1文字分にカウント（小文字化は文字数に影響しない）
-      rawPos++;
-      normalizedCount++;
+  // rawPos を 0 から順に試行し、normalizeName(rawText.slice(0, rawPos)).length が
+  // normalizedTargetLength に一致する最小の rawPos を返す
+  for (let rawPos = 0; rawPos <= rawText.length; rawPos++) {
+    const normalizedLen = normalizeName(rawText.slice(0, rawPos)).length;
+    if (normalizedLen === normalizedTargetLength) {
+      return rawPos;
+    }
+    if (normalizedLen > normalizedTargetLength) {
+      // 目標長を超えた: toLowerCase() による文字数増加などで到達不能
+      return null;
     }
   }
-
-  return normalizedCount === normalizedTargetLength ? rawPos : null;
+  return null;
 }
 
 /**

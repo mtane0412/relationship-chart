@@ -14,6 +14,7 @@ import {
   findMentionRanges,
   findRawEndPosition,
 } from './mention-utils';
+import { normalizeName } from './person-matching';
 import type { Person } from '@/types/person';
 
 // テスト用の人物データ
@@ -192,6 +193,15 @@ describe('findRawEndPosition', () => {
   it('正規化後の長さが足りない場合は null を返す', () => {
     // 「山田」(2文字) に対して normalizedTargetLength=5 は不足
     expect(findRawEndPosition('山田', 5)).toBeNull();
+  });
+
+  it('toLowerCase()により文字数が増えるUnicode文字（İ, U+0130）: rawPos=1を返す', () => {
+    // JavaScript の toLowerCase() は 'İ'(U+0130, 1文字) を 'i\u0307'(2文字)に変換する
+    // findRawEndPosition は normalizeName を実際に呼び出すため、このケースにも正確に対応する
+    const トルコ語大文字I = 'İ'; // U+0130 Latin Capital Letter I with Dot Above
+    const 正規化後の長さ = normalizeName(トルコ語大文字I).length; // 2
+    // 1文字の入力が正規化後2文字になる場合、rawPos=1 を返す
+    expect(findRawEndPosition(トルコ語大文字I, 正規化後の長さ)).toBe(1);
   });
 });
 
