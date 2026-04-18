@@ -11,11 +11,17 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useId } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { nanoid } from 'nanoid';
 import { useReactFlow } from '@xyflow/react';
 import { ArrowRight, ArrowLeft, ArrowLeftRight, Minus } from 'lucide-react';
 import { BidirectionalArrow } from '@/components/icons/BidirectionalArrow';
+import { NullableSlider } from '@/components/ui/NullableSlider';
+import { TagChipInput } from '@/components/ui/TagChipInput';
+import { TurningPointsEditor } from '@/components/panel/TurningPointsEditor';
+import type { TurningPointRow } from '@/components/panel/TurningPointsEditor';
+import { PersonMiniIcon } from '@/components/panel/PersonMiniIcon';
+import { getDirectionIndicator, getPlaceholder, KINSHIP_OPTIONS, AWARENESS_OPTIONS } from '@/components/panel/pairSelectionHelpers';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { MAX_RELATIONSHIP_LABEL_LENGTH } from '@/lib/validation-constants';
 import { getRelationshipDisplayType } from '@/lib/relationship-utils';
@@ -35,315 +41,6 @@ type PairSelectionPanelProps = {
   /** 選択されている2人の人物 */
   persons: [Person, Person];
 };
-
-/**
- * 表示用の方向インジケーターを返す
- * @param type - 関係タイプ
- * @param isReversed - 関係が逆向きかどうか
- * @returns 方向インジケーター文字列
- */
-function getDirectionIndicator(type: RelationshipType, isReversed: boolean): string {
-  if (type === 'bidirectional') {
-    return '↔';
-  }
-  if (type === 'one-way') {
-    return isReversed ? '←' : '→';
-  }
-  return '';
-}
-
-/**
- * 関係タイプと種別に応じたプレースホルダーを返す
- */
-function getPlaceholder(type: RelationshipType, isReverse = false, hasItem = false): string {
-  if (hasItem) {
-    if (type === 'one-way') return '例: 所有、使用';
-    if (type === 'bidirectional') return '例: 所有、使用';
-    if (type === 'dual-directed') return isReverse ? '例: 使用' : '例: 所有';
-    if (type === 'undirected') return '例: 所有、使用';
-  }
-  if (type === 'one-way') return '例: 片想い、憧れ';
-  if (type === 'bidirectional') return '例: 友人、親子、同僚';
-  if (type === 'dual-directed') return isReverse ? '例: 無関心、嫌い' : '例: 好き、憧れ';
-  if (type === 'undirected') return '例: 同一人物、別名';
-  return '例: 関係を入力';
-}
-
-/** 人物/物のミニアイコンを表示するヘルパーコンポーネント */
-function PersonMiniIcon({ person }: { person: Person }) {
-  const kind = person.kind ?? 'person';
-  const isItem = kind === 'item';
-  const borderRadius = isItem ? 'rounded-md' : 'rounded-full';
-
-  if (person.imageDataUrl) {
-    return (
-      <img
-        src={person.imageDataUrl}
-        alt={person.name}
-        className={`w-6 h-6 ${borderRadius} object-cover border border-gray-300`}
-      />
-    );
-  }
-  return (
-    <div className={`w-6 h-6 ${borderRadius} bg-gray-300 flex items-center justify-center text-gray-600 text-xs font-semibold border border-gray-300`}>
-      {person.name.charAt(0).toUpperCase() || '?'}
-    </div>
-  );
-}
-
-// ─── v9 ヘルパーコンポーネント ───────────────────────────────────────────────
-
-/**
- * null 値を持てる数値スライダーコンポーネント
- * 「未設定」チェックボックスで null ⇔ 数値を切り替える
- */
-type NullableSliderProps = {
-  /** スライダーのラベル（aria-label としても使用） */
-  label: string;
-  /** 現在の数値（未設定の場合は null） */
-  value: number | null;
-  /** スライダーの最小値 */
-  min: number;
-  /** スライダーの最大値 */
-  max: number;
-  /** スライダーのステップ */
-  step: number;
-  /** null のときのスライダーデフォルト値 */
-  defaultValue: number;
-  /** スライダーの値変更時に呼ばれるコールバック */
-  onValueChange: (value: number) => void;
-  /** null トグルコールバック（true=未設定, false=値あり） */
-  onNullToggle: (isNull: boolean) => void;
-};
-
-function NullableSlider({
-  label,
-  value,
-  min,
-  max,
-  step,
-  defaultValue,
-  onValueChange,
-  onNullToggle,
-}: NullableSliderProps) {
-  const isNull = value === null;
-  // useId() でインスタンス固有の ID を生成し、ラベル文字列による重複 ID を防ぐ
-  const baseId = useId();
-  const sliderId = `${baseId}-slider`;
-  const checkboxId = `${baseId}-nullable`;
-  // 未設定時にスライダーが表示する内部値（デフォルト値か現在値）
-  const displayValue = value ?? defaultValue;
-
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between text-xs font-medium text-gray-700">
-        <label htmlFor={sliderId}>{label}</label>
-        <div className="flex items-center gap-1.5">
-          {!isNull && (
-            <span className="text-[10px] text-gray-500">{displayValue.toFixed(2)}</span>
-          )}
-          <label htmlFor={checkboxId} className="flex items-center gap-0.5 text-[10px] text-gray-500 cursor-pointer">
-            <input
-              id={checkboxId}
-              type="checkbox"
-              checked={isNull}
-              onChange={(e) => onNullToggle(e.target.checked)}
-              aria-label={`${label}を未設定`}
-              className="w-3 h-3"
-            />
-            未設定
-          </label>
-        </div>
-      </div>
-      <input
-        id={sliderId}
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={displayValue}
-        disabled={isNull}
-        onChange={(e) => onValueChange(Number(e.target.value))}
-        aria-label={label}
-        className="w-full disabled:opacity-40"
-      />
-    </div>
-  );
-}
-
-/** ターニングポイントの行（ローカルステート用） */
-type TurningPointRow = {
-  id: string;
-  at: string;
-  note: string;
-};
-
-/**
- * ターニングポイント動的リストエディタ
- * 行の追加・削除・編集を提供する
- */
-type TurningPointsEditorProps = {
-  value: TurningPointRow[];
-  onChange: (rows: TurningPointRow[]) => void;
-};
-
-function TurningPointsEditor({ value, onChange }: TurningPointsEditorProps) {
-  const handleAdd = () => {
-    onChange([...value, { id: nanoid(), at: '', note: '' }]);
-  };
-
-  const handleRemove = (id: string) => {
-    onChange(value.filter((row) => row.id !== id));
-  };
-
-  const handleChange = (id: string, field: 'at' | 'note', text: string) => {
-    onChange(value.map((row) => (row.id === id ? { ...row, [field]: text } : row)));
-  };
-
-  return (
-    <div className="space-y-2">
-      <span className="text-xs font-medium text-gray-700">ターニングポイント</span>
-      {value.map((row, index) => (
-        <div key={row.id} className="flex gap-1 items-start">
-          <input
-            type="text"
-            value={row.at}
-            onChange={(e) => handleChange(row.id, 'at', e.target.value)}
-            aria-label={`ターニングポイント${index + 1}の時期・時点`}
-            placeholder="時期・時点"
-            className="w-24 shrink-0 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-          <input
-            type="text"
-            value={row.note}
-            onChange={(e) => handleChange(row.id, 'note', e.target.value)}
-            aria-label={`ターニングポイント${index + 1}の出来事`}
-            placeholder="出来事"
-            className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-          <button
-            type="button"
-            onClick={() => handleRemove(row.id)}
-            aria-label="このターニングポイントを削除"
-            className="shrink-0 text-gray-400 hover:text-red-500 text-xs px-1 py-1"
-          >
-            ✕
-          </button>
-        </div>
-      ))}
-      <button
-        type="button"
-        onClick={handleAdd}
-        className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
-      >
-        + ターニングポイントを追加
-      </button>
-    </div>
-  );
-}
-
-/**
- * タグ chip 入力コンポーネント
- * SUGGESTED_TAGS を datalist として提供し、chip形式でタグを表示・削除する
- */
-type TagChipInputProps = {
-  value: string[];
-  onChange: (tags: string[]) => void;
-  suggestions: readonly string[];
-  /** datalist 要素の ID（省略時は useId() で生成） */
-  datalistId?: string;
-};
-
-function TagChipInput({ value, onChange, suggestions, datalistId: datalistIdProp }: TagChipInputProps) {
-  const [inputValue, setInputValue] = useState('');
-  // 呼び出し元から ID が渡されていれば使い、なければ useId() で一意な ID を生成する
-  const generatedId = useId();
-  const datalistId = datalistIdProp ?? `${generatedId}-tag-suggestions`;
-
-  const addTag = (raw: string) => {
-    const tag = raw.trim();
-    if (!tag || value.includes(tag)) return;
-    onChange([...value, tag]);
-    setInputValue('');
-  };
-
-  const removeTag = (tag: string) => {
-    onChange(value.filter((t) => t !== tag));
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      // IME変換中のEnterは無視（日本語入力の変換確定時の誤動作を防ぐ）
-      if (e.nativeEvent.isComposing) return;
-      e.preventDefault();
-      addTag(inputValue);
-    }
-  };
-
-  return (
-    <div className="space-y-2">
-      {/* 既存タグのチップ表示 */}
-      {value.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {value.map((tag) => (
-            <span
-              key={tag}
-              className="flex items-center gap-0.5 px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full"
-            >
-              {tag}
-              <button
-                type="button"
-                onClick={() => removeTag(tag)}
-                aria-label={`${tag}を削除`}
-                className="hover:text-blue-600 ml-0.5"
-              >
-                ×
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-      {/* タグ入力フィールド */}
-      <input
-        type="text"
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
-        onKeyDown={handleKeyDown}
-        list={datalistId}
-        aria-label="タグを追加"
-        placeholder="タグを追加（Enter で確定）"
-        className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-      />
-      <datalist id={datalistId}>
-        {suggestions.map((s) => (
-          <option key={s} value={s} />
-        ))}
-      </datalist>
-    </div>
-  );
-}
-
-// ─── KinshipKind / AwarenessKind の日本語ラベル ──────────────────────────────
-
-const KINSHIP_OPTIONS: { value: KinshipKind; label: string }[] = [
-  { value: null, label: '（血縁なし）' },
-  { value: 'parent', label: '親' },
-  { value: 'child', label: '子' },
-  { value: 'sibling', label: '兄弟・姉妹' },
-  { value: 'spouse', label: '配偶者' },
-  { value: 'partner', label: 'パートナー' },
-  { value: 'grandparent', label: '祖父母' },
-  { value: 'grandchild', label: '孫' },
-  { value: 'cousin', label: 'いとこ' },
-  { value: 'relative', label: '親族（その他）' },
-];
-
-const AWARENESS_OPTIONS: { value: AwarenessKind; label: string }[] = [
-  { value: null, label: '（未設定）' },
-  { value: 'known', label: '認知済み' },
-  { value: 'unknown', label: '未認知' },
-  { value: 'suspected', label: '疑惑あり' },
-];
 
 // ─── PairSelectionPanel 本体 ─────────────────────────────────────────────────
 
@@ -427,15 +124,11 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
 
   // ────── symmetric フィールド ──────
 
-  // 各スライダーは「value」と「isNull」を分離して管理する
-  const [closeness, setCloseness] = useState<number>(() => existingRelationship?.symmetric.closeness ?? 0.5);
-  const [closenessIsNull, setClosenessIsNull] = useState<boolean>(() => existingRelationship?.symmetric.closeness === null || !existingRelationship);
-  const [trust, setTrust] = useState<number>(() => existingRelationship?.symmetric.trust ?? 0.5);
-  const [trustIsNull, setTrustIsNull] = useState<boolean>(() => existingRelationship?.symmetric.trust === null || !existingRelationship);
-  const [tension, setTension] = useState<number>(() => existingRelationship?.symmetric.tension ?? 0.5);
-  const [tensionIsNull, setTensionIsNull] = useState<boolean>(() => existingRelationship?.symmetric.tension === null || !existingRelationship);
-  const [secrecy, setSecrecy] = useState<number>(() => existingRelationship?.symmetric.secrecy ?? 0.5);
-  const [secrecyIsNull, setSecrecyIsNull] = useState<boolean>(() => existingRelationship?.symmetric.secrecy === null || !existingRelationship);
+  // 未設定を null で表現する（isNull フラグは廃止）
+  const [closeness, setCloseness] = useState<number | null>(() => existingRelationship?.symmetric.closeness ?? null);
+  const [trust, setTrust] = useState<number | null>(() => existingRelationship?.symmetric.trust ?? null);
+  const [tension, setTension] = useState<number | null>(() => existingRelationship?.symmetric.tension ?? null);
+  const [secrecy, setSecrecy] = useState<number | null>(() => existingRelationship?.symmetric.secrecy ?? null);
   const [kinship, setKinship] = useState<KinshipKind>(() => existingRelationship?.symmetric.kinship ?? null);
 
   // ────── 方向プロパティ（person1→person2 方向 = UI の fwd ）──────
@@ -458,16 +151,14 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
     return isReversed ? existingRelationship.forward : existingRelationship.reverse;
   };
 
-  // person1→person2 方向の affection
-  const [fwdAffection, setFwdAffection] = useState<number>(() => getStoredFwdProps().affection ?? 0);
-  const [fwdAffectionIsNull, setFwdAffectionIsNull] = useState<boolean>(() => getStoredFwdProps().affection === null || !existingRelationship);
+  // person1→person2 方向の affection（未設定を null で表現する）
+  const [fwdAffection, setFwdAffection] = useState<number | null>(() => getStoredFwdProps().affection ?? null);
   // person1→person2 方向の awareness / role
   const [fwdAwareness, setFwdAwareness] = useState<AwarenessKind>(() => getStoredFwdProps().awareness ?? null);
   const [fwdRole, setFwdRole] = useState<string>(() => getStoredFwdProps().role ?? '');
 
-  // person2→person1 方向の affection
-  const [revAffection, setRevAffection] = useState<number>(() => getStoredRevProps().affection ?? 0);
-  const [revAffectionIsNull, setRevAffectionIsNull] = useState<boolean>(() => getStoredRevProps().affection === null || !existingRelationship);
+  // person2→person1 方向の affection（未設定を null で表現する）
+  const [revAffection, setRevAffection] = useState<number | null>(() => getStoredRevProps().affection ?? null);
   // person2→person1 方向の awareness / role
   const [revAwareness, setRevAwareness] = useState<AwarenessKind>(() => getStoredRevProps().awareness ?? null);
   const [revRole, setRevRole] = useState<string>(() => getStoredRevProps().role ?? '');
@@ -510,29 +201,23 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
       // tags
       setTags(existingRelationship.tags);
 
-      // symmetric
+      // symmetric（undefined を防ぐため ?? null でフォールバック）
       const sym = existingRelationship.symmetric;
-      setCloseness(sym.closeness ?? 0.5);
-      setClosenessIsNull(sym.closeness === null);
-      setTrust(sym.trust ?? 0.5);
-      setTrustIsNull(sym.trust === null);
-      setTension(sym.tension ?? 0.5);
-      setTensionIsNull(sym.tension === null);
-      setSecrecy(sym.secrecy ?? 0.5);
-      setSecrecyIsNull(sym.secrecy === null);
+      setCloseness(sym.closeness ?? null);
+      setTrust(sym.trust ?? null);
+      setTension(sym.tension ?? null);
+      setSecrecy(sym.secrecy ?? null);
       setKinship(sym.kinship);
 
       // 方向プロパティ（isReversed を考慮）
       const fwd = isReversed ? existingRelationship.reverse : existingRelationship.forward;
       const rev = isReversed ? existingRelationship.forward : existingRelationship.reverse;
 
-      setFwdAffection(fwd.affection ?? 0);
-      setFwdAffectionIsNull(fwd.affection === null);
+      setFwdAffection(fwd.affection ?? null);
       setFwdAwareness(fwd.awareness ?? null);
       setFwdRole(fwd.role ?? '');
 
-      setRevAffection(rev.affection ?? 0);
-      setRevAffectionIsNull(rev.affection === null);
+      setRevAffection(rev.affection ?? null);
       setRevAwareness(rev.awareness ?? null);
       setRevRole(rev.role ?? '');
 
@@ -552,15 +237,17 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
       setSourceToTargetLabel('');
       setTargetToSourceLabel('');
       setTags([]);
-      setCloseness(0.5); setClosenessIsNull(true);
-      setTrust(0.5); setTrustIsNull(true);
-      setTension(0.5); setTensionIsNull(true);
-      setSecrecy(0.5); setSecrecyIsNull(true);
+      setCloseness(null);
+      setTrust(null);
+      setTension(null);
+      setSecrecy(null);
       setKinship(null);
-      setFwdAffection(0); setFwdAffectionIsNull(true);
-      setFwdAwareness(null); setFwdRole('');
-      setRevAffection(0); setRevAffectionIsNull(true);
-      setRevAwareness(null); setRevRole('');
+      setFwdAffection(null);
+      setFwdAwareness(null);
+      setFwdRole('');
+      setRevAffection(null);
+      setRevAwareness(null);
+      setRevRole('');
       setNarrativeSummary(''); setNarrativeNotes('');
       setTurningPoints([]);
       setColorOverride(null); setColorPickerEnabled(false);
@@ -630,12 +317,12 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
       finalTargetToSourceLabel = finalSourceToTargetLabel;
     }
 
-    // v9 フィールドの値をビルド
+    // v9 フィールドの値をビルド（null は未設定を表す）
     const symmetricPayload = {
-      closeness: closenessIsNull ? null : closeness,
-      trust: trustIsNull ? null : trust,
-      tension: tensionIsNull ? null : tension,
-      secrecy: secrecyIsNull ? null : secrecy,
+      closeness,
+      trust,
+      tension,
+      secrecy,
       kinship,
     };
 
@@ -643,12 +330,12 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
     // isReversed=false: UI fwd = stored forward, UI rev = stored reverse
     // isReversed=true:  UI fwd = stored reverse, UI rev = stored forward
     const uiFwdProps = {
-      affection: fwdAffectionIsNull ? null : fwdAffection,
+      affection: fwdAffection,
       awareness: fwdAwareness,
       role: fwdRole.trim() || null,
     };
     const uiRevProps = {
-      affection: revAffectionIsNull ? null : revAffection,
+      affection: revAffection,
       awareness: revAwareness,
       role: revRole.trim() || null,
     };
@@ -954,35 +641,31 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
               <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">対称プロパティ</h4>
               <NullableSlider
                 label="親密度"
-                value={closenessIsNull ? null : closeness}
+                value={closeness}
                 min={0} max={1} step={0.05}
                 defaultValue={0.5}
-                onValueChange={setCloseness}
-                onNullToggle={setClosenessIsNull}
+                onChange={setCloseness}
               />
               <NullableSlider
                 label="信頼度"
-                value={trustIsNull ? null : trust}
+                value={trust}
                 min={0} max={1} step={0.05}
                 defaultValue={0.5}
-                onValueChange={setTrust}
-                onNullToggle={setTrustIsNull}
+                onChange={setTrust}
               />
               <NullableSlider
                 label="緊張・対立度"
-                value={tensionIsNull ? null : tension}
+                value={tension}
                 min={0} max={1} step={0.05}
                 defaultValue={0.5}
-                onValueChange={setTension}
-                onNullToggle={setTensionIsNull}
+                onChange={setTension}
               />
               <NullableSlider
                 label="秘匿性"
-                value={secrecyIsNull ? null : secrecy}
+                value={secrecy}
                 min={0} max={1} step={0.05}
                 defaultValue={0.5}
-                onValueChange={setSecrecy}
-                onNullToggle={setSecrecyIsNull}
+                onChange={setSecrecy}
               />
               {/* kinship セレクト */}
               <div className="space-y-1">
@@ -1012,11 +695,10 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
               </h4>
               <NullableSlider
                 label={`${person1.name}→${person2.name} 好悪`}
-                value={fwdAffectionIsNull ? null : fwdAffection}
+                value={fwdAffection}
                 min={-1} max={1} step={0.05}
                 defaultValue={0}
-                onValueChange={setFwdAffection}
-                onNullToggle={setFwdAffectionIsNull}
+                onChange={setFwdAffection}
               />
               <div className="space-y-1">
                 <label
@@ -1063,11 +745,10 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
               </h4>
               <NullableSlider
                 label={`${person2.name}→${person1.name} 好悪`}
-                value={revAffectionIsNull ? null : revAffection}
+                value={revAffection}
                 min={-1} max={1} step={0.05}
                 defaultValue={0}
-                onValueChange={setRevAffection}
-                onNullToggle={setRevAffectionIsNull}
+                onChange={setRevAffection}
               />
               <div className="space-y-1">
                 <label
