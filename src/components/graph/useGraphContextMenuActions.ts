@@ -75,10 +75,10 @@ export function useGraphContextMenuActions({
       // 指定されたノードと関係を持っているノードのIDセット
       const connectedNodeIds = new Set<string>();
       relationships.forEach((rel) => {
-        if (rel.sourcePersonId === sourceNodeId) {
-          connectedNodeIds.add(rel.targetPersonId);
-        } else if (rel.targetPersonId === sourceNodeId) {
-          connectedNodeIds.add(rel.sourcePersonId);
+        if (rel.sourceId === sourceNodeId) {
+          connectedNodeIds.add(rel.targetId);
+        } else if (rel.targetId === sourceNodeId) {
+          connectedNodeIds.add(rel.sourceId);
         }
       });
 
@@ -220,8 +220,8 @@ export function useGraphContextMenuActions({
           filterable: true, // 検索フィルター対象
           onClick: () => {
             setPendingConnection({
-              sourcePersonId: sourceNodeId,
-              targetPersonId: targetPerson.id,
+              sourceId: sourceNodeId,
+              targetId: targetPerson.id,
             });
             closeContextMenu();
           },
@@ -263,7 +263,7 @@ export function useGraphContextMenuActions({
           onClick: async () => {
             closeContextMenu();
             const confirmed = await openConfirm({
-              message: `「${edge?.data?.forwardLabel || edge?.data?.reverseLabel || '不明な関係'}」を削除してもよろしいですか？`,
+              message: `「${edge?.data?.label ?? edge?.data?.edgeType ?? '不明な関係'}」を削除してもよろしいですか？`,
               isDanger: true,
             });
             if (confirmed) {

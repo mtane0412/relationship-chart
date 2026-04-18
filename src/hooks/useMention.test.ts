@@ -21,9 +21,9 @@ function makeKeyEvent(key: string): React.KeyboardEvent {
 }
 
 const テスト人物リスト: Person[] = [
-  { id: 'id-alice', name: '田中花子', createdAt: '2024-01-01T00:00:00.000Z' },
-  { id: 'id-bob', name: '山田太郎', createdAt: '2024-01-01T00:00:00.000Z' },
-  { id: 'id-carol', name: '鈴木一郎', createdAt: '2024-01-01T00:00:00.000Z' },
+  { id: 'id-alice', name: '田中花子', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
+  { id: 'id-bob', name: '山田太郎', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
+  { id: 'id-carol', name: '鈴木一郎', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
 ];
 
 describe('useMention', () => {

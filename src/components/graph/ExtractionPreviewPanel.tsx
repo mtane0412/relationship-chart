@@ -93,22 +93,25 @@ export function ExtractionPreviewPanel({
             <p className="text-sm text-gray-400 ml-5">なし</p>
           ) : (
             <ul className="space-y-1">
-              {result.relationships.map((rel, i) => (
-                <li
-                  key={i}
-                  className="text-sm text-gray-700 flex items-center gap-1 flex-wrap ml-1"
-                >
-                  <span className="font-medium">{rel.sourcePersonName}</span>
-                  <span className="text-gray-400 text-xs">{rel.isDirected ? '→' : '—'}</span>
-                  <span className="font-medium">{rel.targetPersonName}</span>
-                  {rel.forward.label && (
-                    <span className="text-xs text-gray-500">（{rel.forward.label}）</span>
-                  )}
-                  {rel.tags.length > 0 && (
-                    <span className="text-xs text-blue-500">[{rel.tags.join(', ')}]</span>
-                  )}
-                </li>
-              ))}
+              {result.relationships.map((rel, i) => {
+                const displayLabel = rel.label ?? rel.type;
+                return (
+                  <li
+                    key={i}
+                    className="text-sm text-gray-700 flex items-center gap-1 flex-wrap ml-1"
+                  >
+                    <span className="font-medium">{rel.sourcePersonName}</span>
+                    <span className="text-gray-400 text-xs">{rel.symmetric ? '—' : '→'}</span>
+                    <span className="font-medium">{rel.targetPersonName}</span>
+                    {displayLabel && (
+                      <span className="text-xs text-gray-500">（{displayLabel}）</span>
+                    )}
+                    {rel.tags.length > 0 && (
+                      <span className="text-xs text-blue-500">[{rel.tags.join(', ')}]</span>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

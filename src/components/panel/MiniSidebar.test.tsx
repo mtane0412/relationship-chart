@@ -33,11 +33,13 @@ describe('MiniSidebar', () => {
         name: '山田太郎',
         imageDataUrl: 'data:image/jpeg;base64,person1',
         labels: ['人物'],
+        properties: {},
       });
       store.addPerson({
         name: '伝説の剣',
         imageDataUrl: 'data:image/jpeg;base64,item1',
         labels: ['物'],
+        properties: {},
       });
 
       render(
@@ -61,6 +63,7 @@ describe('MiniSidebar', () => {
         name: '山田太郎',
         imageDataUrl: 'data:image/jpeg;base64,person1',
         labels: ['人物'],
+        properties: {},
       });
 
       // 状態を再取得
@@ -91,14 +94,20 @@ describe('MiniSidebar', () => {
       store.addPerson({
         name: '山田太郎',
         imageDataUrl: 'data:image/jpeg;base64,person1',
+        labels: ['人物'],
+        properties: {},
       });
       store.addPerson({
         name: '佐藤花子',
         imageDataUrl: 'data:image/jpeg;base64,person2',
+        labels: ['人物'],
+        properties: {},
       });
       store.addPerson({
         name: '鈴木一郎',
         imageDataUrl: 'data:image/jpeg;base64,person3',
+        labels: ['人物'],
+        properties: {},
       });
 
       // 状態を再取得
@@ -106,17 +115,17 @@ describe('MiniSidebar', () => {
       const personId1 = persons[0].id;
       const personId2 = persons[1].id;
 
-      // 山田太郎と佐藤花子の間に関係を追加（v9形式）
+      // 山田太郎と佐藤花子の間に関係を追加（v11形式）
       store.addRelationship({
-        sourcePersonId: personId1,
-        targetPersonId: personId2,
-        isDirected: false,
-        symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
-        forward: { label: '友人', affection: null, awareness: null, role: null },
-        reverse: { label: '友人', affection: null, awareness: null, role: null },
+        sourceId: personId1,
+        targetId: personId2,
+        type: '友人',
+        label: '友人',
+        symmetric: true,
         tags: [],
         narrative: { summary: null, notes: null, turningPoints: [] },
         colorOverride: null,
+        properties: {},
       });
 
       // 山田太郎を選択

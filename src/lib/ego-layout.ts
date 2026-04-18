@@ -4,7 +4,7 @@
  */
 
 import type { Person } from '@/types/person';
-import type { RelationshipV9 as Relationship } from '@/types/relationship';
+import type { Relationship } from '@/types/relationship';
 
 /**
  * EGO Layoutのパラメータ型
@@ -33,19 +33,19 @@ function buildAdjacencyList(relationships: Relationship[]): Map<string, Set<stri
   const adjacencyList = new Map<string, Set<string>>();
 
   for (const rel of relationships) {
-    const { sourcePersonId, targetPersonId } = rel;
+    const { sourceId, targetId } = rel;
 
     // source → target
-    if (!adjacencyList.has(sourcePersonId)) {
-      adjacencyList.set(sourcePersonId, new Set());
+    if (!adjacencyList.has(sourceId)) {
+      adjacencyList.set(sourceId, new Set());
     }
-    adjacencyList.get(sourcePersonId)!.add(targetPersonId);
+    adjacencyList.get(sourceId)!.add(targetId);
 
     // target → source（無向グラフとして扱う）
-    if (!adjacencyList.has(targetPersonId)) {
-      adjacencyList.set(targetPersonId, new Set());
+    if (!adjacencyList.has(targetId)) {
+      adjacencyList.set(targetId, new Set());
     }
-    adjacencyList.get(targetPersonId)!.add(sourcePersonId);
+    adjacencyList.get(targetId)!.add(sourceId);
   }
 
   return adjacencyList;

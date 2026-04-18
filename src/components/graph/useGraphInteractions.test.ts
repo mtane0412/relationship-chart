@@ -33,14 +33,16 @@ describe('useGraphInteractions', () => {
       const personA = {
         id: 'person-a',
         name: '山田太郎',
+        labels: ['人物'],
+        properties: {},
         createdAt: new Date().toISOString(),
-        kind: 'person' as const,
       };
       const personB = {
         id: 'person-b',
         name: '佐藤花子',
+        labels: ['人物'],
+        properties: {},
         createdAt: new Date().toISOString(),
-        kind: 'person' as const,
       };
       useGraphStore.setState({
         persons: [personA, personB],
@@ -77,8 +79,8 @@ describe('useGraphInteractions', () => {
 
       // 検証: pendingConnectionがドラッグ開始ノード（person-a）をsourceとして設定されているか
       expect(result.current.pendingConnection).not.toBeNull();
-      expect(result.current.pendingConnection?.sourcePersonId).toBe('person-a');
-      expect(result.current.pendingConnection?.targetPersonId).toBe('person-b');
+      expect(result.current.pendingConnection?.sourceId).toBe('person-a');
+      expect(result.current.pendingConnection?.targetId).toBe('person-b');
     });
 
     it('connectingFromNodeIdRefがnullの場合はconnection.source/targetをそのまま使用する', () => {
@@ -86,14 +88,16 @@ describe('useGraphInteractions', () => {
       const personA = {
         id: 'person-a',
         name: '山田太郎',
+        labels: ['人物'],
+        properties: {},
         createdAt: new Date().toISOString(),
-        kind: 'person' as const,
       };
       const personB = {
         id: 'person-b',
         name: '佐藤花子',
+        labels: ['人物'],
+        properties: {},
         createdAt: new Date().toISOString(),
-        kind: 'person' as const,
       };
       useGraphStore.setState({
         persons: [personA, personB],
@@ -122,8 +126,8 @@ describe('useGraphInteractions', () => {
 
       // 検証: connection.source/targetがそのまま使用される
       expect(result.current.pendingConnection).not.toBeNull();
-      expect(result.current.pendingConnection?.sourcePersonId).toBe('person-a');
-      expect(result.current.pendingConnection?.targetPersonId).toBe('person-b');
+      expect(result.current.pendingConnection?.sourceId).toBe('person-a');
+      expect(result.current.pendingConnection?.targetId).toBe('person-b');
     });
   });
 });

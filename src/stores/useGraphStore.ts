@@ -7,7 +7,7 @@ import { create } from 'zustand';
 import { temporal } from 'zundo';
 import { nanoid } from 'nanoid';
 import type { Person } from '@/types/person';
-import type { RelationshipV9, DirectionalProps, SymmetricProps, RelationshipNarrative, EdgeFilter } from '@/types/relationship';
+import type { Relationship, EdgeFilter } from '@/types/relationship';
 import { INITIAL_EDGE_FILTER } from '@/types/relationship';
 import type { EgoLayoutParams } from '@/lib/ego-layout';
 import { DEFAULT_EGO_LAYOUT_PARAMS } from '@/lib/ego-layout';
@@ -24,7 +24,7 @@ import {
   getChartOrder,
   setChartOrder,
 } from '@/lib/chart-db';
-import { migrateGraphState, migrateV8ToV9, migrateV9ToV10 } from '@/lib/migration';
+import { migrateGraphState, normalizeChart } from '@/lib/migration';
 
 /**
  * force-directedレイアウトのパラメータ型
@@ -53,8 +53,8 @@ export const DEFAULT_FORCE_PARAMS: ForceParams = {
 type GraphState = {
   /** 人物のリスト */
   persons: Person[];
-  /** 関係のリスト（v9 プロパティグラフ形式） */
-  relationships: RelationshipV9[];
+  /** 関係のリスト（v11 プロパティグラフ形式） */
+  relationships: Relationship[];
   /** force-directedレイアウトが有効かどうか */
   forceEnabled: boolean;
   /** 選択中の人物のIDリスト（複数選択対応） */
@@ -101,73 +101,6 @@ const INITIAL_STATE: GraphState = {
   edgeFilter: INITIAL_EDGE_FILTER,
 };
 
-/**
- * 2 つの RelationshipV9 をマージする
- *
- * @description
- * 既存エッジ (base) に新しいデータ (incoming) をマージする。
- * null でないフィールドのみ上書きし、tags は union で統合、
- * narrative.notes は改行で追記する。
- *
- * @param base - 既存のエッジ
- * @param incoming - マージする新しいデータ（id/createdAt/updatedAt を除く）
- * @param now - updatedAt に設定する現在時刻（ISO 8601 文字列）
- * @returns マージ後の RelationshipV9
- */
-function mergeRelationshipV9(
-  base: RelationshipV9,
-  incoming: Omit<RelationshipV9, 'id' | 'createdAt' | 'updatedAt'>,
-  now: string
-): RelationshipV9 {
-  // DirectionalProps のマージ（null でないフィールドのみ上書き）
-  const mergeDirectional = (b: DirectionalProps, i: DirectionalProps): DirectionalProps => ({
-    label: i.label !== null ? i.label : b.label,
-    affection: i.affection !== null ? i.affection : b.affection,
-    awareness: i.awareness !== null ? i.awareness : b.awareness,
-    role: i.role !== null ? i.role : b.role,
-  });
-
-  // SymmetricProps のマージ（null でないフィールドのみ上書き）
-  const mergeSymmetric = (b: SymmetricProps, i: SymmetricProps): SymmetricProps => ({
-    closeness: i.closeness !== null ? i.closeness : b.closeness,
-    trust: i.trust !== null ? i.trust : b.trust,
-    tension: i.tension !== null ? i.tension : b.tension,
-    secrecy: i.secrecy !== null ? i.secrecy : b.secrecy,
-    kinship: i.kinship !== null ? i.kinship : b.kinship,
-  });
-
-  // RelationshipNarrative のマージ（notes は改行で追記）
-  const mergeNarrative = (b: RelationshipNarrative, i: RelationshipNarrative): RelationshipNarrative => {
-    const mergedNotes =
-      b.notes && i.notes
-        ? `${b.notes}\n${i.notes}`
-        : i.notes ?? b.notes;
-    return {
-      summary: i.summary !== null ? i.summary : b.summary,
-      notes: mergedNotes,
-      // at + note をキーとして重複排除する（同一ターニングポイントが重複登録されないようにする）
-      turningPoints: [...b.turningPoints, ...i.turningPoints].filter(
-        (tp, index, arr) =>
-          arr.findIndex((t) => t.at === tp.at && t.note === tp.note) === index
-      ),
-    };
-  };
-
-  // tags は union（重複排除）
-  const mergedTags = Array.from(new Set([...base.tags, ...incoming.tags]));
-
-  return {
-    ...base,
-    isDirected: incoming.isDirected,
-    symmetric: mergeSymmetric(base.symmetric, incoming.symmetric),
-    forward: mergeDirectional(base.forward, incoming.forward),
-    reverse: mergeDirectional(base.reverse, incoming.reverse),
-    tags: mergedTags,
-    narrative: mergeNarrative(base.narrative, incoming.narrative),
-    colorOverride: incoming.colorOverride !== null ? incoming.colorOverride : base.colorOverride,
-    updatedAt: now,
-  };
-}
 
 /**
  * 現在のストア状態からChartオブジェクトを構築する
@@ -197,46 +130,13 @@ function buildChartFromState(state: GraphState): Chart | null {
     forceEnabled: state.forceEnabled,
     forceParams: state.forceParams,
     egoLayoutParams: state.egoLayoutParams,
-    // v10 形式であることを明示する（ロード時の再マイグレーションを防ぐ）
-    schemaVersion: 10,
+    // v11 形式であることを明示する（ロード時の再マイグレーションを防ぐ）
+    schemaVersion: 11,
     createdAt: meta.createdAt,
     updatedAt: new Date().toISOString(),
   };
 }
 
-/**
- * IndexedDB からロードした Chart 全体を v10 形式に正規化する。
- * relationships（v8→v9）と persons（v9→v10 labels）の両方を対象とする。
- * `schemaVersion` が未定義または 9 未満の場合に `migrateV8ToV9` を適用し、
- * 9 未満の場合は `migrateV9ToV10` も適用する。v10 以降のデータはそのまま返す。
- *
- * @param chart - IndexedDB からロードした Chart（任意のスキーマバージョン）
- * @returns v10 形式に正規化された Chart（schemaVersion: 10 付き）
- */
-function normalizeChart(chart: Chart): Chart {
-  // v10 以降は変換不要
-  if ((chart.schemaVersion ?? 0) >= 10) {
-    return chart;
-  }
-
-  let normalized = chart;
-
-  // v8 以前のデータを v9 形式に変換する
-  if ((chart.schemaVersion ?? 0) < 9) {
-    const legacyRels = chart.relationships as unknown as Parameters<typeof migrateV8ToV9>[0];
-    const v9Rels = migrateV8ToV9(legacyRels);
-    normalized = { ...normalized, relationships: v9Rels };
-  }
-
-  // v9 以前の persons を v10 形式（labels）に変換する
-  const v10Persons = migrateV9ToV10(normalized.persons);
-
-  return {
-    ...normalized,
-    persons: v10Persons,
-    schemaVersion: 10,
-  };
-}
 
 /**
  * 現在のチャートをIndexedDBに保存する
@@ -334,22 +234,21 @@ type GraphActions = {
   selectPersonPairForEdit: (id1: string, id2: string, relationshipId: string) => void;
 
   /**
-   * 新しい関係を追加する（v9 プロパティグラフ形式）
+   * 新しい関係を追加する（v11 プロパティグラフ形式）
    *
-   * 同一ペア（sourcePersonId/targetPersonId の順不同）の関係が既に存在する場合は
-   * 既存エッジにマージする（null でないフィールドを上書き、tags は union、
-   * narrative.notes は追記）。存在しない場合は新規追加する。
+   * 同一ペア間に複数のエッジを持てる（マルチグラフ）。
+   * 既存エッジへのマージは行わず、常に新規エッジとして追加する。
    *
    * @param relationship - 追加する関係データ（id・createdAt・updatedAt は自動生成）
    */
-  addRelationship: (relationship: Omit<RelationshipV9, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  addRelationship: (relationship: Omit<Relationship, 'id' | 'createdAt' | 'updatedAt'>) => void;
 
   /**
-   * 指定したIDの関係を更新する（v9 プロパティグラフ形式）
+   * 指定したIDの関係を更新する（v11 プロパティグラフ形式）
    * @param relationshipId - 更新する関係のID
-   * @param updates - 更新する内容（id・sourcePersonId・targetPersonId・createdAt は更新不可）
+   * @param updates - 更新する内容（id・sourceId・targetId・createdAt は更新不可）
    */
-  updateRelationship: (relationshipId: string, updates: Partial<Omit<RelationshipV9, 'id' | 'createdAt' | 'sourcePersonId' | 'targetPersonId'>>) => void;
+  updateRelationship: (relationshipId: string, updates: Partial<Omit<Relationship, 'id' | 'createdAt' | 'sourceId' | 'targetId'>>) => void;
 
   /**
    * 指定したIDの関係を削除する
@@ -503,7 +402,7 @@ export const useGraphStore = create<GraphStore>()(
             persons: state.persons.filter((p) => p.id !== personId),
             // 関連するRelationshipも削除
             relationships: state.relationships.filter(
-              (r) => r.sourcePersonId !== personId && r.targetPersonId !== personId
+              (r) => r.sourceId !== personId && r.targetId !== personId
             ),
             // selectedPersonIdsからも除外
             selectedPersonIds: state.selectedPersonIds.filter((id) => id !== personId),
@@ -551,33 +450,14 @@ export const useGraphStore = create<GraphStore>()(
         addRelationship: (relationship) =>
           set((state) => {
             const now = new Date().toISOString();
-
-            // 同一ペアの既存エッジを検索（source/target の順序に依存しない）
-            const existingIndex = state.relationships.findIndex(
-              (r) =>
-                (r.sourcePersonId === relationship.sourcePersonId &&
-                  r.targetPersonId === relationship.targetPersonId) ||
-                (r.sourcePersonId === relationship.targetPersonId &&
-                  r.targetPersonId === relationship.sourcePersonId)
-            );
-
-            if (existingIndex === -1) {
-              // 新規ペア: 新しいエッジを追加
-              const newRel: RelationshipV9 = {
-                ...relationship,
-                id: nanoid(),
-                createdAt: now,
-                updatedAt: now,
-              };
-              return { relationships: [...state.relationships, newRel] };
-            }
-
-            // 既存ペア: null でないフィールドをマージ
-            const existing = state.relationships[existingIndex];
-            const merged = mergeRelationshipV9(existing, relationship, now);
-            const updatedRelationships = [...state.relationships];
-            updatedRelationships[existingIndex] = merged;
-            return { relationships: updatedRelationships };
+            // マルチグラフ: 同一ペア間でも常に新規エッジとして追加する
+            const newRel: Relationship = {
+              ...relationship,
+              id: nanoid(),
+              createdAt: now,
+              updatedAt: now,
+            };
+            return { relationships: [...state.relationships, newRel] };
           }),
 
         updateRelationship: (relationshipId, updates) =>

@@ -12,7 +12,7 @@
 
 import { nanoid } from 'nanoid';
 import type { Person } from '@/types/person';
-import type { RelationshipV9 } from '@/types/relationship';
+import type { Relationship } from '@/types/relationship';
 import type { LlmExtractionResult } from './llm-extraction-schema';
 
 /**
@@ -49,7 +49,7 @@ type NewPersonData = Omit<Person, 'createdAt'>;
  * ストア投入用の新規関係データの型
  * addRelationship の引数形式に合わせる（id / createdAt / updatedAt は自動生成のため除外）
  */
-type NewRelationshipData = Omit<RelationshipV9, 'id' | 'createdAt' | 'updatedAt'>;
+type NewRelationshipData = Omit<Relationship, 'id' | 'createdAt' | 'updatedAt'>;
 
 /**
  * resolveExtractionResult の戻り値型
@@ -57,7 +57,7 @@ type NewRelationshipData = Omit<RelationshipV9, 'id' | 'createdAt' | 'updatedAt'
 export type ExtractionResolutionResult = {
   /** ストアに新規追加する人物リスト（id が事前に確定している） */
   newPersons: NewPersonData[];
-  /** ストアに追加する関係リスト（sourcePersonId / targetPersonId が解決済み） */
+  /** ストアに追加する関係リスト（sourceId / targetId が解決済み） */
   relationships: NewRelationshipData[];
 };
 
@@ -115,7 +115,9 @@ export function resolveExtractionResult(
     newPersons.push({
       id: newId,
       name: llmPerson.name,
-      labels: llmPerson.labels ?? undefined,
+      // labels が null の場合は ['人物'] をデフォルトとして使用する
+      labels: llmPerson.labels ?? ['人物'],
+      properties: {},
     });
   }
 
@@ -123,21 +125,20 @@ export function resolveExtractionResult(
   const relationships: NewRelationshipData[] = [];
 
   for (const llmRel of result.relationships) {
-    const sourcePersonId = nameToId.get(normalizeName(llmRel.sourcePersonName));
-    const targetPersonId = nameToId.get(normalizeName(llmRel.targetPersonName));
+    const sourceId = nameToId.get(normalizeName(llmRel.sourcePersonName));
+    const targetId = nameToId.get(normalizeName(llmRel.targetPersonName));
 
     // いずれかの人物が解決できない場合はスキップ
-    if (sourcePersonId === undefined || targetPersonId === undefined) {
+    if (sourceId === undefined || targetId === undefined) {
       continue;
     }
 
     relationships.push({
-      sourcePersonId,
-      targetPersonId,
-      isDirected: llmRel.isDirected,
+      sourceId,
+      targetId,
+      type: llmRel.type,
+      label: llmRel.label,
       symmetric: llmRel.symmetric,
-      forward: llmRel.forward,
-      reverse: llmRel.reverse,
       tags: llmRel.tags,
       narrative: {
         summary: llmRel.narrative.summary,
@@ -145,6 +146,7 @@ export function resolveExtractionResult(
         turningPoints: llmRel.narrative.turningPoints,
       },
       colorOverride: null,
+      properties: llmRel.properties,
     });
   }
 

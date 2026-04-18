@@ -36,7 +36,6 @@ import { ContextMenu } from './ContextMenu';
 import { EdgeFilterPanel } from './EdgeFilterPanel';
 import { ChatInputBar } from './ChatInputBar';
 import { useGraphStore } from '@/stores/useGraphStore';
-import { getRelationshipDisplayType } from '@/lib/relationship-utils';
 /** 固定 6 色の SVG マーカー定義（deriveEdgeVisual の markerKey と対応） */
 const EDGE_MARKER_COLORS = [
   { key: 'red',    color: '#ef4444' },
@@ -323,7 +322,7 @@ export function RelationshipGraph() {
         isOpen={pendingConnection !== null}
         sourcePerson={useMemo(() => {
           if (!pendingConnection) return { name: '' };
-          const sourcePerson = persons.find((p) => p.id === pendingConnection.sourcePersonId);
+          const sourcePerson = persons.find((p) => p.id === pendingConnection.sourceId);
           return {
             name: sourcePerson?.name || '不明な人物',
             imageDataUrl: sourcePerson?.imageDataUrl,
@@ -331,25 +330,24 @@ export function RelationshipGraph() {
         }, [pendingConnection, persons])}
         targetPerson={useMemo(() => {
           if (!pendingConnection) return { name: '' };
-          const targetPerson = persons.find((p) => p.id === pendingConnection.targetPersonId);
+          const targetPerson = persons.find((p) => p.id === pendingConnection.targetId);
           return {
             name: targetPerson?.name || '不明な人物',
             imageDataUrl: targetPerson?.imageDataUrl,
           };
         }, [pendingConnection, persons])}
-        defaultType="one-way"
+        defaultSymmetric={false}
         initialRelationship={useMemo(() => {
           if (!pendingConnection?.existingRelationshipId) return undefined;
           const existingRelationship = relationships.find(
             (r) => r.id === pendingConnection.existingRelationshipId
           );
           if (!existingRelationship) return undefined;
-          // v9 データモデルからUI用のRelationshipTypeに変換
-          const displayType = getRelationshipDisplayType(existingRelationship);
+          // v11 形式でそのまま渡す
           return {
-            type: displayType,
-            sourceToTargetLabel: existingRelationship.forward.label ?? '',
-            targetToSourceLabel: existingRelationship.reverse.label ?? null,
+            type: existingRelationship.type,
+            label: existingRelationship.label,
+            symmetric: existingRelationship.symmetric,
           };
         }, [pendingConnection, relationships])}
         onSubmit={handleRegisterRelationship}

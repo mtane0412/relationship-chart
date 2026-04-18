@@ -10,20 +10,7 @@ import { useDialogStore } from '@/stores/useDialogStore';
 import { readFileAsDataUrl } from '@/lib/image-utils';
 import { findClosestTargetNode } from '@/lib/connection-target-detection';
 import type { GraphNode, RelationshipEdge } from '@/types/graph';
-import type { RelationshipType } from '@/types/relationship';
 import type { ContextMenuState } from './useContextMenu';
-
-/**
- * 方向プロパティの null 初期値（ラベル・感情・認知・役割がすべて未設定の状態）
- * handleRegisterRelationship 内で毎回生成するのを避けるためモジュールレベル定数として定義する
- */
-const NULL_DIRECTIONAL = { label: null, affection: null, awareness: null, role: null } as const;
-
-/**
- * 対称プロパティの null 初期値（親密度・信頼・緊張・秘匿・血縁がすべて未設定の状態）
- * handleRegisterRelationship 内で毎回生成するのを避けるためモジュールレベル定数として定義する
- */
-const NULL_SYMMETRIC = { closeness: null, trust: null, tension: null, secrecy: null, kinship: null } as const;
 
 /**
  * 画像D&D/ペースト時の登録待ちデータ
@@ -37,8 +24,8 @@ export type PendingRegistration = {
  * エッジ接続時の登録待ちデータ
  */
 export type PendingConnection = {
-  sourcePersonId: string;
-  targetPersonId: string;
+  sourceId: string;
+  targetId: string;
   /** 編集対象の既存関係ID（編集モードの場合） */
   existingRelationshipId?: string;
 };
@@ -115,17 +102,17 @@ export function useGraphInteractions({
       const targetPerson = persons.find((p) => p.id === targetPersonId);
       if (!sourcePerson || !targetPerson) return;
 
-      // 同じペアの関係が既に存在するかチェック（方向問わず）
+      // 同じペアの関係が既に存在するかチェック（方向問わず、最初の1件を返す）
       const existingRelationship = relationships.find(
         (r) =>
-          (r.sourcePersonId === sourcePersonId && r.targetPersonId === targetPersonId) ||
-          (r.sourcePersonId === targetPersonId && r.targetPersonId === sourcePersonId)
+          (r.sourceId === sourcePersonId && r.targetId === targetPersonId) ||
+          (r.sourceId === targetPersonId && r.targetId === sourcePersonId)
       );
 
       // pendingConnectionをセット（既存関係がある場合は編集モード）
       setPendingConnection({
-        sourcePersonId,
-        targetPersonId,
+        sourceId: sourcePersonId,
+        targetId: targetPersonId,
         ...(existingRelationship ? { existingRelationshipId: existingRelationship.id } : {}),
       });
     },
@@ -440,7 +427,7 @@ export function useGraphInteractions({
         const firstEdge = edgesToDelete[0] as RelationshipEdge;
         messages.push(
           count === 1 && firstEdge
-            ? `「${firstEdge.data?.forwardLabel || firstEdge.data?.reverseLabel || '不明な関係'}」を削除してもよろしいですか？`
+            ? `「${firstEdge.data?.label ?? firstEdge.data?.edgeType ?? '不明な関係'}」を削除してもよろしいですか？`
             : `${count}個の関係を削除してもよろしいですか？`
         );
       }
@@ -487,6 +474,7 @@ export function useGraphInteractions({
         imageDataUrl: croppedImageDataUrl ?? undefined,
         labels,
         position: pendingRegistration.position,
+        properties: {},
       });
 
       // モーダルを閉じる
@@ -500,58 +488,41 @@ export function useGraphInteractions({
     setPendingRegistration(null);
   }, []);
 
-  // 関係登録・更新ハンドラ（UI層のRelationshipTypeを v9 データモデルに変換）
+  // 関係登録・更新ハンドラ（v11 データモデル）
   const handleRegisterRelationship = useCallback(
     (
-      type: RelationshipType,
-      sourceToTargetLabel: string,
-      targetToSourceLabel: string | null
+      edgeType: string,
+      label: string | null,
+      symmetric: boolean
     ) => {
       if (!pendingConnection) return;
 
-      // UI層のRelationshipTypeを v9 フィールドに変換
-      const isDirected = type !== 'undirected';
-      const forwardLabel = sourceToTargetLabel.trim() || null;
-      const reverseLabel =
-        type === 'dual-directed'
-          ? targetToSourceLabel?.trim() || null
-          : type === 'bidirectional' || type === 'undirected'
-            ? forwardLabel // 双方向・無方向は同じラベル
-            : null; // one-wayは逆方向ラベルなし
-
       if (pendingConnection.existingRelationshipId) {
         // 編集モード: 既存の関係を更新
-        // 保存済みの関係の向きと UI の向きが逆の場合は forward/reverse を入れ替える
-        const existingRel = relationships.find(
-          (r) => r.id === pendingConnection.existingRelationshipId
-        );
-        const isReversed =
-          existingRel?.sourcePersonId === pendingConnection.targetPersonId &&
-          existingRel?.targetPersonId === pendingConnection.sourcePersonId;
         updateRelationship(pendingConnection.existingRelationshipId, {
-          isDirected,
-          forward: { ...NULL_DIRECTIONAL, label: isReversed ? reverseLabel : forwardLabel },
-          reverse: { ...NULL_DIRECTIONAL, label: isReversed ? forwardLabel : reverseLabel },
+          type: edgeType,
+          label,
+          symmetric,
         });
       } else {
         // 新規登録モード: 関係を追加
         addRelationship({
-          sourcePersonId: pendingConnection.sourcePersonId,
-          targetPersonId: pendingConnection.targetPersonId,
-          isDirected,
-          forward: { ...NULL_DIRECTIONAL, label: forwardLabel },
-          reverse: { ...NULL_DIRECTIONAL, label: reverseLabel },
-          symmetric: NULL_SYMMETRIC,
+          sourceId: pendingConnection.sourceId,
+          targetId: pendingConnection.targetId,
+          type: edgeType,
+          label,
+          symmetric,
           tags: [],
           narrative: { summary: null, notes: null, turningPoints: [] },
           colorOverride: null,
+          properties: {},
         });
       }
 
       // モーダルを閉じる
       setPendingConnection(null);
     },
-    [pendingConnection, relationships, addRelationship, updateRelationship]
+    [pendingConnection, addRelationship, updateRelationship]
   );
 
   // 関係登録のキャンセルハンドラ
@@ -562,8 +533,8 @@ export function useGraphInteractions({
   // pendingConnectionの人物が削除された場合はキャンセル
   useEffect(() => {
     if (pendingConnection) {
-      const sourcePerson = persons.find((p) => p.id === pendingConnection.sourcePersonId);
-      const targetPerson = persons.find((p) => p.id === pendingConnection.targetPersonId);
+      const sourcePerson = persons.find((p) => p.id === pendingConnection.sourceId);
+      const targetPerson = persons.find((p) => p.id === pendingConnection.targetId);
 
       if (!sourcePerson || !targetPerson) {
         // どちらかの人物が削除された場合はモーダルをキャンセル

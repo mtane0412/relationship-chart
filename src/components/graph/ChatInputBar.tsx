@@ -169,7 +169,7 @@ export function ChatInputBar() {
   const handleCreateNew = useCallback(
     (name: string) => {
       // ストアに人物を追加（即座にキャンバスにノードが表示される）
-      addPerson({ name, labels: undefined });
+      addPerson({ name, labels: ['人物'], properties: {} });
 
       // 最新のストア状態から作成した人物を取得（同名が複数いる場合は最新を使用）
       const updatedPersons = useGraphStore.getState().persons;
@@ -356,7 +356,7 @@ export function ChatInputBar() {
     // 1 パス目: 新規人物を追加
     const { newPersons } = resolveExtractionResult(extractionResult, persons, new Map());
     for (const person of newPersons) {
-      addPerson({ name: person.name, labels: person.labels });
+      addPerson({ name: person.name, labels: person.labels, properties: {} });
     }
 
     // 2 パス目: 追加後のストア状態で関係を解決

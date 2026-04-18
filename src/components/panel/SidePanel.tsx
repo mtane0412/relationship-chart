@@ -39,8 +39,8 @@ export function SidePanel() {
     if (!rel) return false;
     const [id1, id2] = [selectedPersonIds[0], selectedPersonIds[1]];
     return (
-      (rel.sourcePersonId === id1 && rel.targetPersonId === id2) ||
-      (rel.sourcePersonId === id2 && rel.targetPersonId === id1)
+      (rel.sourceId === id1 && rel.targetId === id2) ||
+      (rel.sourceId === id2 && rel.targetId === id1)
     );
   }, [editingRelationshipId, relationships, selectedPersonIds]);
 

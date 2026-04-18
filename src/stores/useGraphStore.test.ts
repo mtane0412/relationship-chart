@@ -7,42 +7,25 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useGraphStore } from './useGraphStore';
 import type { Person } from '@/types/person';
-import type { RelationshipV9 } from '@/types/relationship';
+import type { Relationship } from '@/types/relationship';
 import { initDB, closeDB } from '@/lib/chart-db';
 
 /**
- * テスト用のv9形式の関係オブジェクトを生成するヘルパー関数
+ * テスト用のv11形式の関係オブジェクトを生成するヘルパー関数
  * 最小限の必須フィールドのみ指定し、残りはデフォルト値を設定する
  */
-function makeV9Rel(
-  overrides: Partial<Omit<RelationshipV9, 'id' | 'createdAt' | 'updatedAt'>> & {
-    sourcePersonId: string;
-    targetPersonId: string;
+function makeRel(
+  overrides: Partial<Omit<Relationship, 'id' | 'createdAt' | 'updatedAt'>> & {
+    sourceId: string;
+    targetId: string;
   }
-): Omit<RelationshipV9, 'id' | 'createdAt' | 'updatedAt'> {
+): Omit<Relationship, 'id' | 'createdAt' | 'updatedAt'> {
   return {
-    sourcePersonId: overrides.sourcePersonId,
-    targetPersonId: overrides.targetPersonId,
-    isDirected: overrides.isDirected ?? false,
-    symmetric: overrides.symmetric ?? {
-      closeness: null,
-      trust: null,
-      tension: null,
-      secrecy: null,
-      kinship: null,
-    },
-    forward: overrides.forward ?? {
-      label: null,
-      affection: null,
-      awareness: null,
-      role: null,
-    },
-    reverse: overrides.reverse ?? {
-      label: null,
-      affection: null,
-      awareness: null,
-      role: null,
-    },
+    sourceId: overrides.sourceId,
+    targetId: overrides.targetId,
+    type: overrides.type ?? '関係',
+    label: overrides.label ?? null,
+    symmetric: overrides.symmetric ?? false,
     tags: overrides.tags ?? [],
     narrative: overrides.narrative ?? {
       summary: null,
@@ -50,6 +33,7 @@ function makeV9Rel(
       turningPoints: [],
     },
     colorOverride: overrides.colorOverride ?? null,
+    properties: overrides.properties ?? {},
   };
 }
 
@@ -97,6 +81,8 @@ describe('useGraphStore', () => {
       const newPerson: Omit<Person, 'id' | 'createdAt'> = {
         name: '山田太郎',
         imageDataUrl: 'data:image/jpeg;base64,abc',
+        labels: ['人物'],
+        properties: {},
       };
 
       act(() => {
@@ -119,10 +105,14 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '佐藤花子',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -138,10 +128,14 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '佐藤花子',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -159,6 +153,8 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -179,6 +175,8 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -199,10 +197,14 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '佐藤花子',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -212,12 +214,12 @@ describe('useGraphStore', () => {
       // 2人の間に関係を追加
       act(() => {
         result.current.addRelationship(
-            makeV9Rel({
-              sourcePersonId: personId1,
-              targetPersonId: personId2,
-              isDirected: false,
-              forward: { label: '友人', affection: null, awareness: null, role: null },
-              reverse: { label: '友人', affection: null, awareness: null, role: null },
+            makeRel({
+              sourceId: personId1,
+              targetId: personId2,
+              type: '友人',
+              label: '友人',
+              symmetric: true,
             })
           );
       });
@@ -243,10 +245,14 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '佐藤花子',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -276,6 +282,8 @@ describe('useGraphStore', () => {
 
       const newPerson: Omit<Person, 'id' | 'createdAt'> = {
         name: '山田太郎',
+        labels: ['人物'],
+        properties: {},
       };
 
       act(() => {
@@ -300,6 +308,7 @@ describe('useGraphStore', () => {
         name: '山田太郎',
         imageDataUrl: 'data:image/jpeg;base64,abc',
         labels: ['人物'],
+        properties: {},
       };
 
       act(() => {
@@ -323,6 +332,7 @@ describe('useGraphStore', () => {
         name: '伝説の剣',
         imageDataUrl: 'data:image/jpeg;base64,sword',
         labels: ['物'],
+        properties: {},
       };
 
       act(() => {
@@ -339,12 +349,14 @@ describe('useGraphStore', () => {
       expect(result.current.persons[0].createdAt).toBeTruthy();
     });
 
-    it('labelsを省略した場合はundefinedのまま保存される', () => {
+    it('labels: []（空配列）を指定した場合は空配列のまま保存される', () => {
       const { result } = renderHook(() => useGraphStore());
 
       const newPerson: Omit<Person, 'id' | 'createdAt'> = {
         name: '山田太郎',
         imageDataUrl: 'data:image/jpeg;base64,abc',
+        labels: [],
+        properties: {},
       };
 
       act(() => {
@@ -356,8 +368,8 @@ describe('useGraphStore', () => {
         name: '山田太郎',
         imageDataUrl: 'data:image/jpeg;base64,abc',
       });
-      // labelsはundefinedのまま（グラフ変換時に['人物']をデフォルト適用）
-      expect(result.current.persons[0].labels).toBeUndefined();
+      // labelsは空配列のまま保存される
+      expect(result.current.persons[0].labels).toEqual([]);
     });
 
     it('人物と物を混在させて追加できる', () => {
@@ -368,11 +380,13 @@ describe('useGraphStore', () => {
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
           labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '魔法の杖',
           imageDataUrl: 'data:image/jpeg;base64,wand',
           labels: ['物'],
+          properties: {},
         });
       });
 
@@ -391,6 +405,7 @@ describe('useGraphStore', () => {
           name: '伝説の剣',
           imageDataUrl: 'data:image/jpeg;base64,sword',
           labels: ['物'],
+          properties: {},
         });
       });
 
@@ -413,11 +428,13 @@ describe('useGraphStore', () => {
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
           labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '伝説の剣',
           imageDataUrl: 'data:image/jpeg;base64,sword',
           labels: ['物'],
+          properties: {},
         });
       });
 
@@ -427,12 +444,12 @@ describe('useGraphStore', () => {
       // 人物と物の間に関係を追加
       act(() => {
         result.current.addRelationship(
-            makeV9Rel({
-              sourcePersonId: personId,
-              targetPersonId: itemId,
-              isDirected: true,
-              forward: { label: '所有', affection: null, awareness: null, role: null },
-              reverse: { label: null, affection: null, awareness: null, role: null },
+            makeRel({
+              sourceId: personId,
+              targetId: itemId,
+              type: '所有',
+              label: '所有',
+              symmetric: false,
             })
           );
       });
@@ -460,6 +477,8 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -482,6 +501,8 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -504,6 +525,8 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -526,6 +549,8 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -545,9 +570,9 @@ describe('useGraphStore', () => {
 
       // 3人の人物を追加
       act(() => {
-        result.current.addPerson({ name: '山田太郎' });
-        result.current.addPerson({ name: '佐藤花子' });
-        result.current.addPerson({ name: '鈴木一郎' });
+        result.current.addPerson({ name: '山田太郎', labels: ['人物'], properties: {} });
+        result.current.addPerson({ name: '佐藤花子', labels: ['人物'], properties: {} });
+        result.current.addPerson({ name: '鈴木一郎', labels: ['人物'], properties: {} });
       });
 
       const personId1 = result.current.persons[0].id;
@@ -581,8 +606,8 @@ describe('useGraphStore', () => {
 
       // 2人の人物を追加
       act(() => {
-        result.current.addPerson({ name: '山田太郎' });
-        result.current.addPerson({ name: '佐藤花子' });
+        result.current.addPerson({ name: '山田太郎', labels: ['人物'], properties: {} });
+        result.current.addPerson({ name: '佐藤花子', labels: ['人物'], properties: {} });
       });
 
       const personId1 = result.current.persons[0].id;
@@ -611,7 +636,7 @@ describe('useGraphStore', () => {
 
       // 位置未設定で人物を追加
       act(() => {
-        result.current.addPerson({ name: '山田太郎' });
+        result.current.addPerson({ name: '山田太郎', labels: ['人物'], properties: {} });
       });
 
       const personId = result.current.persons[0].id;
@@ -638,6 +663,8 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           position: { x: 100, y: 100 },
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -670,6 +697,8 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -691,6 +720,8 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -720,6 +751,8 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -744,6 +777,8 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -772,10 +807,14 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '佐藤花子',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -805,10 +844,14 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '佐藤花子',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -841,10 +884,14 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '佐藤花子',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -888,14 +935,20 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '佐藤花子',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '鈴木一郎',
           imageDataUrl: 'data:image/jpeg;base64,ghi',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -918,6 +971,8 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -947,36 +1002,40 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '佐藤花子',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
       const personId1 = result.current.persons[0].id;
       const personId2 = result.current.persons[1].id;
 
-      // bidirectional関係を追加
+      // 無向表示の関係を追加（symmetric: true）
       act(() => {
         result.current.addRelationship(
-            makeV9Rel({
-              sourcePersonId: personId1,
-              targetPersonId: personId2,
-              isDirected: true,
-              forward: { label: '親子', affection: null, awareness: null, role: null },
-              reverse: { label: '親子', affection: null, awareness: null, role: null },
+            makeRel({
+              sourceId: personId1,
+              targetId: personId2,
+              type: '親子',
+              label: '親子',
+              symmetric: true,
             })
           );
       });
 
       expect(result.current.relationships).toHaveLength(1);
       expect(result.current.relationships[0]).toMatchObject({
-        sourcePersonId: personId1,
-        targetPersonId: personId2,
-        isDirected: true,
-        forward: { label: '親子' },
-        reverse: { label: '親子' },
+        sourceId: personId1,
+        targetId: personId2,
+        type: '親子',
+        label: '親子',
+        symmetric: true,
       });
     });
 
@@ -988,40 +1047,44 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '佐藤花子',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
       const personId1 = result.current.persons[0].id;
       const personId2 = result.current.persons[1].id;
 
-      // dual-directed関係を追加
+      // 有向関係を追加（symmetric: false）
       act(() => {
         result.current.addRelationship(
-            makeV9Rel({
-              sourcePersonId: personId1,
-              targetPersonId: personId2,
-              isDirected: true,
-              forward: { label: '好き', affection: null, awareness: null, role: null },
-              reverse: { label: '無関心', affection: null, awareness: null, role: null },
+            makeRel({
+              sourceId: personId1,
+              targetId: personId2,
+              type: '好き',
+              label: '好き',
+              symmetric: false,
             })
           );
       });
 
       expect(result.current.relationships).toHaveLength(1);
       expect(result.current.relationships[0]).toMatchObject({
-        sourcePersonId: personId1,
-        targetPersonId: personId2,
-        isDirected: true,
-        forward: { label: '好き' },
-        reverse: { label: '無関心' },
+        sourceId: personId1,
+        targetId: personId2,
+        type: '好き',
+        label: '好き',
+        symmetric: false,
       });
     });
 
-    it('同じペアの関係が既に存在する場合は追加しない（source→target）', () => {
+    it('同じペアへ2回addRelationshipを呼ぶと2つのエッジが作成される（v11マルチグラフ）', () => {
       const { result } = renderHook(() => useGraphStore());
 
       // 2人の人物を追加
@@ -1029,10 +1092,14 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '佐藤花子',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -1042,38 +1109,38 @@ describe('useGraphStore', () => {
       // 1つ目の関係を追加
       act(() => {
         result.current.addRelationship(
-            makeV9Rel({
-              sourcePersonId: personId1,
-              targetPersonId: personId2,
-              isDirected: true,
-              forward: { label: '片想い', affection: null, awareness: null, role: null },
-              reverse: { label: null, affection: null, awareness: null, role: null },
+            makeRel({
+              sourceId: personId1,
+              targetId: personId2,
+              type: '片想い',
+              label: '片想い',
+              symmetric: false,
             })
           );
       });
 
       expect(result.current.relationships).toHaveLength(1);
 
-      // 同じペアの2つ目の関係を追加しようとする
+      // 同じペアに別の関係を追加（v11ではマルチグラフ：追加される）
       act(() => {
         result.current.addRelationship(
-            makeV9Rel({
-              sourcePersonId: personId1,
-              targetPersonId: personId2,
-              isDirected: true,
-              forward: { label: '友人', affection: null, awareness: null, role: null },
-              reverse: { label: '友人', affection: null, awareness: null, role: null },
+            makeRel({
+              sourceId: personId1,
+              targetId: personId2,
+              type: '友人',
+              label: '友人',
+              symmetric: true,
             })
           );
       });
 
-      // 追加されない（1つのまま: マージ方式）
-      expect(result.current.relationships).toHaveLength(1);
-      // マージ: 2つ目のforward.label（非null）が上書きされる
-      expect(result.current.relationships[0].forward.label).toBe('友人');
+      // v11ではマージされず2つのエッジが作成される
+      expect(result.current.relationships).toHaveLength(2);
+      expect(result.current.relationships[0].type).toBe('片想い');
+      expect(result.current.relationships[1].type).toBe('友人');
     });
 
-    it('同じペアの関係が既に存在する場合は追加しない（target→source）', () => {
+    it('逆向きの関係も独立して追加される（v11マルチグラフ）', () => {
       const { result } = renderHook(() => useGraphStore());
 
       // 2人の人物を追加
@@ -1081,50 +1148,55 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '佐藤花子',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
       const personId1 = result.current.persons[0].id;
       const personId2 = result.current.persons[1].id;
 
-      // 1つ目の関係を追加（A→B）
+      // A→B の関係を追加
       act(() => {
         result.current.addRelationship(
-            makeV9Rel({
-              sourcePersonId: personId1,
-              targetPersonId: personId2,
-              isDirected: true,
-              forward: { label: '片想い', affection: null, awareness: null, role: null },
-              reverse: { label: null, affection: null, awareness: null, role: null },
+            makeRel({
+              sourceId: personId1,
+              targetId: personId2,
+              type: '片想い',
+              label: '片想い',
+              symmetric: false,
             })
           );
       });
 
       expect(result.current.relationships).toHaveLength(1);
 
-      // 逆向きの関係を追加しようとする（B→A）
+      // B→A の逆向きの関係を追加（v11では独立エッジとして追加される）
       act(() => {
         result.current.addRelationship(
-            makeV9Rel({
-              sourcePersonId: personId2,
-              targetPersonId: personId1,
-              isDirected: true,
-              forward: { label: '同僚', affection: null, awareness: null, role: null },
-              reverse: { label: null, affection: null, awareness: null, role: null },
+            makeRel({
+              sourceId: personId2,
+              targetId: personId1,
+              type: '同僚',
+              label: '同僚',
+              symmetric: false,
             })
           );
       });
 
-      // 追加されない（1つのまま）
-      expect(result.current.relationships).toHaveLength(1);
-      expect(result.current.relationships[0].sourcePersonId).toBe(personId1);
+      // v11ではマージされず2つのエッジが作成される
+      expect(result.current.relationships).toHaveLength(2);
+      expect(result.current.relationships[0].sourceId).toBe(personId1);
+      expect(result.current.relationships[1].sourceId).toBe(personId2);
     });
 
-    it('タグなしで関係を追加できる（v9ではlayerの代わりにtagsを使用）', () => {
+    it('タグなしで関係を追加できる（v11ではlayerの代わりにtagsを使用）', () => {
       const { result } = renderHook(() => useGraphStore());
 
       // 2人の人物を追加
@@ -1132,10 +1204,14 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '佐藤花子',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -1145,21 +1221,21 @@ describe('useGraphStore', () => {
       // タグを指定せず関係を追加
       act(() => {
         result.current.addRelationship(
-          makeV9Rel({
-            sourcePersonId: personId1,
-            targetPersonId: personId2,
-            isDirected: true,
-            forward: { label: '同僚', affection: null, awareness: null, role: null },
-            reverse: { label: '同僚', affection: null, awareness: null, role: null },
+          makeRel({
+            sourceId: personId1,
+            targetId: personId2,
+            type: '同僚',
+            label: '同僚',
+            symmetric: true,
           })
         );
       });
 
-      // v9ではlayerフィールドはなく、tagsが空配列であることを確認
+      // v11ではlayerフィールドはなく、tagsが空配列であることを確認
       expect(result.current.relationships[0].tags).toEqual([]);
     });
 
-    it('同じペア・同じレイヤーの関係は重複して追加できない', () => {
+    it('同じペアへの複数回addRelationshipはそれぞれ独立したエッジを作成する（v11マルチグラフ）', () => {
       const { result } = renderHook(() => useGraphStore());
 
       // 2人の人物を追加
@@ -1167,49 +1243,53 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '江戸川コナン',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '毛利蘭',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
       const personId1 = result.current.persons[0].id;
       const personId2 = result.current.persons[1].id;
 
-      // generalレイヤーで関係を追加
+      // 1つ目の関係を追加
       act(() => {
         result.current.addRelationship(
-            makeV9Rel({
-              sourcePersonId: personId1,
-              targetPersonId: personId2,
-              isDirected: false,
-              forward: { label: '幼馴染', affection: null, awareness: null, role: null },
-              reverse: { label: '幼馴染', affection: null, awareness: null, role: null },
+            makeRel({
+              sourceId: personId1,
+              targetId: personId2,
+              type: '幼馴染',
+              label: '幼馴染',
+              symmetric: true,
             })
           );
       });
 
       expect(result.current.relationships).toHaveLength(1);
 
-      // 同じペア・同じレイヤー（general）で再度追加しようとする
+      // 同じペアに別の関係を追加（v11ではマルチグラフ：追加される）
       act(() => {
         result.current.addRelationship(
-            makeV9Rel({
-              sourcePersonId: personId1,
-              targetPersonId: personId2,
-              isDirected: true,
-              forward: { label: '好き', affection: null, awareness: null, role: null },
-              reverse: { label: null, affection: null, awareness: null, role: null },
+            makeRel({
+              sourceId: personId1,
+              targetId: personId2,
+              type: '好き',
+              label: '好き',
+              symmetric: false,
             })
           );
       });
 
-      // 追加されない（1つのまま）
-      expect(result.current.relationships).toHaveLength(1);
+      // v11ではマージされず2つのエッジが作成される
+      expect(result.current.relationships).toHaveLength(2);
     });
 
-    it('同じペアへの2度目のaddRelationshipはマージされる（v9のマージ動作）', () => {
+    it('同じペアへの2度目のaddRelationshipで2つ目のエッジが作成される（v11マルチグラフ動作）', () => {
       const { result } = renderHook(() => useGraphStore());
 
       // 2人の人物を追加
@@ -1217,10 +1297,14 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '江戸川コナン',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '灰原哀',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -1230,38 +1314,37 @@ describe('useGraphStore', () => {
       // 最初の関係を追加（ラベル: 同居人・仲間）
       act(() => {
         result.current.addRelationship(
-          makeV9Rel({
-            sourcePersonId: personId1,
-            targetPersonId: personId2,
-            isDirected: false,
-            forward: { label: '同居人・仲間', affection: null, awareness: null, role: null },
-            reverse: { label: '同居人・仲間', affection: null, awareness: null, role: null },
+          makeRel({
+            sourceId: personId1,
+            targetId: personId2,
+            type: '同居人・仲間',
+            label: '同居人・仲間',
+            symmetric: true,
           })
         );
       });
 
-      // 同じペアへ追加（forward.labelがnon-nullなのでマージで上書きされる）
+      // 同じペアへ追加（v11ではマルチグラフ：新エッジが作成される）
       act(() => {
         result.current.addRelationship(
-          makeV9Rel({
-            sourcePersonId: personId1,
-            targetPersonId: personId2,
-            isDirected: true,
-            forward: { label: '信頼', affection: null, awareness: null, role: null },
-            reverse: { label: null, affection: null, awareness: null, role: null },
+          makeRel({
+            sourceId: personId1,
+            targetId: personId2,
+            type: '信頼',
+            label: '信頼',
+            symmetric: false,
           })
         );
       });
 
-      // v9ではマージされるため関係は1つのまま
-      expect(result.current.relationships).toHaveLength(1);
-      // isDirectedはマージで更新される
-      expect(result.current.relationships[0].isDirected).toBe(true);
-      // forward.labelは新しいラベルに上書きされる
-      expect(result.current.relationships[0].forward.label).toBe('信頼');
+      // v11ではマージされず2つのエッジが作成される
+      expect(result.current.relationships).toHaveLength(2);
+      // 2つ目のエッジが正しく追加されている
+      expect(result.current.relationships[1].type).toBe('信頼');
+      expect(result.current.relationships[1].symmetric).toBe(false);
     });
 
-    it('tagsを指定して関係を追加できる（v9ではlayerの代わりにtagsを使用）', () => {
+    it('tagsを指定して関係を追加できる（v11ではlayerの代わりにtagsを使用）', () => {
       const { result } = renderHook(() => useGraphStore());
 
       // 2人の人物を追加
@@ -1269,10 +1352,14 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '工藤新一',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '毛利蘭',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -1282,13 +1369,13 @@ describe('useGraphStore', () => {
       // tagsを指定して関係を追加
       act(() => {
         result.current.addRelationship(
-          makeV9Rel({
-            sourcePersonId: personId1,
-            targetPersonId: personId2,
-            isDirected: true,
+          makeRel({
+            sourceId: personId1,
+            targetId: personId2,
+            type: '想い人',
+            label: '想い人',
+            symmetric: false,
             tags: ['片想い'],
-            forward: { label: '想い人', affection: null, awareness: null, role: null },
-            reverse: { label: null, affection: null, awareness: null, role: null },
           })
           );
       });
@@ -1306,10 +1393,14 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '佐藤花子',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -1319,32 +1410,31 @@ describe('useGraphStore', () => {
       // 関係を追加
       act(() => {
         result.current.addRelationship(
-            makeV9Rel({
-              sourcePersonId: personId1,
-              targetPersonId: personId2,
-              isDirected: true,
-              forward: { label: '片想い', affection: null, awareness: null, role: null },
-              reverse: { label: null, affection: null, awareness: null, role: null },
+            makeRel({
+              sourceId: personId1,
+              targetId: personId2,
+              type: '片想い',
+              label: '片想い',
+              symmetric: false,
             })
           );
       });
 
       const relationshipId = result.current.relationships[0].id;
 
-      // タイプを更新
+      // ラベルを更新（有向のまま）
       act(() => {
         result.current.updateRelationship(relationshipId, {
-          isDirected: true,
-          reverse: { label: '片想い', affection: null, awareness: null, role: null },
+          label: '恋愛感情',
         });
       });
 
       expect(result.current.relationships[0]).toMatchObject({
         id: relationshipId,
-        isDirected: true,
-        // forward.label は変更されないことを確認
-        forward: { label: '片想い' },
-        reverse: { label: '片想い' },
+        symmetric: false,
+        // type は変更されないことを確認
+        type: '片想い',
+        label: '恋愛感情',
       });
     });
 
@@ -1356,10 +1446,14 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '佐藤花子',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -1369,12 +1463,12 @@ describe('useGraphStore', () => {
       // 関係を追加
       act(() => {
         result.current.addRelationship(
-            makeV9Rel({
-              sourcePersonId: personId1,
-              targetPersonId: personId2,
-              isDirected: true,
-              forward: { label: '友人', affection: null, awareness: null, role: null },
-              reverse: { label: '友人', affection: null, awareness: null, role: null },
+            makeRel({
+              sourceId: personId1,
+              targetId: personId2,
+              type: '友人',
+              label: '友人',
+              symmetric: true,
             })
           );
       });
@@ -1384,16 +1478,16 @@ describe('useGraphStore', () => {
       // ラベルを更新
       act(() => {
         result.current.updateRelationship(relationshipId, {
-          forward: { label: '親友', affection: null, awareness: null, role: null },
-          reverse: { label: '親友', affection: null, awareness: null, role: null },
+          type: '親友',
+          label: '親友',
         });
       });
 
       expect(result.current.relationships[0]).toMatchObject({
         id: relationshipId,
-        isDirected: true,
-        forward: { label: '親友' },
-        reverse: { label: '親友' },
+        symmetric: true,
+        type: '親友',
+        label: '親友',
       });
     });
 
@@ -1405,44 +1499,48 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '佐藤花子',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
       const personId1 = result.current.persons[0].id;
       const personId2 = result.current.persons[1].id;
 
-      // dual-directed関係を追加
+      // 有向関係を追加
       act(() => {
         result.current.addRelationship(
-            makeV9Rel({
-              sourcePersonId: personId1,
-              targetPersonId: personId2,
-              isDirected: true,
-              forward: { label: '好き', affection: null, awareness: null, role: null },
-              reverse: { label: '無関心', affection: null, awareness: null, role: null },
+            makeRel({
+              sourceId: personId1,
+              targetId: personId2,
+              type: '好き',
+              label: '好き',
+              symmetric: false,
             })
           );
       });
 
       const relationshipId = result.current.relationships[0].id;
 
-      // 両方のラベルを更新
+      // ラベルとタイプを更新
       act(() => {
         result.current.updateRelationship(relationshipId, {
-          forward: { label: '愛している', affection: null, awareness: null, role: null },
-          reverse: { label: '嫌い', affection: null, awareness: null, role: null },
+          type: '愛している',
+          label: '愛している',
         });
       });
 
       expect(result.current.relationships[0]).toMatchObject({
         id: relationshipId,
-        isDirected: true,
-        forward: { label: '愛している' },
-        reverse: { label: '嫌い' },
+        symmetric: false,
+        type: '愛している',
+        label: '愛している',
       });
     });
 
@@ -1454,10 +1552,14 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '佐藤花子',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -1467,12 +1569,12 @@ describe('useGraphStore', () => {
       // 関係を追加
       act(() => {
         result.current.addRelationship(
-            makeV9Rel({
-              sourcePersonId: personId1,
-              targetPersonId: personId2,
-              isDirected: true,
-              forward: { label: '友人', affection: null, awareness: null, role: null },
-              reverse: { label: '友人', affection: null, awareness: null, role: null },
+            makeRel({
+              sourceId: personId1,
+              targetId: personId2,
+              type: '友人',
+              label: '友人',
+              symmetric: true,
             })
           );
       });
@@ -1480,15 +1582,15 @@ describe('useGraphStore', () => {
       // 存在しないIDで更新を試みる
       act(() => {
         result.current.updateRelationship('non-existent-id', {
-          forward: { label: '敵', affection: null, awareness: null, role: null },
+          label: '敵',
         });
       });
 
       // 既存の関係は変更されていない
       expect(result.current.relationships[0]).toMatchObject({
-        isDirected: true,
-        forward: { label: '友人' },
-        reverse: { label: '友人' },
+        symmetric: true,
+        type: '友人',
+        label: '友人',
       });
     });
   });
@@ -1996,6 +2098,8 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -2026,6 +2130,8 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -2054,10 +2160,14 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '佐藤花子',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -2067,12 +2177,12 @@ describe('useGraphStore', () => {
       // 関係を追加
       act(() => {
         result.current.addRelationship(
-            makeV9Rel({
-              sourcePersonId: personId1,
-              targetPersonId: personId2,
-              isDirected: false,
-              forward: { label: '友人', affection: null, awareness: null, role: null },
-              reverse: { label: '友人', affection: null, awareness: null, role: null },
+            makeRel({
+              sourceId: personId1,
+              targetId: personId2,
+              type: '友人',
+              label: '友人',
+              symmetric: true,
             })
           );
       });
@@ -2095,10 +2205,14 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '佐藤花子',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -2108,12 +2222,12 @@ describe('useGraphStore', () => {
       // 関係を追加
       act(() => {
         result.current.addRelationship(
-            makeV9Rel({
-              sourcePersonId: personId1,
-              targetPersonId: personId2,
-              isDirected: false,
-              forward: { label: '友人', affection: null, awareness: null, role: null },
-              reverse: { label: '友人', affection: null, awareness: null, role: null },
+            makeRel({
+              sourceId: personId1,
+              targetId: personId2,
+              type: '友人',
+              label: '友人',
+              symmetric: true,
             })
           );
       });
@@ -2146,10 +2260,14 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '佐藤花子',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -2284,10 +2402,14 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
         });
         result.current.addPerson({
           name: '佐藤花子',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
         });
       });
 
@@ -2297,12 +2419,12 @@ describe('useGraphStore', () => {
       // 関係を追加
       act(() => {
         result.current.addRelationship(
-            makeV9Rel({
-              sourcePersonId: personId1,
-              targetPersonId: personId2,
-              isDirected: false,
-              forward: { label: '友人', affection: null, awareness: null, role: null },
-              reverse: { label: '友人', affection: null, awareness: null, role: null },
+            makeRel({
+              sourceId: personId1,
+              targetId: personId2,
+              type: '友人',
+              label: '友人',
+              symmetric: true,
             })
           );
       });
@@ -2574,7 +2696,7 @@ describe('useGraphStore', () => {
         await saveChart({
           id: 'chart-1',
           name: 'テストチャート',
-          persons: [{ id: '1', name: '田中太郎', createdAt: '2024-01-01T00:00:00Z' }],
+          persons: [{ id: '1', name: '田中太郎', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00Z' }],
           relationships: [],
           forceEnabled: false,
           forceParams: {
@@ -2627,7 +2749,7 @@ describe('useGraphStore', () => {
         await saveChart({
           id: 'chart-2',
           name: 'チャート2',
-          persons: [{ id: '1', name: '鈴木次郎', createdAt: '2024-01-02T00:00:00Z' }],
+          persons: [{ id: '1', name: '鈴木次郎', labels: ['人物'], properties: {}, createdAt: '2024-01-02T00:00:00Z' }],
           relationships: [],
           forceEnabled: false,
           forceParams: {
@@ -2772,7 +2894,7 @@ describe('useGraphStore', () => {
 
         // 人物を追加
         act(() => {
-          result.current.addPerson({ name: '田中太郎' });
+          result.current.addPerson({ name: '田中太郎', labels: ['人物'], properties: {} });
         });
 
         expect(result.current.persons).toHaveLength(1);
@@ -2820,7 +2942,7 @@ describe('useGraphStore', () => {
 
         // 人物を追加
         act(() => {
-          result.current.addPerson({ name: '田中太郎' });
+          result.current.addPerson({ name: '田中太郎', labels: ['人物'], properties: {} });
         });
 
         expect(result.current.persons).toHaveLength(1);
@@ -2856,7 +2978,7 @@ describe('useGraphStore', () => {
 
         // 人物を追加
         act(() => {
-          result.current.addPerson({ name: '田中太郎' });
+          result.current.addPerson({ name: '田中太郎', labels: ['人物'], properties: {} });
         });
 
         expect(result.current.chartMetas).toHaveLength(3);

@@ -6,30 +6,30 @@
 import { describe, it, expect } from 'vitest';
 import { computeGraphDistances, computeRadialPositions } from './ego-layout';
 import type { Person } from '@/types/person';
-import type { RelationshipV9 } from '@/types/relationship';
+import type { Relationship } from '@/types/relationship';
 
 
 /**
- * ego-layoutテスト用のv9形式の関係オブジェクトを生成するヘルパー関数
- * グラフ距離計算に必要なsourcePersonId/targetPersonIdのみを指定する
+ * ego-layoutテスト用のv11形式の関係オブジェクトを生成するヘルパー関数
+ * グラフ距離計算に必要なsourceId/targetIdのみを指定する
  */
 function makeEgoRel(
   id: string,
-  sourcePersonId: string,
-  targetPersonId: string,
-  isDirected: boolean = false
-): RelationshipV9 {
+  sourceId: string,
+  targetId: string,
+  _symmetric: boolean = false
+): Relationship {
   return {
     id,
-    sourcePersonId,
-    targetPersonId,
-    isDirected,
-    symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
-    forward: { label: null, affection: null, awareness: null, role: null },
-    reverse: { label: null, affection: null, awareness: null, role: null },
+    type: '関係',
+    sourceId,
+    targetId,
+    label: null,
+    symmetric: false,
     tags: [],
     narrative: { summary: null, notes: null, turningPoints: [] },
     colorOverride: null,
+    properties: {},
     createdAt: '2024-01-01T00:00:00.000Z',
     updatedAt: '2024-01-01T00:00:00.000Z',
   };
@@ -38,9 +38,9 @@ describe('computeGraphDistances', () => {
   it('中心ノード自身の距離は0である', () => {
     // 準備: 1つのノードのみ（孤立ノード）
     const persons: Person[] = [
-      { id: 'a', name: 'A', createdAt: '2024-01-01T00:00:00.000Z' },
+      { id: 'a', name: 'A', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
     ];
-    const relationships: RelationshipV9[] = [];
+    const relationships: Relationship[] = [];
 
     // 実行
     const distances = computeGraphDistances('a', persons, relationships);
@@ -52,10 +52,10 @@ describe('computeGraphDistances', () => {
   it('直接接続されたノードの距離は1である', () => {
     // 準備: A → B という関係
     const persons: Person[] = [
-      { id: 'a', name: 'A', createdAt: '2024-01-01T00:00:00.000Z' },
-      { id: 'b', name: 'B', createdAt: '2024-01-01T00:00:00.000Z' },
+      { id: 'a', name: 'A', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
+      { id: 'b', name: 'B', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
     ];
-    const relationships: RelationshipV9[] = [
+    const relationships: Relationship[] = [
       makeEgoRel('r1', 'a', 'b', true),
     ];
 
@@ -70,10 +70,10 @@ describe('computeGraphDistances', () => {
   it('関係の方向性を無視して無向グラフとして扱う', () => {
     // 準備: A → B という有向関係（Aが中心ではない場合）
     const persons: Person[] = [
-      { id: 'a', name: 'A', createdAt: '2024-01-01T00:00:00.000Z' },
-      { id: 'b', name: 'B', createdAt: '2024-01-01T00:00:00.000Z' },
+      { id: 'a', name: 'A', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
+      { id: 'b', name: 'B', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
     ];
-    const relationships: RelationshipV9[] = [
+    const relationships: Relationship[] = [
       makeEgoRel('r1', 'a', 'b', true),
     ];
 
@@ -88,11 +88,11 @@ describe('computeGraphDistances', () => {
   it('2ホップ離れたノードの距離は2である', () => {
     // 準備: A → B → C という連鎖
     const persons: Person[] = [
-      { id: 'a', name: 'A', createdAt: '2024-01-01T00:00:00.000Z' },
-      { id: 'b', name: 'B', createdAt: '2024-01-01T00:00:00.000Z' },
-      { id: 'c', name: 'C', createdAt: '2024-01-01T00:00:00.000Z' },
+      { id: 'a', name: 'A', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
+      { id: 'b', name: 'B', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
+      { id: 'c', name: 'C', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
     ];
-    const relationships: RelationshipV9[] = [
+    const relationships: Relationship[] = [
       makeEgoRel('r1', 'a', 'b', false),
       makeEgoRel('r2', 'b', 'c', false),
     ];
@@ -109,11 +109,11 @@ describe('computeGraphDistances', () => {
   it('複数の経路がある場合は最短距離を返す', () => {
     // 準備: A → B → C と A → C という2つの経路
     const persons: Person[] = [
-      { id: 'a', name: 'A', createdAt: '2024-01-01T00:00:00.000Z' },
-      { id: 'b', name: 'B', createdAt: '2024-01-01T00:00:00.000Z' },
-      { id: 'c', name: 'C', createdAt: '2024-01-01T00:00:00.000Z' },
+      { id: 'a', name: 'A', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
+      { id: 'b', name: 'B', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
+      { id: 'c', name: 'C', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
     ];
-    const relationships: RelationshipV9[] = [
+    const relationships: Relationship[] = [
       makeEgoRel('r1', 'a', 'b', false),
       makeEgoRel('r2', 'b', 'c', false),
       makeEgoRel('r3', 'a', 'c', false),
@@ -131,11 +131,11 @@ describe('computeGraphDistances', () => {
   it('到達不可能なノードはMapに含まれない', () => {
     // 準備: A → B と 孤立したC
     const persons: Person[] = [
-      { id: 'a', name: 'A', createdAt: '2024-01-01T00:00:00.000Z' },
-      { id: 'b', name: 'B', createdAt: '2024-01-01T00:00:00.000Z' },
-      { id: 'c', name: 'C', createdAt: '2024-01-01T00:00:00.000Z' },
+      { id: 'a', name: 'A', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
+      { id: 'b', name: 'B', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
+      { id: 'c', name: 'C', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
     ];
-    const relationships: RelationshipV9[] = [
+    const relationships: Relationship[] = [
       makeEgoRel('r1', 'a', 'b', false),
     ];
 

@@ -1,110 +1,55 @@
 /**
- * relationship-utils.tsのテスト
- * 関係のユーティリティ関数の検証（v9 RelationshipV9 形式）
+ * relationship-utils.ts のテスト（v11 プロパティグラフ方式）
+ * getRelationshipFromPerspective 関数の振る舞いを検証する。
+ *
+ * v11 では 1 エッジ = 1 方向（sourceId → targetId）。
+ * symmetric: true の場合は無向扱いで "—" 記号を使用する。
+ * getRelationshipDisplayType は v11 では廃止されたため、テスト対象外。
  */
 
 import { describe, it, expect } from 'vitest';
-import type { RelationshipV9 } from '@/types/relationship';
-import { getRelationshipDisplayType, getRelationshipFromPerspective } from './relationship-utils';
+import type { Relationship } from '@/types/relationship';
+import { getRelationshipFromPerspective } from './relationship-utils';
 
-/** テスト用の最小 RelationshipV9 を生成するヘルパー */
-function makeRel(
-  overrides: {
-    id?: string;
-    sourcePersonId?: string;
-    targetPersonId?: string;
-    isDirected?: boolean;
-    forwardLabel?: string | null;
-    reverseLabel?: string | null;
-  } = {}
-): RelationshipV9 {
+/**
+ * テスト用の最小 Relationship（v11形式）を生成するヘルパー
+ */
+function makeRel(overrides: {
+  id?: string;
+  sourceId?: string;
+  targetId?: string;
+  type?: string;
+  label?: string | null;
+  symmetric?: boolean;
+}): Relationship {
   return {
     id: overrides.id ?? '1',
-    sourcePersonId: overrides.sourcePersonId ?? 'personA',
-    targetPersonId: overrides.targetPersonId ?? 'personB',
-    isDirected: overrides.isDirected ?? true,
-    symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
-    forward: {
-      label: overrides.forwardLabel ?? null,
-      affection: null,
-      awareness: null,
-      role: null,
-    },
-    reverse: {
-      label: overrides.reverseLabel ?? null,
-      affection: null,
-      awareness: null,
-      role: null,
-    },
+    sourceId: overrides.sourceId ?? 'personA',
+    targetId: overrides.targetId ?? 'personB',
+    type: overrides.type ?? '関係',
+    label: overrides.label ?? null,
+    symmetric: overrides.symmetric ?? false,
     tags: [],
     narrative: { summary: null, notes: null, turningPoints: [] },
     colorOverride: null,
+    properties: {},
     createdAt: '2024-01-01T00:00:00.000Z',
     updatedAt: '2024-01-01T00:00:00.000Z',
   };
 }
 
-describe('getRelationshipDisplayType', () => {
-  it('双方向（両方向に同一ラベル）を返す', () => {
-    const relationship = makeRel({ forwardLabel: '好き', reverseLabel: '好き' });
-    expect(getRelationshipDisplayType(relationship)).toBe('bidirectional');
-  });
-
-  it('片方向（forward.labelのみラベルあり）を返す', () => {
-    const relationship = makeRel({ forwardLabel: '好き', reverseLabel: null });
-    expect(getRelationshipDisplayType(relationship)).toBe('one-way');
-  });
-
-  it('逆方向の片方向（reverse.labelのみラベルあり）を返す', () => {
-    const relationship = makeRel({ forwardLabel: null, reverseLabel: '好き' });
-    expect(getRelationshipDisplayType(relationship)).toBe('one-way');
-  });
-
-  it('片方向×2（両方向に異なるラベル）を返す', () => {
-    const relationship = makeRel({ forwardLabel: '好き', reverseLabel: '嫌い' });
-    expect(getRelationshipDisplayType(relationship)).toBe('dual-directed');
-  });
-
-  it('無方向を返す', () => {
-    const relationship = makeRel({
-      isDirected: false,
-      forwardLabel: '同一人物',
-      reverseLabel: '同一人物',
-    });
-    expect(getRelationshipDisplayType(relationship)).toBe('undirected');
-  });
-});
-
 describe('getRelationshipFromPerspective', () => {
-  describe('双方向の関係', () => {
-    const relationship = makeRel({ forwardLabel: '親子', reverseLabel: '親子' });
+  describe('有向関係（symmetric: false）', () => {
+    const relationship = makeRel({ label: '片想い', symmetric: false });
 
-    it('source側から見た関係を返す', () => {
-      const result = getRelationshipFromPerspective(relationship, 'personA');
-      expect(result).toEqual([
-        { label: '親子', direction: '↔', otherPersonId: 'personB' },
-      ]);
-    });
-
-    it('target側から見た関係を返す', () => {
-      const result = getRelationshipFromPerspective(relationship, 'personB');
-      expect(result).toEqual([
-        { label: '親子', direction: '↔', otherPersonId: 'personA' },
-      ]);
-    });
-  });
-
-  describe('片方向の関係（source→target）', () => {
-    const relationship = makeRel({ forwardLabel: '片想い', reverseLabel: null });
-
-    it('source側から見た関係を返す', () => {
+    it('source 側から見た場合: → 方向を返す', () => {
       const result = getRelationshipFromPerspective(relationship, 'personA');
       expect(result).toEqual([
         { label: '片想い', direction: '→', otherPersonId: 'personB' },
       ]);
     });
 
-    it('target側から見た関係を返す', () => {
+    it('target 側から見た場合: ← 方向を返す', () => {
       const result = getRelationshipFromPerspective(relationship, 'personB');
       expect(result).toEqual([
         { label: '片想い', direction: '←', otherPersonId: 'personA' },
@@ -112,69 +57,46 @@ describe('getRelationshipFromPerspective', () => {
     });
   });
 
-  describe('逆方向の片方向の関係（target→source）', () => {
-    const relationship = makeRel({ forwardLabel: null, reverseLabel: '片想い' });
+  describe('対称な関係（symmetric: true）', () => {
+    const relationship = makeRel({ label: '友人', symmetric: true });
 
-    it('source側から見た関係を返す', () => {
+    it('source 側から見た場合: — 方向を返す', () => {
       const result = getRelationshipFromPerspective(relationship, 'personA');
       expect(result).toEqual([
-        { label: '片想い', direction: '←', otherPersonId: 'personB' },
+        { label: '友人', direction: '—', otherPersonId: 'personB' },
       ]);
     });
 
-    it('target側から見た関係を返す', () => {
+    it('target 側から見た場合でも: — 方向を返す（対称なので向き不問）', () => {
       const result = getRelationshipFromPerspective(relationship, 'personB');
       expect(result).toEqual([
-        { label: '片想い', direction: '→', otherPersonId: 'personA' },
+        { label: '友人', direction: '—', otherPersonId: 'personA' },
       ]);
     });
   });
 
-  describe('片方向×2の関係', () => {
-    const relationship = makeRel({ forwardLabel: '好き', reverseLabel: '嫌い' });
-
-    it('source側から見た関係を返す', () => {
+  describe('label が null のとき type を使用する', () => {
+    it('label が null なら type（"上司"）が表示ラベルになる（source視点）', () => {
+      const relationship = makeRel({ type: '上司', label: null, symmetric: false });
       const result = getRelationshipFromPerspective(relationship, 'personA');
       expect(result).toEqual([
-        { label: '好き', direction: '→', otherPersonId: 'personB' },
-        { label: '嫌い', direction: '←', otherPersonId: 'personB' },
+        { label: '上司', direction: '→', otherPersonId: 'personB' },
       ]);
     });
 
-    it('target側から見た関係を返す', () => {
+    it('label が null なら type（"上司"）が表示ラベルになる（target視点）', () => {
+      // 前提条件: label=null のとき、target側から見ても type が表示ラベルとして使われる
+      const relationship = makeRel({ type: '上司', label: null, symmetric: false });
       const result = getRelationshipFromPerspective(relationship, 'personB');
       expect(result).toEqual([
-        { label: '好き', direction: '←', otherPersonId: 'personA' },
-        { label: '嫌い', direction: '→', otherPersonId: 'personA' },
-      ]);
-    });
-  });
-
-  describe('無方向の関係', () => {
-    const relationship = makeRel({
-      isDirected: false,
-      forwardLabel: '同一人物',
-      reverseLabel: '同一人物',
-    });
-
-    it('source側から見た関係を返す', () => {
-      const result = getRelationshipFromPerspective(relationship, 'personA');
-      expect(result).toEqual([
-        { label: '同一人物', direction: '', otherPersonId: 'personB' },
-      ]);
-    });
-
-    it('target側から見た関係を返す', () => {
-      const result = getRelationshipFromPerspective(relationship, 'personB');
-      expect(result).toEqual([
-        { label: '同一人物', direction: '', otherPersonId: 'personA' },
+        { label: '上司', direction: '←', otherPersonId: 'personA' },
       ]);
     });
   });
 
   describe('エッジケース', () => {
     it('関係者以外の人物IDを指定した場合は空配列を返す', () => {
-      const relationship = makeRel({ forwardLabel: '好き', reverseLabel: null });
+      const relationship = makeRel({ label: '好き', symmetric: false });
       const result = getRelationshipFromPerspective(relationship, 'personC');
       expect(result).toEqual([]);
     });
