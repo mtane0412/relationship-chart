@@ -14,7 +14,8 @@
 'use client';
 
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { Sparkles, Loader2, X } from 'lucide-react';
+import { Sparkles, Loader2, X, MessageSquare } from 'lucide-react';
+import { useInterviewStore } from '@/stores/useInterviewStore';
 import { useExtractRelationships } from '@/hooks/useExtractRelationships';
 import { useMention } from '@/hooks/useMention';
 import { useGraphStore } from '@/stores/useGraphStore';
@@ -545,9 +546,21 @@ export function ChatInputBar() {
 
           {/* フッター: 文字数カウントとヒント */}
           <div className="px-4 pb-2 flex items-center justify-between">
-            <p className="text-xs text-gray-400">
-              <kbd className="text-xs bg-gray-100 px-1 rounded">Shift+Enter</kbd> で改行
-            </p>
+            <div className="flex items-center gap-3">
+              <p className="text-xs text-gray-400">
+                <kbd className="text-xs bg-gray-100 px-1 rounded">Shift+Enter</kbd> で改行
+              </p>
+              {/* AIインタビューモードを開くボタン */}
+              <button
+                type="button"
+                onClick={() => useInterviewStore.getState().openModal()}
+                className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 transition-colors"
+                aria-label="AIインタビューを開始"
+              >
+                <MessageSquare size={12} />
+                チャットを開始
+              </button>
+            </div>
             <p className="text-xs text-gray-400">
               {text.length > 0 && `${text.length.toLocaleString()} / ${MAX_TEXT_LENGTH.toLocaleString()}`}
             </p>

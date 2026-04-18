@@ -35,6 +35,7 @@ import { useContextMenu } from './useContextMenu';
 import { ContextMenu } from './ContextMenu';
 import { EdgeFilterPanel } from './EdgeFilterPanel';
 import { ChatInputBar } from './ChatInputBar';
+import { InterviewModal } from '@/components/interview/InterviewModal';
 import { useGraphStore } from '@/stores/useGraphStore';
 /** 固定 6 色の SVG マーカー定義（deriveEdgeVisual の markerKey と対応） */
 const EDGE_MARKER_COLORS = [
@@ -367,6 +368,9 @@ export function RelationshipGraph() {
           }
         />
       )}
+
+      {/* AIインタビュアー チャットモーダル */}
+      <InterviewModal />
     </div>
   );
 }
