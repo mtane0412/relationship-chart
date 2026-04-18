@@ -74,9 +74,9 @@ export const LlmRelationshipSchema = z.object({
   /** 関係の終点となる人物名 */
   targetPersonName: z.string(),
   /** エッジ型ラベル（例: "友人", "同僚", "好き", "親子"） */
-  type: z.string(),
+  type: z.string().describe('関係カテゴリの短いラベル（1〜3語）。例: "友人", "嫌い", "親子"。文全体ではなくキーワードのみ。人物名を含めない'),
   /** 表示ラベル（null の場合は type を使用） */
-  label: z.string().nullable(),
+  label: z.string().nullable().describe('エッジに表示する短いラベル（1〜3語）。人物名を含めず関係を表すキーワードのみ。文全体は不可。typeと同じ内容ならnullを設定'),
   /** true=無向表示（矢印なし）、false=有向（矢印あり） */
   symmetric: z.boolean(),
   /** 補助的な分類タグ配列 */
