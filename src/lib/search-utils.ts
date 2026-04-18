@@ -13,8 +13,8 @@ import type { Relationship } from '@/types/relationship';
  * @property label - 表示用ラベル（人物名または関係ラベル）
  * @property nodeLabels - 人物の場合のノードラベル配列
  * @property imageDataUrl - 人物/物の画像URL
- * @property sourcePersonId - 関係の場合の起点人物ID
- * @property targetPersonId - 関係の場合の終点人物ID
+ * @property sourceId - 関係の場合の起点ノードID
+ * @property targetId - 関係の場合の終点ノードID
  * @property symmetric - 関係の場合の無向フラグ
  * @property sourceImageDataUrl - 関係の場合の起点人物の画像URL
  * @property targetImageDataUrl - 関係の場合の終点人物の画像URL
@@ -27,8 +27,8 @@ export type SearchResult = {
   label: string;
   nodeLabels?: string[];
   imageDataUrl?: string;
-  sourcePersonId?: string;
-  targetPersonId?: string;
+  sourceId?: string;
+  targetId?: string;
   symmetric?: boolean;
   sourceImageDataUrl?: string;
   targetImageDataUrl?: string;
@@ -90,8 +90,8 @@ export function searchGraph(
         kind: 'relationship',
         id: rel.id,
         label: displayLabel,
-        sourcePersonId: rel.sourceId,
-        targetPersonId: rel.targetId,
+        sourceId: rel.sourceId,
+        targetId: rel.targetId,
         symmetric: rel.symmetric,
         sourceImageDataUrl: sourcePerson?.imageDataUrl,
         targetImageDataUrl: targetPerson?.imageDataUrl,

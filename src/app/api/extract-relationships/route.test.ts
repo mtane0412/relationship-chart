@@ -29,21 +29,22 @@ const mockGenerateObject = vi.mocked(generateObject);
 /** generateObject の戻り値型 */
 type GenerateObjectResult = Awaited<ReturnType<typeof generateObject>>;
 
+/** v11 プロパティグラフ方式の抽出結果モックデータ */
 const validExtractionResult = {
   persons: [
-    { name: '田中太郎', kind: 'person' },
-    { name: '山田花子', kind: 'person' },
+    { name: '田中太郎', labels: ['人物'] },
+    { name: '山田花子', labels: ['人物'] },
   ],
   relationships: [
     {
       sourcePersonName: '田中太郎',
       targetPersonName: '山田花子',
-      isDirected: true,
-      symmetric: { closeness: 0.8, trust: null, tension: null, secrecy: null, kinship: null },
-      forward: { label: '好き', affection: 0.9, awareness: 'known', role: null },
-      reverse: { label: null, affection: null, awareness: null, role: null },
+      type: '好き',
+      label: null,
+      symmetric: false,
       tags: ['片想い'],
       narrative: { summary: null, notes: null, turningPoints: [] },
+      properties: { closeness: 0.8, affection: 0.9, awareness: 'known' },
     },
   ],
 };

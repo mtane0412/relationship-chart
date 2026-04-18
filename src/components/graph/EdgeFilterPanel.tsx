@@ -3,7 +3,7 @@
  * タグ・述語によるエッジフィルタUI
  *
  * 相関図内で使用されているタグを自動集計し、ON/OFFトグルで表示するエッジを絞り込む。
- * また、closeness/trust/tension/secrecyの閾値フィルタとkinship有無フィルタも提供する。
+ * また、closeness/trust/tension/secrecyの閾値フィルタも提供する。
  */
 
 'use client';

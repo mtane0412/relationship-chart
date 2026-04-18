@@ -91,28 +91,28 @@ export function useGraphInteractions({
   const getNodesRef = useRef(getNodes);
   getNodesRef.current = getNodes;
 
-  // 2人のperson間の接続を処理するヘルパー関数
+  // 2つのノード間の接続を処理するヘルパー関数
   const tryStartConnection = useCallback(
-    (sourcePersonId: string, targetPersonId: string) => {
+    (sourceId: string, targetId: string) => {
       // 自己接続を防止
-      if (sourcePersonId === targetPersonId) return;
+      if (sourceId === targetId) return;
 
-      // 両方の人物が実際に存在することを確認
-      const sourcePerson = persons.find((p) => p.id === sourcePersonId);
-      const targetPerson = persons.find((p) => p.id === targetPersonId);
+      // 両方のノードが実際に存在することを確認
+      const sourcePerson = persons.find((p) => p.id === sourceId);
+      const targetPerson = persons.find((p) => p.id === targetId);
       if (!sourcePerson || !targetPerson) return;
 
       // 同じペアの関係が既に存在するかチェック（方向問わず、最初の1件を返す）
       const existingRelationship = relationships.find(
         (r) =>
-          (r.sourceId === sourcePersonId && r.targetId === targetPersonId) ||
-          (r.sourceId === targetPersonId && r.targetId === sourcePersonId)
+          (r.sourceId === sourceId && r.targetId === targetId) ||
+          (r.sourceId === targetId && r.targetId === sourceId)
       );
 
       // pendingConnectionをセット（既存関係がある場合は編集モード）
       setPendingConnection({
-        sourceId: sourcePersonId,
-        targetId: targetPersonId,
+        sourceId,
+        targetId,
         ...(existingRelationship ? { existingRelationshipId: existingRelationship.id } : {}),
       });
     },
