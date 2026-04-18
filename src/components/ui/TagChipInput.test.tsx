@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TagChipInput } from './TagChipInput';
 
@@ -134,7 +134,7 @@ describe('TagChipInput', () => {
   });
 
   describe('IME対応', () => {
-    it('IME変換中のEnterキーはタグ追加をしない', () => {
+    it('IME変換中のEnterキーはタグ追加をしない', async () => {
       const onChange = vi.fn();
       render(
         <TagChipInput
@@ -144,16 +144,11 @@ describe('TagChipInput', () => {
         />
       );
       const input = screen.getByLabelText('タグを追加');
-      // 入力中の文字をセット（IME変換中を想定）
-      Object.defineProperty(input, 'value', { value: 'ともだち', writable: true });
-      // isComposing=true のキーダウンイベントをシミュレート
-      const keyDownEvent = new KeyboardEvent('keydown', {
-        key: 'Enter',
-        bubbles: true,
-        cancelable: true,
-      });
-      Object.defineProperty(keyDownEvent, 'isComposing', { value: true });
-      input.dispatchEvent(keyDownEvent);
+      // userEvent.type で React の state（inputValue）を実際に更新する
+      await userEvent.type(input, 'ともだち');
+      // isComposing=true のEnterキーダウンイベントをシミュレート（IME変換確定前）
+      // fireEvent.keyDown の isComposing オプションが nativeEvent.isComposing に反映される
+      fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
       // IME変換中はタグが追加されない
       expect(onChange).not.toHaveBeenCalled();
     });
