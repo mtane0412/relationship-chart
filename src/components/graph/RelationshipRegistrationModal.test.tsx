@@ -76,9 +76,9 @@ describe('RelationshipRegistrationModal', () => {
         />
       );
 
-      // img タグが表示され、イニシャルが表示されないことを確認
+      // img タグが表示され、イニシャルが表示されないことを確認（接続元・接続先の2枚）
       const images = screen.getAllByRole('img');
-      expect(images.length).toBeGreaterThanOrEqual(2);
+      expect(images).toHaveLength(2);
       expect(screen.queryByTestId('person-initial-source')).not.toBeInTheDocument();
       expect(screen.queryByTestId('person-initial-target')).not.toBeInTheDocument();
     });

@@ -1196,7 +1196,7 @@ describe('useGraphStore', () => {
       expect(result.current.relationships[1].sourceId).toBe(personId2);
     });
 
-    it('タグなしで関係を追加できる（v9ではlayerの代わりにtagsを使用）', () => {
+    it('タグなしで関係を追加できる（v11ではlayerの代わりにtagsを使用）', () => {
       const { result } = renderHook(() => useGraphStore());
 
       // 2人の人物を追加
@@ -1344,7 +1344,7 @@ describe('useGraphStore', () => {
       expect(result.current.relationships[1].symmetric).toBe(false);
     });
 
-    it('tagsを指定して関係を追加できる（v9ではlayerの代わりにtagsを使用）', () => {
+    it('tagsを指定して関係を追加できる（v11ではlayerの代わりにtagsを使用）', () => {
       const { result } = renderHook(() => useGraphStore());
 
       // 2人の人物を追加

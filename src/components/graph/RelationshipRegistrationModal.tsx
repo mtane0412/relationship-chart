@@ -122,12 +122,16 @@ export function RelationshipRegistrationModal({
   // 登録ボタンの有効/無効を判定（type が必須）
   const isSubmitDisabled = !edgeType.trim();
 
+  // 登録の実際の処理（Enter キーハンドラとフォーム submit ハンドラで共有）
+  const submitRelationship = () => {
+    if (isSubmitDisabled) return;
+    onSubmit(edgeType.trim(), null, symmetric);
+  };
+
   // 登録処理
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (isSubmitDisabled) return;
-
-    onSubmit(edgeType.trim(), null, symmetric);
+    submitRelationship();
   };
 
   if (!isOpen) return null;
@@ -257,9 +261,7 @@ export function RelationshipRegistrationModal({
                 if (e.key === 'Enter' && e.nativeEvent.isComposing) return;
                 if (e.key === 'Enter') {
                   e.preventDefault();
-                  if (!isSubmitDisabled) {
-                    onSubmit(edgeType.trim(), null, symmetric);
-                  }
+                  submitRelationship();
                 }
               }}
               maxLength={MAX_RELATIONSHIP_LABEL_LENGTH}

@@ -546,7 +546,7 @@ describe('PairSelectionPanel', () => {
 
       // 最初はrel1が選択されている（最初のエッジ）
       // rel2のボタンをクリック
-      const rel2Button = screen.getByRole('button', { name: (name, el) => el.textContent?.includes('同僚') === true });
+      const rel2Button = screen.getByRole('button', { name: (_name, el) => !!el.textContent?.includes('同僚') });
       await user.click(rel2Button);
 
       // フォームがrel2のデータに切り替わる

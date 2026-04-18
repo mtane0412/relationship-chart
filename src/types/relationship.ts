@@ -96,6 +96,13 @@ export type Relationship = {
 /**
  * タグ入力のサジェスト候補
  * ユーザーがタグを入力する際の補完候補として使用する
+ *
+ * 使い分けガイドライン:
+ *   - type（SUGGESTED_TYPES）: 1エッジに1つの主分類（例: "友人", "同僚"）
+ *   - tags（SUGGESTED_TAGS）: 補助的な複数ラベル（例: "幼馴染", "秘密の関係"）
+ *
+ * SUGGESTED_TAGS と SUGGESTED_TYPES の重複エントリ（"上司", "部下" 等）は、
+ * type として設定したいケースと、tag として補足したいケースの両方を想定している。
  */
 export const SUGGESTED_TAGS = [
   '元同僚',
@@ -116,7 +123,14 @@ export const SUGGESTED_TAGS = [
 
 /**
  * エッジ型のサジェスト候補
- * ユーザーがエッジのtypeを入力する際の補完候補として使用する
+ * ユーザーがエッジの type を入力する際の補完候補として使用する
+ *
+ * 使い分けガイドライン:
+ *   - type（SUGGESTED_TYPES）: 1エッジに1つの主分類（例: "友人", "同僚"）
+ *   - tags（SUGGESTED_TAGS）: 補助的な複数ラベル（例: "幼馴染", "秘密の関係"）
+ *
+ * SUGGESTED_TYPES と SUGGESTED_TAGS の重複エントリ（"上司", "部下" 等）は、
+ * type として設定したいケースと、tag として補足したいケースの両方を想定している。
  */
 export const SUGGESTED_TYPES = [
   '友人',
@@ -178,6 +192,16 @@ export const INITIAL_EDGE_FILTER: EdgeFilter = {
 /**
  * タグと色のマッピング
  * タグから色を派生させるために使用する
+ *
+ * 色導出の優先順位（relationship-visual.ts の deriveEdgeVisual 参照）:
+ *   1. colorOverride（最優先）
+ *   2. TYPE_COLOR_MAP（エッジ型による色）
+ *   3. TAG_COLOR_MAP（タグによる色）← このマップ
+ *   4. trust/tension の差分による色
+ *   5. デフォルト（グレー）
+ *
+ * TYPE_COLOR_MAP と重複するキー（"片想い", "対立"）は同じ色を返すため、
+ * TYPE_COLOR_MAP が先に評価されるため実質的に TYPE_COLOR_MAP が優先される。
  */
 export const TAG_COLOR_MAP: Record<string, string> = {
   元同僚: '#22c55e',
@@ -194,6 +218,13 @@ export const TAG_COLOR_MAP: Record<string, string> = {
 /**
  * エッジ型と色のマッピング
  * エッジ type から色を派生させるために使用する
+ *
+ * 色導出の優先順位（relationship-visual.ts の deriveEdgeVisual 参照）:
+ *   1. colorOverride（最優先）
+ *   2. TYPE_COLOR_MAP（エッジ型による色）← このマップ
+ *   3. TAG_COLOR_MAP（タグによる色）
+ *   4. trust/tension の差分による色
+ *   5. デフォルト（グレー）
  */
 export const TYPE_COLOR_MAP: Record<string, string> = {
   親子: '#22c55e',

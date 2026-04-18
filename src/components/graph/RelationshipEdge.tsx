@@ -178,6 +178,7 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
 
       {/* ラベルと削除ボタン */}
       <EdgeLabelRenderer>
+        {/* 外側コンテナ全体をホバー領域とすることで、ラベルがない場合も削除ボタンに到達できる */}
         <div
           style={{
             position: 'absolute',
@@ -185,25 +186,26 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
             pointerEvents: 'all',
           }}
           className="flex items-center gap-1.5"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
         >
-          {/* ラベル表示 */}
-          {displayLabel && (
+          {/* ラベル表示（ラベルなしの場合は透明なホバー領域で代替） */}
+          {displayLabel ? (
             <div
               className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full shadow-lg border-2 border-blue-200 hover:border-blue-400 hover:shadow-xl transition-all duration-200 cursor-pointer"
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
             >
               <div className="text-xs font-semibold text-blue-800">
                 {displayLabel}
               </div>
             </div>
+          ) : (
+            // ラベルなしのとき: 削除ボタン表示トリガー用の透明ホバー領域
+            <div className="w-4 h-4" />
           )}
 
-          {/* 削除ボタン（ラベルの有無に関わらず表示） */}
+          {/* 削除ボタン（ホバー時のみ表示） */}
           <button
             onClick={handleDelete}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
             className={`w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 hover:scale-110 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300 ${
               isHovered ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
             }`}

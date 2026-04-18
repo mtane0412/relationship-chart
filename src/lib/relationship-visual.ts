@@ -67,19 +67,15 @@ export function deriveEdgeVisual(relationship: Relationship): EdgeVisual {
       if (tagColor !== undefined) {
         color = tagColor;
       } else if (
-        properties.trust !== null &&
-        properties.trust !== undefined &&
-        properties.tension !== null &&
-        properties.tension !== undefined &&
+        properties.trust != null &&
+        properties.tension != null &&
         properties.trust > properties.tension + 0.2
       ) {
         // 4. 信頼が対立を 0.2 超えて上回る → 青系
         color = '#3b82f6';
       } else if (
-        properties.tension !== null &&
-        properties.tension !== undefined &&
-        properties.trust !== null &&
-        properties.trust !== undefined &&
+        properties.tension != null &&
+        properties.trust != null &&
         properties.tension > properties.trust + 0.2
       ) {
         // 5. 対立が信頼を 0.2 超えて上回る → 赤系

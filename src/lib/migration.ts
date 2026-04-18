@@ -14,6 +14,7 @@ import type { Person } from '@/types/person';
 import type { Relationship, AwarenessKind } from '@/types/relationship';
 import { DEFAULT_FORCE_PARAMS, type ForceParams } from '@/stores/useGraphStore';
 import { DEFAULT_EGO_LAYOUT_PARAMS, type EgoLayoutParams } from './ego-layout';
+import type { Chart } from '@/types/chart';
 
 // ─── レガシー型定義（マイグレーション内部でのみ使用） ──────────────────────────
 
@@ -705,8 +706,6 @@ export function migrateGraphState(persistedState: unknown, version: number): unk
 }
 
 // ─── IndexedDB Chart の正規化（v11 へのインプレース変換） ─────────────────────
-
-import type { Chart } from '@/types/chart';
 
 /**
  * IndexedDB からロードした Chart を v11 形式に正規化する

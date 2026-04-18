@@ -129,7 +129,7 @@ describe('deriveEdgeVisual', () => {
       expect(visual.color).toBe('#64748b');
     });
 
-    it('TYPE_COLOR_MAP のタグが trust/tension より優先される', () => {
+    it('TYPE_COLOR_MAP の type が trust/tension より優先される', () => {
       // 前提条件: 恋人（赤）type + trust=0.9 tension=0.1（本来なら青）
       const rel = makeRel({
         type: '恋人',

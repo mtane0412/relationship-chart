@@ -73,7 +73,7 @@ describe('LlmRelationshipSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('すべての properties フィールドが null でも有効であること', () => {
+  it('properties が空オブジェクトでも有効であること', () => {
     const minimal = {
       sourcePersonName: 'A',
       targetPersonName: 'B',

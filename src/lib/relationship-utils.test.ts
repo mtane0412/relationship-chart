@@ -76,11 +76,20 @@ describe('getRelationshipFromPerspective', () => {
   });
 
   describe('label が null のとき type を使用する', () => {
-    it('label が null なら type（"上司"）が表示ラベルになる', () => {
+    it('label が null なら type（"上司"）が表示ラベルになる（source視点）', () => {
       const relationship = makeRel({ type: '上司', label: null, symmetric: false });
       const result = getRelationshipFromPerspective(relationship, 'personA');
       expect(result).toEqual([
         { label: '上司', direction: '→', otherPersonId: 'personB' },
+      ]);
+    });
+
+    it('label が null なら type（"上司"）が表示ラベルになる（target視点）', () => {
+      // 前提条件: label=null のとき、target側から見ても type が表示ラベルとして使われる
+      const relationship = makeRel({ type: '上司', label: null, symmetric: false });
+      const result = getRelationshipFromPerspective(relationship, 'personB');
+      expect(result).toEqual([
+        { label: '上司', direction: '←', otherPersonId: 'personA' },
       ]);
     });
   });

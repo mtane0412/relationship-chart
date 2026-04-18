@@ -58,7 +58,7 @@ const LlmRelationshipPropertiesSchema = z.object({
   tension: z.number().min(0).max(1).nullable().optional(),
   secrecy: z.number().min(0).max(1).nullable().optional(),
   affection: z.number().min(-1).max(1).nullable().optional(),
-  awareness: AwarenessKindSchema.optional(),
+  awareness: AwarenessKindSchema.nullable().optional(),
   role: z.string().nullable().optional(),
 });
 
