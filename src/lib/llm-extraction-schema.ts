@@ -152,15 +152,22 @@ function makeStrictJsonSchema(schema: unknown): unknown {
 }
 
 /**
- * LlmExtractionResultSchema を JSON Schema 形式に変換して返す。
- * Vercel AI SDK の jsonSchema() ヘルパーに渡すために使用する。
+ * LlmExtractionResultSchema の JSON Schema（モジュールスコープでキャッシュ済み）
  *
  * OpenAI/Azure strict mode 準拠のため、makeStrictJsonSchema で後処理を行い
  * 全オブジェクトに required と additionalProperties: false を付与する。
+ * スキーマは静的なため、モジュール初期化時に一度だけ生成する。
+ */
+const cachedLlmExtractionJsonSchema = makeStrictJsonSchema(
+  z.toJSONSchema(LlmExtractionResultSchema) as Record<string, unknown>
+) as Record<string, unknown>;
+
+/**
+ * LlmExtractionResultSchema を JSON Schema 形式に変換して返す。
+ * Vercel AI SDK の jsonSchema() ヘルパーに渡すために使用する。
  *
- * @returns JSON Schema オブジェクト（JSON シリアライズ可能、strict mode 準拠）
+ * @returns JSON Schema オブジェクト（JSON シリアライズ可能、strict mode 準拠、キャッシュ済み）
  */
 export function getLlmExtractionJsonSchema(): Record<string, unknown> {
-  const rawSchema = z.toJSONSchema(LlmExtractionResultSchema) as Record<string, unknown>;
-  return makeStrictJsonSchema(rawSchema) as Record<string, unknown>;
+  return cachedLlmExtractionJsonSchema;
 }

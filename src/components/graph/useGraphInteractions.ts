@@ -98,9 +98,9 @@ export function useGraphInteractions({
       if (sourceId === targetId) return;
 
       // 両方のノードが実際に存在することを確認
-      const sourcePerson = persons.find((p) => p.id === sourceId);
-      const targetPerson = persons.find((p) => p.id === targetId);
-      if (!sourcePerson || !targetPerson) return;
+      const sourceNode = persons.find((p) => p.id === sourceId);
+      const targetNode = persons.find((p) => p.id === targetId);
+      if (!sourceNode || !targetNode) return;
 
       // 同じペアの関係が既に存在するかチェック（方向問わず、最初の1件を返す）
       const existingRelationship = relationships.find(
