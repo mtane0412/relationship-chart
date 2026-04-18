@@ -466,7 +466,7 @@ export const useGraphStore = create<GraphStore>()(
               if (relationship.id !== relationshipId) {
                 return relationship;
               }
-              // v9 形式でフィールドを部分更新（updatedAt を現在時刻に更新）
+              // v11 形式でフィールドを部分更新（updatedAt を現在時刻に更新）
               return {
                 ...relationship,
                 ...updates,

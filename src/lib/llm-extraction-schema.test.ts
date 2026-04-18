@@ -73,6 +73,24 @@ describe('LlmRelationshipSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('properties が null の場合は空オブジェクトに正規化されること（LLM が null を出力した際の対応）', () => {
+    const data = { ...validRelationship, properties: null };
+    const result = LlmRelationshipSchema.safeParse(data);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.properties).toEqual({});
+    }
+  });
+
+  it('properties が省略された場合は空オブジェクトに正規化されること（LLM が省略した際の対応）', () => {
+    const { properties: _, ...dataWithoutProperties } = validRelationship;
+    const result = LlmRelationshipSchema.safeParse(dataWithoutProperties);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.properties).toEqual({});
+    }
+  });
+
   it('properties が空オブジェクトでも有効であること', () => {
     const minimal = {
       sourcePersonName: 'A',
@@ -190,5 +208,35 @@ describe('getLlmExtractionJsonSchema', () => {
   it('生成されたスキーマが JSON シリアライズ可能であること', () => {
     const schema = getLlmExtractionJsonSchema();
     expect(() => JSON.stringify(schema)).not.toThrow();
+  });
+
+  it('全オブジェクトに required が設定されていること（Azure/OpenAI strict mode 対応）', () => {
+    // Azure strict mode は全 object に required 配列が必要
+    type JsonSchemaObj = Record<string, unknown>;
+    const schema = getLlmExtractionJsonSchema() as JsonSchemaObj;
+    const schemaProps = schema.properties as JsonSchemaObj;
+    const relationships = schemaProps.relationships as JsonSchemaObj;
+    const relItems = relationships.items as JsonSchemaObj;
+
+    // トップレベルに required が設定されていること
+    expect(Array.isArray(schema.required)).toBe(true);
+    // relationships の items（LlmRelationshipSchema）に required が設定されていること
+    expect(Array.isArray(relItems.required)).toBe(true);
+  });
+
+  it('relationships.items.properties.properties に required が含まれること（Azure strict mode 対応）', () => {
+    // Azure エラーログ: context=('properties','relationships','items','properties','properties')
+    // で required が不足していた問題への対応
+    type JsonSchemaObj = Record<string, unknown>;
+    const schema = getLlmExtractionJsonSchema() as JsonSchemaObj;
+    const schemaProps = schema.properties as JsonSchemaObj;
+    const relItems = (schemaProps.relationships as JsonSchemaObj).items as JsonSchemaObj;
+    const relItemsProps = relItems.properties as JsonSchemaObj;
+    const propSchema = relItemsProps.properties as JsonSchemaObj;
+
+    expect(Array.isArray(propSchema?.required)).toBe(true);
+    // closeness が required に含まれていること（Azure エラーメッセージで指摘されたキー）
+    expect((propSchema?.required as string[]).includes('closeness')).toBe(true);
+    expect(propSchema?.additionalProperties).toBe(false);
   });
 });

@@ -146,12 +146,12 @@ export default function SearchBar() {
    * 関係を選択して両端の人物にフォーカス
    */
   const focusRelationship = useCallback(
-    (sourcePersonId: string, targetPersonId: string) => {
-      setSelectedPersonIds([sourcePersonId, targetPersonId]);
+    (sourceId: string, targetId: string) => {
+      setSelectedPersonIds([sourceId, targetId]);
 
       // ビューポートを2つのノードにフィット（両ノードが画面内に収まるようズーム調整）
       fitView({
-        nodes: [{ id: sourcePersonId }, { id: targetPersonId }],
+        nodes: [{ id: sourceId }, { id: targetId }],
         padding: VIEWPORT_FIT_PADDING,
         maxZoom: VIEWPORT_MAX_ZOOM,
         duration: VIEWPORT_ANIMATION_DURATION,
@@ -171,8 +171,8 @@ export default function SearchBar() {
     (result: SearchResult) => {
       if (result.kind === 'person') {
         focusPerson(result.id);
-      } else if (result.kind === 'relationship' && result.sourcePersonId && result.targetPersonId) {
-        focusRelationship(result.sourcePersonId, result.targetPersonId);
+      } else if (result.kind === 'relationship' && result.sourceId && result.targetId) {
+        focusRelationship(result.sourceId, result.targetId);
       }
     },
     [focusPerson, focusRelationship]

@@ -12,10 +12,10 @@ import { useGraphStore } from '@/stores/useGraphStore';
  * 関係登録フォームコンポーネント
  */
 export function RelationshipForm() {
-  const [sourcePersonId, setSourcePersonId] = useState('');
-  const [targetPersonId, setTargetPersonId] = useState('');
+  const [sourceId, setSourceId] = useState('');
+  const [targetId, setTargetId] = useState('');
   const [label, setLabel] = useState('');
-  const [isDirected, setIsDirected] = useState(false);
+  const [symmetric, setSymmetric] = useState(true);
   const [error, setError] = useState('');
 
   const persons = useGraphStore((state) => state.persons);
@@ -30,12 +30,12 @@ export function RelationshipForm() {
     setError('');
 
     // バリデーション
-    if (!sourcePersonId || !targetPersonId) {
+    if (!sourceId || !targetId) {
       setError('2人の人物を選択してください');
       return;
     }
 
-    if (sourcePersonId === targetPersonId) {
+    if (sourceId === targetId) {
       setError('異なる人物を選択してください');
       return;
     }
@@ -48,11 +48,11 @@ export function RelationshipForm() {
     // 関係を追加（v11プロパティグラフ形式）
     const trimmedLabel = label.trim();
     addRelationship({
-      sourceId: sourcePersonId,
-      targetId: targetPersonId,
+      sourceId,
+      targetId,
       type: trimmedLabel,
       label: null,
-      symmetric: !isDirected,
+      symmetric,
       tags: [],
       properties: {},
       narrative: { summary: null, notes: null, turningPoints: [] },
@@ -60,10 +60,10 @@ export function RelationshipForm() {
     });
 
     // フォームをリセット
-    setSourcePersonId('');
-    setTargetPersonId('');
+    setSourceId('');
+    setTargetId('');
     setLabel('');
-    setIsDirected(false);
+    setSymmetric(true);
     setError('');
   };
 
@@ -90,15 +90,15 @@ export function RelationshipForm() {
       {/* 人物1選択 */}
       <div>
         <label
-          htmlFor="sourcePersonId"
+          htmlFor="sourceId"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
           人物1
         </label>
         <select
-          id="sourcePersonId"
-          value={sourcePersonId}
-          onChange={(e) => setSourcePersonId(e.target.value)}
+          id="sourceId"
+          value={sourceId}
+          onChange={(e) => setSourceId(e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         >
           <option value="">選択してください</option>
@@ -113,15 +113,15 @@ export function RelationshipForm() {
       {/* 人物2選択 */}
       <div>
         <label
-          htmlFor="targetPersonId"
+          htmlFor="targetId"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
           人物2
         </label>
         <select
-          id="targetPersonId"
-          value={targetPersonId}
-          onChange={(e) => setTargetPersonId(e.target.value)}
+          id="targetId"
+          value={targetId}
+          onChange={(e) => setTargetId(e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         >
           <option value="">選択してください</option>
@@ -151,16 +151,16 @@ export function RelationshipForm() {
         />
       </div>
 
-      {/* 方向性チェックボックス */}
+      {/* 方向性チェックボックス（チェック=有向, 無チェック=無向） */}
       <div className="flex items-center">
         <input
-          id="isDirected"
+          id="directed"
           type="checkbox"
-          checked={isDirected}
-          onChange={(e) => setIsDirected(e.target.checked)}
+          checked={!symmetric}
+          onChange={() => setSymmetric((prev) => !prev)}
           className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
         />
-        <label htmlFor="isDirected" className="ml-2 text-sm text-gray-700">
+        <label htmlFor="directed" className="ml-2 text-sm text-gray-700">
           方向性あり（人物1 → 人物2）
         </label>
       </div>
