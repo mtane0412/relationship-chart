@@ -80,6 +80,8 @@ export function RelationshipRegistrationModal({
   const [edgeType, setEdgeType] = useState('');
   /** 無向フラグ: true=矢印なし、false=矢印あり */
   const [symmetric, setSymmetric] = useState(defaultSymmetric);
+  /** 表示ラベル（編集モードでは既存の label を保持し、新規作成時は null） */
+  const [label, setLabel] = useState<string | null>(() => initialRelationship?.label ?? null);
   const typeInputRef = useRef<HTMLInputElement>(null);
   // モーダルが「新たに開いた」直後のフォーカス制御フラグ
   const justOpenedRef = useRef(false);
@@ -92,10 +94,12 @@ export function RelationshipRegistrationModal({
       if (initialRelationship) {
         setEdgeType(initialRelationship.type);
         setSymmetric(initialRelationship.symmetric);
+        setLabel(initialRelationship.label);
       } else {
         // フォームをリセット
         setEdgeType('');
         setSymmetric(defaultSymmetric);
+        setLabel(null);
       }
     }
   }, [isOpen, defaultSymmetric, initialRelationship]);
@@ -123,9 +127,10 @@ export function RelationshipRegistrationModal({
   const isSubmitDisabled = !edgeType.trim();
 
   // 登録の実際の処理（Enter キーハンドラとフォーム submit ハンドラで共有）
+  // 編集モードでは既存の label を保持、新規作成時は null
   const submitRelationship = () => {
     if (isSubmitDisabled) return;
-    onSubmit(edgeType.trim(), null, symmetric);
+    onSubmit(edgeType.trim(), label, symmetric);
   };
 
   // 登録処理

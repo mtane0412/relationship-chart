@@ -387,19 +387,24 @@ export function migrateV10ToV11(rels: LegacyRelationshipV9[]): Relationship[] {
     const displayType = getV9DisplayType(rel);
     const edgeType = deriveEdgeType(rel);
 
-    const base = {
+    // tags・narrative は各エッジで独立したコピーを持つ（共有参照によるバグを防ぐ）
+    const cloneMeta = () => ({
       type: edgeType,
-      tags: rel.tags,
-      narrative: rel.narrative,
+      tags: [...rel.tags],
+      narrative: {
+        summary: rel.narrative.summary,
+        notes: rel.narrative.notes,
+        turningPoints: rel.narrative.turningPoints.map((tp) => ({ ...tp })),
+      },
       colorOverride: rel.colorOverride,
       createdAt: rel.createdAt,
       updatedAt: rel.updatedAt ?? now,
-    };
+    });
 
     if (displayType === 'dual-directed') {
-      // 非対称な関係は2本のエッジに分割する
+      // 非対称な関係は2本のエッジに分割する（各エッジに独立したメタデータをコピー）
       result.push({
-        ...base,
+        ...cloneMeta(),
         id: rel.id,
         sourceId: rel.sourcePersonId,
         targetId: rel.targetPersonId,
@@ -408,7 +413,7 @@ export function migrateV10ToV11(rels: LegacyRelationshipV9[]): Relationship[] {
         properties: buildProperties(rel, rel.forward),
       });
       result.push({
-        ...base,
+        ...cloneMeta(),
         id: nanoid(),
         sourceId: rel.targetPersonId,
         targetId: rel.sourcePersonId,
@@ -419,7 +424,7 @@ export function migrateV10ToV11(rels: LegacyRelationshipV9[]): Relationship[] {
     } else if (displayType === 'one-way-rev') {
       // 逆方向のみラベルがある場合は sourceId/targetId を入れ替える
       result.push({
-        ...base,
+        ...cloneMeta(),
         id: rel.id,
         sourceId: rel.targetPersonId,
         targetId: rel.sourcePersonId,
@@ -429,13 +434,14 @@ export function migrateV10ToV11(rels: LegacyRelationshipV9[]): Relationship[] {
       });
     } else {
       // one-way-fwd / bidirectional / undirected → 1本のエッジ
+      // forward.label が null の場合は reverse.label をフォールバックとして使用（歪な v9 データ対策）
       const isSymmetric = displayType === 'bidirectional' || displayType === 'undirected';
       result.push({
-        ...base,
+        ...cloneMeta(),
         id: rel.id,
         sourceId: rel.sourcePersonId,
         targetId: rel.targetPersonId,
-        label: rel.forward.label,
+        label: rel.forward.label ?? rel.reverse.label,
         symmetric: isSymmetric,
         properties: buildProperties(rel, rel.forward),
       });

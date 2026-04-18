@@ -154,6 +154,13 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
     }
   }, [edgesForPair]);
 
+  // ペア（persons）が切り替わったら先頭エッジ or 新規モードに初期化
+  // selectedRelId が前ペアのIDを保持したままになるのを防ぐ
+  // edgesForPair は意図的に依存配列から除外（ペア切替のみを検知したいため）
+  useEffect(() => {
+    setSelectedRelId(edgesForPair[0]?.id ?? 'new');
+  }, [person1.id, person2.id]); // edgesForPair は意図的に除外
+
   /** ノードを画面中央に移動する */
   const focusNode = (personId: string) => {
     const node = getNode(personId);

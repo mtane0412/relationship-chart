@@ -85,7 +85,7 @@ function buildPrompt(text: string, existingPersonNames: string[]): string {
 - closeness, trust, tension, secrecy は 0.0〜1.0 のスケールです。
 - 情報が不明な場合は null を使用してください。
 - tags には関係を端的に表すラベルを含めてください（例: "親友", "ライバル", "上司部下"）。
-- isDirected は、関係が非対称の場合（例: 片想い、上司→部下）に true にしてください。
+- symmetric は、関係が対称・無向の場合（例: 友人、同僚、家族）に true にしてください。片想い・上司→部下など非対称・有向の関係では false にしてください。
 - turningPoints は配列で返してください。ない場合は空配列 [] にしてください。
 
 ## 解析対象テキスト
