@@ -115,7 +115,7 @@ export function resolveExtractionResult(
     newPersons.push({
       id: newId,
       name: llmPerson.name,
-      kind: llmPerson.kind ?? undefined,
+      labels: llmPerson.labels ?? undefined,
     });
   }
 

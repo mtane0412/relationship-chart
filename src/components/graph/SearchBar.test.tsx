@@ -296,7 +296,7 @@ describe('SearchBar', () => {
       const itemPerson: Person = {
         id: 'item1',
         name: 'テストアイテム',
-        kind: 'item',
+        labels: ['物'],
         createdAt: '2024-01-03T00:00:00Z',
       };
 

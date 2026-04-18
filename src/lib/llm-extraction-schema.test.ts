@@ -14,31 +14,31 @@ import {
 
 describe('LlmPersonSchema', () => {
   it('有効な人物データをパースできること', () => {
-    const valid = { name: '田中太郎', kind: 'person' };
+    const valid = { name: '田中太郎', labels: ['人物'] };
     const result = LlmPersonSchema.safeParse(valid);
     expect(result.success).toBe(true);
   });
 
-  it('kind が null でも有効であること', () => {
-    const valid = { name: '山田花子', kind: null };
+  it('labels が null でも有効であること', () => {
+    const valid = { name: '山田花子', labels: null };
     const result = LlmPersonSchema.safeParse(valid);
     expect(result.success).toBe(true);
   });
 
-  it('kind が item でも有効であること', () => {
-    const valid = { name: '秘密の手紙', kind: 'item' };
+  it('labels が ["物"] でも有効であること', () => {
+    const valid = { name: '秘密の手紙', labels: ['物'] };
     const result = LlmPersonSchema.safeParse(valid);
     expect(result.success).toBe(true);
   });
 
   it('name が欠けている場合はパース失敗すること', () => {
-    const invalid = { kind: 'person' };
+    const invalid = { labels: ['人物'] };
     const result = LlmPersonSchema.safeParse(invalid);
     expect(result.success).toBe(false);
   });
 
-  it('kind が不正な値の場合はパース失敗すること', () => {
-    const invalid = { name: '無効キャラ', kind: 'invalid_kind' };
+  it('labels が配列でない場合はパース失敗すること', () => {
+    const invalid = { name: '無効キャラ', labels: 'not_an_array' };
     const result = LlmPersonSchema.safeParse(invalid);
     expect(result.success).toBe(false);
   });
@@ -125,8 +125,8 @@ describe('LlmExtractionResultSchema', () => {
   it('有効な抽出結果をパースできること', () => {
     const valid: LlmExtractionResult = {
       persons: [
-        { name: '田中太郎', kind: 'person' },
-        { name: '山田花子', kind: 'person' },
+        { name: '田中太郎', labels: ['人物'] },
+        { name: '山田花子', labels: ['人物'] },
       ],
       relationships: [
         {

@@ -1,23 +1,35 @@
 /**
- * ItemNodeコンポーネント
- * 物を表すカスタムノード（角丸四角形の画像+名前表示）
+ * GraphNodeComponentコンポーネント
+ * プロパティグラフ方式の統合ノード（labels配列から形状・アイコンを動的に決定する）
+ * 人物ノード（丸い画像）と物ノード（角丸四角形）を統合した単一コンポーネント
  */
 
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { Package } from 'lucide-react';
 import type { PersonNodeData } from '@/types/graph';
+import { deriveNodeVisual } from '@/lib/node-visual';
 import { useHandleHover } from './useHandleHover';
 import { HANDLE_SIZE, HANDLE_BORDER_WIDTH, HOVER_ZONE_SIZE, HANDLE_CENTER_Y, CENTER_TARGET_SIZE } from './node-constants';
 import { NameLabel } from './NameLabel';
 
 /**
- * 物ノードコンポーネント
+ * プロパティグラフ対応の統合ノードコンポーネント
+ * data.labels からノードの視覚属性（形状・アイコン）を導出する
  * @param props - React Flowから渡されるノードプロパティ
  */
-export const ItemNode = memo(({ data, selected, id }: NodeProps) => {
-  // PersonNodeDataとして型アサーションを使用（物ノードも同じデータ構造）
-  const itemData = data as PersonNodeData;
+export const GraphNodeComponent = memo(({ data, selected, id }: NodeProps) => {
+  const nodeData = data as PersonNodeData;
+
+  // labels から視覚属性を導出する
+  const visual = deriveNodeVisual(nodeData.labels);
+  const isRoundedRect = visual.shape === 'rounded-rect';
+
+  // 形状に応じたCSSクラスを決定する
+  const shapeClass = isRoundedRect ? 'rounded-xl' : 'rounded-full';
+
+  // 画像がない場合のデフォルト表示（人物: イニシャル文字、物: Packageアイコン）
+  const initial = nodeData.name.charAt(0).toUpperCase();
 
   // ホバー状態管理（200ms遅延で接続操作の安定性を向上）
   const { handleMouseEnter, handleMouseLeave, showSourceHandle, showTargetHandle, isConnectingToThisNode } =
@@ -46,16 +58,15 @@ export const ItemNode = memo(({ data, selected, id }: NodeProps) => {
         onMouseLeave={handleMouseLeave}
       />
 
-      {/* 角丸四角形ハンドル - source用 */}
-      {/* 画像部分を囲む角丸四角形のハンドルで、外周から接続開始可能 */}
+      {/* ハンドル（リング状） - source用 */}
+      {/* 画像部分を囲むハンドルで、外周から接続開始可能 */}
       {/* hover時かつ接続操作中でない時のみ有効化 */}
-      {/* 中心部（画像）はそのままドラッグ移動用 */}
       {/* ハンドル自体は透明（border-transparent）で、画像のring装飾が視覚的フィードバックを担当 */}
       <Handle
         type="source"
         id="ring-source"
         position={Position.Top}
-        className={`!absolute !rounded-xl !border-transparent !bg-transparent transition-opacity duration-200 ${
+        className={`!absolute !${shapeClass} !border-transparent !bg-transparent transition-opacity duration-200 ${
           showSourceHandle ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         style={{
@@ -72,16 +83,15 @@ export const ItemNode = memo(({ data, selected, id }: NodeProps) => {
         onMouseLeave={handleMouseLeave}
       />
 
-      {/* 角丸四角形ハンドル - target用 */}
+      {/* ハンドル（リング状） - target用 */}
       {/* source用と同じ位置・サイズで配置し、接続の受け入れ領域を拡大 */}
       {/* 接続操作中のみ有効化して、接続の受け入れを明確化 */}
       {/* 他のノードから接続中の時のみz-indexを上げてノード全体を接続可能にする */}
-      {/* ハンドル自体は透明（border-transparent）で、画像のring装飾が視覚的フィードバックを担当 */}
       <Handle
         type="target"
         id="ring-target"
         position={Position.Top}
-        className={`!absolute !rounded-xl !border-transparent !bg-transparent transition-opacity duration-200 ${
+        className={`!absolute !${shapeClass} !border-transparent !bg-transparent transition-opacity duration-200 ${
           showTargetHandle ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         style={{
@@ -104,7 +114,7 @@ export const ItemNode = memo(({ data, selected, id }: NodeProps) => {
         type="target"
         id="center-target"
         position={Position.Top}
-        className="!absolute !rounded-xl !bg-transparent !border-0"
+        className={`!absolute !${shapeClass} !bg-transparent !border-0`}
         style={{
           left: '50%',
           top: `${HANDLE_CENTER_Y}px`,
@@ -117,31 +127,36 @@ export const ItemNode = memo(({ data, selected, id }: NodeProps) => {
         }}
       />
 
-      {/* 角丸四角形の画像またはデフォルトアイコン */}
+      {/* 画像またはデフォルトアバター/アイコン */}
       {/* z-indexを上げて中央部分をドラッグ可能にする */}
       <div className="relative transition-transform duration-200" style={{ zIndex: 10 }}>
-        {itemData.imageDataUrl ? (
+        {nodeData.imageDataUrl ? (
           <img
-            src={itemData.imageDataUrl}
-            alt={itemData.name}
-            className={`w-20 h-20 rounded-xl object-cover border-4 border-white shadow-xl transition-shadow duration-200 ${
+            src={nodeData.imageDataUrl}
+            alt={nodeData.name}
+            className={`w-20 h-20 ${shapeClass} object-cover border-4 border-white shadow-xl transition-shadow duration-200 ${
               selected || showSourceHandle || showTargetHandle ? 'ring-4 ring-blue-500' : 'ring-2 ring-gray-200'
             }`}
           />
         ) : (
           <div
-            className={`w-20 h-20 rounded-xl bg-gray-400 border-4 border-white shadow-xl transition-shadow duration-200 flex items-center justify-center ${
+            className={`w-20 h-20 ${shapeClass} bg-gray-400 border-4 border-white shadow-xl transition-shadow duration-200 flex items-center justify-center ${
               selected || showSourceHandle || showTargetHandle ? 'ring-4 ring-blue-500' : 'ring-2 ring-gray-200'
             }`}
           >
-            <Package className="w-10 h-10 text-white" />
+            {/* 物ノードはPackageアイコン、人物ノードはイニシャル文字 */}
+            {visual.defaultIcon === 'package' ? (
+              <Package className="w-10 h-10 text-white" />
+            ) : (
+              <span className="text-white text-2xl font-bold">{initial}</span>
+            )}
           </div>
         )}
       </div>
 
       {/* 名前テキスト表示 */}
       <NameLabel
-        name={itemData.name}
+        name={nodeData.name}
         selected={selected}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
@@ -150,4 +165,4 @@ export const ItemNode = memo(({ data, selected, id }: NodeProps) => {
   );
 });
 
-ItemNode.displayName = 'ItemNode';
+GraphNodeComponent.displayName = 'GraphNodeComponent';

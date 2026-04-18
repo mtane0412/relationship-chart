@@ -7,16 +7,15 @@ import type { Node as ReactFlowNode, Edge as ReactFlowEdge } from '@xyflow/react
 import type { RelationshipType } from '@/types/relationship';
 import type { EdgeVisual } from '@/lib/relationship-visual';
 
-import type { NodeKind } from '@/types/person';
-
 /**
  * カスタムノードのデータ型
- * PersonNodeコンポーネントで使用される
+ * GraphNodeComponentで使用される
  */
 export type PersonNodeData = {
   name: string;
   imageDataUrl?: string;
-  kind?: NodeKind;
+  /** ノードに付与されたラベル配列（例: ['人物'], ['物']）*/
+  labels: string[];
 };
 
 /**
@@ -45,19 +44,10 @@ export type RelationshipEdgeData = {
 };
 
 /**
- * React Flowで使用する人物ノード型
+ * React Flowで使用するグラフノード型
+ * ラベル配列でノードの種別を表現するプロパティグラフ方式
  */
-export type PersonNode = ReactFlowNode<PersonNodeData, 'person'>;
-
-/**
- * React Flowで使用する物ノード型
- */
-export type ItemNode = ReactFlowNode<PersonNodeData, 'item'>;
-
-/**
- * React Flowで使用するグラフノード型（人物または物）
- */
-export type GraphNode = PersonNode | ItemNode;
+export type GraphNode = ReactFlowNode<PersonNodeData, 'graph'>;
 
 /**
  * React Flowで使用する関係エッジ型

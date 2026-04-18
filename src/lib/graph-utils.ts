@@ -10,23 +10,20 @@ import { deriveEdgeVisual } from './relationship-visual';
 import { getRelationshipDisplayType } from './relationship-utils';
 
 /**
- * Person配列をGraphNode配列（PersonNodeまたはItemNode）に変換する
+ * Person配列をGraphNode配列に変換する
  * @param persons - 変換対象のPerson配列
  * @returns GraphNode配列。person.positionがある場合はそれを使用し、ない場合は(0, 0)に設定される
  */
 export function personsToNodes(persons: Person[]): GraphNode[] {
   return persons.map((person) => {
-    // kindが未設定の場合は'person'として扱う
-    const kind = person.kind ?? 'person';
-    const nodeType = kind === 'item' ? ('item' as const) : ('person' as const);
-
     return {
       id: person.id,
-      type: nodeType,
+      type: 'graph' as const,
       data: {
         name: person.name,
         imageDataUrl: person.imageDataUrl,
-        kind,
+        // labelsが未設定の場合は['人物']として扱う（マイグレーション未適用データへの後方互換）
+        labels: person.labels ?? ['人物'],
       },
       position: person.position ?? { x: 0, y: 0 },
     };

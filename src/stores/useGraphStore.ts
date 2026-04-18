@@ -24,7 +24,7 @@ import {
   getChartOrder,
   setChartOrder,
 } from '@/lib/chart-db';
-import { migrateGraphState, migrateV8ToV9 } from '@/lib/migration';
+import { migrateGraphState, migrateV8ToV9, migrateV9ToV10 } from '@/lib/migration';
 
 /**
  * force-directedレイアウトのパラメータ型
@@ -197,35 +197,43 @@ function buildChartFromState(state: GraphState): Chart | null {
     forceEnabled: state.forceEnabled,
     forceParams: state.forceParams,
     egoLayoutParams: state.egoLayoutParams,
-    // v9 形式であることを明示する（ロード時の再マイグレーションを防ぐ）
-    schemaVersion: 9,
+    // v10 形式であることを明示する（ロード時の再マイグレーションを防ぐ）
+    schemaVersion: 10,
     createdAt: meta.createdAt,
     updatedAt: new Date().toISOString(),
   };
 }
 
 /**
- * IndexedDB からロードした Chart の relationships を v9 形式に正規化する。
+ * IndexedDB からロードした Chart を v10 形式に正規化する。
  * `schemaVersion` が未定義または 9 未満の場合に `migrateV8ToV9` を適用し、
- * `schemaVersion: 9` を付与して返す。v9 以降のデータはそのまま返す。
+ * 9 未満の場合は `migrateV9ToV10` も適用する。v10 以降のデータはそのまま返す。
  *
  * @param chart - IndexedDB からロードした Chart（任意のスキーマバージョン）
- * @returns v9 形式に正規化された Chart（schemaVersion: 9 付き）
+ * @returns v10 形式に正規化された Chart（schemaVersion: 10 付き）
  */
 function normalizeChartRelationships(chart: Chart): Chart {
-  // v9 以降は変換不要
-  if ((chart.schemaVersion ?? 0) >= 9) {
+  // v10 以降は変換不要
+  if ((chart.schemaVersion ?? 0) >= 10) {
     return chart;
   }
 
+  let normalized = chart;
+
   // v8 以前のデータを v9 形式に変換する
-  const legacyRels = chart.relationships as unknown as Parameters<typeof migrateV8ToV9>[0];
-  const v9Rels = migrateV8ToV9(legacyRels);
+  if ((chart.schemaVersion ?? 0) < 9) {
+    const legacyRels = chart.relationships as unknown as Parameters<typeof migrateV8ToV9>[0];
+    const v9Rels = migrateV8ToV9(legacyRels);
+    normalized = { ...normalized, relationships: v9Rels };
+  }
+
+  // v9 以前の persons を v10 形式（labels）に変換する
+  const v10Persons = migrateV9ToV10(normalized.persons);
 
   return {
-    ...chart,
-    relationships: v9Rels,
-    schemaVersion: 9,
+    ...normalized,
+    persons: v10Persons,
+    schemaVersion: 10,
   };
 }
 

@@ -1,10 +1,11 @@
 /**
- * ItemNodeコンポーネントのテスト
+ * GraphNodeComponentの物ノード表示テスト
+ * labels: ['物'] を持つノードが角丸四角形で表示されることを確認する
  */
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import { ItemNode } from './ItemNode';
+import { GraphNodeComponent } from './GraphNodeComponent';
 import { Position } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
 import type { PersonNodeData } from '@/types/graph';
@@ -23,25 +24,25 @@ vi.mock('@xyflow/react', async () => {
   };
 });
 
-describe('ItemNode', () => {
+describe('GraphNodeComponent（物ノード表示）', () => {
   // 画像付き物ノードのモックデータ
   const mockDataWithImage: PersonNodeData = {
     name: 'ノートパソコン',
     imageDataUrl: 'data:image/jpeg;base64,mockImageData',
-    kind: 'item',
+    labels: ['物'],
   };
 
   // 画像なし物ノードのモックデータ
   const mockDataWithoutImage: PersonNodeData = {
     name: 'スマートフォン',
     imageDataUrl: undefined,
-    kind: 'item',
+    labels: ['物'],
   };
 
   // NodePropsの基本モック
   const createMockProps = (data: PersonNodeData, selected = false): Partial<NodeProps> => ({
     id: 'test-item-1',
-    type: 'item',
+    type: 'graph',
     data,
     selected,
     isConnectable: true,
@@ -55,7 +56,7 @@ describe('ItemNode', () => {
   });
 
   it('物ノードが角丸四角形で表示されること', () => {
-    render(<ItemNode {...(createMockProps(mockDataWithImage) as NodeProps)} />);
+    render(<GraphNodeComponent {...(createMockProps(mockDataWithImage) as NodeProps)} />);
 
     // 画像要素が存在し、rounded-xlクラスが適用されていること
     const img = screen.getByRole('img', { name: 'ノートパソコン' });
@@ -65,7 +66,7 @@ describe('ItemNode', () => {
   });
 
   it('画像がない場合、Packageアイコンが表示されること', () => {
-    const { container } = render(<ItemNode {...(createMockProps(mockDataWithoutImage) as NodeProps)} />);
+    const { container } = render(<GraphNodeComponent {...(createMockProps(mockDataWithoutImage) as NodeProps)} />);
 
     // Packageアイコン（lucide-react）のSVG要素が存在すること
     const packageIcon = container.querySelector('.lucide-package');
@@ -79,34 +80,34 @@ describe('ItemNode', () => {
   });
 
   it('選択状態の時、適切なスタイルが適用されること', () => {
-    render(<ItemNode {...(createMockProps(mockDataWithImage, true) as NodeProps)} />);
+    render(<GraphNodeComponent {...(createMockProps(mockDataWithImage, true) as NodeProps)} />);
 
     const img = screen.getByRole('img', { name: 'ノートパソコン' });
     expect(img).toHaveClass('ring-4', 'ring-blue-500');
   });
 
   it('非選択状態の時、適切なスタイルが適用されること', () => {
-    render(<ItemNode {...(createMockProps(mockDataWithImage, false) as NodeProps)} />);
+    render(<GraphNodeComponent {...(createMockProps(mockDataWithImage, false) as NodeProps)} />);
 
     const img = screen.getByRole('img', { name: 'ノートパソコン' });
     expect(img).toHaveClass('ring-2', 'ring-gray-200');
   });
 
   it('名前が表示されること', () => {
-    render(<ItemNode {...(createMockProps(mockDataWithImage) as NodeProps)} />);
+    render(<GraphNodeComponent {...(createMockProps(mockDataWithImage) as NodeProps)} />);
 
     expect(screen.getByText('ノートパソコン')).toBeInTheDocument();
   });
 
   it('source用とtarget用のハンドルが存在すること', () => {
-    render(<ItemNode {...(createMockProps(mockDataWithImage) as NodeProps)} />);
+    render(<GraphNodeComponent {...(createMockProps(mockDataWithImage) as NodeProps)} />);
 
     expect(screen.getByTestId('handle-source-ring-source')).toBeInTheDocument();
     expect(screen.getByTestId('handle-target-ring-target')).toBeInTheDocument();
   });
 
   it('名前ラベルがabsolute配置であること（measured.widthに影響しないことを保証）', () => {
-    const { container } = render(<ItemNode {...(createMockProps(mockDataWithImage) as NodeProps)} />);
+    const { container } = render(<GraphNodeComponent {...(createMockProps(mockDataWithImage) as NodeProps)} />);
 
     // data-testidで名前ラベル要素を取得
     const nameLabel = within(container).getByTestId('name-label');
@@ -116,7 +117,7 @@ describe('ItemNode', () => {
   });
 
   it('名前ラベルが画像の下に水平中央配置されていること', () => {
-    const { container } = render(<ItemNode {...(createMockProps(mockDataWithImage) as NodeProps)} />);
+    const { container } = render(<GraphNodeComponent {...(createMockProps(mockDataWithImage) as NodeProps)} />);
 
     // data-testidで名前ラベル要素を取得
     const nameLabel = within(container).getByTestId('name-label') as HTMLElement;
@@ -132,10 +133,10 @@ describe('ItemNode', () => {
 
   it('名前ラベルのborder幅が選択状態に関わらず一定（常にborder-2）であること', () => {
     const { container: selectedContainer } = render(
-      <ItemNode {...(createMockProps(mockDataWithImage, true) as NodeProps)} />
+      <GraphNodeComponent {...(createMockProps(mockDataWithImage, true) as NodeProps)} />
     );
     const { container: unselectedContainer } = render(
-      <ItemNode {...(createMockProps(mockDataWithImage, false) as NodeProps)} />
+      <GraphNodeComponent {...(createMockProps(mockDataWithImage, false) as NodeProps)} />
     );
 
     // data-testidで名前ラベル要素を取得
@@ -156,10 +157,10 @@ describe('ItemNode', () => {
 
   it('名前ラベルのborder色が選択状態で適切に変わること', () => {
     const { container: selectedContainer } = render(
-      <ItemNode {...(createMockProps(mockDataWithImage, true) as NodeProps)} />
+      <GraphNodeComponent {...(createMockProps(mockDataWithImage, true) as NodeProps)} />
     );
     const { container: unselectedContainer } = render(
-      <ItemNode {...(createMockProps(mockDataWithImage, false) as NodeProps)} />
+      <GraphNodeComponent {...(createMockProps(mockDataWithImage, false) as NodeProps)} />
     );
 
     // data-testidで名前ラベル要素を取得

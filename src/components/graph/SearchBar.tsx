@@ -12,6 +12,7 @@ import { Panel, useReactFlow } from '@xyflow/react';
 import { Search, User, Package, ArrowRight, ArrowLeftRight, Minus } from 'lucide-react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { searchGraph, type SearchResult } from '@/lib/search-utils';
+import { deriveNodeVisual } from '@/lib/node-visual';
 import {
   getNodeCenter,
   VIEWPORT_ANIMATION_DURATION,
@@ -21,22 +22,23 @@ import {
 
 /**
  * ノードアイコンコンポーネント
- * 人物/物ノードの画像またはアイコンを表示する
+ * ラベル配列からノードの形状・アイコンを導出して表示する
  */
 function NodeIcon({
   imageDataUrl,
-  nodeKind = 'person',
+  nodeLabels = ['人物'],
   alt,
   size = 'md',
 }: {
   imageDataUrl?: string;
-  nodeKind?: 'person' | 'item';
+  nodeLabels?: string[];
   alt: string;
   size?: 'sm' | 'md';
 }) {
   const sizeClass = size === 'sm' ? 'w-6 h-6' : 'w-8 h-8';
   const iconSize = size === 'sm' ? 12 : 16;
-  const rounded = nodeKind === 'item' ? 'rounded' : 'rounded-full';
+  const visual = deriveNodeVisual(nodeLabels);
+  const rounded = visual.shape === 'rounded-rect' ? 'rounded' : 'rounded-full';
 
   if (imageDataUrl) {
     return (
@@ -46,7 +48,7 @@ function NodeIcon({
 
   return (
     <div className={`${sizeClass} bg-gray-200 flex items-center justify-center ${rounded}`}>
-      {nodeKind === 'item' ? (
+      {visual.defaultIcon === 'package' ? (
         <Package size={iconSize} className="text-gray-600" />
       ) : (
         <User size={iconSize} className="text-gray-600" />
@@ -307,7 +309,7 @@ export default function SearchBar() {
                     <div className="flex-shrink-0">
                       <NodeIcon
                         imageDataUrl={result.imageDataUrl}
-                        nodeKind={result.nodeKind}
+                        nodeLabels={result.nodeLabels}
                         alt={result.label}
                         size="md"
                       />
@@ -318,7 +320,7 @@ export default function SearchBar() {
                       {/* 起点人物 */}
                       <NodeIcon
                         imageDataUrl={result.sourceImageDataUrl}
-                        nodeKind={result.sourceNodeKind}
+                        nodeLabels={result.sourceNodeLabels}
                         alt="起点"
                         size="sm"
                       />
@@ -335,7 +337,7 @@ export default function SearchBar() {
                       {/* 終点人物 */}
                       <NodeIcon
                         imageDataUrl={result.targetImageDataUrl}
-                        nodeKind={result.targetNodeKind}
+                        nodeLabels={result.targetNodeLabels}
                         alt="終点"
                         size="sm"
                       />

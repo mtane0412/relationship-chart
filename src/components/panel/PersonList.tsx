@@ -9,6 +9,7 @@ import { useCallback } from 'react';
 import { useReactFlow } from '@xyflow/react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils';
+import { deriveNodeVisual } from '@/lib/node-visual';
 
 /**
  * 人物一覧コンポーネント
@@ -36,9 +37,9 @@ export function PersonList() {
     [getNode, setCenter]
   );
 
-  // 人物と物に分類
-  const personNodes = persons.filter((p) => (p.kind ?? 'person') === 'person');
-  const itemNodes = persons.filter((p) => p.kind === 'item');
+  // ラベルで人物と物に分類（'物'ラベルを持つものを物ノードとして扱う）
+  const personNodes = persons.filter((p) => !p.labels?.includes('物'));
+  const itemNodes = persons.filter((p) => p.labels?.includes('物'));
 
   if (persons.length === 0) {
     return (
@@ -50,8 +51,8 @@ export function PersonList() {
 
   // 人物/物アイテムを描画する共通関数
   const renderItem = (person: typeof persons[number]) => {
-    const kind = person.kind ?? 'person';
-    const isItem = kind === 'item';
+    const visual = deriveNodeVisual(person.labels ?? ['人物']);
+    const isItem = visual.shape === 'rounded-rect';
     const initial = person.name.charAt(0).toUpperCase();
     const isSelected = selectedPersonIds.includes(person.id);
 

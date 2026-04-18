@@ -32,7 +32,7 @@ vi.mock('@/stores/useAiSettingsStore', () => ({
 }));
 
 const validResult = {
-  persons: [{ name: '田中太郎', kind: 'person' }],
+  persons: [{ name: '田中太郎', labels: ['人物'] }],
   relationships: [],
 };
 

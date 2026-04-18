@@ -9,32 +9,32 @@ import { getRelationshipDisplayType } from './relationship-utils';
 
 /**
  * 検索結果の型
- * @property kind - 'person': 人物、'relationship': 関係
+ * @property kind - 'person': 人物、'relationship': 関係（SearchResult固有の概念）
  * @property id - 人物または関係のID
  * @property label - 表示用ラベル（人物名または関係ラベル）
- * @property nodeKind - 人物の場合のノード種別（'person' or 'item'）
+ * @property nodeLabels - 人物の場合のノードラベル配列
  * @property imageDataUrl - 人物/物の画像URL
  * @property sourcePersonId - 関係の場合の起点人物ID
  * @property targetPersonId - 関係の場合の終点人物ID
  * @property relationshipType - 関係の表示タイプ
  * @property sourceImageDataUrl - 関係の場合の起点人物の画像URL
  * @property targetImageDataUrl - 関係の場合の終点人物の画像URL
- * @property sourceNodeKind - 関係の場合の起点人物のノード種別
- * @property targetNodeKind - 関係の場合の終点人物のノード種別
+ * @property sourceNodeLabels - 関係の場合の起点人物のノードラベル配列
+ * @property targetNodeLabels - 関係の場合の終点人物のノードラベル配列
  */
 export type SearchResult = {
   kind: 'person' | 'relationship';
   id: string;
   label: string;
-  nodeKind?: 'person' | 'item';
+  nodeLabels?: string[];
   imageDataUrl?: string;
   sourcePersonId?: string;
   targetPersonId?: string;
   relationshipType?: RelationshipType;
   sourceImageDataUrl?: string;
   targetImageDataUrl?: string;
-  sourceNodeKind?: 'person' | 'item';
-  targetNodeKind?: 'person' | 'item';
+  sourceNodeLabels?: string[];
+  targetNodeLabels?: string[];
 };
 
 /**
@@ -70,7 +70,7 @@ export function searchGraph(
       kind: 'person' as const,
       id: person.id,
       label: person.name,
-      nodeKind: (person.kind ?? 'person') as 'person' | 'item',
+      nodeLabels: person.labels ?? ['人物'],
       imageDataUrl: person.imageDataUrl,
     }));
 
@@ -100,8 +100,8 @@ export function searchGraph(
         relationshipType: displayType,
         sourceImageDataUrl: sourcePerson?.imageDataUrl,
         targetImageDataUrl: targetPerson?.imageDataUrl,
-        sourceNodeKind: (sourcePerson?.kind ?? 'person') as 'person' | 'item',
-        targetNodeKind: (targetPerson?.kind ?? 'person') as 'person' | 'item',
+        sourceNodeLabels: sourcePerson?.labels ?? ['人物'],
+        targetNodeLabels: targetPerson?.labels ?? ['人物'],
       });
     }
 
@@ -121,8 +121,8 @@ export function searchGraph(
         relationshipType: displayType,
         sourceImageDataUrl: targetPerson?.imageDataUrl,
         targetImageDataUrl: sourcePerson?.imageDataUrl,
-        sourceNodeKind: (targetPerson?.kind ?? 'person') as 'person' | 'item',
-        targetNodeKind: (sourcePerson?.kind ?? 'person') as 'person' | 'item',
+        sourceNodeLabels: targetPerson?.labels ?? ['人物'],
+        targetNodeLabels: sourcePerson?.labels ?? ['人物'],
       });
     }
   }

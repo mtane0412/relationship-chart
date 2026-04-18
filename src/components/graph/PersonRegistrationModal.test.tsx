@@ -129,7 +129,7 @@ describe('PersonRegistrationModal - 種別選択', () => {
   });
 
   // rawImageSrc=""のため、ImageCropperがレンダリングされず、Canvas APIに依存しない
-  it('onSubmitにkind="person"が渡される', async () => {
+  it('onSubmitにlabels=["人物"]が渡される', async () => {
     const user = userEvent.setup();
     render(
       <PersonRegistrationModal
@@ -147,13 +147,13 @@ describe('PersonRegistrationModal - 種別選択', () => {
     const submitButton = screen.getByRole('button', { name: /登録/i });
     await user.click(submitButton);
 
-    // onSubmitが呼ばれ、第3引数としてkind='person'が渡されることを確認
+    // onSubmitが呼ばれ、第3引数としてlabels=['人物']が渡されることを確認
     // rawImageSrc=""のため、croppedImageDataUrlはnull
-    expect(mockOnSubmit).toHaveBeenCalledWith('山田太郎', null, 'person');
+    expect(mockOnSubmit).toHaveBeenCalledWith('山田太郎', null, ['人物']);
   });
 
   // rawImageSrc=""のため、ImageCropperがレンダリングされず、Canvas APIに依存しない
-  it('onSubmitにkind="item"が渡される', async () => {
+  it('onSubmitにlabels=["物"]が渡される', async () => {
     const user = userEvent.setup();
     const { container } = render(
       <PersonRegistrationModal
@@ -176,8 +176,8 @@ describe('PersonRegistrationModal - 種別選択', () => {
     const submitButton = screen.getByRole('button', { name: /登録/i });
     await user.click(submitButton);
 
-    // onSubmitが呼ばれ、第3引数としてkind='item'が渡されることを確認
+    // onSubmitが呼ばれ、第3引数としてlabels=['物']が渡されることを確認
     // rawImageSrc=""のため、croppedImageDataUrlはnull
-    expect(mockOnSubmit).toHaveBeenCalledWith('伝説の剣', null, 'item');
+    expect(mockOnSubmit).toHaveBeenCalledWith('伝説の剣', null, ['物']);
   });
 });

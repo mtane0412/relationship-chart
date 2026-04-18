@@ -8,7 +8,7 @@ import { useState, useEffect, useRef, useCallback, type ChangeEvent } from 'reac
 import ImageCropper from '@/components/ui/ImageCropper';
 import { readFileAsDataUrl } from '@/lib/image-utils';
 import { MAX_PERSON_NAME_LENGTH } from '@/lib/validation-constants';
-import type { NodeKind } from '@/types/person';
+import { deriveNodeVisual } from '@/lib/node-visual';
 
 /**
  * PersonRegistrationModalのProps
@@ -19,7 +19,7 @@ type PersonRegistrationModalProps = {
   /** ドロップ/ペーストされた元画像のData URL（オプショナル） */
   rawImageSrc?: string;
   /** 登録ボタンが押されたときのコールバック */
-  onSubmit: (name: string, croppedImageDataUrl: string | null, kind: NodeKind) => void;
+  onSubmit: (name: string, croppedImageDataUrl: string | null, labels: string[]) => void;
   /** キャンセルボタンが押されたときのコールバック */
   onCancel: () => void;
 };
@@ -35,7 +35,8 @@ export function PersonRegistrationModal({
   onCancel,
 }: PersonRegistrationModalProps) {
   const [name, setName] = useState('');
-  const [kind, setKind] = useState<NodeKind>('person');
+  // labels: 人物は ['人物']、物は ['物']（UIは2択のトグルとして実装）
+  const [labels, setLabels] = useState<string[]>(['人物']);
   const [croppedImageDataUrl, setCroppedImageDataUrl] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   const [error, setError] = useState('');
@@ -52,7 +53,7 @@ export function PersonRegistrationModal({
   useEffect(() => {
     if (isOpen) {
       setName(''); // 名前をリセット
-      setKind('person'); // 種別をリセット
+      setLabels(['人物']); // 種別をリセット
       setCroppedImageDataUrl(null); // クロップ済み画像をリセット
       setShowMenu(false); // メニューを閉じる
       setError(''); // エラーをリセット
@@ -285,7 +286,7 @@ export function PersonRegistrationModal({
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (name.trim()) {
-      onSubmit(name.trim(), croppedImageDataUrl, kind);
+      onSubmit(name.trim(), croppedImageDataUrl, labels);
     }
   };
 
@@ -296,7 +297,7 @@ export function PersonRegistrationModal({
     return (
       <ImageCropper
         imageSrc={rawImageForCrop}
-        cropShape={kind === 'item' ? 'rect' : 'round'}
+        cropShape={deriveNodeVisual(labels).cropShape}
         onComplete={handleCropComplete}
         onCancel={handleCropCancel}
       />
@@ -318,15 +319,15 @@ export function PersonRegistrationModal({
             <label className="flex-1">
               <input
                 type="radio"
-                name="kind"
+                name="labels"
                 value="person"
-                checked={kind === 'person'}
-                onChange={() => setKind('person')}
+                checked={!labels.includes('物')}
+                onChange={() => setLabels(['人物'])}
                 className="sr-only"
               />
               <div
                 className={`px-4 py-2 text-center rounded-md border-2 cursor-pointer transition-all ${
-                  kind === 'person'
+                  !labels.includes('物')
                     ? 'border-blue-500 bg-blue-50 text-blue-700 font-semibold'
                     : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                 }`}
@@ -337,15 +338,15 @@ export function PersonRegistrationModal({
             <label className="flex-1">
               <input
                 type="radio"
-                name="kind"
+                name="labels"
                 value="item"
-                checked={kind === 'item'}
-                onChange={() => setKind('item')}
+                checked={labels.includes('物')}
+                onChange={() => setLabels(['物'])}
                 className="sr-only"
               />
               <div
                 className={`px-4 py-2 text-center rounded-md border-2 cursor-pointer transition-all ${
-                  kind === 'item'
+                  labels.includes('物')
                     ? 'border-blue-500 bg-blue-50 text-blue-700 font-semibold'
                     : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                 }`}
@@ -370,7 +371,7 @@ export function PersonRegistrationModal({
               className={`
                 w-32 h-32 mx-auto cursor-pointer
                 transition-all duration-200
-                ${kind === 'item' ? 'rounded-xl' : 'rounded-full'}
+                ${deriveNodeVisual(labels).shape === 'rounded-rect' ? 'rounded-xl' : 'rounded-full'}
                 border-4 border-gray-200 hover:border-gray-300
                 shadow-md
               `}
@@ -379,10 +380,10 @@ export function PersonRegistrationModal({
                 <img
                   src={croppedImageDataUrl}
                   alt={name || 'プレビュー'}
-                  className={`w-full h-full object-cover ${kind === 'item' ? 'rounded-xl' : 'rounded-full'}`}
+                  className={`w-full h-full object-cover ${deriveNodeVisual(labels).shape === 'rounded-rect' ? 'rounded-xl' : 'rounded-full'}`}
                 />
               ) : (
-                <div className={`w-full h-full bg-gray-400 flex items-center justify-center ${kind === 'item' ? 'rounded-xl' : 'rounded-full'}`}>
+                <div className={`w-full h-full bg-gray-400 flex items-center justify-center ${deriveNodeVisual(labels).shape === 'rounded-rect' ? 'rounded-xl' : 'rounded-full'}`}>
                   <span className="text-white text-4xl font-bold">
                     {name ? name.charAt(0).toUpperCase() : '?'}
                   </span>

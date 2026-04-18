@@ -32,12 +32,12 @@ describe('MiniSidebar', () => {
       store.addPerson({
         name: '山田太郎',
         imageDataUrl: 'data:image/jpeg;base64,person1',
-        kind: 'person',
+        labels: ['人物'],
       });
       store.addPerson({
         name: '伝説の剣',
         imageDataUrl: 'data:image/jpeg;base64,item1',
-        kind: 'item',
+        labels: ['物'],
       });
 
       render(
@@ -60,7 +60,7 @@ describe('MiniSidebar', () => {
       store.addPerson({
         name: '山田太郎',
         imageDataUrl: 'data:image/jpeg;base64,person1',
-        kind: 'person',
+        labels: ['人物'],
       });
 
       // 状態を再取得

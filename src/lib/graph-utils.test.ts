@@ -41,7 +41,7 @@ describe('graph-utils', () => {
       expect(nodes).toEqual([]);
     });
 
-    it('単一のPersonをPersonNodeに変換できる', () => {
+    it('単一のPersonをGraphNodeに変換できる', () => {
       const persons: Person[] = [
         {
           id: 'person-1',
@@ -56,11 +56,11 @@ describe('graph-utils', () => {
       expect(nodes).toHaveLength(1);
       expect(nodes[0]).toEqual({
         id: 'person-1',
-        type: 'person',
+        type: 'graph',
         data: {
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,/9j/4AAQSkZJRg...',
-          kind: 'person',
+          labels: ['人物'],
         },
         position: { x: 0, y: 0 },
       });
@@ -91,7 +91,7 @@ describe('graph-utils', () => {
       expect(nodes[1].data.name).toBe('佐藤花子');
     });
 
-    it('imageDataUrlが未設定のPersonをPersonNodeに変換できる', () => {
+    it('imageDataUrlが未設定のPersonをGraphNodeに変換できる', () => {
       const persons: Person[] = [
         {
           id: 'person-1',
@@ -105,23 +105,23 @@ describe('graph-utils', () => {
       expect(nodes).toHaveLength(1);
       expect(nodes[0]).toEqual({
         id: 'person-1',
-        type: 'person',
+        type: 'graph',
         data: {
           name: '山田太郎',
           imageDataUrl: undefined,
-          kind: 'person',
+          labels: ['人物'],
         },
         position: { x: 0, y: 0 },
       });
     });
 
-    it('kind: "person"を持つPersonをPersonNodeに変換できる', () => {
+    it('labels: ["人物"]を持つPersonをGraphNodeに変換できる', () => {
       const persons: Person[] = [
         {
           id: 'person-1',
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
-          kind: 'person',
+          labels: ['人物'],
           createdAt: '2026-02-05T00:00:00.000Z',
         },
       ];
@@ -131,23 +131,23 @@ describe('graph-utils', () => {
       expect(nodes).toHaveLength(1);
       expect(nodes[0]).toEqual({
         id: 'person-1',
-        type: 'person',
+        type: 'graph',
         data: {
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
-          kind: 'person',
+          labels: ['人物'],
         },
         position: { x: 0, y: 0 },
       });
     });
 
-    it('kind: "item"を持つPersonをItemNodeに変換できる', () => {
+    it('labels: ["物"]を持つPersonをGraphNodeに変換できる', () => {
       const persons: Person[] = [
         {
           id: 'item-1',
           name: '伝説の剣',
           imageDataUrl: 'data:image/jpeg;base64,sword',
-          kind: 'item',
+          labels: ['物'],
           createdAt: '2026-02-05T00:00:00.000Z',
         },
       ];
@@ -157,17 +157,17 @@ describe('graph-utils', () => {
       expect(nodes).toHaveLength(1);
       expect(nodes[0]).toEqual({
         id: 'item-1',
-        type: 'item',
+        type: 'graph',
         data: {
           name: '伝説の剣',
           imageDataUrl: 'data:image/jpeg;base64,sword',
-          kind: 'item',
+          labels: ['物'],
         },
         position: { x: 0, y: 0 },
       });
     });
 
-    it('kindが未設定のPersonはPersonNodeとして変換される', () => {
+    it('labelsが未設定のPersonはデフォルト["人物"]で変換される', () => {
       const persons: Person[] = [
         {
           id: 'person-1',
@@ -182,11 +182,11 @@ describe('graph-utils', () => {
       expect(nodes).toHaveLength(1);
       expect(nodes[0]).toEqual({
         id: 'person-1',
-        type: 'person',
+        type: 'graph',
         data: {
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
-          kind: 'person',
+          labels: ['人物'],
         },
         position: { x: 0, y: 0 },
       });
@@ -198,14 +198,14 @@ describe('graph-utils', () => {
           id: 'person-1',
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
-          kind: 'person',
+          labels: ['人物'],
           createdAt: '2026-02-05T00:00:00.000Z',
         },
         {
           id: 'item-1',
           name: '魔法の杖',
           imageDataUrl: 'data:image/jpeg;base64,wand',
-          kind: 'item',
+          labels: ['物'],
           createdAt: '2026-02-05T00:01:00.000Z',
         },
       ];
@@ -213,10 +213,10 @@ describe('graph-utils', () => {
       const nodes = personsToNodes(persons);
 
       expect(nodes).toHaveLength(2);
-      expect(nodes[0].type).toBe('person');
-      expect(nodes[0].data.kind).toBe('person');
-      expect(nodes[1].type).toBe('item');
-      expect(nodes[1].data.kind).toBe('item');
+      expect(nodes[0].type).toBe('graph');
+      expect(nodes[0].data.labels).toEqual(['人物']);
+      expect(nodes[1].type).toBe('graph');
+      expect(nodes[1].data.labels).toEqual(['物']);
     });
 
     it('position指定がある場合にその座標がNodeに反映される', () => {
@@ -421,8 +421,8 @@ describe('graph-utils', () => {
       const nodes: GraphNode[] = [
         {
           id: 'person-1',
-          type: 'person',
-          data: { name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,abc', kind: 'person' },
+          type: 'graph',
+          data: { name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,abc', labels: ['人物'] },
           position: { x: 100, y: 200 },
         },
       ];
@@ -440,20 +440,20 @@ describe('graph-utils', () => {
       const nodes: GraphNode[] = [
         {
           id: 'person-1',
-          type: 'person',
-          data: { name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,abc', kind: 'person' },
+          type: 'graph',
+          data: { name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,abc', labels: ['人物'] },
           position: { x: 100, y: 200 },
         },
         {
           id: 'person-2',
-          type: 'person',
-          data: { name: '佐藤花子', imageDataUrl: 'data:image/jpeg;base64,def', kind: 'person' },
+          type: 'graph',
+          data: { name: '佐藤花子', imageDataUrl: 'data:image/jpeg;base64,def', labels: ['人物'] },
           position: { x: 300, y: 400 },
         },
         {
           id: 'item-1',
-          type: 'item',
-          data: { name: '伝説の剣', imageDataUrl: 'data:image/jpeg;base64,sword', kind: 'item' },
+          type: 'graph',
+          data: { name: '伝説の剣', imageDataUrl: 'data:image/jpeg;base64,sword', labels: ['物'] },
           position: { x: 500, y: 600 },
         },
       ];

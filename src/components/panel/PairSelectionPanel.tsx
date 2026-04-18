@@ -26,6 +26,7 @@ import { useGraphStore } from '@/stores/useGraphStore';
 import { MAX_RELATIONSHIP_LABEL_LENGTH } from '@/lib/validation-constants';
 import { getRelationshipDisplayType } from '@/lib/relationship-utils';
 import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils';
+import { deriveNodeVisual } from '@/lib/node-visual';
 import type { Person } from '@/types/person';
 import type { RelationshipType, KinshipKind, AwarenessKind } from '@/types/relationship';
 import { SUGGESTED_TAGS } from '@/types/relationship';
@@ -57,8 +58,8 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
 
   const [person1, person2] = persons;
 
-  // 物が含まれているかチェック
-  const hasItem = (person1.kind === 'item') || (person2.kind === 'item');
+  // 物が含まれているかチェック（'物'ラベルを持つノードが対象）
+  const hasItem = (person1.labels?.includes('物') ?? false) || (person2.labels?.includes('物') ?? false);
 
   // ペア間の既存関係を取得（v9はペア単位で1つのみ）
   const existingRelationship = useMemo(
@@ -394,10 +395,10 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
   // 相手のイニシャルと種別（画像がない場合）
   const person1Initial = person1.name.charAt(0).toUpperCase() || '?';
   const person2Initial = person2.name.charAt(0).toUpperCase() || '?';
-  const person1Kind = person1.kind ?? 'person';
-  const person2Kind = person2.kind ?? 'person';
-  const person1IsItem = person1Kind === 'item';
-  const person2IsItem = person2Kind === 'item';
+  const person1Visual = deriveNodeVisual(person1.labels ?? ['人物']);
+  const person2Visual = deriveNodeVisual(person2.labels ?? ['人物']);
+  const person1IsItem = person1Visual.shape === 'rounded-rect';
+  const person2IsItem = person2Visual.shape === 'rounded-rect';
 
   // 登録ボタンの有効/無効を判定
   const isSubmitDisabled =

@@ -122,8 +122,8 @@ describe('ExtractionModal', () => {
       error: null,
       extractionResult: {
         persons: [
-          { name: '田中太郎', kind: 'person' },
-          { name: '山田花子', kind: 'person' },
+          { name: '田中太郎', labels: ['人物'] },
+          { name: '山田花子', labels: ['人物'] },
         ],
         relationships: [
           {
@@ -168,8 +168,8 @@ describe('ExtractionModal', () => {
       error: null,
       extractionResult: {
         persons: [
-          { name: '新キャラA', kind: 'person' },
-          { name: '新キャラB', kind: 'person' },
+          { name: '新キャラA', labels: ['人物'] },
+          { name: '新キャラB', labels: ['人物'] },
         ],
         relationships: [
           {

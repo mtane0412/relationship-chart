@@ -110,7 +110,7 @@ describe('searchGraph', () => {
         kind: 'person',
         id: 'person1',
         label: '山田太郎',
-        nodeKind: 'person',
+        nodeLabels: ['人物'],
         imageDataUrl: undefined,
       });
     });
@@ -138,7 +138,7 @@ describe('searchGraph', () => {
       const itemPerson: Person = {
         id: 'item1',
         name: 'テストアイテム',
-        kind: 'item',
+        labels: ['物'],
         createdAt: '2024-01-04T00:00:00Z',
       };
 
@@ -148,7 +148,7 @@ describe('searchGraph', () => {
         kind: 'person',
         id: 'item1',
         label: 'テストアイテム',
-        nodeKind: 'item',
+        nodeLabels: ['物'],
         imageDataUrl: undefined,
       });
     });
@@ -167,7 +167,7 @@ describe('searchGraph', () => {
         kind: 'person',
         id: 'person-with-image',
         label: '画像付き太郎',
-        nodeKind: 'person',
+        nodeLabels: ['人物'],
         imageDataUrl: 'data:image/png;base64,iVBORw0KGgo=',
       });
     });
@@ -186,8 +186,8 @@ describe('searchGraph', () => {
         relationshipType: 'dual-directed',
         sourceImageDataUrl: undefined,
         targetImageDataUrl: undefined,
-        sourceNodeKind: 'person',
-        targetNodeKind: 'person',
+        sourceNodeLabels: ['人物'],
+        targetNodeLabels: ['人物'],
       });
     });
 
@@ -204,8 +204,8 @@ describe('searchGraph', () => {
         relationshipType: 'dual-directed',
         sourceImageDataUrl: undefined,
         targetImageDataUrl: undefined,
-        sourceNodeKind: 'person',
-        targetNodeKind: 'person',
+        sourceNodeLabels: ['人物'],
+        targetNodeLabels: ['人物'],
       });
     });
 
@@ -258,8 +258,8 @@ describe('searchGraph', () => {
         relationshipType: 'one-way',
         sourceImageDataUrl: 'data:image/png;base64,image1',
         targetImageDataUrl: 'data:image/png;base64,image2',
-        sourceNodeKind: 'person',
-        targetNodeKind: 'person',
+        sourceNodeLabels: ['人物'],
+        targetNodeLabels: ['人物'],
       });
     });
 
@@ -298,8 +298,8 @@ describe('searchGraph', () => {
         relationshipType: 'bidirectional',
         sourceImageDataUrl: undefined,
         targetImageDataUrl: undefined,
-        sourceNodeKind: 'person',
-        targetNodeKind: 'person',
+        sourceNodeLabels: ['人物'],
+        targetNodeLabels: ['人物'],
       });
     });
 
@@ -338,8 +338,8 @@ describe('searchGraph', () => {
         relationshipType: 'dual-directed',
         sourceImageDataUrl: undefined,
         targetImageDataUrl: undefined,
-        sourceNodeKind: 'person',
-        targetNodeKind: 'person',
+        sourceNodeLabels: ['人物'],
+        targetNodeLabels: ['人物'],
       });
 
       // 逆方向のラベルを検索（起点と終点が入れ替わる）
@@ -354,8 +354,8 @@ describe('searchGraph', () => {
         relationshipType: 'dual-directed',
         sourceImageDataUrl: undefined,
         targetImageDataUrl: undefined,
-        sourceNodeKind: 'person',
-        targetNodeKind: 'person',
+        sourceNodeLabels: ['人物'],
+        targetNodeLabels: ['人物'],
       });
     });
   });
