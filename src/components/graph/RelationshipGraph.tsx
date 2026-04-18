@@ -19,8 +19,7 @@ import {
   type Node,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { PersonNode } from './PersonNode';
-import { ItemNode } from './ItemNode';
+import { GraphNodeComponent } from './GraphNodeComponent';
 import { RelationshipEdge as RelationshipEdgeComponent } from './RelationshipEdge';
 import { ConnectionLine } from './ConnectionLine';
 import { ForceLayoutPanel } from './ForceLayoutPanel';
@@ -50,10 +49,9 @@ import { resolveCollisions, DEFAULT_COLLISION_OPTIONS } from '@/lib/collision-re
 import { syncNodePositionsToStore } from '@/lib/graph-utils';
 import type { GraphNode } from '@/types/graph';
 
-// カスタムノードタイプの定義
+// カスタムノードタイプの定義（プロパティグラフ方式: 全ノードを単一の 'graph' タイプで扱う）
 const nodeTypes: NodeTypes = {
-  person: PersonNode,
-  item: ItemNode,
+  graph: GraphNodeComponent,
 };
 
 // カスタムエッジタイプの定義

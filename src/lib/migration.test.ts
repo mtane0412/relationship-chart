@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { migrateGraphState, migrateV8ToV9 } from './migration';
+import { migrateGraphState, migrateV8ToV9, migrateV9ToV10 } from './migration';
 import type { Person } from '@/types/person';
 import type { LegacyRelationshipV8 } from '@/types/relationship';
 import { DEFAULT_FORCE_PARAMS } from '@/stores/useGraphStore';
@@ -125,8 +125,11 @@ describe('migrateGraphState', () => {
         selectedPersonIds: string[];
       };
 
-      // v9 形式に変換されること
-      expect(result.persons).toEqual([person1, person2]);
+      // v10 形式に変換されること（persons に labels が付与される）
+      expect(result.persons).toMatchObject([
+        { id: 'person-1', name: '田中太郎', labels: ['人物'] },
+        { id: 'person-2', name: '鈴木花子', labels: ['人物'] },
+      ]);
       expect(result.forceEnabled).toBe(false);
       expect(result.selectedPersonIds).toEqual([]);
       expect(result.relationships).toHaveLength(1);
@@ -1195,5 +1198,68 @@ describe('migrateGraphState', () => {
       // general レイヤー由来タグが付与されること
       expect(rel.tags).toContain('layer-general');
     });
+  });
+});
+
+// ─── migrateV9ToV10 のテスト ──────────────────────────────────────────────────
+
+describe('migrateV9ToV10', () => {
+  it('kind: "person" の人物を labels: ["人物"] に変換する', () => {
+    const persons = [
+      { id: '1', name: '田中一郎', kind: 'person', createdAt: '2024-01-01T00:00:00.000Z' },
+    ];
+
+    const result = migrateV9ToV10(persons as Person[]);
+
+    expect(result[0].labels).toEqual(['人物']);
+    expect(result[0]).not.toHaveProperty('kind');
+  });
+
+  it('kind: "item" の物を labels: ["物"] に変換する', () => {
+    const persons = [
+      { id: '2', name: '宝剣エクスカリバー', kind: 'item', createdAt: '2024-01-01T00:00:00.000Z' },
+    ];
+
+    const result = migrateV9ToV10(persons as Person[]);
+
+    expect(result[0].labels).toEqual(['物']);
+    expect(result[0]).not.toHaveProperty('kind');
+  });
+
+  it('kind が未設定の人物を labels: ["人物"] に変換する', () => {
+    const persons = [
+      { id: '3', name: '鈴木花子', createdAt: '2024-01-01T00:00:00.000Z' },
+    ];
+
+    const result = migrateV9ToV10(persons as Person[]);
+
+    expect(result[0].labels).toEqual(['人物']);
+    expect(result[0]).not.toHaveProperty('kind');
+  });
+
+  it('すでに labels が設定されている場合はそのまま保持し kind を削除する', () => {
+    const persons = [
+      { id: '4', name: '佐藤次郎', labels: ['武将'], createdAt: '2024-01-01T00:00:00.000Z' },
+    ];
+
+    const result = migrateV9ToV10(persons as Person[]);
+
+    expect(result[0].labels).toEqual(['武将']);
+    expect(result[0]).not.toHaveProperty('kind');
+  });
+
+  it('複数の人物を混在変換する', () => {
+    const persons = [
+      { id: '5', name: '上杉謙信', kind: 'person', createdAt: '2024-01-01T00:00:00.000Z' },
+      { id: '6', name: '名刀村正', kind: 'item', createdAt: '2024-01-01T00:00:00.000Z' },
+      { id: '7', name: '武田信玄', createdAt: '2024-01-01T00:00:00.000Z' },
+    ];
+
+    const result = migrateV9ToV10(persons as Person[]);
+
+    expect(result[0].labels).toEqual(['人物']);
+    expect(result[1].labels).toEqual(['物']);
+    expect(result[2].labels).toEqual(['人物']);
+    result.forEach((p) => expect(p).not.toHaveProperty('kind'));
   });
 });

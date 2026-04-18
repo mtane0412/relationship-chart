@@ -64,7 +64,7 @@ function ExtractionPreview({
               <li key={i} className="flex items-center gap-2 text-sm text-gray-700">
                 <span className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0" />
                 {person.name}
-                {person.kind === 'item' && (
+                {person.labels?.includes('物') && (
                   <span className="text-xs text-gray-400">（アイテム）</span>
                 )}
               </li>
@@ -183,7 +183,7 @@ export function ExtractionModal({ isOpen, onClose }: ExtractionModalProps) {
     // 1パス目: 新規人物を特定して追加（ストアが ID を生成）
     const { newPersons } = resolveExtractionResult(extractionResult, persons, new Map());
     for (const person of newPersons) {
-      addPerson({ name: person.name, kind: person.kind });
+      addPerson({ name: person.name, labels: person.labels });
     }
 
     // 2パス目: 追加後のストア状態で関係を解決（新規人物のストア ID が確定済み）

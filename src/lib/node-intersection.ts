@@ -1,11 +1,14 @@
 /**
  * ノードの境界との交点計算ユーティリティ
- * エッジが最短距離でノードに接続できるように、円形ノードの境界との交点を計算します
+ * エッジが最短距離でノードに接続できるように、ノードの境界との交点を計算します
+ * ノードの形状（円形/角丸四角形）は labels 配列から動的に決定します
  */
 
+import { deriveNodeVisual } from './node-visual';
+
 /**
- * PersonNodeの画像サイズ（固定値）
- * PersonNode.tsxの画像は w-20 h-20 (80px x 80px)
+ * グラフノードの画像サイズ（固定値）
+ * GraphNodeComponent の画像は w-20 h-20 (80px x 80px)
  */
 export const PERSON_IMAGE_SIZE = 80;
 
@@ -144,12 +147,15 @@ export function getRectIntersection(
 
 /**
  * ノードの情報（位置とサイズ）
+ * data.labels から形状（円形/角丸四角形）を導出する
  */
 interface NodeInfo {
   id: string;
   type?: string;
   position: { x: number; y: number };
   measured?: { width?: number; height?: number };
+  /** ノードデータ（labels から形状を導出する） */
+  data?: { labels?: string[] };
 }
 
 /**
@@ -181,12 +187,13 @@ export function getEdgeIntersectionPoints(
   const targetCenterX = targetNode.position.x + targetWidth / 2;
   const targetCenterY = targetNode.position.y + PERSON_IMAGE_RADIUS;
 
-  // ノードの種別に応じて交点を計算
-  const sourceIsItem = sourceNode.type === 'item';
-  const targetIsItem = targetNode.type === 'item';
+  // ノードの形状に応じて交点を計算
+  // labels 配列から形状を導出する（data が未設定の場合はデフォルト: 円形）
+  const sourceIsRoundedRect = deriveNodeVisual(sourceNode.data?.labels ?? ['人物']).shape === 'rounded-rect';
+  const targetIsRoundedRect = deriveNodeVisual(targetNode.data?.labels ?? ['人物']).shape === 'rounded-rect';
 
   // ソースノードの境界との交点を計算
-  const sourcePoint = sourceIsItem
+  const sourcePoint = sourceIsRoundedRect
     ? getRectIntersection(
         { x: sourceCenterX, y: sourceCenterY },
         PERSON_IMAGE_SIZE,
@@ -202,7 +209,7 @@ export function getEdgeIntersectionPoints(
       );
 
   // ターゲットノードの境界との交点を計算
-  const targetPoint = targetIsItem
+  const targetPoint = targetIsRoundedRect
     ? getRectIntersection(
         { x: targetCenterX, y: targetCenterY },
         PERSON_IMAGE_SIZE,

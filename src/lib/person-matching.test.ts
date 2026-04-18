@@ -61,8 +61,8 @@ describe('matchPersonByName', () => {
 describe('resolveExtractionResult', () => {
   const extractionResult: LlmExtractionResult = {
     persons: [
-      { name: '田中太郎', kind: 'person' },
-      { name: '新キャラ', kind: 'person' },
+      { name: '田中太郎', labels: ['人物'] },
+      { name: '新キャラ', labels: ['人物'] },
     ],
     relationships: [
       {
@@ -111,7 +111,7 @@ describe('resolveExtractionResult', () => {
 
   it('解決できない人物名を含む関係はスキップされること', () => {
     const badResult: LlmExtractionResult = {
-      persons: [{ name: '田中太郎', kind: 'person' }],
+      persons: [{ name: '田中太郎', labels: ['人物'] }],
       relationships: [
         {
           sourcePersonName: '田中太郎',

@@ -9,6 +9,7 @@ import { useGraphStore } from '@/stores/useGraphStore';
 import { readFileAsDataUrl } from '@/lib/image-utils';
 import { MAX_PERSON_NAME_LENGTH } from '@/lib/validation-constants';
 import ImageCropper from '@/components/ui/ImageCropper';
+import { deriveNodeVisual } from '@/lib/node-visual';
 import type { Person } from '@/types/person';
 
 /**
@@ -28,9 +29,9 @@ type PersonEditFormProps = {
 export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
   const updatePerson = useGraphStore((state) => state.updatePerson);
 
-  // 種別を取得（デフォルトは'person'）
-  const kind = person.kind ?? 'person';
-  const isItem = kind === 'item';
+  // ラベルから視覚属性を導出する
+  const visual = deriveNodeVisual(person.labels ?? ['人物']);
+  const isItem = visual.shape === 'rounded-rect';
 
   const [name, setName] = useState(person.name);
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>(person.imageDataUrl);

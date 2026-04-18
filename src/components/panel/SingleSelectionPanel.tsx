@@ -13,6 +13,7 @@ import { useReactFlow } from '@xyflow/react';
 import type { Person } from '@/types/person';
 import type { RelationshipV9 } from '@/types/relationship';
 import { getRelationshipFromPerspective } from '@/lib/relationship-utils';
+import { deriveNodeVisual } from '@/lib/node-visual';
 import {
   VIEWPORT_ANIMATION_DURATION,
   VIEWPORT_FIT_PADDING,
@@ -39,10 +40,9 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
   const openConfirm = useDialogStore((state) => state.openConfirm);
   const { fitView } = useReactFlow();
 
-  // 種別を取得
-  const kind = person.kind ?? 'person';
-  const isItem = kind === 'item';
-  const kindLabel = isItem ? '物' : '人物';
+  // ラベルから視覚属性を導出する
+  const visual = deriveNodeVisual(person.labels ?? ['人物']);
+  const kindLabel = visual.kindLabel;
 
   // 削除ハンドラ
   const handleDeletePerson = async () => {
@@ -171,8 +171,8 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
 
                     // 相手のイニシャルと種別
                     const otherInitial = otherPerson.name.charAt(0).toUpperCase() || '?';
-                    const otherKind = otherPerson.kind ?? 'person';
-                    const otherIsItem = otherKind === 'item';
+                    const otherVisual = deriveNodeVisual(otherPerson.labels ?? ['人物']);
+                    const otherIsItem = otherVisual.shape === 'rounded-rect';
 
                     return (
                       <div

@@ -1,24 +1,26 @@
 /**
- * PersonNodeコンポーネントのテスト
+ * GraphNodeComponentコンポーネントのテスト（人物ノード表示）
  *
- * ハンドルの構成（type、id、position）を検証します。
+ * labels: ['人物'] を持つノードが円形で表示されることを確認する。
+ * ハンドルの構成（type、id、position）も検証する。
  */
 
 import { render, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { ReactFlowProvider } from '@xyflow/react';
-import { PersonNode } from './PersonNode';
+import { GraphNodeComponent } from './GraphNodeComponent';
 import type { PersonNodeData } from '@/types/graph';
 
-describe('PersonNode', () => {
+describe('GraphNodeComponent（人物ノード表示）', () => {
   const mockNodeProps = {
     id: 'person-1',
     data: {
       name: '田中太郎',
       imageDataUrl: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==',
+      labels: ['人物'],
     } as PersonNodeData,
     selected: false,
-    type: 'person',
+    type: 'graph',
     // React Flowが内部的に提供するpropsをモック
     dragging: false,
     isConnectable: true,
@@ -34,7 +36,7 @@ describe('PersonNode', () => {
   const renderWithProvider = (props = mockNodeProps) => {
     return render(
       <ReactFlowProvider>
-        <PersonNode {...props} />
+        <GraphNodeComponent {...props} />
       </ReactFlowProvider>
     );
   };
@@ -70,13 +72,13 @@ describe('PersonNode', () => {
       expect(targetHandle).toBeInTheDocument();
     });
 
-    it('ハンドルが円形（リング状）のスタイルを持つこと', () => {
+    it('人物ノードのハンドルが円形（rounded-full）のスタイルを持つこと', () => {
       const { container } = renderWithProvider();
 
       const handles = container.querySelectorAll('.react-flow__handle');
       expect(handles.length).toBeGreaterThan(0);
 
-      // 両方のハンドルに円形のクラスが適用されていることを確認
+      // 人物ノードは円形なので、すべてのハンドルにrounded-fullクラスが適用されること
       handles.forEach((handle) => {
         const className = handle?.className || '';
         expect(className).toContain('rounded-full');
@@ -99,7 +101,7 @@ describe('PersonNode', () => {
       });
     });
 
-    it('通常時はsourceハンドルのみがpointer-events-autoであること', () => {
+    it('通常時はsourceハンドルとtargetハンドルともにpointer-events-noneであること', () => {
       const { container } = renderWithProvider();
 
       const handles = container.querySelectorAll('.react-flow__handle');
@@ -110,8 +112,7 @@ describe('PersonNode', () => {
         handle.getAttribute('data-handleid')?.includes('target')
       );
 
-      // 通常時（接続操作中でない時）はsourceハンドルのみが非表示（opacity-0, pointer-events-none）
-      // ※ hover状態でない限り、両方とも非表示
+      // 通常時（ホバー・接続操作中でない時）はどちらも非表示
       expect(sourceHandle?.className).toContain('pointer-events-none');
       expect(targetHandle?.className).toContain('pointer-events-none');
     });
@@ -129,6 +130,13 @@ describe('PersonNode', () => {
       expect(img).toBeInTheDocument();
       expect(img?.getAttribute('src')).toBe(mockNodeProps.data.imageDataUrl);
       expect(img?.getAttribute('alt')).toBe('田中太郎');
+    });
+
+    it('画像が円形（rounded-full）で表示されること', () => {
+      const { container } = renderWithProvider();
+      const img = container.querySelector('img');
+      expect(img?.className).toContain('rounded-full');
+      expect(img?.className).not.toContain('rounded-xl');
     });
 
     it('選択状態の時にボーダースタイルが変わること', () => {

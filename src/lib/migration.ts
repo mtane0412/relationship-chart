@@ -264,6 +264,33 @@ export function migrateV8ToV9(legacy: LegacyRelationshipV8[]): RelationshipV9[] 
   return Array.from(byPair.values()).map(mergeLegacyGroup);
 }
 
+// ─── v9 → v10 変換ロジック ────────────────────────────────────────────────────
+
+/**
+ * v9 形式の Person 配列を v10 プロパティグラフ形式に変換する
+ * kind フィールドを削除し、labels 配列に置き換える。
+ * すでに labels が設定されている場合はそのまま保持し、kind のみ削除する。
+ *
+ * @param persons - v9 以前の Person 配列（kind フィールドを持つ可能性あり）
+ * @returns v10 形式の Person 配列（labels フィールドを持つ、kind フィールドなし）
+ */
+export function migrateV9ToV10(persons: Person[]): Person[] {
+  return persons.map((p) => {
+    // kind フィールドを含む可能性があるため、Record 型として扱う
+    const legacy = p as Person & { kind?: string };
+    const { kind, ...rest } = legacy;
+
+    // すでに labels が設定されている場合はそのまま保持する
+    if (rest.labels !== undefined) {
+      return rest;
+    }
+
+    // kind から labels を導出する
+    const labels = kind === 'item' ? ['物'] : ['人物'];
+    return { ...rest, labels };
+  });
+}
+
 // ─── マイグレーションステートマシン ──────────────────────────────────────────
 
 /**
@@ -273,8 +300,23 @@ export function migrateV8ToV9(legacy: LegacyRelationshipV8[]): RelationshipV9[] 
  * @returns マイグレーション後の状態
  */
 export function migrateGraphState(persistedState: unknown, version: number): unknown {
-  // v9以降は変換不要
-  if (version >= 9) {
+  // v10以降は変換不要
+  if (version >= 10) {
+    return persistedState;
+  }
+
+  // v9 → v10: persons の kind フィールドを labels 配列に移行する
+  if (version === 9) {
+    if (!persistedState || typeof persistedState !== 'object') {
+      return persistedState;
+    }
+    const v9State = persistedState as Record<string, unknown>;
+    if (Array.isArray(v9State.persons)) {
+      return {
+        ...v9State,
+        persons: migrateV9ToV10(v9State.persons as Person[]),
+      };
+    }
     return persistedState;
   }
 
@@ -500,6 +542,17 @@ export function migrateGraphState(persistedState: unknown, version: number): unk
           relationships: migrateV8ToV9(legacyRels),
         };
       }
+    }
+  }
+
+  // v0〜v8 から変換されてきたデータを v10 形式に変換する（persons の kind → labels）
+  {
+    const stateRecord = state as Record<string, unknown>;
+    if (Array.isArray(stateRecord.persons)) {
+      state = {
+        ...stateRecord,
+        persons: migrateV9ToV10(stateRecord.persons as Person[]),
+      };
     }
   }
 

@@ -11,6 +11,7 @@ import { useReactFlow } from '@xyflow/react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import type { Person } from '@/types/person';
 import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils';
+import { deriveNodeVisual } from '@/lib/node-visual';
 
 /**
  * MiniSidebarコンポーネント
@@ -119,9 +120,9 @@ export function MiniSidebar() {
                 className="h-10 w-10 rounded-full object-cover"
               />
             ) : (
-              // 画像がない場合はアイコンを表示
+              // 画像がない場合はラベルに応じたアイコンを表示
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200">
-                {person.kind === 'item' ? (
+                {deriveNodeVisual(person.labels ?? ['人物']).defaultIcon === 'package' ? (
                   <Package className="h-5 w-5 text-gray-600" />
                 ) : (
                   <User className="h-5 w-5 text-gray-600" />

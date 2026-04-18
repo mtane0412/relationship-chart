@@ -292,14 +292,14 @@ describe('useGraphStore', () => {
     });
   });
 
-  describe('addPerson（kind指定）', () => {
-    it('kind: "person"を指定して人物を追加できる', () => {
+  describe('addPerson（labels指定）', () => {
+    it('labels: ["人物"]を指定して人物を追加できる', () => {
       const { result } = renderHook(() => useGraphStore());
 
       const newPerson: Omit<Person, 'id' | 'createdAt'> = {
         name: '山田太郎',
         imageDataUrl: 'data:image/jpeg;base64,abc',
-        kind: 'person',
+        labels: ['人物'],
       };
 
       act(() => {
@@ -310,19 +310,19 @@ describe('useGraphStore', () => {
       expect(result.current.persons[0]).toMatchObject({
         name: '山田太郎',
         imageDataUrl: 'data:image/jpeg;base64,abc',
-        kind: 'person',
+        labels: ['人物'],
       });
       expect(result.current.persons[0].id).toBeTruthy();
       expect(result.current.persons[0].createdAt).toBeTruthy();
     });
 
-    it('kind: "item"を指定して物を追加できる', () => {
+    it('labels: ["物"]を指定して物を追加できる', () => {
       const { result } = renderHook(() => useGraphStore());
 
       const newItem: Omit<Person, 'id' | 'createdAt'> = {
         name: '伝説の剣',
         imageDataUrl: 'data:image/jpeg;base64,sword',
-        kind: 'item',
+        labels: ['物'],
       };
 
       act(() => {
@@ -333,13 +333,13 @@ describe('useGraphStore', () => {
       expect(result.current.persons[0]).toMatchObject({
         name: '伝説の剣',
         imageDataUrl: 'data:image/jpeg;base64,sword',
-        kind: 'item',
+        labels: ['物'],
       });
       expect(result.current.persons[0].id).toBeTruthy();
       expect(result.current.persons[0].createdAt).toBeTruthy();
     });
 
-    it('kindを省略した場合は人物として扱われる', () => {
+    it('labelsを省略した場合はundefinedのまま保存される', () => {
       const { result } = renderHook(() => useGraphStore());
 
       const newPerson: Omit<Person, 'id' | 'createdAt'> = {
@@ -356,8 +356,8 @@ describe('useGraphStore', () => {
         name: '山田太郎',
         imageDataUrl: 'data:image/jpeg;base64,abc',
       });
-      // kindはundefinedだが、'person'として動作することを期待
-      expect(result.current.persons[0].kind).toBeUndefined();
+      // labelsはundefinedのまま（グラフ変換時に['人物']をデフォルト適用）
+      expect(result.current.persons[0].labels).toBeUndefined();
     });
 
     it('人物と物を混在させて追加できる', () => {
@@ -367,22 +367,22 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
-          kind: 'person',
+          labels: ['人物'],
         });
         result.current.addPerson({
           name: '魔法の杖',
           imageDataUrl: 'data:image/jpeg;base64,wand',
-          kind: 'item',
+          labels: ['物'],
         });
       });
 
       expect(result.current.persons).toHaveLength(2);
-      expect(result.current.persons[0].kind).toBe('person');
-      expect(result.current.persons[1].kind).toBe('item');
+      expect(result.current.persons[0].labels).toEqual(['人物']);
+      expect(result.current.persons[1].labels).toEqual(['物']);
     });
   });
 
-  describe('removePerson（kind指定）', () => {
+  describe('removePerson（labels指定）', () => {
     it('物ノードを削除できる', () => {
       const { result } = renderHook(() => useGraphStore());
 
@@ -390,7 +390,7 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '伝説の剣',
           imageDataUrl: 'data:image/jpeg;base64,sword',
-          kind: 'item',
+          labels: ['物'],
         });
       });
 
@@ -412,12 +412,12 @@ describe('useGraphStore', () => {
         result.current.addPerson({
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
-          kind: 'person',
+          labels: ['人物'],
         });
         result.current.addPerson({
           name: '伝説の剣',
           imageDataUrl: 'data:image/jpeg;base64,sword',
-          kind: 'item',
+          labels: ['物'],
         });
       });
 

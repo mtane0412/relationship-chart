@@ -11,7 +11,6 @@ import { readFileAsDataUrl } from '@/lib/image-utils';
 import { findClosestTargetNode } from '@/lib/connection-target-detection';
 import type { GraphNode, RelationshipEdge } from '@/types/graph';
 import type { RelationshipType } from '@/types/relationship';
-import type { NodeKind } from '@/types/person';
 import type { ContextMenuState } from './useContextMenu';
 
 /**
@@ -479,14 +478,14 @@ export function useGraphInteractions({
 
   // モーダルからの登録ハンドラ
   const handleRegisterPerson = useCallback(
-    (name: string, croppedImageDataUrl: string | null, kind: NodeKind) => {
+    (name: string, croppedImageDataUrl: string | null, labels: string[]) => {
       if (!pendingRegistration) return;
 
       // 人物を追加（位置情報も渡す）
       addPerson({
         name,
         imageDataUrl: croppedImageDataUrl ?? undefined,
-        kind,
+        labels,
         position: pendingRegistration.position,
       });
 

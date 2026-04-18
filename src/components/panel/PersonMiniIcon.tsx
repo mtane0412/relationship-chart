@@ -7,16 +7,15 @@
 'use client';
 
 import type { Person } from '@/types/person';
+import { deriveNodeVisual } from '@/lib/node-visual';
 
 /**
  * 人物/物のミニアイコンを表示するコンポーネント
- * - person: 通常の人物（丸型）
- * - item: 物（角丸四角形）
+ * labels配列から形状を導出してアイコンを描画する
  */
 export function PersonMiniIcon({ person }: { person: Person }) {
-  const kind = person.kind ?? 'person';
-  const isItem = kind === 'item';
-  const borderRadius = isItem ? 'rounded-md' : 'rounded-full';
+  const visual = deriveNodeVisual(person.labels ?? ['人物']);
+  const borderRadius = visual.shape === 'rounded-rect' ? 'rounded-md' : 'rounded-full';
 
   if (person.imageDataUrl) {
     return (

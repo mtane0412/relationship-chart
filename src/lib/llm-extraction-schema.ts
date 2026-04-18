@@ -22,8 +22,11 @@ import {
 export const LlmPersonSchema = z.object({
   /** 人物名またはアイテム名 */
   name: z.string(),
-  /** ノード種別（人物 / アイテム）。不明な場合は null */
-  kind: z.enum(['person', 'item']).nullable(),
+  /**
+   * ノードに付与するラベル配列（例: ["人物"], ["物"]）。不明な場合は null
+   * プロパティグラフ方式: 固定の種別ではなくラベルでノードの特性を表現する
+   */
+  labels: z.array(z.string()).nullable(),
 });
 
 /**
