@@ -533,7 +533,7 @@ describe('graph-utils', () => {
   describe('matchesEdgeFilter: エッジフィルタ判定', () => {
     /** フィルタなし（初期値）を表す EdgeFilter */
     const noFilter: EdgeFilter = {
-      tags: { mode: 'any', values: new Set() },
+      tags: { mode: 'any', values: [] },
       predicates: [],
     };
 
@@ -553,7 +553,7 @@ describe('graph-utils', () => {
         // 前提条件: 関係タグ ['友人', '同級生']、フィルタタグ ['同級生']
         const rel = makeRel({ tags: ['友人', '同級生'] });
         const filter: EdgeFilter = {
-          tags: { mode: 'any', values: new Set(['同級生']) },
+          tags: { mode: 'any', values: ['同級生'] },
           predicates: [],
         };
         expect(matchesEdgeFilter(rel, filter)).toBe(true);
@@ -563,7 +563,7 @@ describe('graph-utils', () => {
         // 前提条件: 関係タグ ['友人']、フィルタタグ ['上司', '部下']
         const rel = makeRel({ tags: ['友人'] });
         const filter: EdgeFilter = {
-          tags: { mode: 'any', values: new Set(['上司', '部下']) },
+          tags: { mode: 'any', values: ['上司', '部下'] },
           predicates: [],
         };
         expect(matchesEdgeFilter(rel, filter)).toBe(false);
@@ -572,7 +572,7 @@ describe('graph-utils', () => {
       it('関係のタグが空でフィルタにタグが指定されている場合は除外される', () => {
         const rel = makeRel({ tags: [] });
         const filter: EdgeFilter = {
-          tags: { mode: 'any', values: new Set(['上司']) },
+          tags: { mode: 'any', values: ['上司'] },
           predicates: [],
         };
         expect(matchesEdgeFilter(rel, filter)).toBe(false);
@@ -584,7 +584,7 @@ describe('graph-utils', () => {
         // 前提条件: 関係タグ ['上司', '同級生', '友人']、フィルタタグ ['上司', '同級生']
         const rel = makeRel({ tags: ['上司', '同級生', '友人'] });
         const filter: EdgeFilter = {
-          tags: { mode: 'all', values: new Set(['上司', '同級生']) },
+          tags: { mode: 'all', values: ['上司', '同級生'] },
           predicates: [],
         };
         expect(matchesEdgeFilter(rel, filter)).toBe(true);
@@ -594,7 +594,7 @@ describe('graph-utils', () => {
         // 前提条件: 関係タグ ['上司']、フィルタタグ ['上司', '同級生']（'同級生'がない）
         const rel = makeRel({ tags: ['上司'] });
         const filter: EdgeFilter = {
-          tags: { mode: 'all', values: new Set(['上司', '同級生']) },
+          tags: { mode: 'all', values: ['上司', '同級生'] },
           predicates: [],
         };
         expect(matchesEdgeFilter(rel, filter)).toBe(false);
@@ -605,7 +605,7 @@ describe('graph-utils', () => {
       it('closeness_gte: 閾値以上なら通過する', () => {
         const rel = makeRel({ symmetric: { closeness: 0.8, trust: null, tension: null, secrecy: null, kinship: null } });
         const filter: EdgeFilter = {
-          tags: { mode: 'any', values: new Set() },
+          tags: { mode: 'any', values: [] },
           predicates: [{ type: 'closeness_gte', value: 0.5 }],
         };
         expect(matchesEdgeFilter(rel, filter)).toBe(true);
@@ -614,7 +614,7 @@ describe('graph-utils', () => {
       it('closeness_gte: 閾値未満なら除外される', () => {
         const rel = makeRel({ symmetric: { closeness: 0.3, trust: null, tension: null, secrecy: null, kinship: null } });
         const filter: EdgeFilter = {
-          tags: { mode: 'any', values: new Set() },
+          tags: { mode: 'any', values: [] },
           predicates: [{ type: 'closeness_gte', value: 0.5 }],
         };
         expect(matchesEdgeFilter(rel, filter)).toBe(false);
@@ -623,7 +623,7 @@ describe('graph-utils', () => {
       it('closeness_gte: closenessがnullなら除外される', () => {
         const rel = makeRel({ symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null } });
         const filter: EdgeFilter = {
-          tags: { mode: 'any', values: new Set() },
+          tags: { mode: 'any', values: [] },
           predicates: [{ type: 'closeness_gte', value: 0.0 }],
         };
         expect(matchesEdgeFilter(rel, filter)).toBe(false);
@@ -632,7 +632,7 @@ describe('graph-utils', () => {
       it('trust_gte: 閾値以上なら通過する', () => {
         const rel = makeRel({ symmetric: { closeness: null, trust: 0.7, tension: null, secrecy: null, kinship: null } });
         const filter: EdgeFilter = {
-          tags: { mode: 'any', values: new Set() },
+          tags: { mode: 'any', values: [] },
           predicates: [{ type: 'trust_gte', value: 0.5 }],
         };
         expect(matchesEdgeFilter(rel, filter)).toBe(true);
@@ -641,7 +641,7 @@ describe('graph-utils', () => {
       it('tension_gte: 閾値未満なら除外される', () => {
         const rel = makeRel({ symmetric: { closeness: null, trust: null, tension: 0.2, secrecy: null, kinship: null } });
         const filter: EdgeFilter = {
-          tags: { mode: 'any', values: new Set() },
+          tags: { mode: 'any', values: [] },
           predicates: [{ type: 'tension_gte', value: 0.5 }],
         };
         expect(matchesEdgeFilter(rel, filter)).toBe(false);
@@ -650,7 +650,7 @@ describe('graph-utils', () => {
       it('secrecy_gte: 閾値以上なら通過する', () => {
         const rel = makeRel({ symmetric: { closeness: null, trust: null, tension: null, secrecy: 0.6, kinship: null } });
         const filter: EdgeFilter = {
-          tags: { mode: 'any', values: new Set() },
+          tags: { mode: 'any', values: [] },
           predicates: [{ type: 'secrecy_gte', value: 0.5 }],
         };
         expect(matchesEdgeFilter(rel, filter)).toBe(true);
@@ -659,7 +659,7 @@ describe('graph-utils', () => {
       it('has_kinship: kinshipが設定されていれば通過する', () => {
         const rel = makeRel({ symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: 'parent' } });
         const filter: EdgeFilter = {
-          tags: { mode: 'any', values: new Set() },
+          tags: { mode: 'any', values: [] },
           predicates: [{ type: 'has_kinship' }],
         };
         expect(matchesEdgeFilter(rel, filter)).toBe(true);
@@ -668,7 +668,7 @@ describe('graph-utils', () => {
       it('has_kinship: kinshipがnullなら除外される', () => {
         const rel = makeRel({ symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null } });
         const filter: EdgeFilter = {
-          tags: { mode: 'any', values: new Set() },
+          tags: { mode: 'any', values: [] },
           predicates: [{ type: 'has_kinship' }],
         };
         expect(matchesEdgeFilter(rel, filter)).toBe(false);
@@ -678,7 +678,7 @@ describe('graph-utils', () => {
         // closeness=0.8（OK）、trust=null（NG for trust_gte=0.5）
         const rel = makeRel({ symmetric: { closeness: 0.8, trust: null, tension: null, secrecy: null, kinship: null } });
         const filter: EdgeFilter = {
-          tags: { mode: 'any', values: new Set() },
+          tags: { mode: 'any', values: [] },
           predicates: [
             { type: 'closeness_gte', value: 0.5 },
             { type: 'trust_gte', value: 0.5 },
@@ -709,7 +709,7 @@ describe('graph-utils', () => {
       });
 
       const filter: EdgeFilter = {
-        tags: { mode: 'any', values: new Set(['上司']) },
+        tags: { mode: 'any', values: ['上司'] },
         predicates: [{ type: 'closeness_gte', value: 0.5 }],
       };
 
@@ -737,7 +737,7 @@ describe('graph-utils', () => {
         makeRel({ id: 'rel-友人', sourcePersonId: 'p3', targetPersonId: 'p4', tags: ['友人'] }),
       ];
       const filter: EdgeFilter = {
-        tags: { mode: 'any', values: new Set(['上司']) },
+        tags: { mode: 'any', values: ['上司'] },
         predicates: [],
       };
 
@@ -763,7 +763,7 @@ describe('graph-utils', () => {
         }),
       ];
       const filter: EdgeFilter = {
-        tags: { mode: 'any', values: new Set() },
+        tags: { mode: 'any', values: [] },
         predicates: [{ type: 'closeness_gte', value: 0.5 }],
       };
 
