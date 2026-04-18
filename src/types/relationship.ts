@@ -198,7 +198,7 @@ export type EdgePredicate =
  * タグフィルタ（ANY/ALL モード）と述語フィルタの組み合わせで関係を絞り込む
  *
  * @property tags.mode - 'any': いずれかのタグが一致すればOK / 'all': 全タグが一致する必要あり
- * @property tags.values - フィルタ対象のタグ集合（空の場合はタグ絞り込みなし）
+ * @property tags.values - フィルタ対象の重複なしタグ配列（空の場合はタグ絞り込みなし）
  * @property predicates - 追加述語フィルタ（全て通過する必要あり）
  */
 export type EdgeFilter = {
