@@ -13,7 +13,7 @@
 
 'use client';
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Sparkles, Loader2, X } from 'lucide-react';
 import { useExtractRelationships } from '@/hooks/useExtractRelationships';
 import { useMention } from '@/hooks/useMention';
@@ -39,10 +39,10 @@ const MAX_TEXTAREA_HEIGHT = 180;
  * @param persons - 照合に使用する人物リスト
  * @returns ハイライト済みの React ノード
  */
-function renderHighlightedText(text: string, persons: Person[]): React.ReactNode {
+function renderHighlightedText(text: string, persons: Person[], presorted = false): React.ReactNode {
   if (!text) return null;
 
-  const ranges = findMentionRanges(text, persons);
+  const ranges = findMentionRanges(text, persons, presorted);
   if (ranges.length === 0) {
     return <span className="text-gray-900">{text}</span>;
   }
@@ -63,8 +63,8 @@ function renderHighlightedText(text: string, persons: Person[]): React.ReactNode
     nodes.push(
       <mark
         key={`m-${range.start}`}
-        className="bg-blue-100 text-blue-700 rounded-sm not-italic font-medium"
-        style={{ padding: '0 1px' }}
+        className="bg-blue-100 text-blue-700 rounded-sm not-italic"
+        style={{ boxShadow: 'inset 0 0 0 1px rgba(59, 130, 246, 0.18)' }}
       >
         {text.slice(range.start, range.end)}
       </mark>
@@ -101,6 +101,15 @@ export function ChatInputBar() {
   const persons = useGraphStore((s) => s.persons);
   const addPerson = useGraphStore((s) => s.addPerson);
   const addRelationship = useGraphStore((s) => s.addRelationship);
+
+  /**
+   * ハイライト計算用: 人物を名前の長さ降順にソートしてキャッシュする
+   * findMentionRanges は入力中に高頻度で呼ばれるため、ソートコストをレンダーループから外す
+   */
+  const sortedPersonsForHighlight = useMemo(
+    () => [...persons].sort((a, b) => b.name.length - a.name.length),
+    [persons]
+  );
 
   const {
     mentionQuery,
@@ -174,6 +183,7 @@ export function ChatInputBar() {
       setText(newText);
       setTimeout(() => {
         if (textareaRef.current) {
+          textareaRef.current.focus();
           textareaRef.current.selectionStart = newCursorPos;
           textareaRef.current.selectionEnd = newCursorPos;
           adjustHeight();
@@ -465,7 +475,7 @@ export function ChatInputBar() {
                   padding: 0,
                 }}
               >
-                {renderHighlightedText(text, persons)}
+                {renderHighlightedText(text, sortedPersonsForHighlight, true)}
                 {/* 末尾スペース: 最終行が空行の場合に高さが崩れないようにする */}
                 {'\u00a0'}
               </div>
@@ -493,7 +503,10 @@ export function ChatInputBar() {
                 aria-label="AI テキスト入力"
                 aria-controls={mentionQuery !== null ? 'mention-listbox' : undefined}
                 aria-activedescendant={
-                  mentionQuery !== null && selectedIndex >= 0
+                  // ドロップダウンが表示されており、selectedIndex が表示範囲内の場合のみ設定する
+                  mentionQuery !== null &&
+                  selectedIndex >= 0 &&
+                  (filteredPersons.length > 0 || mentionQuery.trim() !== '')
                     ? `mention-option-${selectedIndex}`
                     : undefined
                 }

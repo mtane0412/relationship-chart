@@ -12,10 +12,9 @@
 import { useEffect, useRef } from 'react';
 import { User, Package, PlusCircle } from 'lucide-react';
 import { deriveNodeVisual } from '@/lib/node-visual';
+import { MENTION_MAX_DISPLAY_COUNT } from '@/lib/mention-utils';
+import { normalizeName } from '@/lib/person-matching';
 import type { Person } from '@/types/person';
-
-/** ドロップダウンに表示する最大件数 */
-const MAX_DISPLAY_COUNT = 10;
 
 /**
  * 人物アイコンコンポーネント（SearchBar の NodeIcon と同様のパターン）
@@ -85,12 +84,13 @@ export function MentionDropdown({
   const listRef = useRef<HTMLUListElement>(null);
 
   // 表示する候補を最大件数に制限
-  const displayedPersons = persons.slice(0, MAX_DISPLAY_COUNT);
+  const displayedPersons = persons.slice(0, MENTION_MAX_DISPLAY_COUNT);
 
-  // 「新規作成」オプションを表示するか（クエリが空でなく、完全一致がない場合）
+  // 「新規作成」オプションを表示するか（クエリが空でなく、正規化後に一致する既存人物がない場合）
+  const normalizedQuery = normalizeName(query.trim());
   const hasExactMatch =
     query.trim() !== '' &&
-    persons.some((p) => p.name.trim() === query.trim());
+    persons.some((p) => normalizeName(p.name) === normalizedQuery);
   const showCreateNew = query.trim() !== '' && !hasExactMatch;
 
   // 合計候補数（人物 + 新規作成オプション）

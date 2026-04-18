@@ -13,6 +13,7 @@ import type { Person } from '@/types/person';
 import {
   extractMentionQuery,
   filterPersonsByQuery,
+  MENTION_MAX_DISPLAY_COUNT,
 } from '@/lib/mention-utils';
 
 /**
@@ -100,8 +101,9 @@ export function useMention(persons: Person[]): UseMentionReturn {
       setSelectedIndex(-1);
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      // 上限は候補総数（「新規作成」オプション込みで filteredPersons.length が最大インデックス）
-      setSelectedIndex((prev) => Math.min(prev + 1, filteredPersons.length));
+      // 上限は表示件数（MAX_DISPLAY_COUNT でクランプ済み）+「新規作成」の 1
+      const displayedCount = Math.min(filteredPersons.length, MENTION_MAX_DISPLAY_COUNT);
+      setSelectedIndex((prev) => Math.min(prev + 1, displayedCount));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       // 下限は 0（最初の候補から上には行かない）

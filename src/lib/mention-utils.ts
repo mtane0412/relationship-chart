@@ -9,6 +9,12 @@ import type { Person } from '@/types/person';
 import { normalizeName } from './person-matching';
 
 /**
+ * メンションドロップダウンに表示する最大件数
+ * MentionDropdown と useMention で共有する定数。
+ */
+export const MENTION_MAX_DISPLAY_COUNT = 10;
+
+/**
  * メンションの区切り文字セット
  * @ の後の名前の終端として認識する文字の集合。
  */
@@ -118,13 +124,18 @@ export type MentionRange = {
  *
  * @param text - 解析対象のテキスト
  * @param persons - 照合に使用する人物リスト
+ * @param presorted - true の場合、persons はすでに名前の長さ降順にソートされているとみなしてソートをスキップする
+ *                    入力中のレンダリングなど高頻度の呼び出し時に useMemo でソート済みリストを渡すことで O(N log N) を削減できる
  * @returns 有効なメンションの位置情報リスト
  */
-export function findMentionRanges(text: string, persons: Person[]): MentionRange[] {
+export function findMentionRanges(text: string, persons: Person[], presorted = false): MentionRange[] {
   if (!text || persons.length === 0) return [];
 
   const ranges: MentionRange[] = [];
-  const sortedPersons = [...persons].sort((a, b) => b.name.length - a.name.length);
+  // presorted=true の場合はソートをスキップしてコストを削減する
+  const sortedPersons = presorted
+    ? persons
+    : [...persons].sort((a, b) => b.name.length - a.name.length);
 
   let i = 0;
   while (i < text.length) {
