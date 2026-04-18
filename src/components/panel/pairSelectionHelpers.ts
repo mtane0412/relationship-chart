@@ -29,10 +29,9 @@ export function getDirectionIndicator(type: RelationshipType, isReversed: boolea
  */
 export function getPlaceholder(type: RelationshipType, isReverse = false, hasItem = false): string {
   if (hasItem) {
-    if (type === 'one-way') return '例: 所有、使用';
-    if (type === 'bidirectional') return '例: 所有、使用';
+    // dual-directed のみ方向別に異なるプレースホルダーを返す
     if (type === 'dual-directed') return isReverse ? '例: 使用' : '例: 所有';
-    if (type === 'undirected') return '例: 所有、使用';
+    return '例: 所有、使用';
   }
   if (type === 'one-way') return '例: 片想い、憧れ';
   if (type === 'bidirectional') return '例: 友人、親子、同僚';

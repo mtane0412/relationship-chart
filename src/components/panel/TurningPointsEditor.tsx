@@ -6,6 +6,7 @@
 
 'use client';
 
+import { useCallback } from 'react';
 import { nanoid } from 'nanoid';
 
 /** ターニングポイントの行（ローカルステート用） */
@@ -30,17 +31,17 @@ export type TurningPointsEditorProps = {
  * 行の追加・削除・編集を提供する
  */
 export function TurningPointsEditor({ value, onChange }: TurningPointsEditorProps) {
-  const handleAdd = () => {
+  const handleAdd = useCallback(() => {
     onChange([...value, { id: nanoid(), at: '', note: '' }]);
-  };
+  }, [value, onChange]);
 
-  const handleRemove = (id: string) => {
+  const handleRemove = useCallback((id: string) => {
     onChange(value.filter((row) => row.id !== id));
-  };
+  }, [value, onChange]);
 
-  const handleChange = (id: string, field: 'at' | 'note', text: string) => {
+  const handleChange = useCallback((id: string, field: 'at' | 'note', text: string) => {
     onChange(value.map((row) => (row.id === id ? { ...row, [field]: text } : row)));
-  };
+  }, [value, onChange]);
 
   return (
     <div className="space-y-2">

@@ -34,7 +34,8 @@ export function TagChipInput({ value, onChange, suggestions, datalistId: datalis
 
   const addTag = (raw: string) => {
     const tag = raw.trim();
-    if (!tag || value.includes(tag)) return;
+    // 大文字・小文字を区別せず重複チェックし、元のケースを保持して追加する
+    if (!tag || value.some((t) => t.toLowerCase() === tag.toLowerCase())) return;
     onChange([...value, tag]);
     setInputValue('');
   };

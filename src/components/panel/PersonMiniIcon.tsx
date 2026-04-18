@@ -29,7 +29,7 @@ export function PersonMiniIcon({ person }: { person: Person }) {
   }
   return (
     <div className={`w-6 h-6 ${borderRadius} bg-gray-300 flex items-center justify-center text-gray-600 text-xs font-semibold border border-gray-300`}>
-      {person.name.charAt(0).toUpperCase() || '?'}
+      {person.name?.charAt(0).toUpperCase() || '?'}
     </div>
   );
 }

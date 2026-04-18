@@ -134,7 +134,7 @@ describe('TagChipInput', () => {
   });
 
   describe('IME対応', () => {
-    it('IME変換中のEnterキーはタグ追加をしない', async () => {
+    it('IME変換中のEnterキーはタグ追加をしない', () => {
       const onChange = vi.fn();
       render(
         <TagChipInput
@@ -144,6 +144,8 @@ describe('TagChipInput', () => {
         />
       );
       const input = screen.getByLabelText('タグを追加');
+      // 入力中の文字をセット（IME変換中を想定）
+      Object.defineProperty(input, 'value', { value: 'ともだち', writable: true });
       // isComposing=true のキーダウンイベントをシミュレート
       const keyDownEvent = new KeyboardEvent('keydown', {
         key: 'Enter',
@@ -152,6 +154,7 @@ describe('TagChipInput', () => {
       });
       Object.defineProperty(keyDownEvent, 'isComposing', { value: true });
       input.dispatchEvent(keyDownEvent);
+      // IME変換中はタグが追加されない
       expect(onChange).not.toHaveBeenCalled();
     });
   });

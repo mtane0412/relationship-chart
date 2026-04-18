@@ -201,23 +201,23 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
       // tags
       setTags(existingRelationship.tags);
 
-      // symmetric（null はそのまま null として同期する）
+      // symmetric（undefined を防ぐため ?? null でフォールバック）
       const sym = existingRelationship.symmetric;
-      setCloseness(sym.closeness);
-      setTrust(sym.trust);
-      setTension(sym.tension);
-      setSecrecy(sym.secrecy);
+      setCloseness(sym.closeness ?? null);
+      setTrust(sym.trust ?? null);
+      setTension(sym.tension ?? null);
+      setSecrecy(sym.secrecy ?? null);
       setKinship(sym.kinship);
 
       // 方向プロパティ（isReversed を考慮）
       const fwd = isReversed ? existingRelationship.reverse : existingRelationship.forward;
       const rev = isReversed ? existingRelationship.forward : existingRelationship.reverse;
 
-      setFwdAffection(fwd.affection);
+      setFwdAffection(fwd.affection ?? null);
       setFwdAwareness(fwd.awareness ?? null);
       setFwdRole(fwd.role ?? '');
 
-      setRevAffection(rev.affection);
+      setRevAffection(rev.affection ?? null);
       setRevAwareness(rev.awareness ?? null);
       setRevRole(rev.role ?? '');
 
@@ -242,8 +242,12 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
       setTension(null);
       setSecrecy(null);
       setKinship(null);
-      setFwdAffection(null); setFwdAwareness(null); setFwdRole('');
-      setRevAffection(null); setRevAwareness(null); setRevRole('');
+      setFwdAffection(null);
+      setFwdAwareness(null);
+      setFwdRole('');
+      setRevAffection(null);
+      setRevAwareness(null);
+      setRevRole('');
       setNarrativeSummary(''); setNarrativeNotes('');
       setTurningPoints([]);
       setColorOverride(null); setColorPickerEnabled(false);

@@ -84,7 +84,6 @@ export function NullableSlider({
         value={displayValue}
         disabled={isNull}
         onChange={(e) => onChange(Number(e.target.value))}
-        aria-label={label}
         className="w-full disabled:opacity-40"
       />
     </div>

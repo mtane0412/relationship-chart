@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NullableSlider } from './NullableSlider';
 
@@ -118,6 +118,8 @@ describe('NullableSlider', () => {
         />
       );
       expect(screen.getByRole('slider', { name: '親密度' })).not.toBeDisabled();
+      // value が null でないとき、未設定チェックボックスが未チェックになる
+      expect(screen.getByRole('checkbox', { name: '親密度を未設定' })).not.toBeChecked();
     });
   });
 
@@ -154,7 +156,27 @@ describe('NullableSlider', () => {
         />
       );
       await userEvent.click(screen.getByRole('checkbox', { name: '親密度を未設定' }));
+      expect(onChange).toHaveBeenCalledTimes(1);
       expect(onChange).toHaveBeenCalledWith(0.5);
+    });
+
+    it('スライダーの値を変更すると onChange(数値) が呼ばれる', () => {
+      const onChange = vi.fn();
+      render(
+        <NullableSlider
+          label="親密度"
+          value={0.5}
+          min={0}
+          max={1}
+          step={0.05}
+          defaultValue={0.5}
+          onChange={onChange}
+        />
+      );
+      const slider = screen.getByRole('slider', { name: '親密度' });
+      fireEvent.change(slider, { target: { value: '0.8' } });
+      expect(onChange).toHaveBeenCalledTimes(1);
+      expect(onChange).toHaveBeenCalledWith(0.8);
     });
   });
 });
