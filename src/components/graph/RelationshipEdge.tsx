@@ -1,6 +1,12 @@
 /**
  * RelationshipEdgeコンポーネント
- * 人物間の関係を表示するカスタムエッジ
+ * 人物間の関係を表示するカスタムエッジ（v11 プロパティグラフ方式）
+ *
+ * v11 の描画ルール:
+ *   - symmetric: true → 矢印なし（無向表示）
+ *   - symmetric: false → targetノードに矢印（有向表示）
+ *   - label が null の場合は edgeType（エッジ型ラベル）を表示
+ *
  * EdgeLabelRendererを使用してラベルと削除ボタンを表示
  * ノードの境界との交点を計算して最短距離で接続します
  */
@@ -17,7 +23,6 @@ import {
 } from '@xyflow/react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { getEdgeIntersectionPoints } from '@/lib/node-intersection';
-import { calculateLabelPositionOnEdge } from '@/lib/edge-label-position';
 import type { RelationshipEdgeData } from '@/types/graph';
 import { calculateParallelEdgeOffset } from '@/lib/graph-utils';
 
@@ -130,56 +135,6 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
     targetY: offsetTargetY,
   });
 
-  // dual-directed用の追加オフセット（2本の平行線の間隔）
-  const DUAL_DIRECTED_OFFSET = 8;
-
-  // 上側の線（source→target）: ペアオフセット + dual-directedオフセット
-  const topSourceX = offsetSourceX + perpX * DUAL_DIRECTED_OFFSET;
-  const topSourceY = offsetSourceY + perpY * DUAL_DIRECTED_OFFSET;
-  const topTargetX = offsetTargetX + perpX * DUAL_DIRECTED_OFFSET;
-  const topTargetY = offsetTargetY + perpY * DUAL_DIRECTED_OFFSET;
-
-  // 下側の線（target→source）: ペアオフセット - dual-directedオフセット
-  const bottomSourceX = offsetSourceX - perpX * DUAL_DIRECTED_OFFSET;
-  const bottomSourceY = offsetSourceY - perpY * DUAL_DIRECTED_OFFSET;
-  const bottomTargetX = offsetTargetX - perpX * DUAL_DIRECTED_OFFSET;
-  const bottomTargetY = offsetTargetY - perpY * DUAL_DIRECTED_OFFSET;
-
-  // 各線のパスを計算
-  const [topPath] = getStraightPath({
-    sourceX: topSourceX,
-    sourceY: topSourceY,
-    targetX: topTargetX,
-    targetY: topTargetY,
-  });
-
-  const [bottomPath] = getStraightPath({
-    sourceX: bottomTargetX,
-    sourceY: bottomTargetY,
-    targetX: bottomSourceX,
-    targetY: bottomSourceY,
-  });
-
-  // ラベル位置を開始側に寄せる（0.3の比率）
-  const labelRatio = 0.3;
-  // topLabel: source→targetの線で、sourceから0.3の位置（A側）
-  const topLabel = calculateLabelPositionOnEdge(
-    topSourceX,
-    topSourceY,
-    topTargetX,
-    topTargetY,
-    labelRatio
-  );
-  // bottomLabel: target→sourceの線で、targetから0.3の位置（B側）
-  // bottomPathはbottomTarget→bottomSourceなので、その向きで計算
-  const bottomLabel = calculateLabelPositionOnEdge(
-    bottomTargetX,
-    bottomTargetY,
-    bottomSourceX,
-    bottomSourceY,
-    labelRatio
-  );
-
   /**
    * 削除ボタンのクリックハンドラ
    * @param e - マウスイベント
@@ -193,14 +148,10 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
   const { color, strokeWidth: baseStrokeWidth, dashed, markerKey } = edgeData.visual;
 
   // マーカーの設定（選択状態のときは blue マーカーを使用。非選択時は視覚属性のキーを使用）
-  // 'selected' キーの専用マーカーは定義されていないため blue で代替する
   const markerSuffix = selected ? 'blue' : markerKey;
-  const markerEnd =
-    edgeData.displayType === 'undirected' ? undefined : `url(#arrow-${markerSuffix})`;
-  const markerStart =
-    edgeData.displayType === 'bidirectional' || edgeData.displayType === 'dual-directed'
-      ? `url(#arrow-${markerSuffix})`
-      : undefined;
+
+  // v11: symmetric=true → 矢印なし（無向）、symmetric=false → targetに矢印（有向）
+  const markerEnd = edgeData.symmetric ? undefined : `url(#arrow-${markerSuffix})`;
 
   // エッジのスタイル（選択状態・visual から色と太さを適用）
   const strokeColor = selected ? '#3b82f6' : color;
@@ -211,170 +162,64 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
     strokeWidth: selected ? 3.5 : baseStrokeWidth,
     strokeDasharray,
   };
-  const dualDirectedEdgeStyle = {
-    stroke: strokeColor,
-    strokeWidth: selected ? 3 : baseStrokeWidth,
-    strokeDasharray,
-  };
+
+  // 表示ラベル: label が null の場合は edgeType を使用
+  const displayLabel = edgeData.label ?? edgeData.edgeType;
 
   return (
     <>
-      {edgeData.displayType === 'dual-directed' ? (
-        // dual-directed: 2本の平行な片方向矢印
-        <>
-          {/* 上側の線（source→target） */}
-          <BaseEdge
-            id={`${id}-top`}
-            path={topPath}
-            style={dualDirectedEdgeStyle}
-            markerEnd={`url(#arrow-${markerSuffix})`}
-          />
-
-          {/* 下側の線（target→source） */}
-          <BaseEdge
-            id={`${id}-bottom`}
-            path={bottomPath}
-            style={dualDirectedEdgeStyle}
-            markerEnd={`url(#arrow-${markerSuffix})`}
-          />
-        </>
-      ) : (
-        // bidirectional / one-way / undirected: 1本のエッジ
-        <BaseEdge
-          id={id}
-          path={edgePath}
-          style={edgeStyle}
-          markerEnd={markerEnd}
-          markerStart={markerStart}
-        />
-      )}
+      {/* 1本のエッジ（v11ではすべて単線） */}
+      <BaseEdge
+        id={id}
+        path={edgePath}
+        style={edgeStyle}
+        markerEnd={markerEnd}
+      />
 
       {/* ラベルと削除ボタン */}
       <EdgeLabelRenderer>
-        {edgeData.displayType === 'dual-directed' ? (
-          // dual-directed: 2つのラベルを各線の近くに表示
-          <>
-            {/* source→targetのラベル（上側の線、開始側に寄せる） */}
-            {edgeData.forwardLabel && (
-              <div
-                style={{
-                  position: 'absolute',
-                  transform: `translate(-50%, -50%) translate(${topLabel.labelX}px,${topLabel.labelY}px)`,
-                  pointerEvents: 'all',
-                }}
-                className="flex items-center gap-1.5"
-              >
-                <div
-                  className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full shadow-lg border-2 border-blue-200 hover:border-blue-400 hover:shadow-xl transition-all duration-200 cursor-pointer"
-                  onMouseEnter={handleMouseEnter}
-                  onMouseLeave={handleMouseLeave}
-                >
-                  <div className="text-xs font-semibold text-blue-800">
-                    {edgeData.forwardLabel}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* target→sourceのラベル（下側の線、開始側に寄せる） */}
-            {edgeData.reverseLabel && (
-              <div
-                style={{
-                  position: 'absolute',
-                  transform: `translate(-50%, -50%) translate(${bottomLabel.labelX}px,${bottomLabel.labelY}px)`,
-                  pointerEvents: 'all',
-                }}
-                className="flex items-center gap-1.5"
-              >
-                <div
-                  className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full shadow-lg border-2 border-blue-200 hover:border-blue-400 hover:shadow-xl transition-all duration-200 cursor-pointer"
-                  onMouseEnter={handleMouseEnter}
-                  onMouseLeave={handleMouseLeave}
-                >
-                  <div className="text-xs font-semibold text-blue-800">
-                    {edgeData.reverseLabel}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 削除ボタン（中央） */}
+        <div
+          style={{
+            position: 'absolute',
+            transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+            pointerEvents: 'all',
+          }}
+          className="flex items-center gap-1.5"
+        >
+          {/* ラベル表示 */}
+          {displayLabel && (
             <div
-              style={{
-                position: 'absolute',
-                transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
-                pointerEvents: 'all',
-              }}
+              className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full shadow-lg border-2 border-blue-200 hover:border-blue-400 hover:shadow-xl transition-all duration-200 cursor-pointer"
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
             >
-              <button
-                onClick={handleDelete}
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
-                className={`w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 hover:scale-110 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300 ${
-                  isHovered ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-                }`}
-                aria-label="関係を削除"
-                type="button"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  className="w-3.5 h-3.5"
-                >
-                  <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-                </svg>
-              </button>
+              <div className="text-xs font-semibold text-blue-800">
+                {displayLabel}
+              </div>
             </div>
-          </>
-        ) : (
-          // bidirectional / one-way / undirected: 1つのラベルを中央に表示
-          // ラベルの有無に関わらず削除ボタンは常に表示する（ラベルなしエッジも削除可能にする）
-          <>
-            <div
-              style={{
-                position: 'absolute',
-                transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
-                pointerEvents: 'all',
-              }}
-              className="flex items-center gap-1.5"
-            >
-              {/* 存在するラベルを表示（forwardLabel優先、なければreverseLabel） */}
-              {(edgeData.forwardLabel || edgeData.reverseLabel) && (
-                <div
-                  className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full shadow-lg border-2 border-blue-200 hover:border-blue-400 hover:shadow-xl transition-all duration-200 cursor-pointer"
-                  onMouseEnter={handleMouseEnter}
-                  onMouseLeave={handleMouseLeave}
-                >
-                  <div className="text-xs font-semibold text-blue-800">
-                    {edgeData.forwardLabel || edgeData.reverseLabel}
-                  </div>
-                </div>
-              )}
+          )}
 
-              {/* 削除ボタン（ラベルの有無に関わらず表示） */}
-              <button
-                onClick={handleDelete}
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
-                className={`w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 hover:scale-110 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300 ${
-                  isHovered ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-                }`}
-                aria-label="関係を削除"
-                type="button"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  className="w-3.5 h-3.5"
-                >
-                  <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-                </svg>
-              </button>
-            </div>
-          </>
-        )}
+          {/* 削除ボタン（ラベルの有無に関わらず表示） */}
+          <button
+            onClick={handleDelete}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            className={`w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 hover:scale-110 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300 ${
+              isHovered ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+            }`}
+            aria-label="関係を削除"
+            type="button"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="w-3.5 h-3.5"
+            >
+              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+            </svg>
+          </button>
+        </div>
       </EdgeLabelRenderer>
     </>
   );
