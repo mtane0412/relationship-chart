@@ -83,7 +83,7 @@ describe('PersonRegistrationModal', () => {
   });
 });
 
-describe('PersonRegistrationModal - 種別選択', () => {
+describe('PersonRegistrationModal - ラベル入力', () => {
   const mockOnSubmit = vi.fn();
   const mockOnCancel = vi.fn();
 
@@ -92,7 +92,7 @@ describe('PersonRegistrationModal - 種別選択', () => {
   });
 
   // rawImageSrc=""のため、ImageCropperがレンダリングされず、Canvas APIに依存しない
-  it('デフォルトで「人物」が選択されている', async () => {
+  it('デフォルトで「人物」ラベルが設定されていること', async () => {
     render(
       <PersonRegistrationModal
         isOpen={true}
@@ -102,15 +102,16 @@ describe('PersonRegistrationModal - 種別選択', () => {
       />
     );
 
-    // クロップ後の画面に遷移するためのモック操作（実際はskipなので実行されない）
-    // 名前入力画面でタイトルが「ノードを登録」であることを確認
-    expect(await screen.findByText('ノードを登録')).toBeInTheDocument();
+    // TagChipInput にデフォルトラベル '人物' のチップが表示されていること
+    expect(await screen.findByText('人物')).toBeInTheDocument();
+    // タグ入力フィールドが表示されていること
+    expect(screen.getByLabelText('タグを追加')).toBeInTheDocument();
   });
 
   // rawImageSrc=""のため、ImageCropperがレンダリングされず、Canvas APIに依存しない
-  it('「物」を選択してもタイトルは「ノードを登録」のまま', async () => {
+  it('ラベルを変更してもタイトルは「ノードを登録」のまま', async () => {
     const user = userEvent.setup();
-    const { container } = render(
+    render(
       <PersonRegistrationModal
         isOpen={true}
         rawImageSrc=""
@@ -119,17 +120,17 @@ describe('PersonRegistrationModal - 種別選択', () => {
       />
     );
 
-    // 種別トグルで「物」を選択（value属性で検索）
-    const itemToggle = container.querySelector('input[type="radio"][value="item"]');
-    expect(itemToggle).toBeInTheDocument();
-    await user.click(itemToggle!);
+    // タグ入力フィールドに '物' を入力して追加
+    const tagInput = await screen.findByLabelText('タグを追加');
+    await user.type(tagInput, '物');
+    await user.keyboard('{Enter}');
 
     // タイトルが「ノードを登録」のままであることを確認
     expect(screen.getByText('ノードを登録')).toBeInTheDocument();
   });
 
   // rawImageSrc=""のため、ImageCropperがレンダリングされず、Canvas APIに依存しない
-  it('onSubmitにlabels=["人物"]が渡される', async () => {
+  it('onSubmitにlabels=["人物"]が渡される（デフォルト）', async () => {
     const user = userEvent.setup();
     render(
       <PersonRegistrationModal
@@ -140,7 +141,7 @@ describe('PersonRegistrationModal - 種別選択', () => {
       />
     );
 
-    // クロップ後の画面に遷移し、名前を入力して登録
+    // デフォルトのラベルのまま、名前を入力して登録
     const nameInput = await screen.findByLabelText(/名前/i);
     await user.type(nameInput, '山田太郎');
 
@@ -155,7 +156,7 @@ describe('PersonRegistrationModal - 種別選択', () => {
   // rawImageSrc=""のため、ImageCropperがレンダリングされず、Canvas APIに依存しない
   it('onSubmitにlabels=["物"]が渡される', async () => {
     const user = userEvent.setup();
-    const { container } = render(
+    render(
       <PersonRegistrationModal
         isOpen={true}
         rawImageSrc=""
@@ -164,10 +165,14 @@ describe('PersonRegistrationModal - 種別選択', () => {
       />
     );
 
-    // 「物」を選択（value属性で検索）
-    const itemToggle = container.querySelector('input[type="radio"][value="item"]');
-    expect(itemToggle).toBeInTheDocument();
-    await user.click(itemToggle!);
+    // デフォルトの '人物' チップを削除
+    const deleteButton = await screen.findByLabelText('人物を削除');
+    await user.click(deleteButton);
+
+    // '物' を追加
+    const tagInput = screen.getByLabelText('タグを追加');
+    await user.type(tagInput, '物');
+    await user.keyboard('{Enter}');
 
     // 名前を入力して登録
     const nameInput = screen.getByLabelText(/名前/i);

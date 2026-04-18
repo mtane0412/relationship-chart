@@ -6,9 +6,13 @@
 
 import { useState, useEffect, useRef, useCallback, type ChangeEvent } from 'react';
 import ImageCropper from '@/components/ui/ImageCropper';
+import { TagChipInput } from '@/components/ui/TagChipInput';
 import { readFileAsDataUrl } from '@/lib/image-utils';
 import { MAX_PERSON_NAME_LENGTH } from '@/lib/validation-constants';
 import { deriveNodeVisual } from '@/lib/node-visual';
+
+/** ラベル入力欄に表示する候補 */
+const LABEL_SUGGESTIONS = ['人物', '物'] as const;
 
 /**
  * PersonRegistrationModalのProps
@@ -316,49 +320,14 @@ export function PersonRegistrationModal({
           ノードを登録
         </h2>
 
-        {/* 種別選択トグル */}
+        {/* ラベル入力（TagChipInput で自由入力、候補: 人物・物） */}
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">種別</label>
-          <div role="radiogroup" className="flex gap-2">
-            <label className="flex-1">
-              <input
-                type="radio"
-                name="labels"
-                value="person"
-                checked={!labels.includes('物')}
-                onChange={() => setLabels(['人物'])}
-                className="sr-only"
-              />
-              <div
-                className={`px-4 py-2 text-center rounded-md border-2 cursor-pointer transition-all ${
-                  !labels.includes('物')
-                    ? 'border-blue-500 bg-blue-50 text-blue-700 font-semibold'
-                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                人物
-              </div>
-            </label>
-            <label className="flex-1">
-              <input
-                type="radio"
-                name="labels"
-                value="item"
-                checked={labels.includes('物')}
-                onChange={() => setLabels(['物'])}
-                className="sr-only"
-              />
-              <div
-                className={`px-4 py-2 text-center rounded-md border-2 cursor-pointer transition-all ${
-                  labels.includes('物')
-                    ? 'border-blue-500 bg-blue-50 text-blue-700 font-semibold'
-                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                物
-              </div>
-            </label>
-          </div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">ラベル</label>
+          <TagChipInput
+            value={labels}
+            onChange={setLabels}
+            suggestions={LABEL_SUGGESTIONS}
+          />
         </div>
 
         {/* 画像編集 */}
