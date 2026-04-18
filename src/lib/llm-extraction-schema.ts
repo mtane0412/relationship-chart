@@ -5,7 +5,9 @@
  * 主な特徴:
  *   - sourceId / targetId の代わりに sourcePersonName / targetPersonName（名前ベース）
  *   - id / createdAt / updatedAt / colorOverride は除外（ストア側で自動生成）
- *   - z.preprocess を使用しない（LLM は null ではなく空配列を出力できる）
+ *   - narrative.turningPoints は z.preprocess を使用しない（LLM は空配列を出力する）
+ *   - properties フィールドは z.preprocess で null/undefined を {} に正規化する
+ *     （LLM が properties を省略・null 出力した場合の安全策）
  *
  * z.toJSONSchema() による JSON Schema 変換に対応している。
  */

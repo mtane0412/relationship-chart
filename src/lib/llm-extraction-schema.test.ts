@@ -212,23 +212,27 @@ describe('getLlmExtractionJsonSchema', () => {
 
   it('全オブジェクトに required が設定されていること（Azure/OpenAI strict mode 対応）', () => {
     // Azure strict mode は全 object に required 配列が必要
-    const schema = getLlmExtractionJsonSchema() as Record<string, unknown>;
+    type JsonSchemaObj = Record<string, unknown>;
+    const schema = getLlmExtractionJsonSchema() as JsonSchemaObj;
+    const schemaProps = schema.properties as JsonSchemaObj;
+    const relationships = schemaProps.relationships as JsonSchemaObj;
+    const relItems = relationships.items as JsonSchemaObj;
+
     // トップレベルに required が設定されていること
     expect(Array.isArray(schema.required)).toBe(true);
     // relationships の items（LlmRelationshipSchema）に required が設定されていること
-    const relItems = (schema as Record<string, Record<string, Record<string, Record<string, unknown>>>>)
-      .properties?.relationships?.items;
-    expect(Array.isArray((relItems as Record<string, unknown>)?.required)).toBe(true);
+    expect(Array.isArray(relItems.required)).toBe(true);
   });
 
   it('relationships.items.properties.properties に required が含まれること（Azure strict mode 対応）', () => {
     // Azure エラーログ: context=('properties','relationships','items','properties','properties')
     // で required が不足していた問題への対応
-    const schema = getLlmExtractionJsonSchema() as Record<string, unknown>;
-    const relItems = (schema as Record<string, Record<string, Record<string, Record<string, unknown>>>>)
-      .properties?.relationships?.items as Record<string, unknown> | undefined;
-    const propSchema = (relItems?.properties as Record<string, unknown> | undefined)
-      ?.properties as Record<string, unknown> | undefined;
+    type JsonSchemaObj = Record<string, unknown>;
+    const schema = getLlmExtractionJsonSchema() as JsonSchemaObj;
+    const schemaProps = schema.properties as JsonSchemaObj;
+    const relItems = (schemaProps.relationships as JsonSchemaObj).items as JsonSchemaObj;
+    const relItemsProps = relItems.properties as JsonSchemaObj;
+    const propSchema = relItemsProps.properties as JsonSchemaObj;
 
     expect(Array.isArray(propSchema?.required)).toBe(true);
     // closeness が required に含まれていること（Azure エラーメッセージで指摘されたキー）
