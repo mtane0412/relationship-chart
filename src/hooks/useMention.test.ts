@@ -9,6 +9,17 @@ import { renderHook, act } from '@testing-library/react';
 import { useMention } from './useMention';
 import type { Person } from '@/types/person';
 
+/**
+ * テスト用キーボードイベントを生成するヘルパー
+ */
+function makeKeyEvent(key: string): React.KeyboardEvent {
+  return {
+    key,
+    preventDefault: () => {},
+    nativeEvent: { isComposing: false },
+  } as unknown as React.KeyboardEvent;
+}
+
 const テスト人物リスト: Person[] = [
   { id: 'id-alice', name: '田中花子', createdAt: '2024-01-01T00:00:00.000Z' },
   { id: 'id-bob', name: '山田太郎', createdAt: '2024-01-01T00:00:00.000Z' },
@@ -27,7 +38,7 @@ describe('useMention', () => {
     const { result } = renderHook(() => useMention(テスト人物リスト));
 
     act(() => {
-      result.current.handleTextChange('こんにちは @', 9);
+      result.current.handleTextChange('こんにちは @', 7);
     });
 
     expect(result.current.mentionQuery).toBe('');
@@ -55,7 +66,7 @@ describe('useMention', () => {
     expect(result.current.mentionQuery).toBe('田中');
 
     act(() => {
-      result.current.handleTextChange('@田中 ', 5);
+      result.current.handleTextChange('@田中 ', 4);
     });
     expect(result.current.mentionQuery).toBeNull();
   });
@@ -131,11 +142,7 @@ describe('useMention', () => {
       });
       // 初期は 0 なので ArrowDown で 1 になる
       act(() => {
-        result.current.handleMentionKeyDown({
-          key: 'ArrowDown',
-          preventDefault: () => {},
-          nativeEvent: { isComposing: false },
-        } as unknown as React.KeyboardEvent);
+        result.current.handleMentionKeyDown(makeKeyEvent('ArrowDown'));
       });
 
       expect(result.current.selectedIndex).toBe(1);
@@ -149,31 +156,19 @@ describe('useMention', () => {
       });
       // 初期は 0 → ArrowDown で 1
       act(() => {
-        result.current.handleMentionKeyDown({
-          key: 'ArrowDown',
-          preventDefault: () => {},
-          nativeEvent: { isComposing: false },
-        } as unknown as React.KeyboardEvent);
+        result.current.handleMentionKeyDown(makeKeyEvent('ArrowDown'));
       });
       expect(result.current.selectedIndex).toBe(1);
 
       // ArrowUp で 0 に戻る
       act(() => {
-        result.current.handleMentionKeyDown({
-          key: 'ArrowUp',
-          preventDefault: () => {},
-          nativeEvent: { isComposing: false },
-        } as unknown as React.KeyboardEvent);
+        result.current.handleMentionKeyDown(makeKeyEvent('ArrowUp'));
       });
       expect(result.current.selectedIndex).toBe(0);
 
       // 0 以下にはならない（下限は 0）
       act(() => {
-        result.current.handleMentionKeyDown({
-          key: 'ArrowUp',
-          preventDefault: () => {},
-          nativeEvent: { isComposing: false },
-        } as unknown as React.KeyboardEvent);
+        result.current.handleMentionKeyDown(makeKeyEvent('ArrowUp'));
       });
       expect(result.current.selectedIndex).toBe(0);
     });
@@ -187,11 +182,7 @@ describe('useMention', () => {
       expect(result.current.mentionQuery).toBe('');
 
       act(() => {
-        result.current.handleMentionKeyDown({
-          key: 'Escape',
-          preventDefault: () => {},
-          nativeEvent: { isComposing: false },
-        } as unknown as React.KeyboardEvent);
+        result.current.handleMentionKeyDown(makeKeyEvent('Escape'));
       });
       expect(result.current.mentionQuery).toBeNull();
     });

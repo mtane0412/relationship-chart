@@ -53,7 +53,7 @@ const mockUseExtractRelationships = vi.mocked(useExtractRelationships);
 
 describe('ChatInputBar', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it('テキスト入力エリアが表示されること', () => {
@@ -200,6 +200,7 @@ describe('ChatInputBar', () => {
 
     await waitFor(() => {
       expect(mockAddPerson).toHaveBeenCalled();
+      expect(mockAddRelationship).toHaveBeenCalled();
       expect(mockReset).toHaveBeenCalled();
     });
   });

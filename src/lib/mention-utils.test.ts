@@ -146,7 +146,7 @@ describe('findCommonPrefix', () => {
     expect(findCommonPrefix(['田中', '田中'])).toBe('田中');
   });
 
-  it('大文字小文字が異なる場合は小文字プレフィックスで返す', () => {
+  it('元のケースを保持して共通プレフィックスを返す', () => {
     // 'Alice' と 'Alicia' → 'Alic' が共通
     expect(findCommonPrefix(['Alice', 'Alicia'])).toBe('Alic');
   });

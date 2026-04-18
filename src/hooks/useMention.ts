@@ -84,7 +84,7 @@ export function useMention(persons: Person[]): UseMentionReturn {
       setSelectedIndex(0);
     } else {
       setMentionQuery(null);
-      setSelectedIndex(0);
+      setSelectedIndex(-1);
     }
   }, []);
 
@@ -100,16 +100,14 @@ export function useMention(persons: Person[]): UseMentionReturn {
       setSelectedIndex(-1);
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedIndex((prev) => {
-        // 上限チェックは MentionDropdown 側で実施する（候補数は呼び出し時点では不明）
-        return prev + 1;
-      });
+      // 上限は候補総数（「新規作成」オプション込みで filteredPersons.length が最大インデックス）
+      setSelectedIndex((prev) => Math.min(prev + 1, filteredPersons.length));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       // 下限は 0（最初の候補から上には行かない）
       setSelectedIndex((prev) => Math.max(prev - 1, 0));
     }
-  }, [mentionQuery]);
+  }, [mentionQuery, filteredPersons.length]);
 
   /**
    * 人物を選択してテキストにメンションを挿入する

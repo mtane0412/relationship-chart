@@ -43,6 +43,7 @@ export function ExtractionPreviewPanel({
       role="dialog"
       aria-modal="false"
       aria-labelledby="extraction-preview-title"
+      onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); onCancel(); } }}
     >
       {/* ヘッダー */}
       <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
@@ -67,8 +68,8 @@ export function ExtractionPreviewPanel({
             <p className="text-sm text-gray-400 ml-5">なし</p>
           ) : (
             <ul className="space-y-1">
-              {result.persons.map((person, i) => (
-                <li key={i} className="flex items-center gap-2 text-sm text-gray-700 ml-1">
+              {result.persons.map((person) => (
+                <li key={person.name} className="flex items-center gap-2 text-sm text-gray-700 ml-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
                   {person.name}
                   {person.labels?.includes('物') && (

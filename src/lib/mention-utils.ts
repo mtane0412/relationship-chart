@@ -9,6 +9,27 @@ import type { Person } from '@/types/person';
 import { normalizeName } from './person-matching';
 
 /**
+ * メンションの区切り文字セット
+ * @ の後の名前の終端として認識する文字の集合。
+ */
+const MENTION_TERMINATORS = new Set([
+  ' ', '\t', '\n', '\r',
+  '\u3000',             // 全角スペース
+  '。', '、', '.', ',', // 句読点
+  '@',                  // 別のメンション開始
+]);
+
+/**
+ * 与えられた文字がメンションの区切り文字かどうかを判定する
+ *
+ * @param char - 検査する文字（undefined の場合はテキスト末尾 = 区切りとみなす）
+ * @returns 区切り文字なら true
+ */
+function isMentionTerminator(char: string | undefined): boolean {
+  return char === undefined || MENTION_TERMINATORS.has(char);
+}
+
+/**
  * extractMentionQuery の戻り値型
  */
 export type MentionQueryResult = {
@@ -49,15 +70,15 @@ export function extractMentionQuery(
   for (let i = beforeCursor.length - 1; i >= 0; i--) {
     const char = beforeCursor[i];
 
-    // スペースや改行に当たったら、メンション範囲外と判断
-    if (char === ' ' || char === '\n' || char === '\r' || char === '\u3000') {
-      return null;
-    }
-
     // @ を見つけたらクエリを返す
     if (char === '@') {
       const query = beforeCursor.slice(i + 1);
       return { query, startIndex: i };
+    }
+
+    // 区切り文字に当たったら、メンション範囲外と判断
+    if (isMentionTerminator(char)) {
+      return null;
     }
   }
 
@@ -121,19 +142,7 @@ export function findMentionRanges(text: string, persons: Person[]): MentionRange
 
       if (normalizedAfterAt.startsWith(normalizedName)) {
         const endIndex = i + 1 + person.name.length;
-        const charAfterName = text[endIndex];
-        if (
-          charAfterName === undefined ||
-          charAfterName === ' ' ||
-          charAfterName === '\n' ||
-          charAfterName === '\r' ||
-          charAfterName === '\u3000' ||
-          charAfterName === '。' ||
-          charAfterName === '、' ||
-          charAfterName === '.' ||
-          charAfterName === ',' ||
-          charAfterName === '@'
-        ) {
+        if (isMentionTerminator(text[endIndex])) {
           ranges.push({ start: i, end: endIndex });
           i = endIndex;
           matched = true;
@@ -215,21 +224,9 @@ export function parseMentions(text: string, persons: Person[]): ParseMentionsRes
 
       // 正規化した名前で前方一致を確認
       if (normalizedAfterAt.startsWith(normalizedName)) {
-        // 名前の後が文字でないこと（単語境界チェック）を確認
+        // 名前の後が区切り文字であること（単語境界チェック）を確認
         const endIndex = i + 1 + person.name.length;
-        const charAfterName = text[endIndex];
-        if (
-          charAfterName === undefined ||
-          charAfterName === ' ' ||
-          charAfterName === '\n' ||
-          charAfterName === '\r' ||
-          charAfterName === '\u3000' ||
-          charAfterName === '。' ||
-          charAfterName === '、' ||
-          charAfterName === '.' ||
-          charAfterName === ',' ||
-          charAfterName === '@'
-        ) {
+        if (isMentionTerminator(text[endIndex])) {
           referencedIds.add(person.id);
           i = endIndex;
           matched = true;

@@ -155,6 +155,35 @@ export function ChatInputBar() {
   );
 
   /**
+   * 「新規作成」を選択したとき: 人物をストアに追加してメンションを挿入する
+   */
+  const handleCreateNew = useCallback(
+    (name: string) => {
+      // ストアに人物を追加（即座にキャンバスにノードが表示される）
+      addPerson({ name, labels: undefined });
+
+      // 最新のストア状態から作成した人物を取得（同名が複数いる場合は最新を使用）
+      const updatedPersons = useGraphStore.getState().persons;
+      const newPerson = [...updatedPersons]
+        .filter((p: Person) => p.name === name)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+      if (!newPerson) return;
+
+      const cursorPos = textareaRef.current?.selectionStart ?? text.length;
+      const { newText, newCursorPos } = selectMention(newPerson, text, cursorPos);
+      setText(newText);
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.selectionStart = newCursorPos;
+          textareaRef.current.selectionEnd = newCursorPos;
+          adjustHeight();
+        }
+      }, 0);
+    },
+    [addPerson, text, selectMention, adjustHeight]
+  );
+
+  /**
    * キーダウンハンドラ
    * - @メンションドロップダウン表示中: ナビゲーションキーを処理
    * - Enter: 送信（IME 変換中は無視）
@@ -262,42 +291,18 @@ export function ChatInputBar() {
     },
     [
       mentionQuery,
+      mentionStartIndex,
       selectedIndex,
       filteredPersons,
       text,
       extractionResult,
       handleMentionKeyDown,
+      handleTextChange,
+      handleCreateNew,
       selectMention,
       reset,
       adjustHeight,
     ]
-  );
-
-  /**
-   * 「新規作成」を選択したとき: 人物をストアに追加してメンションを挿入する
-   */
-  const handleCreateNew = useCallback(
-    (name: string) => {
-      // ストアに人物を追加（即座にキャンバスにノードが表示される）
-      addPerson({ name, labels: undefined });
-
-      // 最新のストア状態から作成した人物を取得
-      const updatedPersons = useGraphStore.getState().persons;
-      const newPerson = updatedPersons.find((p: Person) => p.name === name);
-      if (!newPerson) return;
-
-      const cursorPos = textareaRef.current?.selectionStart ?? text.length;
-      const { newText, newCursorPos } = selectMention(newPerson, text, cursorPos);
-      setText(newText);
-      setTimeout(() => {
-        if (textareaRef.current) {
-          textareaRef.current.selectionStart = newCursorPos;
-          textareaRef.current.selectionEnd = newCursorPos;
-          adjustHeight();
-        }
-      }, 0);
-    },
-    [addPerson, text, selectMention, adjustHeight]
   );
 
   /**

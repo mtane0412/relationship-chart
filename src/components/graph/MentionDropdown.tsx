@@ -103,7 +103,7 @@ export function MentionDropdown({
         `[id="mention-option-${selectedIndex}"]`
       ) as HTMLElement | null;
       if (item) {
-        item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        item.scrollIntoView({ block: 'nearest', behavior: 'auto' });
       }
     }
   }, [selectedIndex]);
@@ -111,7 +111,6 @@ export function MentionDropdown({
   if (totalOptions === 0) return null;
 
   return (
-    // 外側クリックで閉じる（ペアレントコンポーネントで管理するため onClose を提供）
     <div
       className="absolute bottom-full mb-1 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden z-50"
       role="presentation"
