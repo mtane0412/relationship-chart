@@ -292,12 +292,16 @@ export function PersonRegistrationModal({
 
   if (!isOpen) return null;
 
+  // labels から視覚属性を導出する（1回だけ計算してレンダリング全体で使い回す）
+  const visual = deriveNodeVisual(labels);
+  const shapeClass = visual.shape === 'rounded-rect' ? 'rounded-xl' : 'rounded-full';
+
   // クロップ中の場合はImageCropperを表示
   if (showCropper && rawImageForCrop) {
     return (
       <ImageCropper
         imageSrc={rawImageForCrop}
-        cropShape={deriveNodeVisual(labels).cropShape}
+        cropShape={visual.cropShape}
         onComplete={handleCropComplete}
         onCancel={handleCropCancel}
       />
@@ -371,7 +375,7 @@ export function PersonRegistrationModal({
               className={`
                 w-32 h-32 mx-auto cursor-pointer
                 transition-all duration-200
-                ${deriveNodeVisual(labels).shape === 'rounded-rect' ? 'rounded-xl' : 'rounded-full'}
+                ${shapeClass}
                 border-4 border-gray-200 hover:border-gray-300
                 shadow-md
               `}
@@ -380,10 +384,10 @@ export function PersonRegistrationModal({
                 <img
                   src={croppedImageDataUrl}
                   alt={name || 'プレビュー'}
-                  className={`w-full h-full object-cover ${deriveNodeVisual(labels).shape === 'rounded-rect' ? 'rounded-xl' : 'rounded-full'}`}
+                  className={`w-full h-full object-cover ${shapeClass}`}
                 />
               ) : (
-                <div className={`w-full h-full bg-gray-400 flex items-center justify-center ${deriveNodeVisual(labels).shape === 'rounded-rect' ? 'rounded-xl' : 'rounded-full'}`}>
+                <div className={`w-full h-full bg-gray-400 flex items-center justify-center ${shapeClass}`}>
                   <span className="text-white text-4xl font-bold">
                     {name ? name.charAt(0).toUpperCase() : '?'}
                   </span>

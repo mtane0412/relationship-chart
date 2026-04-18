@@ -205,14 +205,15 @@ function buildChartFromState(state: GraphState): Chart | null {
 }
 
 /**
- * IndexedDB からロードした Chart を v10 形式に正規化する。
+ * IndexedDB からロードした Chart 全体を v10 形式に正規化する。
+ * relationships（v8→v9）と persons（v9→v10 labels）の両方を対象とする。
  * `schemaVersion` が未定義または 9 未満の場合に `migrateV8ToV9` を適用し、
  * 9 未満の場合は `migrateV9ToV10` も適用する。v10 以降のデータはそのまま返す。
  *
  * @param chart - IndexedDB からロードした Chart（任意のスキーマバージョン）
  * @returns v10 形式に正規化された Chart（schemaVersion: 10 付き）
  */
-function normalizeChartRelationships(chart: Chart): Chart {
+function normalizeChart(chart: Chart): Chart {
   // v10 以降は変換不要
   if ((chart.schemaVersion ?? 0) >= 10) {
     return chart;
@@ -765,7 +766,7 @@ export const useGraphStore = create<GraphStore>()(
           if (!rawChart) {
             throw new Error(`Chart not found: ${targetChartId}`);
           }
-          const chart = normalizeChartRelationships(rawChart);
+          const chart = normalizeChart(rawChart);
           // v8→v9 変換が行われた場合は IndexedDB に書き戻す（次回ロード時の再変換を防ぐ）
           if (rawChart.schemaVersion !== chart.schemaVersion) {
             await saveChart(chart);
@@ -876,7 +877,7 @@ export const useGraphStore = create<GraphStore>()(
           if (!rawChart) {
             throw new Error(`Chart not found: ${chartId}`);
           }
-          const chart = normalizeChartRelationships(rawChart);
+          const chart = normalizeChart(rawChart);
           // v8→v9 変換が行われた場合は IndexedDB に書き戻す（次回ロード時の再変換を防ぐ）
           if (rawChart.schemaVersion !== chart.schemaVersion) {
             await saveChart(chart);
