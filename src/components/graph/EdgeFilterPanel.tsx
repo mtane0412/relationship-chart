@@ -11,7 +11,7 @@
 import { memo, useMemo, useCallback } from 'react';
 import { Panel } from '@xyflow/react';
 import { useGraphStore } from '@/stores/useGraphStore';
-import type { EdgePredicate, RelationshipV9 } from '@/types/relationship';
+import type { EdgePredicate } from '@/types/relationship';
 
 /**
  * パネル上部のオフセット量
@@ -144,7 +144,7 @@ export const EdgeFilterPanel = memo(() => {
   // 相関図全体で使用されているユニークなタグを集計する
   const allTags = useMemo(() => {
     const tagSet = new Set<string>();
-    for (const rel of relationships as unknown as RelationshipV9[]) {
+    for (const rel of relationships) {
       // rel.tags が undefined の場合は空配列にフォールバックする（型の不整合への防御）
       for (const tag of rel.tags ?? []) {
         tagSet.add(tag);
@@ -197,19 +197,6 @@ export const EdgeFilterPanel = memo(() => {
     updateEdgeFilter({ predicates: next });
   }, [edgeFilter.predicates, updateEdgeFilter]);
 
-  /**
-   * 血縁ありチェックボックスの変更ハンドラ
-   * ON: predicates に has_kinship を追加
-   * OFF: predicates から has_kinship を除外
-   */
-  const handleHasKinshipToggle = useCallback((checked: boolean) => {
-    const current = edgeFilter.predicates;
-    // upsertPredicate を使って重複追加を防ぐ
-    const next = checked
-      ? upsertPredicate(current, { type: 'has_kinship' })
-      : removePredicate(current, 'has_kinship');
-    updateEdgeFilter({ predicates: next });
-  }, [edgeFilter.predicates, updateEdgeFilter]);
 
   /**
    * フィルター解除ハンドラ
@@ -228,7 +215,6 @@ export const EdgeFilterPanel = memo(() => {
     return null;
   }
 
-  const hasKinship = !!findPredicate(edgeFilter.predicates, 'has_kinship');
 
   return (
     // ShareButton（top-left, 約40px高さ）の下に配置するため top オフセットを指定
@@ -306,17 +292,6 @@ export const EdgeFilterPanel = memo(() => {
               );
             })}
 
-            {/* 血縁ありチェックボックス */}
-            <label className="flex items-center gap-1.5 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={hasKinship}
-                onChange={(e) => handleHasKinshipToggle(e.target.checked)}
-                aria-label="血縁あり"
-                className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span className="text-xs text-gray-700">血縁あり</span>
-            </label>
           </div>
         </details>
       </div>

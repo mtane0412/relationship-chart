@@ -99,10 +99,10 @@ export function ExtractionPreviewPanel({
                   className="text-sm text-gray-700 flex items-center gap-1 flex-wrap ml-1"
                 >
                   <span className="font-medium">{rel.sourcePersonName}</span>
-                  <span className="text-gray-400 text-xs">{rel.isDirected ? '→' : '—'}</span>
+                  <span className="text-gray-400 text-xs">{rel.symmetric ? '—' : '→'}</span>
                   <span className="font-medium">{rel.targetPersonName}</span>
-                  {rel.forward.label && (
-                    <span className="text-xs text-gray-500">（{rel.forward.label}）</span>
+                  {(rel.label ?? rel.type) && (
+                    <span className="text-xs text-gray-500">（{rel.label ?? rel.type}）</span>
                   )}
                   {rel.tags.length > 0 && (
                     <span className="text-xs text-blue-500">[{rel.tags.join(', ')}]</span>

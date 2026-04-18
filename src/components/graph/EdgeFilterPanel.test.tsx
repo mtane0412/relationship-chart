@@ -36,21 +36,21 @@ describe('EdgeFilterPanel', () => {
     beforeEach(() => {
       // 人物と関係を追加する
       const store = useGraphStore.getState();
-      store.addPerson({ name: '山田太郎' });
-      store.addPerson({ name: '佐藤花子' });
+      store.addPerson({ name: '山田太郎', labels: ['人物'], properties: {} });
+      store.addPerson({ name: '佐藤花子', labels: ['人物'], properties: {} });
       // addPerson後に再取得することで最新のpersonsを参照する
       const [p1, p2] = useGraphStore.getState().persons;
 
       store.addRelationship({
-        sourcePersonId: p1.id,
-        targetPersonId: p2.id,
-        isDirected: false,
-        forward: { label: '友人', affection: null, awareness: null, role: null },
-        reverse: { label: '友人', affection: null, awareness: null, role: null },
-        symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
+        sourceId: p1.id,
+        targetId: p2.id,
+        type: '友人',
+        label: null,
+        symmetric: true,
         tags: ['上司', '同級生'],
         narrative: { summary: null, notes: null, turningPoints: [] },
         colorOverride: null,
+        properties: {},
       });
     });
 
@@ -126,20 +126,20 @@ describe('EdgeFilterPanel', () => {
     beforeEach(() => {
       // 人物と関係を追加する（パネルを表示させるために必要）
       const store = useGraphStore.getState();
-      store.addPerson({ name: '山田太郎' });
-      store.addPerson({ name: '佐藤花子' });
+      store.addPerson({ name: '山田太郎', labels: ['人物'], properties: {} });
+      store.addPerson({ name: '佐藤花子', labels: ['人物'], properties: {} });
       const [p1, p2] = useGraphStore.getState().persons;
 
       store.addRelationship({
-        sourcePersonId: p1.id,
-        targetPersonId: p2.id,
-        isDirected: false,
-        forward: { label: '友人', affection: null, awareness: null, role: null },
-        reverse: { label: '友人', affection: null, awareness: null, role: null },
-        symmetric: { closeness: 0.5, trust: 0.3, tension: 0.1, secrecy: 0.2, kinship: 'parent' },
+        sourceId: p1.id,
+        targetId: p2.id,
+        type: '友人',
+        label: null,
+        symmetric: true,
         tags: [],
         narrative: { summary: null, notes: null, turningPoints: [] },
         colorOverride: null,
+        properties: { closeness: 0.5, trust: 0.3, tension: 0.1, secrecy: 0.2 },
       });
     });
 
@@ -161,14 +161,6 @@ describe('EdgeFilterPanel', () => {
       expect(screen.getByLabelText('秘匿性を有効化')).toBeInTheDocument();
     });
 
-    it('血縁ありチェックボックスが表示される', async () => {
-      const user = userEvent.setup();
-      render(<EdgeFilterPanel />);
-      await user.click(screen.getByText('条件'));
-
-      expect(screen.getByLabelText('血縁あり')).toBeInTheDocument();
-    });
-
     it('初期状態では全述語チェックボックスがオフになっている', async () => {
       const user = userEvent.setup();
       render(<EdgeFilterPanel />);
@@ -178,7 +170,6 @@ describe('EdgeFilterPanel', () => {
       expect(screen.getByLabelText('信頼度を有効化')).not.toBeChecked();
       expect(screen.getByLabelText('緊張度を有効化')).not.toBeChecked();
       expect(screen.getByLabelText('秘匿性を有効化')).not.toBeChecked();
-      expect(screen.getByLabelText('血縁あり')).not.toBeChecked();
     });
 
     it('親密度チェックボックスをONにするとpredicatesにcloseness_gteが追加される', async () => {
@@ -203,29 +194,6 @@ describe('EdgeFilterPanel', () => {
 
       const { predicates } = useGraphStore.getState().edgeFilter;
       expect(predicates.find((p) => p.type === 'closeness_gte')).toBeUndefined();
-    });
-
-    it('血縁ありチェックボックスをONにするとpredicatesにhas_kinshipが追加される', async () => {
-      const user = userEvent.setup();
-      render(<EdgeFilterPanel />);
-      await user.click(screen.getByText('条件'));
-
-      await user.click(screen.getByLabelText('血縁あり'));
-
-      const { predicates } = useGraphStore.getState().edgeFilter;
-      expect(predicates).toContainEqual({ type: 'has_kinship' });
-    });
-
-    it('血縁ありチェックボックスをOFFにするとpredicatesからhas_kinshipが削除される', async () => {
-      const user = userEvent.setup();
-      render(<EdgeFilterPanel />);
-      await user.click(screen.getByText('条件'));
-
-      await user.click(screen.getByLabelText('血縁あり'));
-      await user.click(screen.getByLabelText('血縁あり'));
-
-      const { predicates } = useGraphStore.getState().edgeFilter;
-      expect(predicates.find((p) => p.type === 'has_kinship')).toBeUndefined();
     });
 
     it('親密度チェックボックスON後にスライダーを変更するとpredicatesのvalueが更新される', async () => {
@@ -278,34 +246,34 @@ describe('EdgeFilterPanel', () => {
   describe('複数関係のタグ集計', () => {
     beforeEach(() => {
       const store = useGraphStore.getState();
-      store.addPerson({ name: '山田太郎' });
-      store.addPerson({ name: '佐藤花子' });
-      store.addPerson({ name: '鈴木次郎' });
+      store.addPerson({ name: '山田太郎', labels: ['人物'], properties: {} });
+      store.addPerson({ name: '佐藤花子', labels: ['人物'], properties: {} });
+      store.addPerson({ name: '鈴木次郎', labels: ['人物'], properties: {} });
       // addPerson後に再取得することで最新のpersonsを参照する
       const [p1, p2, p3] = useGraphStore.getState().persons;
 
       store.addRelationship({
-        sourcePersonId: p1.id,
-        targetPersonId: p2.id,
-        isDirected: false,
-        forward: { label: null, affection: null, awareness: null, role: null },
-        reverse: { label: null, affection: null, awareness: null, role: null },
-        symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
+        sourceId: p1.id,
+        targetId: p2.id,
+        type: '同僚',
+        label: null,
+        symmetric: true,
         tags: ['上司'],
         narrative: { summary: null, notes: null, turningPoints: [] },
         colorOverride: null,
+        properties: {},
       });
 
       store.addRelationship({
-        sourcePersonId: p1.id,
-        targetPersonId: p3.id,
-        isDirected: false,
-        forward: { label: null, affection: null, awareness: null, role: null },
-        reverse: { label: null, affection: null, awareness: null, role: null },
-        symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
+        sourceId: p1.id,
+        targetId: p3.id,
+        type: '友人',
+        label: null,
+        symmetric: true,
         tags: ['友人', '上司'],
         narrative: { summary: null, notes: null, turningPoints: [] },
         colorOverride: null,
+        properties: {},
       });
     });
 

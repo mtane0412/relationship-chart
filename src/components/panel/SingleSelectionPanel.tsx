@@ -11,7 +11,7 @@ import { useGraphStore } from '@/stores/useGraphStore';
 import { useDialogStore } from '@/stores/useDialogStore';
 import { useReactFlow } from '@xyflow/react';
 import type { Person } from '@/types/person';
-import type { RelationshipV9 } from '@/types/relationship';
+import type { Relationship } from '@/types/relationship';
 import { getRelationshipFromPerspective } from '@/lib/relationship-utils';
 import { deriveNodeVisual } from '@/lib/node-visual';
 import {
@@ -59,7 +59,7 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
 
   // この人物に関連する関係を取得し、方向別にグループ化
   type RelationshipItem = {
-    relationship: RelationshipV9;
+    relationship: Relationship;
     otherPersonId: string;
     label: string;
     direction: '→' | '←' | '↔' | '—';
@@ -70,7 +70,7 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
   const groups = useMemo(() => {
     // 関連する関係を取得
     const relatedRelationships: RelationshipItem[] = relationships
-      .filter((r) => r.sourcePersonId === person.id || r.targetPersonId === person.id)
+      .filter((r) => r.sourceId === person.id || r.targetId === person.id)
       .flatMap((relationship): RelationshipItem[] => {
         // getRelationshipFromPerspectiveを使用して視点ベースの関係情報を取得
         const perspectiveItems = getRelationshipFromPerspective(relationship, person.id);
@@ -85,29 +85,10 @@ export function SingleSelectionPanel({ person }: SingleSelectionPanelProps) {
         }));
       });
 
-    // 双方向（↔）を2つのエントリに分割
-    const expandedItems: RelationshipItem[] = [];
-    for (const item of relatedRelationships) {
-      if (item.direction === '↔') {
-        // 双方向を2つのエントリに分割（outgoingとincoming）
-        expandedItems.push({
-          ...item,
-          direction: '→',
-          key: `${item.key}-outgoing`,
-        });
-        expandedItems.push({
-          ...item,
-          direction: '←',
-          key: `${item.key}-incoming`,
-        });
-      } else {
-        expandedItems.push(item);
-      }
-    }
-
-    const mutual = expandedItems.filter((item) => item.direction === '—');
-    const outgoing = expandedItems.filter((item) => item.direction === '→');
-    const incoming = expandedItems.filter((item) => item.direction === '←');
+    // v11: symmetric=true→"—"（mutual）、symmetric=false→"→"or"←"（有向）
+    const mutual = relatedRelationships.filter((item) => item.direction === '—');
+    const outgoing = relatedRelationships.filter((item) => item.direction === '→');
+    const incoming = relatedRelationships.filter((item) => item.direction === '←');
 
     // 空グループを除外してセクション定義を返す
     return [

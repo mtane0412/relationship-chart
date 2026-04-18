@@ -32,6 +32,8 @@ describe('PersonEditForm', () => {
     id: 'person-1',
     name: '山田太郎',
     imageDataUrl: 'data:image/jpeg;base64,existing-image',
+    labels: ['人物'],
+    properties: {},
     createdAt: '2024-01-01T00:00:00.000Z',
   };
 

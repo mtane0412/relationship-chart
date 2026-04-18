@@ -1,5 +1,5 @@
 /**
- * LLM抽出スキーマのユニットテスト
+ * LLM抽出スキーマのユニットテスト（v11 プロパティグラフ方式）
  * z.toJSONSchema() の動作確認と、スキーマのパース検証を行う。
  */
 
@@ -48,31 +48,23 @@ describe('LlmRelationshipSchema', () => {
   const validRelationship = {
     sourcePersonName: '田中太郎',
     targetPersonName: '山田花子',
-    isDirected: true,
-    symmetric: {
-      closeness: 0.8,
-      trust: 0.7,
-      tension: null,
-      secrecy: null,
-      kinship: null,
-    },
-    forward: {
-      label: '好き',
-      affection: 0.9,
-      awareness: 'known',
-      role: null,
-    },
-    reverse: {
-      label: null,
-      affection: null,
-      awareness: null,
-      role: null,
-    },
+    type: '片想い',
+    label: '好き',
+    symmetric: false,
     tags: ['片想い', '幼なじみ'],
     narrative: {
       summary: '幼なじみで片想い中',
       notes: null,
       turningPoints: [{ at: '中学入学時', note: '再会して恋に落ちる' }],
+    },
+    properties: {
+      closeness: 0.8,
+      trust: 0.7,
+      tension: null,
+      secrecy: null,
+      affection: 0.9,
+      awareness: 'known',
+      role: null,
     },
   };
 
@@ -81,18 +73,27 @@ describe('LlmRelationshipSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('すべてのフィールドが null でも有効であること', () => {
+  it('すべての properties フィールドが null でも有効であること', () => {
     const minimal = {
       sourcePersonName: 'A',
       targetPersonName: 'B',
-      isDirected: false,
-      symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
-      forward: { label: null, affection: null, awareness: null, role: null },
-      reverse: { label: null, affection: null, awareness: null, role: null },
+      type: '知人',
+      label: null,
+      symmetric: false,
       tags: [],
       narrative: { summary: null, notes: null, turningPoints: [] },
+      properties: {},
     };
     const result = LlmRelationshipSchema.safeParse(minimal);
+    expect(result.success).toBe(true);
+  });
+
+  it('symmetric: true でも有効であること', () => {
+    const data = {
+      ...validRelationship,
+      symmetric: true,
+    };
+    const result = LlmRelationshipSchema.safeParse(data);
     expect(result.success).toBe(true);
   });
 
@@ -105,7 +106,7 @@ describe('LlmRelationshipSchema', () => {
   it('affection が範囲外（1.5）の場合はパース失敗すること', () => {
     const invalid = {
       ...validRelationship,
-      forward: { ...validRelationship.forward, affection: 1.5 },
+      properties: { ...validRelationship.properties, affection: 1.5 },
     };
     const result = LlmRelationshipSchema.safeParse(invalid);
     expect(result.success).toBe(false);
@@ -114,7 +115,16 @@ describe('LlmRelationshipSchema', () => {
   it('affection が範囲外（-1.5）の場合はパース失敗すること', () => {
     const invalid = {
       ...validRelationship,
-      forward: { ...validRelationship.forward, affection: -1.5 },
+      properties: { ...validRelationship.properties, affection: -1.5 },
+    };
+    const result = LlmRelationshipSchema.safeParse(invalid);
+    expect(result.success).toBe(false);
+  });
+
+  it('closeness が範囲外（1.5）の場合はパース失敗すること', () => {
+    const invalid = {
+      ...validRelationship,
+      properties: { ...validRelationship.properties, closeness: 1.5 },
     };
     const result = LlmRelationshipSchema.safeParse(invalid);
     expect(result.success).toBe(false);
@@ -132,12 +142,12 @@ describe('LlmExtractionResultSchema', () => {
         {
           sourcePersonName: '田中太郎',
           targetPersonName: '山田花子',
-          isDirected: true,
-          symmetric: { closeness: 0.8, trust: 0.7, tension: null, secrecy: null, kinship: null },
-          forward: { label: '好き', affection: 0.9, awareness: 'known', role: null },
-          reverse: { label: null, affection: null, awareness: null, role: null },
+          type: '片想い',
+          label: '好き',
+          symmetric: false,
           tags: ['片想い'],
           narrative: { summary: null, notes: null, turningPoints: [] },
+          properties: { affection: 0.9, awareness: 'known', role: null },
         },
       ],
     };

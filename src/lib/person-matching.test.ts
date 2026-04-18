@@ -1,5 +1,5 @@
 /**
- * 人物マッチングユーティリティのユニットテスト
+ * 人物マッチングユーティリティのユニットテスト（v11 プロパティグラフ方式）
  * LLM が出力した人物名と既存人物の照合ロジックを検証する。
  */
 
@@ -14,6 +14,8 @@ import type { LlmExtractionResult } from './llm-extraction-schema';
 const makePerson = (name: string, id: string): Person => ({
   id,
   name,
+  labels: ['人物'],
+  properties: {},
   createdAt: '2024-01-01T00:00:00.000Z',
 });
 
@@ -59,6 +61,7 @@ describe('matchPersonByName', () => {
 });
 
 describe('resolveExtractionResult', () => {
+  // v11 形式の抽出結果（type, label, symmetric: boolean, properties）
   const extractionResult: LlmExtractionResult = {
     persons: [
       { name: '田中太郎', labels: ['人物'] },
@@ -68,12 +71,12 @@ describe('resolveExtractionResult', () => {
       {
         sourcePersonName: '田中太郎',
         targetPersonName: '新キャラ',
-        isDirected: true,
-        symmetric: { closeness: 0.5, trust: null, tension: null, secrecy: null, kinship: null },
-        forward: { label: '上司', affection: null, awareness: 'known', role: '上司' },
-        reverse: { label: '部下', affection: null, awareness: null, role: '部下' },
+        type: '上司部下',
+        label: '上司',
+        symmetric: false,
         tags: ['上司部下'],
         narrative: { summary: null, notes: null, turningPoints: [] },
+        properties: { closeness: 0.5, awareness: 'known', role: '上司' },
       },
     ],
   };
@@ -86,16 +89,16 @@ describe('resolveExtractionResult', () => {
     expect(result.newPersons.some((p) => p.name === '新キャラ')).toBe(true);
   });
 
-  it('関係の sourcePersonId / targetPersonId が正しく解決されること', () => {
+  it('関係の sourceId / targetId が正しく解決されること', () => {
     const result = resolveExtractionResult(extractionResult, existingPersons, new Map());
     expect(result.relationships).toHaveLength(1);
     const rel = result.relationships[0];
     // 田中太郎は既存人物なので ID が person-001
-    expect(rel.sourcePersonId).toBe('person-001');
+    expect(rel.sourceId).toBe('person-001');
     // 新キャラは新規なので、newPersons の ID と一致する
     const newCharId = result.newPersons.find((p) => p.name === '新キャラ')?.id;
     expect(newCharId).toBeDefined();
-    expect(rel.targetPersonId).toBe(newCharId);
+    expect(rel.targetId).toBe(newCharId);
   });
 
   it('ユーザーオーバーライドが適用されること', () => {
@@ -104,9 +107,9 @@ describe('resolveExtractionResult', () => {
     const result = resolveExtractionResult(extractionResult, existingPersons, overrides);
     // オーバーライドされた人物は新規追加リストに含まれない
     expect(result.newPersons.some((p) => p.name === '新キャラ')).toBe(false);
-    // 関係の targetPersonId が person-003 になる
+    // 関係の targetId が person-003 になる
     const rel = result.relationships[0];
-    expect(rel.targetPersonId).toBe('person-003');
+    expect(rel.targetId).toBe('person-003');
   });
 
   it('解決できない人物名を含む関係はスキップされること', () => {
@@ -116,12 +119,12 @@ describe('resolveExtractionResult', () => {
         {
           sourcePersonName: '田中太郎',
           targetPersonName: '存在しない人', // persons にも既存にも存在しない
-          isDirected: false,
-          symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
-          forward: { label: null, affection: null, awareness: null, role: null },
-          reverse: { label: null, affection: null, awareness: null, role: null },
+          type: '知人',
+          label: null,
+          symmetric: false,
           tags: [],
           narrative: { summary: null, notes: null, turningPoints: [] },
+          properties: {},
         },
       ],
     };

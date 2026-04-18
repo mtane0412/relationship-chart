@@ -1,10 +1,10 @@
 /**
  * 相関図（Chart）の型定義
- * 複数の相関図を管理するためのデータモデル
+ * 複数の相関図を管理するためのデータモデル（v11 プロパティグラフ方式）
  */
 
 import type { Person } from './person';
-import type { RelationshipV9 } from './relationship';
+import type { Relationship } from './relationship';
 import type { ForceParams } from '@/stores/useGraphStore';
 import type { EgoLayoutParams } from '@/lib/ego-layout';
 
@@ -25,7 +25,7 @@ export type Chart = {
   id: string;
   name: string;
   persons: Person[];
-  relationships: RelationshipV9[];
+  relationships: Relationship[];
   forceEnabled: boolean;
   forceParams: ForceParams;
   egoLayoutParams: EgoLayoutParams;

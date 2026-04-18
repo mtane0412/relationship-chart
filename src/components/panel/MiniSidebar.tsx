@@ -51,11 +51,11 @@ export function MiniSidebar() {
     // 関係ノードのIDを収集
     const relatedIds = new Set<string>();
     relationships.forEach((rel) => {
-      if (selectedSet.has(rel.sourcePersonId)) {
-        relatedIds.add(rel.targetPersonId);
+      if (selectedSet.has(rel.sourceId)) {
+        relatedIds.add(rel.targetId);
       }
-      if (selectedSet.has(rel.targetPersonId)) {
-        relatedIds.add(rel.sourcePersonId);
+      if (selectedSet.has(rel.targetId)) {
+        relatedIds.add(rel.sourceId);
       }
     });
 

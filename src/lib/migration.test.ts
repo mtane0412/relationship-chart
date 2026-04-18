@@ -4,9 +4,15 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { migrateGraphState, migrateV8ToV9, migrateV9ToV10 } from './migration';
+import {
+  migrateGraphState,
+  migrateV8ToV9,
+  migrateV9ToV10,
+  migrateV10ToV11,
+  migratePersonsV10ToV11,
+} from './migration';
 import type { Person } from '@/types/person';
-import type { LegacyRelationshipV8 } from '@/types/relationship';
+import type { LegacyRelationshipV8, LegacyRelationshipV9, LegacyPersonV10 } from './migration';
 import { DEFAULT_FORCE_PARAMS } from '@/stores/useGraphStore';
 import { DEFAULT_EGO_LAYOUT_PARAMS } from './ego-layout';
 
@@ -94,11 +100,15 @@ describe('migrateGraphState', () => {
       const person1: Person = {
         id: 'person-1',
         name: '田中太郎',
+        labels: ['人物'],
+        properties: {},
         createdAt: '2024-01-01T00:00:00.000Z',
       };
       const person2: Person = {
         id: 'person-2',
         name: '鈴木花子',
+        labels: ['人物'],
+        properties: {},
         createdAt: '2024-01-01T00:00:00.000Z',
       };
 
@@ -120,12 +130,12 @@ describe('migrateGraphState', () => {
 
       const result = migrateGraphState(v1State, 1) as {
         persons: Person[];
-        relationships: Array<{ id: string; isDirected: boolean; forward: { label: string | null }; tags: string[] }>;
+        relationships: Array<{ id: string; symmetric: boolean; label: string | null; type: string; sourceId: string; targetId: string; tags: string[] }>;
         forceEnabled: boolean;
         selectedPersonIds: string[];
       };
 
-      // v10 形式に変換されること（persons に labels が付与される）
+      // v11 形式に変換されること（persons に labels が付与される）
       expect(result.persons).toMatchObject([
         { id: 'person-1', name: '田中太郎', labels: ['人物'] },
         { id: 'person-2', name: '鈴木花子', labels: ['人物'] },
@@ -133,10 +143,10 @@ describe('migrateGraphState', () => {
       expect(result.forceEnabled).toBe(false);
       expect(result.selectedPersonIds).toEqual([]);
       expect(result.relationships).toHaveLength(1);
-      // directed なので forward.label に変換される
+      // directed（one-way）なので symmetric: false に変換される
       expect(result.relationships[0].id).toBe('rel-1');
-      expect(result.relationships[0].isDirected).toBe(true);
-      expect(result.relationships[0].forward.label).toBe('好き');
+      expect(result.relationships[0].symmetric).toBe(false);
+      expect(result.relationships[0].label).toBe('好き');
       // general レイヤー由来なのでタグに入る
       expect(result.relationships[0].tags).toContain('好き');
       expect(result.relationships[0].tags).toContain('layer-general');
@@ -160,14 +170,15 @@ describe('migrateGraphState', () => {
       };
 
       const result = migrateGraphState(v1State, 1) as {
-        relationships: Array<{ id: string; isDirected: boolean; forward: { label: string | null }; tags: string[] }>;
+        relationships: Array<{ id: string; symmetric: boolean; label: string | null; tags: string[] }>;
       };
 
-      // v9 形式に変換されること
+      // v11 形式に変換されること
       expect(result.relationships).toHaveLength(1);
       expect(result.relationships[0].id).toBe('rel-1');
-      expect(result.relationships[0].isDirected).toBe(false);
-      expect(result.relationships[0].forward.label).toBe('友達');
+      // undirected → symmetric: true に変換される
+      expect(result.relationships[0].symmetric).toBe(true);
+      expect(result.relationships[0].label).toBe('友達');
       // general レイヤー由来なのでタグに入る
       expect(result.relationships[0].tags).toContain('友達');
       expect(result.relationships[0].tags).toContain('layer-general');
@@ -198,27 +209,24 @@ describe('migrateGraphState', () => {
       const result = migrateGraphState(v2State, 2) as {
         relationships: Array<{
           id: string;
-          sourcePersonId: string;
-          targetPersonId: string;
-          isDirected: boolean;
-          forward: { label: string | null };
-          reverse: { label: string | null };
+          sourceId: string;
+          targetId: string;
+          symmetric: boolean;
+          label: string | null;
           tags: string[];
         }>;
       };
 
-      // 最終的に v9 形式に変換されること
+      // 最終的に v11 形式に変換されること
       expect(result.relationships).toHaveLength(1);
       const rel = result.relationships[0];
       expect(rel.id).toBe('rel-1');
-      expect(rel.sourcePersonId).toBe('person-1');
-      expect(rel.targetPersonId).toBe('person-2');
-      // bidirectional は isDirected: true に変換される
-      expect(rel.isDirected).toBe(true);
-      // sourceToTargetLabel（'親子'）が forward.label に写像されること
-      expect(rel.forward.label).toBe('親子');
-      // bidirectional では両方向に同一ラベルがつくため reverse.label も '親子'
-      expect(rel.reverse.label).toBe('親子');
+      expect(rel.sourceId).toBe('person-1');
+      expect(rel.targetId).toBe('person-2');
+      // bidirectional は symmetric: true に変換される
+      expect(rel.symmetric).toBe(true);
+      // sourceToTargetLabel（'親子'）が label に写像されること
+      expect(rel.label).toBe('親子');
       // general レイヤー由来タグが付与されること
       expect(rel.tags).toContain('layer-general');
     });
@@ -244,23 +252,28 @@ describe('migrateGraphState', () => {
 
       const result = migrateGraphState(v2State, 2) as {
         relationships: Array<{
-          isDirected: boolean;
-          forward: { label: string | null };
-          reverse: { label: string | null };
+          sourceId: string;
+          targetId: string;
+          symmetric: boolean;
+          label: string | null;
           tags: string[];
         }>;
       };
 
-      // 最終的に v9 形式に変換されること
-      expect(result.relationships).toHaveLength(1);
-      const rel = result.relationships[0];
-      // dual-directed は isDirected: true に変換される
-      expect(rel.isDirected).toBe(true);
-      // 各方向のラベルが forward / reverse に写像されること
-      expect(rel.forward.label).toBe('好き');
-      expect(rel.reverse.label).toBe('無関心');
+      // 最終的に v11 形式に変換されること（dual-directed は2本のエッジに分割）
+      expect(result.relationships).toHaveLength(2);
+      // 順方向エッジ（source→target）
+      const fwd = result.relationships.find((r) => r.sourceId === 'person-1');
+      expect(fwd).toBeDefined();
+      expect(fwd!.symmetric).toBe(false);
+      expect(fwd!.label).toBe('好き');
+      // 逆方向エッジ（target→source）
+      const rev = result.relationships.find((r) => r.sourceId === 'person-2');
+      expect(rev).toBeDefined();
+      expect(rev!.symmetric).toBe(false);
+      expect(rev!.label).toBe('無関心');
       // general レイヤー由来タグが付与されること
-      expect(rel.tags).toContain('layer-general');
+      expect(fwd!.tags).toContain('layer-general');
     });
 
     it('one-wayタイプを変換する', () => {
@@ -284,21 +297,19 @@ describe('migrateGraphState', () => {
 
       const result = migrateGraphState(v2State, 2) as {
         relationships: Array<{
-          isDirected: boolean;
-          forward: { label: string | null };
-          reverse: { label: string | null };
+          symmetric: boolean;
+          label: string | null;
           tags: string[];
         }>;
       };
 
-      // 最終的に v9 形式に変換されること
+      // 最終的に v11 形式に変換されること
       expect(result.relationships).toHaveLength(1);
       const rel = result.relationships[0];
-      // one-way は isDirected: true に変換される
-      expect(rel.isDirected).toBe(true);
-      // forward.label のみ設定され、reverse.label は null のまま
-      expect(rel.forward.label).toBe('片想い');
-      expect(rel.reverse.label).toBeNull();
+      // one-way は symmetric: false に変換される
+      expect(rel.symmetric).toBe(false);
+      // ラベルが label に写像されること
+      expect(rel.label).toBe('片想い');
       // general レイヤー由来タグが付与されること
       expect(rel.tags).toContain('layer-general');
     });
@@ -324,21 +335,19 @@ describe('migrateGraphState', () => {
 
       const result = migrateGraphState(v2State, 2) as {
         relationships: Array<{
-          isDirected: boolean;
-          forward: { label: string | null };
-          reverse: { label: string | null };
+          symmetric: boolean;
+          label: string | null;
           tags: string[];
         }>;
       };
 
-      // 最終的に v9 形式に変換されること
+      // 最終的に v11 形式に変換されること
       expect(result.relationships).toHaveLength(1);
       const rel = result.relationships[0];
-      // undirected は isDirected: false のまま
-      expect(rel.isDirected).toBe(false);
-      // v3 で両方向に同一ラベルがつくため forward / reverse ともに '同級生'
-      expect(rel.forward.label).toBe('同級生');
-      expect(rel.reverse.label).toBe('同級生');
+      // undirected は symmetric: true に変換される
+      expect(rel.symmetric).toBe(true);
+      // ラベルが label に写像されること
+      expect(rel.label).toBe('同級生');
       // general レイヤー由来タグが付与されること
       expect(rel.tags).toContain('layer-general');
     });
@@ -491,17 +500,18 @@ describe('migrateGraphState', () => {
       const result = migrateGraphState(v6State, 6) as {
         relationships: Array<{
           id: string;
-          forward: { label: string | null };
+          symmetric: boolean;
+          label: string | null;
           tags: string[];
         }>;
       };
 
-      // layer なし → general を補完 → v9 形式に変換されること
+      // layer なし → general を補完 → v11 形式に変換されること
       expect(result.relationships).toHaveLength(1);
       const rel = result.relationships[0];
       expect(rel.id).toBe('rel-1');
-      // general レイヤーとして処理されるため forward.label に変換されること
-      expect(rel.forward.label).toBe('幼馴染');
+      // general レイヤーとして処理されるため label に変換されること
+      expect(rel.label).toBe('幼馴染');
       // general レイヤー由来タグが付与されること
       expect(rel.tags).toContain('layer-general');
     });
@@ -532,17 +542,17 @@ describe('migrateGraphState', () => {
       const result = migrateGraphState(v6State, 6) as {
         relationships: Array<{
           id: string;
-          forward: { label: string | null };
+          label: string | null;
           tags: string[];
         }>;
       };
 
-      // v8 で hidden→general にリネームされ、v9 形式に変換されること
+      // v8 で hidden→general にリネームされ、v11 形式に変換されること
       expect(result.relationships).toHaveLength(1);
       const rel = result.relationships[0];
       expect(rel.id).toBe('rel-1');
       // hidden は v8 で general にリネームされるため、general レイヤーとして処理される
-      expect(rel.forward.label).toBe('正体を知っている');
+      expect(rel.label).toBe('正体を知っている');
       expect(rel.tags).toContain('layer-general');
     });
   });
@@ -575,16 +585,17 @@ describe('migrateGraphState', () => {
       const result = migrateGraphState(v7State, 7) as {
         relationships: Array<{
           id: string;
-          forward: { label: string | null };
+          symmetric: boolean;
+          label: string | null;
           tags: string[];
         }>;
       };
 
-      // v8 で public→general にリネームされ、v9 形式に変換されること
+      // v8 で public→general にリネームされ、v11 形式に変換されること
       expect(result.relationships).toHaveLength(1);
       const rel = result.relationships[0];
       expect(rel.id).toBe('rel-1');
-      expect(rel.forward.label).toBe('友人');
+      expect(rel.label).toBe('友人');
       expect(rel.tags).toContain('layer-general');
     });
 
@@ -614,16 +625,16 @@ describe('migrateGraphState', () => {
       const result = migrateGraphState(v7State, 7) as {
         relationships: Array<{
           id: string;
-          forward: { label: string | null };
+          label: string | null;
           tags: string[];
         }>;
       };
 
-      // v8 で hidden→general にリネームされ、v9 形式に変換されること
+      // v8 で hidden→general にリネームされ、v11 形式に変換されること
       expect(result.relationships).toHaveLength(1);
       const rel = result.relationships[0];
       expect(rel.id).toBe('rel-1');
-      expect(rel.forward.label).toBe('正体を知っている');
+      expect(rel.label).toBe('正体を知っている');
       expect(rel.tags).toContain('layer-general');
     });
 
@@ -653,16 +664,16 @@ describe('migrateGraphState', () => {
       const result = migrateGraphState(v7State, 7) as {
         relationships: Array<{
           id: string;
-          forward: { label: string | null };
+          label: string | null;
           tags: string[];
         }>;
       };
 
-      // emotional レイヤーは v9 の layer-emotional タグに変換されること
+      // emotional レイヤーは v11 の layer-emotional タグに変換されること
       expect(result.relationships).toHaveLength(1);
       const rel = result.relationships[0];
       expect(rel.id).toBe('rel-1');
-      expect(rel.forward.label).toBe('好き');
+      expect(rel.label).toBe('好き');
       expect(rel.tags).toContain('layer-emotional');
     });
 
@@ -692,7 +703,7 @@ describe('migrateGraphState', () => {
       const result = migrateGraphState(v7State, 7) as {
         relationships: Array<{
           id: string;
-          forward: { label: string | null };
+          label: string | null;
           tags: string[];
         }>;
       };
@@ -701,7 +712,7 @@ describe('migrateGraphState', () => {
       expect(result.relationships).toHaveLength(1);
       const rel = result.relationships[0];
       expect(rel.id).toBe('rel-1');
-      expect(rel.forward.label).toBe('上司');
+      expect(rel.label).toBe('上司');
       expect(rel.tags).toContain('上司');
       expect(rel.tags).toContain('layer-organizational');
     });
@@ -733,15 +744,15 @@ describe('migrateGraphState', () => {
       const result = migrateGraphState(v7State, 7) as {
         relationships: Array<{
           id: string;
-          symmetric: { closeness: number | null };
+          properties: { closeness: number | null };
         }>;
       };
 
-      // weight=0.8 が v9 の symmetric.closeness に写像されること
+      // weight=0.8 が v11 の properties.closeness に写像されること
       expect(result.relationships).toHaveLength(1);
       const rel = result.relationships[0];
       expect(rel.id).toBe('rel-1');
-      expect(rel.symmetric.closeness).toBe(0.8);
+      expect(rel.properties.closeness).toBe(0.8);
     });
 
     it('同一ペアの複数レイヤーが1本のv9エッジにマージされる', () => {
@@ -769,7 +780,7 @@ describe('migrateGraphState', () => {
       const result = migrateGraphState(v7State, 7) as {
         relationships: Array<{
           id: string;
-          forward: { label: string | null };
+          label: string | null;
           tags: string[];
         }>;
       };
@@ -1112,13 +1123,13 @@ describe('migrateGraphState', () => {
         };
 
         const result = migrateGraphState(v8State, 8) as {
-          relationships: Array<{ id: string; symmetric: { closeness: number | null } }>;
+          relationships: Array<{ id: string; properties: { closeness: number | null } }>;
         };
 
-        // v9 形式に変換されること
+        // v11 形式に変換されること（weight=0.9 → properties.closeness）
         expect(result.relationships).toHaveLength(1);
         expect(result.relationships[0].id).toBe('rel-1');
-        expect(result.relationships[0].symmetric.closeness).toBe(0.9);
+        expect(result.relationships[0].properties.closeness).toBe(0.9);
       });
 
       it('v9 以降のデータはそのまま返す', () => {
@@ -1162,9 +1173,8 @@ describe('migrateGraphState', () => {
         selectedPersonIds: string[];
         relationships: Array<{
           id: string;
-          isDirected: boolean;
-          forward: { label: string | null };
-          reverse: { label: string | null };
+          symmetric: boolean;
+          label: string | null;
           tags: string[];
         }>;
         forceParams: typeof DEFAULT_FORCE_PARAMS;
@@ -1186,18 +1196,276 @@ describe('migrateGraphState', () => {
       // v5 → v6: egoLayoutParams 補完
       expect(result.egoLayoutParams).toEqual(DEFAULT_EGO_LAYOUT_PARAMS);
 
-      // 最終的に v9 形式に変換されること
+      // 最終的に v11 形式に変換されること
       expect(result.relationships).toHaveLength(1);
       const rel = result.relationships[0];
       expect(rel.id).toBe('rel-1');
-      // v1 の label='友達'（undirected）→ v3 で sourceToTargetLabel='友達', targetToSourceLabel='友達'
-      // → v9 で forward.label='友達', reverse.label='友達'
-      expect(rel.isDirected).toBe(false);
-      expect(rel.forward.label).toBe('友達');
-      expect(rel.reverse.label).toBe('友達');
+      // v1 の label='友達'（undirected）→ v11 で symmetric: true、label: '友達'
+      expect(rel.symmetric).toBe(true);
+      expect(rel.label).toBe('友達');
       // general レイヤー由来タグが付与されること
       expect(rel.tags).toContain('layer-general');
     });
+  });
+});
+
+// ─── migrateV10ToV11 のテスト ─────────────────────────────────────────────────
+
+/**
+ * v9 形式の関係（RelationshipV9 相当）のテストデータ作成ヘルパー
+ * migration.ts 内で定義される LegacyRelationshipV9 に対応する
+ */
+function makeV9Rel(overrides: Record<string, unknown>): unknown {
+  return {
+    id: 'rel-1',
+    sourcePersonId: 'p1',
+    targetPersonId: 'p2',
+    isDirected: true,
+    symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
+    forward: { label: null, affection: null, awareness: null, role: null },
+    reverse: { label: null, affection: null, awareness: null, role: null },
+    tags: [],
+    narrative: { summary: null, notes: null, turningPoints: [] },
+    colorOverride: null,
+    createdAt: '2024-01-01T00:00:00.000Z',
+    updatedAt: '2024-01-01T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+describe('migrateV10ToV11', () => {
+  it('片方向 (one-way) の関係を symmetric=false の単一エッジに変換する', () => {
+    // 前提条件: コナン→蘭 の片方向「好き」関係
+    const rels = [
+      makeV9Rel({
+        id: 'rel-好き',
+        sourcePersonId: 'コナン',
+        targetPersonId: '蘭',
+        isDirected: true,
+        forward: { label: '好き', affection: 0.9, awareness: null, role: null },
+        reverse: { label: null, affection: null, awareness: null, role: null },
+        tags: ['片想い'],
+      }),
+    ];
+
+    
+    const result = migrateV10ToV11(rels as LegacyRelationshipV9[]);
+
+    // 1本のエッジになること
+    expect(result).toHaveLength(1);
+    expect(result[0].sourceId).toBe('コナン');
+    expect(result[0].targetId).toBe('蘭');
+    // 有向（矢印あり）であること
+    expect(result[0].symmetric).toBe(false);
+    // ラベルが forward.label から移行されること
+    expect(result[0].label).toBe('好き');
+    // type がタグから導出されること
+    expect(result[0].type).toBe('片想い');
+    // properties に affection が移行されること
+    expect(result[0].properties.affection).toBe(0.9);
+  });
+
+  it('双方向 (bidirectional) の関係を symmetric=true の単一エッジに変換する', () => {
+    // 前提条件: コナン↔蘭 の双方向「友人」関係（forward.label == reverse.label）
+    const rels = [
+      makeV9Rel({
+        id: 'rel-友人',
+        sourcePersonId: 'コナン',
+        targetPersonId: '蘭',
+        isDirected: true,
+        forward: { label: '友人', affection: null, awareness: null, role: null },
+        reverse: { label: '友人', affection: null, awareness: null, role: null },
+        tags: [],
+      }),
+    ];
+
+    
+    const result = migrateV10ToV11(rels as LegacyRelationshipV9[]);
+
+    // 1本のエッジになること
+    expect(result).toHaveLength(1);
+    // 無向表示（矢印なし）であること
+    expect(result[0].symmetric).toBe(true);
+    expect(result[0].label).toBe('友人');
+  });
+
+  it('無方向 (undirected / isDirected=false) の関係を symmetric=true の単一エッジに変換する', () => {
+    // 前提条件: isDirected=false の関係
+    const rels = [
+      makeV9Rel({
+        id: 'rel-同一人物',
+        isDirected: false,
+        forward: { label: '同一人物', affection: null, awareness: null, role: null },
+        reverse: { label: '同一人物', affection: null, awareness: null, role: null },
+        tags: [],
+      }),
+    ];
+
+    
+    const result = migrateV10ToV11(rels as LegacyRelationshipV9[]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].symmetric).toBe(true);
+    expect(result[0].label).toBe('同一人物');
+  });
+
+  it('dual-directed の関係を2本のエッジに分割する', () => {
+    // 前提条件: コナン→蘭「好き」、蘭→コナン「親友」という非対称関係
+    const rels = [
+      makeV9Rel({
+        id: 'rel-非対称',
+        sourcePersonId: 'コナン',
+        targetPersonId: '蘭',
+        isDirected: true,
+        forward: { label: '好き', affection: 0.9, awareness: null, role: null },
+        reverse: { label: '親友', affection: 0.5, awareness: null, role: null },
+        symmetric: { closeness: 0.8, trust: 0.7, tension: 0.1, secrecy: 0.0, kinship: null },
+        tags: [],
+      }),
+    ];
+
+    
+    const result = migrateV10ToV11(rels as LegacyRelationshipV9[]);
+
+    // 2本に分割されること
+    expect(result).toHaveLength(2);
+
+    // 1本目: コナン→蘭「好き」
+    const fwd = result.find((r) => r.sourceId === 'コナン');
+    expect(fwd).toBeDefined();
+    expect(fwd!.targetId).toBe('蘭');
+    expect(fwd!.label).toBe('好き');
+    expect(fwd!.symmetric).toBe(false);
+    expect(fwd!.properties.affection).toBe(0.9);
+
+    // 2本目: 蘭→コナン「親友」
+    const rev = result.find((r) => r.sourceId === '蘭');
+    expect(rev).toBeDefined();
+    expect(rev!.targetId).toBe('コナン');
+    expect(rev!.label).toBe('親友');
+    expect(rev!.symmetric).toBe(false);
+    expect(rev!.properties.affection).toBe(0.5);
+
+    // 両方に symmetric プロパティ（closeness等）がコピーされること
+    expect(fwd!.properties.closeness).toBe(0.8);
+    expect(rev!.properties.closeness).toBe(0.8);
+  });
+
+  it('kinship から type を導出する（親 → "親子"）', () => {
+    // 前提条件: kinship=parent の関係（タグなし）
+    const rels = [
+      makeV9Rel({
+        symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: 'parent' },
+        forward: { label: '父', affection: null, awareness: null, role: null },
+        tags: [],
+      }),
+    ];
+
+    
+    const result = migrateV10ToV11(rels as LegacyRelationshipV9[]);
+
+    // kinship から type が導出されること
+    expect(result[0].type).toBe('親子');
+  });
+
+  it('tags[0] から type を導出する（kinshipなしの場合）', () => {
+    // 前提条件: tags=['同僚'] でkinshipなし
+    const rels = [
+      makeV9Rel({
+        tags: ['同僚', 'layer-general'],
+        forward: { label: '同僚', affection: null, awareness: null, role: null },
+      }),
+    ];
+
+    
+    const result = migrateV10ToV11(rels as LegacyRelationshipV9[]);
+
+    expect(result[0].type).toBe('同僚');
+  });
+
+  it('タグも kinship もない場合は forward.label を type にする', () => {
+    // 前提条件: tags=[] でkinshipなし、forward.label='師匠'
+    const rels = [
+      makeV9Rel({
+        tags: [],
+        forward: { label: '師匠', affection: null, awareness: null, role: null },
+      }),
+    ];
+
+    
+    const result = migrateV10ToV11(rels as LegacyRelationshipV9[]);
+
+    expect(result[0].type).toBe('師匠');
+  });
+
+  it('ラベルも何もない場合は type を "一般" にする', () => {
+    // 前提条件: タグも kinship も label も全てnull
+    const rels = [makeV9Rel({ tags: [] })];
+
+    
+    const result = migrateV10ToV11(rels as LegacyRelationshipV9[]);
+
+    expect(result[0].type).toBe('一般');
+  });
+
+  it('symmetric プロパティ（closeness/trust/tension/secrecy）が properties に移行される', () => {
+    // 前提条件: 全ての定型値が設定された関係
+    const rels = [
+      makeV9Rel({
+        symmetric: { closeness: 0.9, trust: 0.8, tension: 0.2, secrecy: 0.5, kinship: null },
+        forward: { label: '親友', affection: 0.7, awareness: 'known', role: '師匠' },
+        tags: [],
+      }),
+    ];
+
+    
+    const result = migrateV10ToV11(rels as LegacyRelationshipV9[]);
+
+    const props = result[0].properties;
+    expect(props.closeness).toBe(0.9);
+    expect(props.trust).toBe(0.8);
+    expect(props.tension).toBe(0.2);
+    expect(props.secrecy).toBe(0.5);
+    expect(props.affection).toBe(0.7);
+    expect(props.awareness).toBe('known');
+    expect(props.role).toBe('師匠');
+  });
+
+  it('Person に properties フィールドが追加される', () => {
+    // 前提条件: v10 形式（properties なし）の Person
+    const persons = [
+      {
+        id: 'p1',
+        labels: ['人物'],
+        name: '江戸川コナン',
+        createdAt: '2024-01-01T00:00:00.000Z',
+      },
+    ];
+
+    
+    const result = migratePersonsV10ToV11(persons as LegacyPersonV10[]);
+
+    expect(result[0].properties).toEqual({});
+    expect(result[0].labels).toEqual(['人物']);
+    expect(result[0].name).toBe('江戸川コナン');
+  });
+
+  it('Person にすでに properties がある場合はそのまま保持する', () => {
+    // 前提条件: すでに properties を持つ Person
+    const persons = [
+      {
+        id: 'p1',
+        labels: ['人物'],
+        name: '阿笠博士',
+        properties: { organization: 'APTX研究所' },
+        createdAt: '2024-01-01T00:00:00.000Z',
+      },
+    ];
+
+    
+    const result = migratePersonsV10ToV11(persons as LegacyPersonV10[]);
+
+    expect(result[0].properties).toEqual({ organization: 'APTX研究所' });
   });
 });
 
@@ -1209,7 +1477,7 @@ describe('migrateV9ToV10', () => {
       { id: '1', name: '田中一郎', kind: 'person', createdAt: '2024-01-01T00:00:00.000Z' },
     ];
 
-    const result = migrateV9ToV10(persons as Person[]);
+    const result = migrateV9ToV10(persons as unknown as Person[]);
 
     expect(result[0].labels).toEqual(['人物']);
     expect(result[0]).not.toHaveProperty('kind');
@@ -1220,7 +1488,7 @@ describe('migrateV9ToV10', () => {
       { id: '2', name: '宝剣エクスカリバー', kind: 'item', createdAt: '2024-01-01T00:00:00.000Z' },
     ];
 
-    const result = migrateV9ToV10(persons as Person[]);
+    const result = migrateV9ToV10(persons as unknown as Person[]);
 
     expect(result[0].labels).toEqual(['物']);
     expect(result[0]).not.toHaveProperty('kind');
@@ -1231,7 +1499,7 @@ describe('migrateV9ToV10', () => {
       { id: '3', name: '鈴木花子', createdAt: '2024-01-01T00:00:00.000Z' },
     ];
 
-    const result = migrateV9ToV10(persons as Person[]);
+    const result = migrateV9ToV10(persons as unknown as Person[]);
 
     expect(result[0].labels).toEqual(['人物']);
     expect(result[0]).not.toHaveProperty('kind');

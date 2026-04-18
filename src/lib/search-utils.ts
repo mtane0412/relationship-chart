@@ -4,8 +4,7 @@
  */
 
 import type { Person } from '@/types/person';
-import type { RelationshipV9, RelationshipType } from '@/types/relationship';
-import { getRelationshipDisplayType } from './relationship-utils';
+import type { Relationship } from '@/types/relationship';
 
 /**
  * 検索結果の型
@@ -16,7 +15,7 @@ import { getRelationshipDisplayType } from './relationship-utils';
  * @property imageDataUrl - 人物/物の画像URL
  * @property sourcePersonId - 関係の場合の起点人物ID
  * @property targetPersonId - 関係の場合の終点人物ID
- * @property relationshipType - 関係の表示タイプ
+ * @property symmetric - 関係の場合の無向フラグ
  * @property sourceImageDataUrl - 関係の場合の起点人物の画像URL
  * @property targetImageDataUrl - 関係の場合の終点人物の画像URL
  * @property sourceNodeLabels - 関係の場合の起点人物のノードラベル配列
@@ -30,7 +29,7 @@ export type SearchResult = {
   imageDataUrl?: string;
   sourcePersonId?: string;
   targetPersonId?: string;
-  relationshipType?: RelationshipType;
+  symmetric?: boolean;
   sourceImageDataUrl?: string;
   targetImageDataUrl?: string;
   sourceNodeLabels?: string[];
@@ -46,13 +45,13 @@ const MAX_RESULTS = 20;
  * グラフ内を検索する
  * @param query - 検索クエリ（大文字小文字を区別しない部分一致）
  * @param persons - 人物の配列
- * @param relationships - 関係の配列
+ * @param relationships - 関係の配列（v11）
  * @returns 検索結果の配列（人物結果が先、関係結果が後、最大20件）
  */
 export function searchGraph(
   query: string,
   persons: Person[],
-  relationships: RelationshipV9[]
+  relationships: Relationship[]
 ): SearchResult[] {
   // 空クエリの場合は空配列を返す
   const trimmedQuery = query.trim();
@@ -70,7 +69,7 @@ export function searchGraph(
       kind: 'person' as const,
       id: person.id,
       label: person.name,
-      nodeLabels: person.labels ?? ['人物'],
+      nodeLabels: person.labels,
       imageDataUrl: person.imageDataUrl,
     }));
 
@@ -80,49 +79,24 @@ export function searchGraph(
   // 関係を検索
   const relationshipResults: SearchResult[] = [];
   for (const rel of relationships) {
-    // 起点と終点の人物を検索
-    const sourcePerson = personMap.get(rel.sourcePersonId);
-    const targetPerson = personMap.get(rel.targetPersonId);
+    const sourcePerson = personMap.get(rel.sourceId);
+    const targetPerson = personMap.get(rel.targetId);
 
-    const matchedLabels = new Set<string>();
+    // 表示ラベル（label が null の場合は type を使用）
+    const displayLabel = rel.label ?? rel.type;
 
-    const displayType = getRelationshipDisplayType(rel);
-
-    // forward.label（source→target方向ラベル）を検索
-    if (rel.forward.label && rel.forward.label.toLowerCase().includes(lowerQuery)) {
-      matchedLabels.add(rel.forward.label);
+    if (displayLabel.toLowerCase().includes(lowerQuery)) {
       relationshipResults.push({
         kind: 'relationship',
         id: rel.id,
-        label: rel.forward.label,
-        sourcePersonId: rel.sourcePersonId,
-        targetPersonId: rel.targetPersonId,
-        relationshipType: displayType,
+        label: displayLabel,
+        sourcePersonId: rel.sourceId,
+        targetPersonId: rel.targetId,
+        symmetric: rel.symmetric,
         sourceImageDataUrl: sourcePerson?.imageDataUrl,
         targetImageDataUrl: targetPerson?.imageDataUrl,
-        sourceNodeLabels: sourcePerson?.labels ?? ['人物'],
-        targetNodeLabels: targetPerson?.labels ?? ['人物'],
-      });
-    }
-
-    // reverse.label（target→source方向ラベル）を検索（forward.labelと異なる場合のみ追加）
-    if (
-      rel.reverse.label &&
-      rel.reverse.label.toLowerCase().includes(lowerQuery) &&
-      !matchedLabels.has(rel.reverse.label)
-    ) {
-      // 逆方向のラベルなので、起点と終点を入れ替えて表示
-      relationshipResults.push({
-        kind: 'relationship',
-        id: rel.id,
-        label: rel.reverse.label,
-        sourcePersonId: rel.targetPersonId,
-        targetPersonId: rel.sourcePersonId,
-        relationshipType: displayType,
-        sourceImageDataUrl: targetPerson?.imageDataUrl,
-        targetImageDataUrl: sourcePerson?.imageDataUrl,
-        sourceNodeLabels: targetPerson?.labels ?? ['人物'],
-        targetNodeLabels: sourcePerson?.labels ?? ['人物'],
+        sourceNodeLabels: sourcePerson?.labels,
+        targetNodeLabels: targetPerson?.labels,
       });
     }
   }

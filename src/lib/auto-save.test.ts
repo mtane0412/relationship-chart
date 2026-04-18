@@ -98,6 +98,8 @@ describe('auto-save', () => {
     act(() => {
       useGraphStore.getState().addPerson({
         name: '山田太郎',
+        labels: ['人物'],
+        properties: {},
       });
     });
 
@@ -127,6 +129,8 @@ describe('auto-save', () => {
     act(() => {
       useGraphStore.getState().addPerson({
         name: '山田太郎',
+        labels: ['人物'],
+        properties: {},
       });
     });
 
@@ -189,6 +193,8 @@ describe('auto-save', () => {
     act(() => {
       useGraphStore.getState().addPerson({
         name: '山田太郎',
+        labels: ['人物'],
+        properties: {},
       });
     });
 
@@ -250,6 +256,8 @@ describe('auto-save', () => {
     act(() => {
       useGraphStore.getState().addPerson({
         name: '山田太郎',
+        labels: ['人物'],
+        properties: {},
       });
     });
 

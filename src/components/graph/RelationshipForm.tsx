@@ -8,7 +8,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { ArrowRight, ArrowLeftRight, Minus } from 'lucide-react';
 import { BidirectionalArrow } from '@/components/icons/BidirectionalArrow';
-import type { RelationshipType } from '@/types/relationship';
+/** v11 互換のローカル型定義（このコンポーネントは未使用） */
+type RelationshipType = 'bidirectional' | 'one-way' | 'dual-directed' | 'undirected';
 
 /**
  * モーダルで表示する人物情報

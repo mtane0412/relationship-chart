@@ -1,36 +1,35 @@
 /**
- * relationship-visual.ts のテスト
- * deriveEdgeVisual 関数の色・線幅・破線・マーカーキー導出ルールを検証する
+ * relationship-visual.ts のテスト（v11 プロパティグラフ方式）
+ * deriveEdgeVisual 関数の色・線幅・破線・マーカーキー導出ルールを検証する。
+ *
+ * v11 の主な変更:
+ *   - kinship フィールドは廃止（properties に統合）
+ *   - closeness/trust/tension/secrecy は properties 配下に移動
+ *   - エッジ型（type）に基づく色導出が追加（TYPE_COLOR_MAP）
  */
 
 import { describe, it, expect } from 'vitest';
 import { deriveEdgeVisual } from './relationship-visual';
-import type { RelationshipV9 } from '@/types/relationship';
+import type { Relationship } from '@/types/relationship';
 
 // ─── テストデータ ヘルパー ─────────────────────────────────────────────────────
 
 /**
- * テスト用の RelationshipV9 を生成する
+ * テスト用の Relationship（v11形式）を生成する
  * すべてのフィールドをデフォルト（null/空）にして、引数で上書きする
  */
-function makeRel(overrides: Partial<RelationshipV9> = {}): RelationshipV9 {
+function makeRel(overrides: Partial<Relationship> = {}): Relationship {
   return {
     id: 'rel-1',
-    sourcePersonId: '鈴木一郎',
-    targetPersonId: '田中花子',
-    isDirected: false,
-    symmetric: {
-      closeness: null,
-      trust: null,
-      tension: null,
-      secrecy: null,
-      kinship: null,
-    },
-    forward: { label: null, affection: null, awareness: null, role: null },
-    reverse: { label: null, affection: null, awareness: null, role: null },
+    sourceId: '鈴木一郎',
+    targetId: '田中花子',
+    type: '知人',
+    label: null,
+    symmetric: false,
     tags: [],
     narrative: { summary: null, notes: null, turningPoints: [] },
     colorOverride: null,
+    properties: {},
     createdAt: '2024-01-01T00:00:00.000Z',
     updatedAt: '2024-01-01T00:00:00.000Z',
     ...overrides,
@@ -61,6 +60,13 @@ describe('deriveEdgeVisual', () => {
       expect(visual.color).toBe('#ff0000');
     });
 
+    it('TYPE_COLOR_MAP にマッチするエッジ型がある場合はその型の色を使用する', () => {
+      // 前提条件: '恋人' は TYPE_COLOR_MAP で赤（#ef4444）にマッピングされる
+      const rel = makeRel({ type: '恋人' });
+      const visual = deriveEdgeVisual(rel);
+      expect(visual.color).toBe('#ef4444');
+    });
+
     it('TAG_COLOR_MAP にマッチするタグがある場合はそのタグの色を使用する', () => {
       // 前提条件: '上司' は organizational 系（#22c55e = 緑）にマッピングされる
       const rel = makeRel({ tags: ['上司'] });
@@ -84,49 +90,10 @@ describe('deriveEdgeVisual', () => {
       expect(visual.color).toBe('#64748b');
     });
 
-    it('kinship が設定されている場合（タグマッチなし）は緑（#22c55e）を使用する', () => {
-      // 前提条件: タグなし・kinship=sibling（兄弟）
-      const rel = makeRel({
-        symmetric: {
-          closeness: null,
-          trust: null,
-          tension: null,
-          secrecy: null,
-          kinship: 'sibling',
-        },
-      });
-      const visual = deriveEdgeVisual(rel);
-      expect(visual.color).toBe('#22c55e');
-      expect(visual.markerKey).toBe('green');
-    });
-
-    it('TAG_COLOR_MAP のタグが kinship より優先される', () => {
-      // 前提条件: '対立'（赤）タグ + kinship=parent
-      const rel = makeRel({
-        tags: ['対立'],
-        symmetric: {
-          closeness: null,
-          trust: null,
-          tension: null,
-          secrecy: null,
-          kinship: 'parent',
-        },
-      });
-      const visual = deriveEdgeVisual(rel);
-      // タグが kinship より優先される
-      expect(visual.color).toBe('#ef4444');
-    });
-
     it('trust が tension + 0.2 より大きい場合は青（#3b82f6）を使用する', () => {
       // 前提条件: trust=0.9, tension=0.3（差が0.6 > 0.2）
       const rel = makeRel({
-        symmetric: {
-          closeness: null,
-          trust: 0.9,
-          tension: 0.3,
-          secrecy: null,
-          kinship: null,
-        },
+        properties: { trust: 0.9, tension: 0.3 },
       });
       const visual = deriveEdgeVisual(rel);
       expect(visual.color).toBe('#3b82f6');
@@ -136,13 +103,7 @@ describe('deriveEdgeVisual', () => {
     it('tension が trust + 0.2 より大きい場合は赤（#ef4444）を使用する', () => {
       // 前提条件: tension=0.9, trust=0.1（差が0.8 > 0.2）
       const rel = makeRel({
-        symmetric: {
-          closeness: null,
-          trust: 0.1,
-          tension: 0.9,
-          secrecy: null,
-          kinship: null,
-        },
+        properties: { trust: 0.1, tension: 0.9 },
       });
       const visual = deriveEdgeVisual(rel);
       expect(visual.color).toBe('#ef4444');
@@ -152,13 +113,7 @@ describe('deriveEdgeVisual', () => {
     it('trust と tension の差が 0.2 以内の場合はグレーにフォールバックする', () => {
       // 前提条件: trust=0.5, tension=0.5（差がゼロ、0.2 以下）
       const rel = makeRel({
-        symmetric: {
-          closeness: null,
-          trust: 0.5,
-          tension: 0.5,
-          secrecy: null,
-          kinship: null,
-        },
+        properties: { trust: 0.5, tension: 0.5 },
       });
       const visual = deriveEdgeVisual(rel);
       expect(visual.color).toBe('#64748b');
@@ -167,33 +122,22 @@ describe('deriveEdgeVisual', () => {
     it('trust のみ設定されていて tension が null の場合は青にならずグレーを返す', () => {
       // 前提条件: trust=0.9, tension=null（比較不能 → グレー）
       const rel = makeRel({
-        symmetric: {
-          closeness: null,
-          trust: 0.9,
-          tension: null,
-          secrecy: null,
-          kinship: null,
-        },
+        properties: { trust: 0.9, tension: null },
       });
       const visual = deriveEdgeVisual(rel);
       // tension が null なので比較できず、グレーにフォールバック
       expect(visual.color).toBe('#64748b');
     });
 
-    it('kinship が trust/tension より優先される', () => {
-      // 前提条件: kinship=parent + trust=0.9 tension=0.1（本来なら青）
+    it('TYPE_COLOR_MAP のタグが trust/tension より優先される', () => {
+      // 前提条件: 恋人（赤）type + trust=0.9 tension=0.1（本来なら青）
       const rel = makeRel({
-        symmetric: {
-          closeness: null,
-          trust: 0.9,
-          tension: 0.1,
-          secrecy: null,
-          kinship: 'parent',
-        },
+        type: '恋人',
+        properties: { trust: 0.9, tension: 0.1 },
       });
       const visual = deriveEdgeVisual(rel);
-      // kinship が trust/tension より優先される
-      expect(visual.color).toBe('#22c55e');
+      // TYPE_COLOR_MAP のマッチが trust/tension より優先される
+      expect(visual.color).toBe('#ef4444');
     });
   });
 
@@ -209,13 +153,7 @@ describe('deriveEdgeVisual', () => {
     it('closeness が 0 の場合は 1px を返す', () => {
       // 前提条件: closeness=0（最小値）
       const rel = makeRel({
-        symmetric: {
-          closeness: 0,
-          trust: null,
-          tension: null,
-          secrecy: null,
-          kinship: null,
-        },
+        properties: { closeness: 0 },
       });
       const visual = deriveEdgeVisual(rel);
       expect(visual.strokeWidth).toBe(1);
@@ -224,13 +162,7 @@ describe('deriveEdgeVisual', () => {
     it('closeness が 1 の場合は 4px を返す', () => {
       // 前提条件: closeness=1（最大値）
       const rel = makeRel({
-        symmetric: {
-          closeness: 1,
-          trust: null,
-          tension: null,
-          secrecy: null,
-          kinship: null,
-        },
+        properties: { closeness: 1 },
       });
       const visual = deriveEdgeVisual(rel);
       expect(visual.strokeWidth).toBe(4);
@@ -239,13 +171,7 @@ describe('deriveEdgeVisual', () => {
     it('closeness が 0.5 の場合は 2.5px を返す', () => {
       // 前提条件: closeness=0.5（中間値）: 0.5 * 3 + 1 = 2.5
       const rel = makeRel({
-        symmetric: {
-          closeness: 0.5,
-          trust: null,
-          tension: null,
-          secrecy: null,
-          kinship: null,
-        },
+        properties: { closeness: 0.5 },
       });
       const visual = deriveEdgeVisual(rel);
       expect(visual.strokeWidth).toBeCloseTo(2.5);
@@ -264,13 +190,7 @@ describe('deriveEdgeVisual', () => {
     it('secrecy が 0.5 の場合は破線（dashed: true）を返す', () => {
       // 前提条件: secrecy=0.5（閾値ちょうど）
       const rel = makeRel({
-        symmetric: {
-          closeness: null,
-          trust: null,
-          tension: null,
-          secrecy: 0.5,
-          kinship: null,
-        },
+        properties: { secrecy: 0.5 },
       });
       const visual = deriveEdgeVisual(rel);
       expect(visual.dashed).toBe(true);
@@ -279,13 +199,7 @@ describe('deriveEdgeVisual', () => {
     it('secrecy が 0.5 未満の場合は実線（dashed: false）を返す', () => {
       // 前提条件: secrecy=0.4（閾値未満）
       const rel = makeRel({
-        symmetric: {
-          closeness: null,
-          trust: null,
-          tension: null,
-          secrecy: 0.4,
-          kinship: null,
-        },
+        properties: { secrecy: 0.4 },
       });
       const visual = deriveEdgeVisual(rel);
       expect(visual.dashed).toBe(false);
@@ -294,13 +208,7 @@ describe('deriveEdgeVisual', () => {
     it('secrecy が 1.0 の場合は破線（dashed: true）を返す', () => {
       // 前提条件: secrecy=1.0（最大値）
       const rel = makeRel({
-        symmetric: {
-          closeness: null,
-          trust: null,
-          tension: null,
-          secrecy: 1.0,
-          kinship: null,
-        },
+        properties: { secrecy: 1.0 },
       });
       const visual = deriveEdgeVisual(rel);
       expect(visual.dashed).toBe(true);
@@ -328,13 +236,7 @@ describe('deriveEdgeVisual', () => {
     it('色が #3b82f6 の場合は blue を返す', () => {
       // trust > tension + 0.2
       const rel = makeRel({
-        symmetric: {
-          closeness: null,
-          trust: 0.8,
-          tension: 0.1,
-          secrecy: null,
-          kinship: null,
-        },
+        properties: { trust: 0.8, tension: 0.1 },
       });
       expect(deriveEdgeVisual(rel).markerKey).toBe('blue');
     });

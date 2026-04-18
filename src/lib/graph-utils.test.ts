@@ -1,32 +1,32 @@
 /**
  * graph-utils.tsのテスト
- * Person/Relationship → Node/Edge変換関数の振る舞いを検証
+ * Person/Relationship → Node/Edge変換関数の振る舞いを検証（v11プロパティグラフ方式）
  */
 
 import { describe, it, expect, vi } from 'vitest';
 import { personsToNodes, relationshipsToEdges, matchesEdgeFilter, syncNodePositionsToStore, calculateParallelEdgeOffset } from './graph-utils';
 import type { Person } from '@/types/person';
-import type { RelationshipV9, EdgeFilter } from '@/types/relationship';
+import type { Relationship, EdgeFilter } from '@/types/relationship';
 import type { GraphNode } from '@/types/graph';
 
 // ─── テストデータ ヘルパー ─────────────────────────────────────────────────────
 
 /**
- * テスト用の RelationshipV9 を生成する
+ * テスト用の v11 Relationship を生成する
  * すべてのフィールドをデフォルト（null/空）にして、引数で上書きする
  */
-function makeRel(overrides: Partial<RelationshipV9> = {}): RelationshipV9 {
+function makeRel(overrides: Partial<Relationship> = {}): Relationship {
   return {
     id: 'rel-1',
-    sourcePersonId: 'person-1',
-    targetPersonId: 'person-2',
-    isDirected: false,
-    symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
-    forward: { label: null, affection: null, awareness: null, role: null },
-    reverse: { label: null, affection: null, awareness: null, role: null },
+    type: '関係',
+    sourceId: 'person-1',
+    targetId: 'person-2',
+    label: null,
+    symmetric: false,
     tags: [],
     narrative: { summary: null, notes: null, turningPoints: [] },
     colorOverride: null,
+    properties: {},
     createdAt: '2026-02-05T00:00:00.000Z',
     updatedAt: '2026-02-05T00:00:00.000Z',
     ...overrides,
@@ -47,6 +47,8 @@ describe('graph-utils', () => {
           id: 'person-1',
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,/9j/4AAQSkZJRg...',
+          labels: ['人物'],
+          properties: {},
           createdAt: '2026-02-05T00:00:00.000Z',
         },
       ];
@@ -72,12 +74,16 @@ describe('graph-utils', () => {
           id: 'person-1',
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
           createdAt: '2026-02-05T00:00:00.000Z',
         },
         {
           id: 'person-2',
           name: '佐藤花子',
           imageDataUrl: 'data:image/jpeg;base64,def',
+          labels: ['人物'],
+          properties: {},
           createdAt: '2026-02-05T00:01:00.000Z',
         },
       ];
@@ -96,6 +102,8 @@ describe('graph-utils', () => {
         {
           id: 'person-1',
           name: '山田太郎',
+          labels: ['人物'],
+          properties: {},
           createdAt: '2026-02-05T00:00:00.000Z',
         },
       ];
@@ -122,6 +130,7 @@ describe('graph-utils', () => {
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
           labels: ['人物'],
+          properties: {},
           createdAt: '2026-02-05T00:00:00.000Z',
         },
       ];
@@ -148,6 +157,7 @@ describe('graph-utils', () => {
           name: '伝説の剣',
           imageDataUrl: 'data:image/jpeg;base64,sword',
           labels: ['物'],
+          properties: {},
           createdAt: '2026-02-05T00:00:00.000Z',
         },
       ];
@@ -173,6 +183,8 @@ describe('graph-utils', () => {
           id: 'person-1',
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
           createdAt: '2026-02-05T00:00:00.000Z',
         },
       ];
@@ -199,6 +211,7 @@ describe('graph-utils', () => {
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
           labels: ['人物'],
+          properties: {},
           createdAt: '2026-02-05T00:00:00.000Z',
         },
         {
@@ -206,6 +219,7 @@ describe('graph-utils', () => {
           name: '魔法の杖',
           imageDataUrl: 'data:image/jpeg;base64,wand',
           labels: ['物'],
+          properties: {},
           createdAt: '2026-02-05T00:01:00.000Z',
         },
       ];
@@ -225,6 +239,8 @@ describe('graph-utils', () => {
           id: 'person-1',
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
           position: { x: 100, y: 200 },
           createdAt: '2026-02-05T00:00:00.000Z',
         },
@@ -242,6 +258,8 @@ describe('graph-utils', () => {
           id: 'person-1',
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
           createdAt: '2026-02-05T00:00:00.000Z',
         },
       ];
@@ -258,6 +276,8 @@ describe('graph-utils', () => {
           id: 'person-1',
           name: '山田太郎',
           imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
           position: { x: 0, y: 0 },
           createdAt: '2026-02-05T00:00:00.000Z',
         },
@@ -271,20 +291,21 @@ describe('graph-utils', () => {
   });
 
   describe('relationshipsToEdges', () => {
-    it('RelationshipV9 配列が空の場合は空のEdge配列を返す', () => {
+    it('Relationship 配列が空の場合は空のEdge配列を返す', () => {
       // 前提条件: 空配列
       const edges = relationshipsToEdges([]);
       expect(edges).toEqual([]);
     });
 
-    it('bidirectional（双方向同一ラベル）の RelationshipV9 を RelationshipEdge に変換できる', () => {
-      // 前提条件: isDirected=true, forward.label=reverse.label='親子'
-      const relationships: RelationshipV9[] = [
+    it('symmetric=false の Relationship を RelationshipEdge に変換できる（有向）', () => {
+      // 前提条件: type='親子', symmetric=false（有向）
+      const relationships: Relationship[] = [
         makeRel({
           id: 'rel-親子',
-          isDirected: true,
-          forward: { label: '親子', affection: null, awareness: null, role: null },
-          reverse: { label: '親子', affection: null, awareness: null, role: null },
+          type: '親子',
+          sourceId: 'person-1',
+          targetId: 'person-2',
+          symmetric: false,
         }),
       ];
 
@@ -295,10 +316,10 @@ describe('graph-utils', () => {
       expect(edges[0].source).toBe('person-1');
       expect(edges[0].target).toBe('person-2');
       expect(edges[0].type).toBe('relationship');
-      // bidirectional: 両方向ラベルが同一
-      expect(edges[0].data?.displayType).toBe('bidirectional');
-      expect(edges[0].data?.forwardLabel).toBe('親子');
-      expect(edges[0].data?.reverseLabel).toBe('親子');
+      // v11: edgeType / label / symmetric
+      expect(edges[0].data?.edgeType).toBe('親子');
+      expect(edges[0].data?.label).toBeNull();
+      expect(edges[0].data?.symmetric).toBe(false);
       // edgeIndex / totalEdgesInPair
       expect(edges[0].data?.edgeIndex).toBe(0);
       expect(edges[0].data?.totalEdgesInPair).toBe(1);
@@ -306,62 +327,43 @@ describe('graph-utils', () => {
       expect(edges[0].data?.visual).toBeDefined();
     });
 
-    it('dual-directed（両方向異なるラベル）の RelationshipV9 を RelationshipEdge に変換できる', () => {
-      // 前提条件: isDirected=true, forward.label='好き', reverse.label='無関心'
-      const relationships: RelationshipV9[] = [
+    it('symmetric=true の Relationship を RelationshipEdge に変換できる（無向）', () => {
+      // 前提条件: type='友人', symmetric=true（無向・矢印なし）
+      const relationships: Relationship[] = [
         makeRel({
-          isDirected: true,
-          forward: { label: '好き', affection: null, awareness: null, role: null },
-          reverse: { label: '無関心', affection: null, awareness: null, role: null },
+          type: '友人',
+          symmetric: true,
         }),
       ];
 
       const edges = relationshipsToEdges(relationships);
 
       expect(edges).toHaveLength(1);
-      expect(edges[0].data?.displayType).toBe('dual-directed');
-      expect(edges[0].data?.forwardLabel).toBe('好き');
-      expect(edges[0].data?.reverseLabel).toBe('無関心');
+      expect(edges[0].data?.edgeType).toBe('友人');
+      expect(edges[0].data?.symmetric).toBe(true);
     });
 
-    it('one-way（片方向のみラベル）の RelationshipV9 を RelationshipEdge に変換できる', () => {
-      // 前提条件: isDirected=true, forward.label='片想い', reverse.label=null
-      const relationships: RelationshipV9[] = [
+    it('label が設定されている場合は label が RelationshipEdge に反映される', () => {
+      // 前提条件: type='同僚', label='仕事仲間'
+      const relationships: Relationship[] = [
         makeRel({
-          isDirected: true,
-          forward: { label: '片想い', affection: null, awareness: null, role: null },
+          type: '同僚',
+          label: '仕事仲間',
         }),
       ];
 
       const edges = relationshipsToEdges(relationships);
 
       expect(edges).toHaveLength(1);
-      expect(edges[0].data?.displayType).toBe('one-way');
-      expect(edges[0].data?.forwardLabel).toBe('片想い');
-      expect(edges[0].data?.reverseLabel).toBeNull();
+      expect(edges[0].data?.edgeType).toBe('同僚');
+      expect(edges[0].data?.label).toBe('仕事仲間');
     });
 
-    it('undirected（無方向）の RelationshipV9 を RelationshipEdge に変換できる', () => {
-      // 前提条件: isDirected=false
-      const relationships: RelationshipV9[] = [
-        makeRel({
-          isDirected: false,
-          forward: { label: '同一人物', affection: null, awareness: null, role: null },
-          reverse: { label: '同一人物', affection: null, awareness: null, role: null },
-        }),
-      ];
-
-      const edges = relationshipsToEdges(relationships);
-
-      expect(edges).toHaveLength(1);
-      expect(edges[0].data?.displayType).toBe('undirected');
-    });
-
-    it('複数の RelationshipV9 を RelationshipEdge 配列に変換できる', () => {
+    it('複数の Relationship を RelationshipEdge 配列に変換できる', () => {
       // 前提条件: 2件の関係（別々のペア）
-      const relationships: RelationshipV9[] = [
-        makeRel({ id: 'rel-1', sourcePersonId: 'person-1', targetPersonId: 'person-2' }),
-        makeRel({ id: 'rel-2', sourcePersonId: 'person-2', targetPersonId: 'person-3' }),
+      const relationships: Relationship[] = [
+        makeRel({ id: 'rel-1', sourceId: 'person-1', targetId: 'person-2' }),
+        makeRel({ id: 'rel-2', sourceId: 'person-2', targetId: 'person-3' }),
       ];
 
       const edges = relationshipsToEdges(relationships);
@@ -371,17 +373,11 @@ describe('graph-utils', () => {
       expect(edges[1].id).toBe('rel-2');
     });
 
-    it('closeness が設定されている場合は visual.strokeWidth が 2px より太くなる', () => {
+    it('properties.closeness が設定されている場合は visual.strokeWidth が 2px より太くなる', () => {
       // 前提条件: closeness=1.0（最大値 → 4px）
-      const relationships: RelationshipV9[] = [
+      const relationships: Relationship[] = [
         makeRel({
-          symmetric: {
-            closeness: 1.0,
-            trust: null,
-            tension: null,
-            secrecy: null,
-            kinship: null,
-          },
+          properties: { closeness: 1.0 },
         }),
       ];
 
@@ -393,7 +389,7 @@ describe('graph-utils', () => {
 
     it('tags に TAG_COLOR_MAP のキーが含まれる場合は visual.color がそのタグの色になる', () => {
       // 前提条件: '上司' タグ → #22c55e（緑）
-      const relationships: RelationshipV9[] = [
+      const relationships: Relationship[] = [
         makeRel({ tags: ['上司'] }),
       ];
 
@@ -473,8 +469,8 @@ describe('graph-utils', () => {
   describe('relationshipsToEdges: 同一ペア間の並列描画インデックス', () => {
     it('同じペアの関係が1件の場合、edgeIndex=0 / totalEdgesInPair=1 になる', () => {
       // 前提条件: person-1 ↔ person-2 に1件の関係
-      const relationships: RelationshipV9[] = [
-        makeRel({ id: 'rel-1', isDirected: true }),
+      const relationships: Relationship[] = [
+        makeRel({ id: 'rel-1' }),
       ];
 
       const edges = relationshipsToEdges(relationships);
@@ -484,11 +480,11 @@ describe('graph-utils', () => {
       expect(edges[0].data?.totalEdgesInPair).toBe(1);
     });
 
-    it('同じペアの関係が2件の場合、edgeIndex=0,1 / totalEdgesInPair=2 になる', () => {
-      // 前提条件: person-1 ↔ person-2 に2件の関係（v9ではペアに複数エッジが来るケースは稀だが可能）
-      const relationships: RelationshipV9[] = [
-        makeRel({ id: 'rel-1', isDirected: true }),
-        makeRel({ id: 'rel-2', isDirected: true }),
+    it('同じペアの関係が2件の場合、edgeIndex=0,1 / totalEdgesInPair=2 になる（マルチグラフ）', () => {
+      // 前提条件: person-1 ↔ person-2 に2件の関係（v11マルチグラフ対応）
+      const relationships: Relationship[] = [
+        makeRel({ id: 'rel-1', type: '友人' }),
+        makeRel({ id: 'rel-2', type: '同僚' }),
       ];
 
       const edges = relationshipsToEdges(relationships);
@@ -502,9 +498,9 @@ describe('graph-utils', () => {
 
     it('逆方向の関係（source/targetが入れ替わり）も同一ペアとしてカウントされる', () => {
       // 前提条件: person-1→person-2 と person-2→person-1 の2件
-      const relationships: RelationshipV9[] = [
-        makeRel({ id: 'rel-1', sourcePersonId: 'person-1', targetPersonId: 'person-2', isDirected: true }),
-        makeRel({ id: 'rel-2', sourcePersonId: 'person-2', targetPersonId: 'person-1', isDirected: true }),
+      const relationships: Relationship[] = [
+        makeRel({ id: 'rel-1', sourceId: 'person-1', targetId: 'person-2' }),
+        makeRel({ id: 'rel-2', sourceId: 'person-2', targetId: 'person-1' }),
       ];
 
       const edges = relationshipsToEdges(relationships);
@@ -516,9 +512,9 @@ describe('graph-utils', () => {
 
     it('異なるペアの関係は独立してカウントされる', () => {
       // 前提条件: person-1↔person-2 と person-1↔person-3 の2件
-      const relationships: RelationshipV9[] = [
-        makeRel({ id: 'rel-1', sourcePersonId: 'person-1', targetPersonId: 'person-2' }),
-        makeRel({ id: 'rel-2', sourcePersonId: 'person-1', targetPersonId: 'person-3' }),
+      const relationships: Relationship[] = [
+        makeRel({ id: 'rel-1', sourceId: 'person-1', targetId: 'person-2' }),
+        makeRel({ id: 'rel-2', sourceId: 'person-1', targetId: 'person-3' }),
       ];
 
       const edges = relationshipsToEdges(relationships);
@@ -603,7 +599,8 @@ describe('graph-utils', () => {
 
     describe('述語フィルタ', () => {
       it('closeness_gte: 閾値以上なら通過する', () => {
-        const rel = makeRel({ symmetric: { closeness: 0.8, trust: null, tension: null, secrecy: null, kinship: null } });
+        // 前提条件: properties.closeness=0.8 ≥ 0.5 → 通過
+        const rel = makeRel({ properties: { closeness: 0.8 } });
         const filter: EdgeFilter = {
           tags: { mode: 'any', values: [] },
           predicates: [{ type: 'closeness_gte', value: 0.5 }],
@@ -612,7 +609,8 @@ describe('graph-utils', () => {
       });
 
       it('closeness_gte: 閾値未満なら除外される', () => {
-        const rel = makeRel({ symmetric: { closeness: 0.3, trust: null, tension: null, secrecy: null, kinship: null } });
+        // 前提条件: properties.closeness=0.3 < 0.5 → 除外
+        const rel = makeRel({ properties: { closeness: 0.3 } });
         const filter: EdgeFilter = {
           tags: { mode: 'any', values: [] },
           predicates: [{ type: 'closeness_gte', value: 0.5 }],
@@ -621,7 +619,8 @@ describe('graph-utils', () => {
       });
 
       it('closeness_gte: closenessがnullなら除外される', () => {
-        const rel = makeRel({ symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null } });
+        // 前提条件: properties.closeness=null → 述語を満たさない
+        const rel = makeRel({ properties: { closeness: null } });
         const filter: EdgeFilter = {
           tags: { mode: 'any', values: [] },
           predicates: [{ type: 'closeness_gte', value: 0.0 }],
@@ -630,7 +629,8 @@ describe('graph-utils', () => {
       });
 
       it('trust_gte: 閾値以上なら通過する', () => {
-        const rel = makeRel({ symmetric: { closeness: null, trust: 0.7, tension: null, secrecy: null, kinship: null } });
+        // 前提条件: properties.trust=0.7 ≥ 0.5 → 通過
+        const rel = makeRel({ properties: { trust: 0.7 } });
         const filter: EdgeFilter = {
           tags: { mode: 'any', values: [] },
           predicates: [{ type: 'trust_gte', value: 0.5 }],
@@ -639,7 +639,8 @@ describe('graph-utils', () => {
       });
 
       it('tension_gte: 閾値未満なら除外される', () => {
-        const rel = makeRel({ symmetric: { closeness: null, trust: null, tension: 0.2, secrecy: null, kinship: null } });
+        // 前提条件: properties.tension=0.2 < 0.5 → 除外
+        const rel = makeRel({ properties: { tension: 0.2 } });
         const filter: EdgeFilter = {
           tags: { mode: 'any', values: [] },
           predicates: [{ type: 'tension_gte', value: 0.5 }],
@@ -648,7 +649,8 @@ describe('graph-utils', () => {
       });
 
       it('secrecy_gte: 閾値以上なら通過する', () => {
-        const rel = makeRel({ symmetric: { closeness: null, trust: null, tension: null, secrecy: 0.6, kinship: null } });
+        // 前提条件: properties.secrecy=0.6 ≥ 0.5 → 通過
+        const rel = makeRel({ properties: { secrecy: 0.6 } });
         const filter: EdgeFilter = {
           tags: { mode: 'any', values: [] },
           predicates: [{ type: 'secrecy_gte', value: 0.5 }],
@@ -656,27 +658,29 @@ describe('graph-utils', () => {
         expect(matchesEdgeFilter(rel, filter)).toBe(true);
       });
 
-      it('has_kinship: kinshipが設定されていれば通過する', () => {
-        const rel = makeRel({ symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: 'parent' } });
+      it('edge_type_is: typeが一致すれば通過する', () => {
+        // 前提条件: type='親子' → 通過
+        const rel = makeRel({ type: '親子' });
         const filter: EdgeFilter = {
           tags: { mode: 'any', values: [] },
-          predicates: [{ type: 'has_kinship' }],
+          predicates: [{ type: 'edge_type_is', value: '親子' }],
         };
         expect(matchesEdgeFilter(rel, filter)).toBe(true);
       });
 
-      it('has_kinship: kinshipがnullなら除外される', () => {
-        const rel = makeRel({ symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null } });
+      it('edge_type_is: typeが一致しなければ除外される', () => {
+        // 前提条件: type='友人'、フィルタ='同僚' → 除外
+        const rel = makeRel({ type: '友人' });
         const filter: EdgeFilter = {
           tags: { mode: 'any', values: [] },
-          predicates: [{ type: 'has_kinship' }],
+          predicates: [{ type: 'edge_type_is', value: '同僚' }],
         };
         expect(matchesEdgeFilter(rel, filter)).toBe(false);
       });
 
       it('複数の述語は全て通過する必要がある（AND条件）', () => {
         // closeness=0.8（OK）、trust=null（NG for trust_gte=0.5）
-        const rel = makeRel({ symmetric: { closeness: 0.8, trust: null, tension: null, secrecy: null, kinship: null } });
+        const rel = makeRel({ properties: { closeness: 0.8, trust: null } });
         const filter: EdgeFilter = {
           tags: { mode: 'any', values: [] },
           predicates: [
@@ -693,19 +697,19 @@ describe('graph-utils', () => {
       const relPass = makeRel({
         id: 'rel-pass',
         tags: ['上司'],
-        symmetric: { closeness: 0.8, trust: null, tension: null, secrecy: null, kinship: null },
+        properties: { closeness: 0.8 },
       });
       // 前提条件: タグ ['上司']、closeness=0.2 → 述語で除外
       const relFailPredicate = makeRel({
         id: 'rel-fail-pred',
         tags: ['上司'],
-        symmetric: { closeness: 0.2, trust: null, tension: null, secrecy: null, kinship: null },
+        properties: { closeness: 0.2 },
       });
       // 前提条件: タグなし、closeness=0.8 → タグで除外
       const relFailTag = makeRel({
         id: 'rel-fail-tag',
         tags: [],
-        symmetric: { closeness: 0.8, trust: null, tension: null, secrecy: null, kinship: null },
+        properties: { closeness: 0.8 },
       });
 
       const filter: EdgeFilter = {
@@ -721,7 +725,7 @@ describe('graph-utils', () => {
 
   describe('relationshipsToEdges: edgeFilterによる絞り込み', () => {
     it('edgeFilterが未指定の場合、全ての関係がエッジに変換される', () => {
-      const relationships: RelationshipV9[] = [
+      const relationships: Relationship[] = [
         makeRel({ id: 'rel-1', tags: ['上司'] }),
         makeRel({ id: 'rel-2', tags: ['友人'] }),
       ];
@@ -732,9 +736,9 @@ describe('graph-utils', () => {
     });
 
     it('edgeFilterのタグ条件に一致する関係のみエッジに変換される', () => {
-      const relationships: RelationshipV9[] = [
-        makeRel({ id: 'rel-上司', sourcePersonId: 'p1', targetPersonId: 'p2', tags: ['上司'] }),
-        makeRel({ id: 'rel-友人', sourcePersonId: 'p3', targetPersonId: 'p4', tags: ['友人'] }),
+      const relationships: Relationship[] = [
+        makeRel({ id: 'rel-上司', sourceId: 'p1', targetId: 'p2', tags: ['上司'] }),
+        makeRel({ id: 'rel-友人', sourceId: 'p3', targetId: 'p4', tags: ['友人'] }),
       ];
       const filter: EdgeFilter = {
         tags: { mode: 'any', values: ['上司'] },
@@ -748,18 +752,18 @@ describe('graph-utils', () => {
     });
 
     it('edgeFilterの述語条件に一致する関係のみエッジに変換される', () => {
-      const relationships: RelationshipV9[] = [
+      const relationships: Relationship[] = [
         makeRel({
           id: 'rel-親密',
-          sourcePersonId: 'p1',
-          targetPersonId: 'p2',
-          symmetric: { closeness: 0.9, trust: null, tension: null, secrecy: null, kinship: null },
+          sourceId: 'p1',
+          targetId: 'p2',
+          properties: { closeness: 0.9 },
         }),
         makeRel({
           id: 'rel-疎遠',
-          sourcePersonId: 'p3',
-          targetPersonId: 'p4',
-          symmetric: { closeness: 0.1, trust: null, tension: null, secrecy: null, kinship: null },
+          sourceId: 'p3',
+          targetId: 'p4',
+          properties: { closeness: 0.1 },
         }),
       ];
       const filter: EdgeFilter = {

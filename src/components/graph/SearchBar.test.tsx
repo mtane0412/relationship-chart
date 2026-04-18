@@ -10,7 +10,7 @@ import { ReactFlowProvider } from '@xyflow/react';
 import SearchBar from './SearchBar';
 import { useGraphStore } from '@/stores/useGraphStore';
 import type { Person } from '@/types/person';
-import type { RelationshipV9 } from '@/types/relationship';
+import type { Relationship } from '@/types/relationship';
 import {
   VIEWPORT_ANIMATION_DURATION,
   VIEWPORT_FIT_PADDING,
@@ -44,27 +44,31 @@ describe('SearchBar', () => {
     {
       id: 'person1',
       name: '山田太郎',
+      labels: ['人物'],
+      properties: {},
       createdAt: '2024-01-01T00:00:00Z',
     },
     {
       id: 'person2',
       name: '田中花子',
+      labels: ['人物'],
+      properties: {},
       createdAt: '2024-01-02T00:00:00Z',
     },
   ];
 
-  const testRelationships: RelationshipV9[] = [
+  const testRelationships: Relationship[] = [
     {
       id: 'rel1',
-      sourcePersonId: 'person1',
-      targetPersonId: 'person2',
-      isDirected: true,
-      symmetric: { closeness: null, trust: null, tension: null, secrecy: null, kinship: null },
-      forward: { label: '上司', affection: null, awareness: null, role: null },
-      reverse: { label: '部下', affection: null, awareness: null, role: null },
+      type: '上司',
+      sourceId: 'person1',
+      targetId: 'person2',
+      label: '上司',
+      symmetric: false,
       tags: [],
       narrative: { summary: null, notes: null, turningPoints: [] },
       colorOverride: null,
+      properties: {},
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z',
     },
@@ -261,6 +265,8 @@ describe('SearchBar', () => {
         id: 'person-with-image',
         name: '画像付き太郎',
         imageDataUrl: 'data:image/png;base64,iVBORw0KGgo=',
+        labels: ['人物'],
+        properties: {},
         createdAt: '2024-01-03T00:00:00Z',
       };
 
@@ -297,6 +303,7 @@ describe('SearchBar', () => {
         id: 'item1',
         name: 'テストアイテム',
         labels: ['物'],
+        properties: {},
         createdAt: '2024-01-03T00:00:00Z',
       };
 

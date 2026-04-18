@@ -1,9 +1,9 @@
 /**
- * LLM structured output 用の抽出スキーマ定義
+ * LLM structured output 用の抽出スキーマ定義（v11 プロパティグラフ方式）
  *
- * RelationshipV9Schema をベースに、LLM が出力できる形式に変換したスキーマ。
- * 主な違い:
- *   - sourcePersonId / targetPersonId の代わりに sourcePersonName / targetPersonName（名前ベース）
+ * Relationship 型をベースに、LLM が出力できる形式に変換したスキーマ。
+ * 主な特徴:
+ *   - sourceId / targetId の代わりに sourcePersonName / targetPersonName（名前ベース）
  *   - id / createdAt / updatedAt / colorOverride は除外（ストア側で自動生成）
  *   - z.preprocess を使用しない（LLM は null ではなく空配列を出力できる）
  *
@@ -11,10 +11,7 @@
  */
 
 import { z } from 'zod';
-import {
-  DirectionalPropsSchema,
-  SymmetricPropsSchema,
-} from './relationship-schema';
+import { AwarenessKindSchema } from './relationship-schema';
 
 /**
  * LLM が出力する人物スキーマ
@@ -31,7 +28,7 @@ export const LlmPersonSchema = z.object({
 
 /**
  * LLM が出力する関係の narrative スキーマ
- * RelationshipNarrativeSchema と異なり z.preprocess を使用しない。
+ * RelationshipNarrativeSchema と異なり z.preprocess を使用しない
  */
 const LlmNarrativeSchema = z.object({
   /** 関係全体の物語的記述 */
@@ -53,26 +50,39 @@ const LlmNarrativeSchema = z.object({
 });
 
 /**
- * LLM が出力する関係スキーマ
- * sourcePersonId / targetPersonId の代わりに人物名を使用する。
+ * LLM が出力するエッジプロパティスキーマ
+ */
+const LlmRelationshipPropertiesSchema = z.object({
+  closeness: z.number().min(0).max(1).nullable().optional(),
+  trust: z.number().min(0).max(1).nullable().optional(),
+  tension: z.number().min(0).max(1).nullable().optional(),
+  secrecy: z.number().min(0).max(1).nullable().optional(),
+  affection: z.number().min(-1).max(1).nullable().optional(),
+  awareness: AwarenessKindSchema.optional(),
+  role: z.string().nullable().optional(),
+});
+
+/**
+ * LLM が出力する関係スキーマ（v11）
+ * sourceId / targetId の代わりに人物名を使用する
  */
 export const LlmRelationshipSchema = z.object({
-  /** 関係の起点となる人物名（source → target 方向） */
+  /** 関係の起点となる人物名 */
   sourcePersonName: z.string(),
   /** 関係の終点となる人物名 */
   targetPersonName: z.string(),
-  /** true=有向（forward/reverse が意味を持つ）、false=無向 */
-  isDirected: z.boolean(),
-  /** 方向対称なプロパティ */
-  symmetric: SymmetricPropsSchema,
-  /** source→target 視点のプロパティ */
-  forward: DirectionalPropsSchema,
-  /** target→source 視点のプロパティ（isDirected=false の場合は未使用） */
-  reverse: DirectionalPropsSchema,
-  /** 半定型タグ配列（例: "親友", "ライバル", "上司部下"） */
+  /** エッジ型ラベル（例: "友人", "同僚", "好き", "親子"） */
+  type: z.string(),
+  /** 表示ラベル（null の場合は type を使用） */
+  label: z.string().nullable(),
+  /** true=無向表示（矢印なし）、false=有向（矢印あり） */
+  symmetric: z.boolean(),
+  /** 補助的な分類タグ配列 */
   tags: z.array(z.string()),
   /** 自由記述 */
   narrative: LlmNarrativeSchema,
+  /** ドメイン属性 */
+  properties: LlmRelationshipPropertiesSchema,
 });
 
 /**

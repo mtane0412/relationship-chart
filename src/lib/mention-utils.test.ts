@@ -19,10 +19,10 @@ import type { Person } from '@/types/person';
 
 // テスト用の人物データ
 const テスト人物リスト: Person[] = [
-  { id: 'id-alice', name: '田中花子', createdAt: '2024-01-01T00:00:00.000Z' },
-  { id: 'id-bob', name: '山田太郎', createdAt: '2024-01-01T00:00:00.000Z' },
-  { id: 'id-carol', name: '鈴木一郎', createdAt: '2024-01-01T00:00:00.000Z' },
-  { id: 'id-dave', name: 'Alice Smith', createdAt: '2024-01-01T00:00:00.000Z' },
+  { id: 'id-alice', name: '田中花子', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
+  { id: 'id-bob', name: '山田太郎', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
+  { id: 'id-carol', name: '鈴木一郎', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
+  { id: 'id-dave', name: 'Alice Smith', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
 ];
 
 describe('extractMentionQuery', () => {
@@ -120,7 +120,7 @@ describe('filterPersonsByQuery', () => {
 
   it('全角スペースを含むクエリでも一致する', () => {
     const 全角スペース人物: Person[] = [
-      { id: 'id-1', name: '山田　太郎', createdAt: '2024-01-01T00:00:00.000Z' },
+      { id: 'id-1', name: '山田　太郎', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
     ];
     const result = filterPersonsByQuery('山田', 全角スペース人物);
     expect(result).toHaveLength(1);
@@ -242,7 +242,7 @@ describe('findMentionRanges', () => {
     // 登録名「山田  太郎」(スペース2つ) に対し、入力は「@山田 太郎」(スペース1つ, 5文字)
     // endIndex は入力テキスト上の "@山田 太郎" の末尾 = 6 になるべき
     const 連続スペース人物: Person[] = [
-      { id: 'id-double-space', name: '山田  太郎', createdAt: '2024-01-01T00:00:00.000Z' },
+      { id: 'id-double-space', name: '山田  太郎', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
     ];
     const text = '@山田 太郎 は元気';
     const ranges = findMentionRanges(text, 連続スペース人物);
@@ -254,7 +254,7 @@ describe('findMentionRanges', () => {
     // 登録名「山田 太郎」(半角スペース) に対し、入力は「@山田\u3000太郎」(全角スペース)
     // endIndex は入力テキスト上の "@山田\u3000太郎" の末尾 = 6 になるべき
     const 半角スペース人物: Person[] = [
-      { id: 'id-half-space', name: '山田 太郎', createdAt: '2024-01-01T00:00:00.000Z' },
+      { id: 'id-half-space', name: '山田 太郎', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
     ];
     const text = '@山田\u3000太郎 は元気';
     const ranges = findMentionRanges(text, 半角スペース人物);
@@ -307,7 +307,7 @@ describe('parseMentions', () => {
   it('登録名の連続スペースが入力では1つ: 正しいIDを返す', () => {
     // 登録名「山田  太郎」(スペース2つ) に対し、入力は「@山田 太郎」(スペース1つ)
     const 連続スペース人物: Person[] = [
-      { id: 'id-double-space', name: '山田  太郎', createdAt: '2024-01-01T00:00:00.000Z' },
+      { id: 'id-double-space', name: '山田  太郎', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
     ];
     const result = parseMentions('@山田 太郎 は元気', 連続スペース人物);
     expect(result.referencedPersonIds).toContain('id-double-space');
@@ -316,7 +316,7 @@ describe('parseMentions', () => {
   it('入力に全角スペース、登録名は半角スペース: 正しいIDを返す', () => {
     // 登録名「山田 太郎」(半角スペース) に対し、入力は「@山田\u3000太郎」(全角スペース)
     const 半角スペース人物: Person[] = [
-      { id: 'id-half-space', name: '山田 太郎', createdAt: '2024-01-01T00:00:00.000Z' },
+      { id: 'id-half-space', name: '山田 太郎', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
     ];
     const result = parseMentions('@山田\u3000太郎 は元気', 半角スペース人物);
     expect(result.referencedPersonIds).toContain('id-half-space');
