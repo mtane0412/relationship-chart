@@ -38,6 +38,8 @@ import { EdgeFilterPanel } from './EdgeFilterPanel';
 import { ChatInputBar } from './ChatInputBar';
 import { SnapshotCaptureButton } from './SnapshotCaptureButton';
 import { TimelineBar } from './TimelineBar';
+import { useSnapshotTransition } from './useSnapshotTransition';
+import { useTimelinePlayback } from './useTimelinePlayback';
 import { InterviewModal } from '@/components/interview/InterviewModal';
 import { useGraphStore } from '@/stores/useGraphStore';
 /** 固定 6 色の SVG マーカー定義（deriveEdgeVisual の markerKey と対応） */
@@ -149,6 +151,12 @@ export function RelationshipGraph() {
       forceParams,
     });
 
+
+  // タイムラインスナップショットのアニメーション遷移
+  const { transitionToSnapshot, isTransitioning } = useSnapshotTransition();
+
+  // タイムライン自動再生タイマー（isPlaying/playbackSpeed をストアから読む）
+  useTimelinePlayback(transitionToSnapshot, isTransitioning);
 
   // ノードドラッグ開始ハンドラ
   const onNodeDragStartHandler = useCallback(
@@ -315,7 +323,7 @@ export function RelationshipGraph() {
       )}
 
       {/* タイムラインバー（タイムラインモード中に下部に表示） */}
-      <TimelineBar />
+      <TimelineBar onTransition={transitionToSnapshot} isTransitioning={isTransitioning} />
 
       {/* フローティングチャット入力バー */}
       <ChatInputBar />

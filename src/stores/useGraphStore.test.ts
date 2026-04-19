@@ -3552,5 +3552,76 @@ describe('useGraphStore', () => {
         expect(result.current.persons[0].name).toBe('細川藤孝');
       });
     });
+
+    describe('isPlaying / playbackSpeed', () => {
+      it('setPlaying(true) で isPlaying が true になる', () => {
+        // GIVEN: 初期状態（isPlaying=false）
+        const { result } = renderHook(() => useGraphStore());
+        expect(result.current.isPlaying).toBe(false);
+
+        // WHEN
+        act(() => {
+          result.current.setPlaying(true);
+        });
+
+        // THEN
+        expect(result.current.isPlaying).toBe(true);
+      });
+
+      it('setPlaying(false) で isPlaying が false になる', () => {
+        // GIVEN: isPlaying=true の状態
+        const { result } = renderHook(() => useGraphStore());
+        act(() => {
+          result.current.setPlaying(true);
+        });
+
+        // WHEN
+        act(() => {
+          result.current.setPlaying(false);
+        });
+
+        // THEN
+        expect(result.current.isPlaying).toBe(false);
+      });
+
+      it('setPlaybackSpeed でplaybackSpeedが変わる', () => {
+        // GIVEN: 初期状態（playbackSpeed=2000）
+        const { result } = renderHook(() => useGraphStore());
+        expect(result.current.playbackSpeed).toBe(2000);
+
+        // WHEN: 高速に変更
+        act(() => {
+          result.current.setPlaybackSpeed(1000);
+        });
+
+        // THEN
+        expect(result.current.playbackSpeed).toBe(1000);
+      });
+
+      it('setTimelineMode(false) で isPlaying が false にリセットされる', () => {
+        // GIVEN: タイムラインモード + 再生中の状態
+        const { result } = renderHook(() => useGraphStore());
+        act(() => {
+          result.current.addPerson({ name: '織田信長', labels: [], properties: {} });
+        });
+        act(() => {
+          result.current.captureSnapshot('第1話');
+        });
+        act(() => {
+          result.current.setTimelineMode(true);
+          result.current.setPlaying(true);
+        });
+        expect(result.current.isPlaying).toBe(true);
+
+        // WHEN: タイムラインモードを終了
+        act(() => {
+          result.current.setTimelineMode(false);
+        });
+
+        // THEN: 再生も停止される
+        expect(result.current.isPlaying).toBe(false);
+        expect(result.current.timelineMode).toBe(false);
+      });
+    });
   });
 });

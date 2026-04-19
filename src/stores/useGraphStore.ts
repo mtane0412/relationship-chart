@@ -90,6 +90,10 @@ type GraphState = {
   _livePersons: Person[] | null;
   /** タイムラインモード中のライブRelationshipsデータ退避（モード終了時に復元する） */
   _liveRelationships: Relationship[] | null;
+  /** アニメーション自動再生中かどうか */
+  isPlaying: boolean;
+  /** 自動再生の再生間隔（ミリ秒）。デフォルト: 2000ms */
+  playbackSpeed: number;
 };
 
 /**
@@ -115,6 +119,8 @@ const INITIAL_STATE: GraphState = {
   activeSnapshotIndex: null,
   _livePersons: null,
   _liveRelationships: null,
+  isPlaying: false,
+  playbackSpeed: 2000,
 };
 
 
@@ -390,10 +396,22 @@ type GraphActions = {
   /**
    * タイムライン再生モードの有効/無効を切り替える
    * - true: ライブデータを退避し、pauseAutoSave=true で編集操作を無効化
-   * - false: ライブデータを復元し、pauseAutoSave=false で通常モードに戻る
+   * - false: ライブデータを復元し、pauseAutoSave=false で通常モードに戻る（isPlayingもリセット）
    * @param enabled - true でタイムラインモードに入る
    */
   setTimelineMode: (enabled: boolean) => void;
+
+  /**
+   * アニメーション自動再生状態を設定する
+   * @param playing - true で再生開始、false で停止
+   */
+  setPlaying: (playing: boolean) => void;
+
+  /**
+   * 自動再生の再生速度を設定する
+   * @param ms - 再生間隔（ミリ秒）。1000 / 2000 / 3000 の3段階を推奨
+   */
+  setPlaybackSpeed: (ms: number) => void;
 
   /**
    * 指定インデックスのスナップショット状態をグラフに反映する
@@ -1132,16 +1150,26 @@ export const useGraphStore = create<GraphStore>()(
             }));
           } else {
             // タイムラインモードを終了: ライブデータを復元してpauseAutoSave=false
+            // isPlayingもリセットして再生を確実に停止する
             set((s) => ({
               timelineMode: false,
               pauseAutoSave: false,
               activeSnapshotIndex: null,
+              isPlaying: false,
               persons: s._livePersons ?? s.persons,
               relationships: s._liveRelationships ?? s.relationships,
               _livePersons: null,
               _liveRelationships: null,
             }));
           }
+        },
+
+        setPlaying: (playing) => {
+          set(() => ({ isPlaying: playing }));
+        },
+
+        setPlaybackSpeed: (ms) => {
+          set(() => ({ playbackSpeed: ms }));
         },
 
         goToSnapshot: (index) => {
