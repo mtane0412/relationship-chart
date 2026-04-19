@@ -711,7 +711,7 @@ export function migrateGraphState(persistedState: unknown, version: number): unk
   return state;
 }
 
-// ─── IndexedDB Chart の正規化（v11 へのインプレース変換） ─────────────────────
+// ─── IndexedDB Chart の正規化（v12 形式への変換） ──────────────────────────────
 
 /**
  * IndexedDB からロードした Chart を v12 形式に正規化する

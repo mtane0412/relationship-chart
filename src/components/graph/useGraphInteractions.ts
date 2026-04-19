@@ -61,6 +61,7 @@ export function useGraphInteractions({
   // Zustandストアから状態とアクションを取得
   const persons = useGraphStore((state) => state.persons);
   const relationships = useGraphStore((state) => state.relationships);
+  const timelineMode = useGraphStore((state) => state.timelineMode);
   const addPerson = useGraphStore((state) => state.addPerson);
   const addRelationship = useGraphStore((state) => state.addRelationship);
   const updateRelationship = useGraphStore((state) => state.updateRelationship);
@@ -69,6 +70,10 @@ export function useGraphInteractions({
   const setSelectedPersonIds = useGraphStore((state) => state.setSelectedPersonIds);
   const clearSelection = useGraphStore((state) => state.clearSelection);
   const selectPersonPairForEdit = useGraphStore((state) => state.selectPersonPairForEdit);
+
+  // タイムラインモードの状態をrefで保持（useEffect内で最新値を参照するため）
+  const timelineModeRef = useRef(timelineMode);
+  timelineModeRef.current = timelineMode;
 
   // ダイアログストアから確認ダイアログとアラートダイアログを取得
   const openConfirm = useDialogStore((state) => state.openConfirm);
@@ -94,6 +99,9 @@ export function useGraphInteractions({
   // 2つのノード間の接続を処理するヘルパー関数
   const tryStartConnection = useCallback(
     (sourceId: string, targetId: string) => {
+      // タイムラインモード中は関係の追加・編集を禁止
+      if (timelineMode) return;
+
       // 自己接続を防止
       if (sourceId === targetId) return;
 
@@ -116,13 +124,16 @@ export function useGraphInteractions({
         ...(existingRelationship ? { existingRelationshipId: existingRelationship.id } : {}),
       });
     },
-    [persons, relationships]
+    [persons, relationships, timelineMode]
   );
 
   // キャンバスへの画像ドロップハンドラ
   const handleDrop = useCallback(
     async (event: React.DragEvent<HTMLDivElement>) => {
       event.preventDefault();
+
+      // タイムラインモード中は編集操作を禁止
+      if (timelineMode) return;
 
       // ドロップされたファイルを取得
       const files = Array.from(event.dataTransfer.files);
@@ -152,7 +163,7 @@ export function useGraphInteractions({
         });
       }
     },
-    [screenToFlowPosition, openAlert]
+    [screenToFlowPosition, openAlert, timelineMode]
   );
 
   // ドラッグオーバーハンドラ（ドロップを許可するために必要）
@@ -163,6 +174,9 @@ export function useGraphInteractions({
   // クリップボードからのペーストハンドラ
   useEffect(() => {
     const handlePaste = async (event: ClipboardEvent) => {
+      // タイムラインモード中は編集操作を禁止
+      if (timelineModeRef.current) return;
+
       const items = event.clipboardData?.items;
       if (!items) return;
 
@@ -406,6 +420,9 @@ export function useGraphInteractions({
   // Delete/Backspaceキーでの削除前確認ハンドラ
   const handleBeforeDelete = useCallback(
     async ({ nodes: nodesToDelete, edges: edgesToDelete }: { nodes: Node[]; edges: Edge[] }) => {
+      // タイムラインモード中は削除操作を禁止
+      if (timelineMode) return false;
+
       // 削除対象がない場合は削除を拒否
       if (nodesToDelete.length === 0 && edgesToDelete.length === 0) {
         return false;
@@ -440,7 +457,7 @@ export function useGraphInteractions({
 
       return confirmed;
     },
-    [openConfirm]
+    [openConfirm, timelineMode]
   );
 
   // ノード削除ハンドラ（確認はonBeforeDeleteで実行済み）

@@ -133,7 +133,7 @@ export function SnapshotList() {
                 {!timelineMode && (
                   <button
                     onClick={() => deleteSnapshot(snapshot.id)}
-                    className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all"
+                    className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-gray-400 hover:text-red-500 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 rounded"
                     aria-label={`${snapshot.label}を削除`}
                     title={`${snapshot.label}を削除`}
                   >

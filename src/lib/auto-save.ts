@@ -42,6 +42,10 @@ let currentSavePromise: Promise<void> | null = null;
 
 /**
  * 現在のストア状態からChartオブジェクトを構築する
+ *
+ * タイムラインモード中は退避済みのライブデータ（_livePersons/_liveRelationships）を使用する。
+ * これによりスナップショット状態がIndexedDBに永続化されることを防ぐ。
+ *
  * @returns Chartオブジェクト（activeChartIdがnullの場合はnull）
  */
 function buildChartFromState(): Chart | null {
@@ -56,11 +60,15 @@ function buildChartFromState(): Chart | null {
     return null;
   }
 
+  // タイムラインモード中は退避済みのライブデータを使用（スナップショット状態を永続化しない）
+  const persons = state.timelineMode ? (state._livePersons ?? state.persons) : state.persons;
+  const relationships = state.timelineMode ? (state._liveRelationships ?? state.relationships) : state.relationships;
+
   return {
     id: state.activeChartId,
     name: meta.name,
-    persons: state.persons,
-    relationships: state.relationships,
+    persons,
+    relationships,
     forceEnabled: state.forceEnabled,
     forceParams: state.forceParams,
     egoLayoutParams: state.egoLayoutParams,
@@ -119,6 +127,7 @@ export function startAutoSave(): void {
   }
 
   // 前回の状態を保持（変更検出用）
+  // snapshotsは大きくなり得るためJSON.stringify外で参照比較する
   const initialState = useGraphStore.getState();
   let previousState = JSON.stringify({
     persons: initialState.persons,
@@ -126,27 +135,47 @@ export function startAutoSave(): void {
     forceEnabled: initialState.forceEnabled,
     forceParams: initialState.forceParams,
     egoLayoutParams: initialState.egoLayoutParams,
-    snapshots: initialState.snapshots,
   });
+  let previousSnapshots = initialState.snapshots;
 
   // ストアの変更を監視
   unsubscribe = useGraphStore.subscribe((state) => {
-    // 監視対象フィールドの現在の状態
+    // タイムラインモード中は変更検出・保存キューイングをスキップして基準状態だけ同期する
+    // これによりgoToSnapshot/goToLiveによるpersons/relationships切り替えが保存されることを防ぐ
+    if (state.pauseAutoSave) {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        debounceTimer = null;
+      }
+      hasPendingSave = false;
+      previousState = JSON.stringify({
+        persons: state.persons,
+        relationships: state.relationships,
+        forceEnabled: state.forceEnabled,
+        forceParams: state.forceParams,
+        egoLayoutParams: state.egoLayoutParams,
+      });
+      previousSnapshots = state.snapshots;
+      return;
+    }
+
+    // 監視対象フィールドの現在の状態（snapshotsは参照比較で効率化）
     const currentState = JSON.stringify({
       persons: state.persons,
       relationships: state.relationships,
       forceEnabled: state.forceEnabled,
       forceParams: state.forceParams,
       egoLayoutParams: state.egoLayoutParams,
-      snapshots: state.snapshots,
     });
+    const snapshotsChanged = state.snapshots !== previousSnapshots;
 
     // 変更がない場合はスキップ
-    if (currentState === previousState) {
+    if (currentState === previousState && !snapshotsChanged) {
       return;
     }
 
     previousState = currentState;
+    previousSnapshots = state.snapshots;
 
     // debounceタイマーをクリア
     if (debounceTimer) {
