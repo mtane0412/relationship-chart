@@ -13,7 +13,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { nanoid } from 'nanoid';
 import { useReactFlow } from '@xyflow/react';
 import { ArrowRight, Minus, Plus } from 'lucide-react';
@@ -25,6 +25,7 @@ import { PersonMiniIcon } from '@/components/panel/PersonMiniIcon';
 import { AWARENESS_OPTIONS } from '@/components/panel/pairSelectionHelpers';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { MAX_RELATIONSHIP_LABEL_LENGTH } from '@/lib/validation-constants';
+import { findSnapshotIndexByLabel } from '@/lib/snapshot-lookup';
 import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils';
 import { deriveNodeVisual } from '@/lib/node-visual';
 import type { Person } from '@/types/person';
@@ -53,6 +54,10 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
   const removeRelationship = useGraphStore((state) => state.removeRelationship);
   const clearSelection = useGraphStore((state) => state.clearSelection);
   const selectPerson = useGraphStore((state) => state.selectPerson);
+  const snapshots = useGraphStore((state) => state.snapshots);
+  const timelineMode = useGraphStore((state) => state.timelineMode);
+  const setTimelineMode = useGraphStore((state) => state.setTimelineMode);
+  const goToSnapshot = useGraphStore((state) => state.goToSnapshot);
 
   const { getNode, setCenter } = useReactFlow();
 
@@ -160,6 +165,30 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
   useEffect(() => {
     setSelectedRelId(edgesForPair[0]?.id ?? 'new');
   }, [person1.id, person2.id]); // edgesForPair は意図的に除外
+
+  /**
+   * at 文字列から対応するスナップショットのインデックスを返す。
+   * snapshots が変わった場合のみ再生成する。
+   */
+  const findSnapshotIndexByAt = useCallback(
+    (at: string) => findSnapshotIndexByLabel(at, snapshots),
+    [snapshots]
+  );
+
+  /**
+   * 指定インデックスのスナップショットへジャンプする。
+   * タイムラインモード外の場合はモードを有効化してからジャンプする。
+   * 2人選択状態は維持する（タイムラインモード中でも関係パネルを確認できるよう）。
+   */
+  const handleJumpToSnapshot = useCallback(
+    (index: number) => {
+      if (!timelineMode) {
+        setTimelineMode(true);
+      }
+      goToSnapshot(index);
+    },
+    [timelineMode, setTimelineMode, goToSnapshot]
+  );
 
   /** ノードを画面中央に移動する */
   const focusNode = (personId: string) => {
@@ -573,7 +602,12 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
                 className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
-            <TurningPointsEditor value={turningPoints} onChange={setTurningPoints} />
+            <TurningPointsEditor
+              value={turningPoints}
+              onChange={setTurningPoints}
+              findSnapshotIndexByAt={findSnapshotIndexByAt}
+              onJumpToSnapshot={handleJumpToSnapshot}
+            />
           </div>
         </details>
 
