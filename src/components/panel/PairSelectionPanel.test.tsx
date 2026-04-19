@@ -1261,4 +1261,118 @@ describe('PairSelectionPanel', () => {
       expect(screen.getByLabelText('エッジの色')).toBeInTheDocument();
     });
   });
+
+  // ─── スナップショットジャンプ ─────────────────────────────────────────────
+
+  describe('スナップショットジャンプ', () => {
+    /** スナップショットの at と同名のラベルを持つスナップショット */
+    const testSnapshot = {
+      id: 'snap-1',
+      label: '第1話',
+      persons: [],
+      relationships: [],
+      createdAt: '2024-01-01T00:00:00.000Z',
+    };
+
+    const relWithTurningPoint = makeRel({
+      id: 'rel-1',
+      type: '友人',
+      sourceId: person1.id,
+      targetId: person2.id,
+      narrative: {
+        summary: null,
+        notes: null,
+        turningPoints: [{ at: '第1話', note: '出会いのエピソード' }],
+      },
+    });
+
+    beforeEach(() => {
+      useGraphStore.setState({
+        persons: [person1, person2],
+        relationships: [relWithTurningPoint],
+        selectedPersonIds: [person1.id, person2.id],
+        snapshots: [testSnapshot],
+        timelineMode: false,
+        activeSnapshotIndex: null,
+      });
+    });
+
+    it('turningPoints[].at がスナップショットのラベルに一致するとき、ジャンプボタンが表示される', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      // 物語的情報アコーディオンを開く
+      await user.click(screen.getByText('物語的情報'));
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /スナップショットへジャンプ/ })).toBeInTheDocument()
+      );
+    });
+
+    it('ジャンプボタンをクリックするとタイムラインモードが有効になり、対応スナップショットに移動する', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      await user.click(screen.getByText('物語的情報'));
+      const jumpButton = await screen.findByRole('button', { name: /スナップショットへジャンプ/ });
+      await user.click(jumpButton);
+
+      await waitFor(() => {
+        const state = useGraphStore.getState();
+        expect(state.timelineMode).toBe(true);
+        expect(state.activeSnapshotIndex).toBe(0);
+      });
+    });
+
+    it('スナップショットが存在しない場合はジャンプボタンが表示されない', async () => {
+      useGraphStore.setState({ snapshots: [] });
+
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      await user.click(screen.getByText('物語的情報'));
+      await waitFor(() => screen.getByRole('button', { name: /ターニングポイントを追加/ }));
+
+      expect(screen.queryByRole('button', { name: /スナップショットへジャンプ/ })).not.toBeInTheDocument();
+    });
+
+    it('turningPoints[].at がどのスナップショットラベルにも一致しない場合はジャンプボタンが表示されない', async () => {
+      useGraphStore.setState({
+        relationships: [makeRel({
+          id: 'rel-1',
+          type: '友人',
+          sourceId: person1.id,
+          targetId: person2.id,
+          narrative: {
+            summary: null,
+            notes: null,
+            turningPoints: [{ at: '存在しない時点', note: '出来事' }],
+          },
+        })],
+      });
+
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      await user.click(screen.getByText('物語的情報'));
+      await waitFor(() => screen.getByRole('button', { name: /ターニングポイントを追加/ }));
+
+      expect(screen.queryByRole('button', { name: /スナップショットへジャンプ/ })).not.toBeInTheDocument();
+    });
+  });
 });
