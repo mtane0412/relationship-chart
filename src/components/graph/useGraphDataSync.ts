@@ -177,10 +177,10 @@ export function useGraphDataSync() {
         return {
           ...newEdge,
           selected: existingEdge?.selected ?? false,
-          data: newEdge.data
-            ? { ...newEdge.data, diffStatus }
-            : newEdge.data,
-        };
+          // newEdge.data が存在する場合は diffStatus を付与する。
+          // data が undefined の場合（通常は発生しない）はそのまま渡す
+          ...(newEdge.data ? { data: { ...newEdge.data, diffStatus } } : {}),
+        } as RelationshipEdge;
       });
       return updatedEdges;
     });

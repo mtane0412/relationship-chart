@@ -161,11 +161,14 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
   // エッジのスタイル（優先順位: selected > diffStatus > visual）
   // 破線スタイル（secrecy >= 0.5 のとき破線）
   const strokeDasharray = dashed ? '8 4' : undefined;
-  const edgeStyle = selected
-    ? { stroke: '#3b82f6', strokeWidth: 3.5, strokeDasharray }
-    : diffStyle
-      ? { stroke: diffStyle.stroke, strokeWidth: diffStyle.strokeWidth, strokeDasharray }
-      : { stroke: color, strokeWidth: baseStrokeWidth, strokeDasharray };
+  let edgeStyle: { stroke: string; strokeWidth: number; strokeDasharray: string | undefined };
+  if (selected) {
+    edgeStyle = { stroke: '#3b82f6', strokeWidth: 3.5, strokeDasharray };
+  } else if (diffStyle) {
+    edgeStyle = { stroke: diffStyle.stroke, strokeWidth: diffStyle.strokeWidth, strokeDasharray };
+  } else {
+    edgeStyle = { stroke: color, strokeWidth: baseStrokeWidth, strokeDasharray };
+  }
 
   // 表示ラベル: label が null の場合は edgeType を使用
   const displayLabel = edgeData.label ?? edgeData.edgeType;

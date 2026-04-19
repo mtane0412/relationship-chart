@@ -32,6 +32,16 @@ export const DIFF_HIGHLIGHT_COLORS = {
 const DIFF_STROKE_WIDTH = 3;
 
 /**
+ * diffStatusに対応するSVGマーカーキーのマップ
+ * RelationshipGraph の固定6色マーカー定義と対応する
+ */
+const DIFF_MARKER_MAP = {
+  added: 'green',
+  removed: 'red',
+  changed: 'blue',
+} as const;
+
+/**
  * diffStatusに対応するエッジのstyleを返す
  *
  * @param diffStatus - エッジのdiff状態
@@ -58,10 +68,5 @@ export function getDiffMarkerKey(
   diffStatus: DiffStatus | undefined
 ): 'green' | 'red' | 'blue' | null {
   if (!diffStatus) return null;
-  const markerMap = {
-    added: 'green',
-    removed: 'red',
-    changed: 'blue',
-  } as const;
-  return markerMap[diffStatus];
+  return DIFF_MARKER_MAP[diffStatus];
 }
