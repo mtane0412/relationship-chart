@@ -518,6 +518,12 @@ type GraphActions = {
   updateEpisodePosition: (id: string, position: { x: number; y: number }) => void;
 
   /**
+   * 複数エピソードの位置を一括更新する（ドラッグ終了時の効率的バッチ更新用）
+   * @param positions - エピソードID → 座標 のMap
+   */
+  updateEpisodePositions: (positions: Map<string, { x: number; y: number }>) => void;
+
+  /**
    * エピソードに参加者（人物）を追加する
    * @param input - エピソードIDと人物ID
    * @returns 作成した参加エッジのID
@@ -1577,6 +1583,19 @@ export const useGraphStore = create<GraphStore>()(
         },
 
         reorderEpisodes: (orderedIds) => {
+          const { episodes } = get();
+
+          if (orderedIds.length !== episodes.length) {
+            throw new Error('並び順のエピソード数が一致しません');
+          }
+          if (new Set(orderedIds).size !== orderedIds.length) {
+            throw new Error('並び順に重複したエピソードIDが含まれています');
+          }
+          const currentIds = new Set(episodes.map((e) => e.id));
+          if (orderedIds.some((id) => !currentIds.has(id))) {
+            throw new Error('並び順に存在しないエピソードIDが含まれています');
+          }
+
           set((s) => {
             const episodeMap = new Map(s.episodes.map((e) => [e.id, e]));
             const sortedEpisodes = orderedIds
@@ -1588,11 +1607,39 @@ export const useGraphStore = create<GraphStore>()(
 
         updateEpisodePosition: (id, position) => {
           const now = new Date().toISOString();
-          set((s) => ({
-            episodes: s.episodes.map((e) =>
-              e.id === id ? { ...e, position, updatedAt: now } : e
-            ),
-          }));
+          set((s) => {
+            const target = s.episodes.find((e) => e.id === id);
+            // 位置が変わっていない場合は更新しない（updatedAt汚染を防ぐ）
+            if (
+              target &&
+              target.position?.x === position.x &&
+              target.position?.y === position.y
+            ) {
+              return {};
+            }
+            return {
+              episodes: s.episodes.map((e) =>
+                e.id === id ? { ...e, position, updatedAt: now } : e
+              ),
+            };
+          });
+        },
+
+        updateEpisodePositions: (positions) => {
+          if (positions.size === 0) return;
+          const now = new Date().toISOString();
+          set((s) => {
+            let hasChanged = false;
+            const updated = s.episodes.map((e) => {
+              const newPos = positions.get(e.id);
+              if (!newPos) return e;
+              // 位置が変わっていない場合はスキップ（updatedAt汚染を防ぐ）
+              if (e.position?.x === newPos.x && e.position?.y === newPos.y) return e;
+              hasChanged = true;
+              return { ...e, position: newPos, updatedAt: now };
+            });
+            return hasChanged ? { episodes: updated } : {};
+          });
         },
 
         addParticipation: ({ episodeId, personId }) => {

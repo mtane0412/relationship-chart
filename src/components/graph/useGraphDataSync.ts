@@ -31,7 +31,7 @@ export function useGraphDataSync() {
   const forceEnabled = useGraphStore((state) => state.forceEnabled);
   const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
   const updatePersonPositions = useGraphStore((state) => state.updatePersonPositions);
-  const updateEpisodePosition = useGraphStore((state) => state.updateEpisodePosition);
+  const updateEpisodePositions = useGraphStore((state) => state.updateEpisodePositions);
   const edgeFilter = useGraphStore((state) => state.edgeFilter);
   const timelineMode = useGraphStore((state) => state.timelineMode);
   const activeSnapshotIndex = useGraphStore((state) => state.activeSnapshotIndex);
@@ -146,7 +146,7 @@ export function useGraphDataSync() {
           if (resolvedNodes !== currentNodes) {
             // 位置が変更された場合のみ更新
             setNodes(resolvedNodes as AnyGraphNode[]);
-            syncNodePositionsToStore(resolvedNodes, updatePersonPositions, updateEpisodePosition);
+            syncNodePositionsToStore(resolvedNodes, updatePersonPositions, updateEpisodePositions);
           }
           collisionResolutionRafIdRef.current = null;
         });
@@ -205,7 +205,7 @@ export function useGraphDataSync() {
         collisionResolutionRafIdRef.current = null;
       }
     };
-  }, [persons, relationships, episodes, episodeParticipations, setNodes, setEdges, forceEnabled, updatePersonPositions, updateEpisodePosition, edgeFilter, timelineMode, activeSnapshotIndex, previousSnapshotIndex, snapshots]);
+  }, [persons, relationships, episodes, episodeParticipations, setNodes, setEdges, forceEnabled, updatePersonPositions, updateEpisodePositions, edgeFilter, timelineMode, activeSnapshotIndex, previousSnapshotIndex, snapshots]);
 
   // 選択状態の変更時に既存ノード/エッジのselectedプロパティのみ更新
   // 配列参照を変更しないようにhasChangedフラグで最適化

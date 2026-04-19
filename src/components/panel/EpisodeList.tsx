@@ -51,6 +51,8 @@ function SortableEpisodeItem({
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(episode.title);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Enter→blur の二重発火を防ぐフラグ（SortableSnapshotItemと同パターン）
+  const isSavingRef = useRef(false);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: episode.id,
@@ -69,11 +71,14 @@ function SortableEpisodeItem({
   };
 
   const handleSave = () => {
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
     const trimmed = editValue.trim();
     if (trimmed && trimmed !== episode.title) {
       onTitleSave(episode.id, trimmed);
     }
     setIsEditing(false);
+    isSavingRef.current = false;
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -82,7 +87,9 @@ function SortableEpisodeItem({
       e.preventDefault();
       handleSave();
     } else if (e.key === 'Escape') {
+      isSavingRef.current = true;
       setIsEditing(false);
+      isSavingRef.current = false;
     }
   };
 
@@ -98,7 +105,6 @@ function SortableEpisodeItem({
         {...listeners}
         className="cursor-grab text-gray-300 hover:text-gray-500 shrink-0"
         aria-label="ドラッグして並び替え"
-        tabIndex={-1}
       >
         <GripVertical className="w-3.5 h-3.5" />
       </button>

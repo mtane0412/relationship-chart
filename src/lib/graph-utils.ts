@@ -216,25 +216,29 @@ export function participationsToEdges(participations: EpisodeParticipation[]): P
  * React Flowのノード配列からMapを構築してストアの位置更新関数を呼ぶヘルパー
  *
  * @param nodes - id と position を持つノード配列
- * @param updatePersonPositions - Personストアの位置更新関数
- * @param updateEpisodePosition - Episodeストアの位置更新関数（省略可）
+ * @param updatePersonPositions - Personストアの位置一括更新関数
+ * @param updateEpisodePositions - Episodeストアの位置一括更新関数（省略可）
  *
  * @description
  * EpisodeNodeはtype='episode'で判定し、それ以外はPersonノードとして扱う。
- * updateEpisodePosition が渡された場合のみEpisodeの位置を更新する。
+ * Episode位置をMapにまとめてから一括更新することでZustand setの連続発火を防ぐ。
  */
 export function syncNodePositionsToStore(
   nodes: Array<{ id: string; type?: string; position: { x: number; y: number } }>,
   updatePersonPositions: (positions: Map<string, { x: number; y: number }>) => void,
-  updateEpisodePosition?: (id: string, position: { x: number; y: number }) => void
+  updateEpisodePositions?: (positions: Map<string, { x: number; y: number }>) => void
 ): void {
   const personPositions = new Map<string, { x: number; y: number }>();
+  const episodePositions = new Map<string, { x: number; y: number }>();
   for (const node of nodes) {
     if (node.type === 'episode') {
-      updateEpisodePosition?.(node.id, node.position);
+      episodePositions.set(node.id, node.position);
     } else {
       personPositions.set(node.id, node.position);
     }
   }
   updatePersonPositions(personPositions);
+  if (episodePositions.size > 0) {
+    updateEpisodePositions?.(episodePositions);
+  }
 }

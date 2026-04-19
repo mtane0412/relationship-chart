@@ -79,7 +79,7 @@ export function RelationshipGraph() {
   const relationships = useGraphStore((state) => state.relationships);
   const forceParams = useGraphStore((state) => state.forceParams);
   const updatePersonPositions = useGraphStore((state) => state.updatePersonPositions);
-  const updateEpisodePosition = useGraphStore((state) => state.updateEpisodePosition);
+  const updateEpisodePositions = useGraphStore((state) => state.updateEpisodePositions);
   const createEpisode = useGraphStore((state) => state.createEpisode);
   const addParticipation = useGraphStore((state) => state.addParticipation);
 
@@ -199,14 +199,14 @@ export function RelationshipGraph() {
           setNodes(resolvedNodes as AnyGraphNode[]);
         }
         // 衝突解消後の位置をストアに書き戻す
-        syncNodePositionsToStore(resolvedNodes, updatePersonPositions, updateEpisodePosition);
+        syncNodePositionsToStore(resolvedNodes, updatePersonPositions, updateEpisodePositions);
       } else {
         // Force Layout有効時は全ノードの位置を書き戻す（他ノードもシミュレーションで移動するため）
         const currentNodes = getNodesRef.current();
-        syncNodePositionsToStore(currentNodes, updatePersonPositions, updateEpisodePosition);
+        syncNodePositionsToStore(currentNodes, updatePersonPositions, updateEpisodePositions);
       }
     },
-    [handleNodeDragEnd, forceEnabled, setNodes, updatePersonPositions, updateEpisodePosition]
+    [handleNodeDragEnd, forceEnabled, setNodes, updatePersonPositions, updateEpisodePositions]
   );
 
   // Force Layout無効化時の位置書き戻し
@@ -215,10 +215,10 @@ export function RelationshipGraph() {
     // forceEnabledがtrue→falseに変わった時
     if (prevForceEnabledRef.current && !forceEnabled) {
       const currentNodes = getNodesRef.current();
-      syncNodePositionsToStore(currentNodes, updatePersonPositions, updateEpisodePosition);
+      syncNodePositionsToStore(currentNodes, updatePersonPositions, updateEpisodePositions);
     }
     prevForceEnabledRef.current = forceEnabled;
-  }, [forceEnabled, updatePersonPositions, updateEpisodePosition]);
+  }, [forceEnabled, updatePersonPositions, updateEpisodePositions]);
 
   const handleEpisodeSave = useCallback(
     (values: EpisodeCaptureValues) => {
