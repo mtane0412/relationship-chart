@@ -25,6 +25,7 @@ import { useGraphStore } from '@/stores/useGraphStore';
 import { getEdgeIntersectionPoints } from '@/lib/node-intersection';
 import type { RelationshipEdgeData } from '@/types/graph';
 import { calculateParallelEdgeOffset } from '@/lib/graph-utils';
+import { getDiffEdgeStyle, getDiffMarkerKey } from '@/lib/diff-highlight';
 
 /**
  * 関係エッジコンポーネント
@@ -147,21 +148,24 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
   // deriveEdgeVisual で導出された視覚属性を使用する
   const { color, strokeWidth: baseStrokeWidth, dashed, markerKey } = edgeData.visual;
 
-  // マーカーの設定（選択状態のときは blue マーカーを使用。非選択時は視覚属性のキーを使用）
-  const markerSuffix = selected ? 'blue' : markerKey;
+  // diffハイライトスタイルを取得（タイムラインモードのスナップショット切り替え時に適用）
+  const diffStyle = getDiffEdgeStyle(edgeData.diffStatus);
+  const diffMarkerKey = getDiffMarkerKey(edgeData.diffStatus);
+
+  // マーカーの設定（優先順位: selected > diffStatus > visual）
+  const markerSuffix = selected ? 'blue' : (diffMarkerKey ?? markerKey);
 
   // v11: symmetric=true → 矢印なし（無向）、symmetric=false → targetに矢印（有向）
   const markerEnd = edgeData.symmetric ? undefined : `url(#arrow-${markerSuffix})`;
 
-  // エッジのスタイル（選択状態・visual から色と太さを適用）
-  const strokeColor = selected ? '#3b82f6' : color;
+  // エッジのスタイル（優先順位: selected > diffStatus > visual）
   // 破線スタイル（secrecy >= 0.5 のとき破線）
   const strokeDasharray = dashed ? '8 4' : undefined;
-  const edgeStyle = {
-    stroke: strokeColor,
-    strokeWidth: selected ? 3.5 : baseStrokeWidth,
-    strokeDasharray,
-  };
+  const edgeStyle = selected
+    ? { stroke: '#3b82f6', strokeWidth: 3.5, strokeDasharray }
+    : diffStyle
+      ? { stroke: diffStyle.stroke, strokeWidth: diffStyle.strokeWidth, strokeDasharray }
+      : { stroke: color, strokeWidth: baseStrokeWidth, strokeDasharray };
 
   // 表示ラベル: label が null の場合は edgeType を使用
   const displayLabel = edgeData.label ?? edgeData.edgeType;

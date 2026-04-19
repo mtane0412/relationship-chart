@@ -3648,6 +3648,94 @@ describe('useGraphStore', () => {
       });
     });
 
+    describe('previousSnapshotIndex', () => {
+      it('初期状態では previousSnapshotIndex が null である', () => {
+        const { result } = renderHook(() => useGraphStore());
+        expect(result.current.previousSnapshotIndex).toBeNull();
+      });
+
+      it('goToSnapshot で activeSnapshotIndex が previousSnapshotIndex に保存される', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        // 第1話・第2話・第3話を作成
+        act(() => {
+          result.current.captureSnapshot('第1話');
+          result.current.captureSnapshot('第2話');
+          result.current.captureSnapshot('第3話');
+        });
+
+        act(() => {
+          result.current.setTimelineMode(true);
+        });
+
+        // 第1話に移動（直前のactiveSnapshotIndexはnull）
+        act(() => {
+          result.current.goToSnapshot(0);
+        });
+
+        // 第2話に移動（直前のactiveSnapshotIndexは0）
+        act(() => {
+          result.current.goToSnapshot(1);
+        });
+        expect(result.current.previousSnapshotIndex).toBe(0);
+        expect(result.current.activeSnapshotIndex).toBe(1);
+
+        // 第3話に移動（直前のactiveSnapshotIndexは1）
+        act(() => {
+          result.current.goToSnapshot(2);
+        });
+        expect(result.current.previousSnapshotIndex).toBe(1);
+        expect(result.current.activeSnapshotIndex).toBe(2);
+      });
+
+      it('goToLive で previousSnapshotIndex が null にリセットされる', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        act(() => {
+          result.current.captureSnapshot('第1話');
+          result.current.captureSnapshot('第2話');
+        });
+
+        act(() => {
+          result.current.setTimelineMode(true);
+          result.current.goToSnapshot(0);
+          result.current.goToSnapshot(1);
+        });
+
+        // previousSnapshotIndexが設定されていること
+        expect(result.current.previousSnapshotIndex).toBe(0);
+
+        // ライブに戻るとリセットされること
+        act(() => {
+          result.current.goToLive();
+        });
+        expect(result.current.previousSnapshotIndex).toBeNull();
+      });
+
+      it('setTimelineMode(false) で previousSnapshotIndex が null にリセットされる', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        act(() => {
+          result.current.captureSnapshot('第1話');
+          result.current.captureSnapshot('第2話');
+        });
+
+        act(() => {
+          result.current.setTimelineMode(true);
+          result.current.goToSnapshot(0);
+          result.current.goToSnapshot(1);
+        });
+
+        expect(result.current.previousSnapshotIndex).toBe(0);
+
+        // タイムラインモード終了でリセットされること
+        act(() => {
+          result.current.setTimelineMode(false);
+        });
+        expect(result.current.previousSnapshotIndex).toBeNull();
+      });
+    });
+
     describe('isPlaying / playbackSpeed', () => {
       it('setPlaying(true) で isPlaying が true になる', () => {
         // GIVEN: 初期状態（isPlaying=false）

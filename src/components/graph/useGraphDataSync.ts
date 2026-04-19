@@ -8,8 +8,10 @@ import { useNodesState, useEdgesState, useReactFlow } from '@xyflow/react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { personsToNodes, relationshipsToEdges, syncNodePositionsToStore } from '@/lib/graph-utils';
 import { resolveCollisions, DEFAULT_COLLISION_OPTIONS } from '@/lib/collision-resolver';
+import { computeSnapshotDiff } from '@/lib/snapshot-diff';
 import type { Node } from '@xyflow/react';
 import type { GraphNode, RelationshipEdge } from '@/types/graph';
+import type { DiffStatus } from '@/lib/diff-highlight';
 
 /**
  * グラフデータ同期フック
@@ -28,6 +30,10 @@ export function useGraphDataSync() {
   const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
   const updatePersonPositions = useGraphStore((state) => state.updatePersonPositions);
   const edgeFilter = useGraphStore((state) => state.edgeFilter);
+  const timelineMode = useGraphStore((state) => state.timelineMode);
+  const activeSnapshotIndex = useGraphStore((state) => state.activeSnapshotIndex);
+  const previousSnapshotIndex = useGraphStore((state) => state.previousSnapshotIndex);
+  const snapshots = useGraphStore((state) => state.snapshots);
 
   // React Flowのノード/エッジ状態
   const [nodes, setNodes, onNodesChange] = useNodesState<GraphNode>([]);
@@ -137,14 +143,43 @@ export function useGraphDataSync() {
       return updatedNodes;
     });
 
-    // エッジの選択状態は既存エッジから引き継ぐ
+    // タイムラインモード時にdiffStatusマップを構築する
+    // previousSnapshotIndex と activeSnapshotIndex が両方 null でない場合のみdiff計算を行う
+    const diffStatusMap = new Map<string, DiffStatus>();
+    if (
+      timelineMode &&
+      previousSnapshotIndex !== null &&
+      activeSnapshotIndex !== null
+    ) {
+      const fromSnapshot = snapshots[previousSnapshotIndex];
+      const toSnapshot = snapshots[activeSnapshotIndex];
+      if (fromSnapshot && toSnapshot) {
+        const diff = computeSnapshotDiff(fromSnapshot, toSnapshot);
+        for (const rel of diff.relationships.added) {
+          diffStatusMap.set(rel.relationshipId, 'added');
+        }
+        for (const rel of diff.relationships.changed) {
+          diffStatusMap.set(rel.relationshipId, 'changed');
+        }
+        // removed エッジはストア確定後には存在しないため、diffStatusMapには含めない
+      }
+    }
+
+    // エッジの選択状態は既存エッジから引き継ぐ。タイムラインモード時はdiffStatusも付与する
     setEdges((prevEdges) => {
       const prevEdgeMap = new Map(prevEdges.map((edge) => [edge.id, edge]));
       const updatedEdges = newEdges.map((newEdge) => {
         const existingEdge = prevEdgeMap.get(newEdge.id);
+        // タイムラインモードのdiff表示: diffStatusMapに存在するIDのみハイライト
+        const diffStatus = diffStatusMap.size > 0
+          ? (diffStatusMap.get(newEdge.id) ?? null)
+          : undefined;
         return {
           ...newEdge,
           selected: existingEdge?.selected ?? false,
+          data: newEdge.data
+            ? { ...newEdge.data, diffStatus }
+            : newEdge.data,
         };
       });
       return updatedEdges;
@@ -157,7 +192,7 @@ export function useGraphDataSync() {
         collisionResolutionRafIdRef.current = null;
       }
     };
-  }, [persons, relationships, setNodes, setEdges, forceEnabled, updatePersonPositions, edgeFilter]);
+  }, [persons, relationships, setNodes, setEdges, forceEnabled, updatePersonPositions, edgeFilter, timelineMode, activeSnapshotIndex, previousSnapshotIndex, snapshots]);
 
   // 選択状態の変更時に既存ノード/エッジのselectedプロパティのみ更新
   // 配列参照を変更しないようにhasChangedフラグで最適化

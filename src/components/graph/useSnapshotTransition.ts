@@ -24,9 +24,11 @@ import { useReactFlow } from '@xyflow/react';
 import { useShallow } from 'zustand/react/shallow';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { deriveEdgeVisual } from '@/lib/relationship-visual';
+import { computeSnapshotDiff } from '@/lib/snapshot-diff';
 import type { GraphNode, RelationshipEdge } from '@/types/graph';
 import type { SnapshotRelationship } from '@/types/snapshot';
 import type { Relationship } from '@/types/relationship';
+import type { DiffStatus } from '@/lib/diff-highlight';
 
 /** アニメーション時間（ミリ秒） */
 const TRANSITION_DURATION_MS = 300;
@@ -102,11 +104,12 @@ function snapshotRelationshipsToEdges(relationships: SnapshotRelationship[]): Re
 export function useSnapshotTransition(): UseSnapshotTransitionResult {
   const { getNodes, setNodes, getEdges, setEdges } = useReactFlow();
 
-  const { snapshots, _livePersons, goToSnapshot } = useGraphStore(
+  const { snapshots, _livePersons, goToSnapshot, activeSnapshotIndex } = useGraphStore(
     useShallow((state) => ({
       snapshots: state.snapshots,
       _livePersons: state._livePersons,
       goToSnapshot: state.goToSnapshot,
+      activeSnapshotIndex: state.activeSnapshotIndex,
     }))
   );
 
@@ -117,8 +120,8 @@ export function useSnapshotTransition(): UseSnapshotTransitionResult {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // useCallback の依存配列に入れられない値をrefで保持する
-  const storeRef = useRef({ snapshots, _livePersons, goToSnapshot });
-  storeRef.current = { snapshots, _livePersons, goToSnapshot };
+  const storeRef = useRef({ snapshots, _livePersons, goToSnapshot, activeSnapshotIndex });
+  storeRef.current = { snapshots, _livePersons, goToSnapshot, activeSnapshotIndex };
 
   // アンマウント時に rAF と setTimeout をクリーンアップする
   // これにより unmount 後に setNodes / setIsTransitioning / goToSnapshot が呼ばれるリークを防ぐ
@@ -137,8 +140,12 @@ export function useSnapshotTransition(): UseSnapshotTransitionResult {
 
   const transitionToSnapshot = useCallback(
     (targetIndex: number) => {
-      const { snapshots: currentSnapshots, _livePersons: livePersons, goToSnapshot: storeGoToSnapshot } =
-        storeRef.current;
+      const {
+        snapshots: currentSnapshots,
+        _livePersons: livePersons,
+        goToSnapshot: storeGoToSnapshot,
+        activeSnapshotIndex: currentSnapshotIndex,
+      } = storeRef.current;
 
       const targetSnapshot = currentSnapshots[targetIndex];
       // 存在しないインデックスは何もしない（Fail-Fast）
@@ -181,6 +188,23 @@ export function useSnapshotTransition(): UseSnapshotTransitionResult {
       // 遷移先スナップショットからターゲットエッジを構築する
       const targetEdges = snapshotRelationshipsToEdges(targetSnapshot.relationships);
       const targetEdgeMap = new Map(targetEdges.map((e) => [e.id, e]));
+
+      // スナップショット間のdiffを計算してdiffStatusマップを構築する
+      // ライブ→スナップショット遷移時（currentSnapshotIndex=null）はdiffなし
+      const diffStatusMap = new Map<string, DiffStatus>();
+      if (currentSnapshotIndex !== null) {
+        const fromSnapshot = currentSnapshots[currentSnapshotIndex];
+        if (fromSnapshot) {
+          const diff = computeSnapshotDiff(fromSnapshot, targetSnapshot);
+          for (const rel of diff.relationships.added) {
+            diffStatusMap.set(rel.relationshipId, 'added');
+          }
+          for (const rel of diff.relationships.changed) {
+            diffStatusMap.set(rel.relationshipId, 'changed');
+          }
+          // removed は削除エッジのフェードアウト中に 'removed' を設定する（下記で対応）
+        }
+      }
 
       // アニメーション開始位置を記録（移動ノードの補間用）
       const startPositions = new Map(
@@ -239,11 +263,15 @@ export function useSnapshotTransition(): UseSnapshotTransitionResult {
         // エッジアニメーション
         const animatedEdges: RelationshipEdge[] = [];
 
-        // ターゲットエッジ（維持/追加）: フェードイン
+        // ターゲットエッジ（維持/追加）: フェードイン + diffStatus付与
         for (const targetEdge of targetEdges) {
           const isNewEdge = !currentEdgeMap.has(targetEdge.id);
+          const diffStatus = diffStatusMap.get(targetEdge.id) ?? null;
           animatedEdges.push({
             ...targetEdge,
+            data: targetEdge.data
+              ? { ...targetEdge.data, diffStatus }
+              : targetEdge.data,
             style: {
               // 新規エッジはフェードイン、既存エッジは不透明のまま
               opacity: isNewEdge ? easedProgress : 1,
@@ -251,11 +279,15 @@ export function useSnapshotTransition(): UseSnapshotTransitionResult {
           });
         }
 
-        // 削除エッジ: フェードアウト（ターゲットに存在しないもの）
+        // 削除エッジ: フェードアウト（ターゲットに存在しないもの）+ diffStatus='removed'
         for (const [id, currentEdge] of currentEdgeMap) {
           if (!targetEdgeMap.has(id)) {
+            const edge = currentEdge as RelationshipEdge;
             animatedEdges.push({
-              ...(currentEdge as RelationshipEdge),
+              ...edge,
+              data: edge.data
+                ? { ...edge.data, diffStatus: 'removed' as DiffStatus }
+                : edge.data,
               style: {
                 opacity: 1 - easedProgress,
               },
