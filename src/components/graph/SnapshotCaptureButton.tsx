@@ -11,6 +11,7 @@
 
 import { useState } from 'react';
 import { Camera } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { SnapshotCaptureDialog } from '@/components/ui/SnapshotCaptureDialog';
 
@@ -19,10 +20,12 @@ import { SnapshotCaptureDialog } from '@/components/ui/SnapshotCaptureDialog';
  */
 export function SnapshotCaptureButton() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { captureSnapshot, timelineMode } = useGraphStore((state) => ({
-    captureSnapshot: state.captureSnapshot,
-    timelineMode: state.timelineMode,
-  }));
+  const { captureSnapshot, timelineMode } = useGraphStore(
+    useShallow((state) => ({
+      captureSnapshot: state.captureSnapshot,
+      timelineMode: state.timelineMode,
+    }))
+  );
 
   // タイムラインモード中はボタンを非表示
   if (timelineMode) return null;
