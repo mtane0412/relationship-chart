@@ -3499,6 +3499,23 @@ describe('useGraphStore', () => {
           result.current.reorderSnapshots([id1]);
         }).toThrow('並び順のスナップショット数が一致しません');
       });
+
+      it('重複したIDが含まれる場合はエラーをスローする', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        act(() => {
+          result.current.captureSnapshot('第1話');
+          result.current.captureSnapshot('第2話');
+          result.current.captureSnapshot('第3話');
+        });
+
+        const [id1, _id2] = result.current.snapshots.map((s) => s.id);
+
+        // snapshotIds=[id1,id1,id1]は長さ一致・IDも存在するが重複しており実質1件分欠落する
+        expect(() => {
+          result.current.reorderSnapshots([id1, id1, id1]);
+        }).toThrow('並び順に重複したスナップショットIDが含まれています');
+      });
     });
 
     describe('setTimelineMode / goToSnapshot / goToLive', () => {

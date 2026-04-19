@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { SnapshotList } from './SnapshotList';
+import { SnapshotList, computeReorderedSnapshotIds } from './SnapshotList';
 import { useGraphStore } from '@/stores/useGraphStore';
 import type { Snapshot } from '@/types/snapshot';
 
@@ -48,6 +48,50 @@ function makeStoreMock(overrides: Partial<{
     reorderSnapshots: overrides.reorderSnapshots ?? vi.fn(),
   };
 }
+
+describe('computeReorderedSnapshotIds', () => {
+  const makeSnapshotForUtil = (id: string): Snapshot => ({
+    id,
+    label: id,
+    persons: [],
+    relationships: [],
+    createdAt: new Date().toISOString(),
+  });
+
+  it('先頭要素を末尾に移動する', () => {
+    const snapshots = ['a', 'b', 'c'].map(makeSnapshotForUtil);
+
+    // 'a'を'c'の位置に移動 → ['b', 'c', 'a']
+    const result = computeReorderedSnapshotIds(snapshots, 'a', 'c');
+
+    expect(result).toEqual(['b', 'c', 'a']);
+  });
+
+  it('末尾要素を先頭に移動する', () => {
+    const snapshots = ['a', 'b', 'c'].map(makeSnapshotForUtil);
+
+    // 'c'を'a'の位置に移動 → ['c', 'a', 'b']
+    const result = computeReorderedSnapshotIds(snapshots, 'c', 'a');
+
+    expect(result).toEqual(['c', 'a', 'b']);
+  });
+
+  it('activeIdが存在しない場合はnullを返す', () => {
+    const snapshots = ['a', 'b'].map(makeSnapshotForUtil);
+
+    const result = computeReorderedSnapshotIds(snapshots, '存在しないID', 'b');
+
+    expect(result).toBeNull();
+  });
+
+  it('overIdが存在しない場合はnullを返す', () => {
+    const snapshots = ['a', 'b'].map(makeSnapshotForUtil);
+
+    const result = computeReorderedSnapshotIds(snapshots, 'a', '存在しないID');
+
+    expect(result).toBeNull();
+  });
+});
 
 describe('SnapshotList', () => {
   beforeEach(() => {

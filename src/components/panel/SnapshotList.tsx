@@ -9,6 +9,8 @@
  * - ドラッグ&ドロップによるスナップショットの並び替え（タイムラインモード外のみ）
  *
  * スナップショットが0件の場合は空状態メッセージを表示する。
+ *
+ * @module SnapshotList
  */
 
 'use client';
@@ -30,7 +32,32 @@ import {
 } from '@dnd-kit/sortable';
 import { useShallow } from 'zustand/react/shallow';
 import { useGraphStore } from '@/stores/useGraphStore';
+import type { Snapshot } from '@/types/snapshot';
 import { SortableSnapshotItem } from './SortableSnapshotItem';
+
+/**
+ * ドラッグ終了イベントからスナップショットの新しいID順序を計算する純粋関数。
+ * テスト可能なロジックをコンポーネント外に切り出している。
+ *
+ * @param snapshots - 現在のスナップショット配列
+ * @param activeId - ドラッグ中のスナップショットID
+ * @param overId - ドロップ先のスナップショットID
+ * @returns 並び替え後のスナップショットIDの配列。activeIdまたはoverIdが見つからない場合はnull
+ */
+export function computeReorderedSnapshotIds(
+  snapshots: Snapshot[],
+  activeId: string,
+  overId: string
+): string[] | null {
+  const oldIndex = snapshots.findIndex((s) => s.id === activeId);
+  const newIndex = snapshots.findIndex((s) => s.id === overId);
+  if (oldIndex === -1 || newIndex === -1) return null;
+
+  const newOrder = [...snapshots];
+  const [removed] = newOrder.splice(oldIndex, 1);
+  newOrder.splice(newIndex, 0, removed);
+  return newOrder.map((s) => s.id);
+}
 
 /**
  * スナップショット一覧コンポーネント
@@ -67,20 +94,18 @@ export function SnapshotList() {
 
   /**
    * ドラッグ終了時に並び替えを適用する。
-   * タイムラインモード中は早期returnして操作を無視する。
+   * タイムラインモード中は早期returnして操作を無視する（UIのハンドル非表示との二重防御）。
    */
   const handleDragEnd = (event: DragEndEvent) => {
+    if (timelineMode) return;
+
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const oldIndex = snapshots.findIndex((s) => s.id === active.id);
-    const newIndex = snapshots.findIndex((s) => s.id === over.id);
-    if (oldIndex === -1 || newIndex === -1) return;
-
-    const newOrder = [...snapshots];
-    const [removed] = newOrder.splice(oldIndex, 1);
-    newOrder.splice(newIndex, 0, removed);
-    reorderSnapshots(newOrder.map((s) => s.id));
+    const newIds = computeReorderedSnapshotIds(snapshots, String(active.id), String(over.id));
+    if (newIds !== null) {
+      reorderSnapshots(newIds);
+    }
   };
 
   return (

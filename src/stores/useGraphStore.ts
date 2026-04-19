@@ -1164,6 +1164,11 @@ export const useGraphStore = create<GraphStore>()(
             throw new Error('並び順のスナップショット数が一致しません');
           }
 
+          // 重複チェック: 重複があると一部IDが欠落した並び順になるためエラーとする
+          if (new Set(snapshotIds).size !== snapshotIds.length) {
+            throw new Error('並び順に重複したスナップショットIDが含まれています');
+          }
+
           const currentIds = new Set(snapshots.map((s) => s.id));
           const hasInvalidId = snapshotIds.some((id) => !currentIds.has(id));
           if (hasInvalidId) {
