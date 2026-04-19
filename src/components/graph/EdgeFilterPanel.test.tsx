@@ -48,7 +48,7 @@ describe('EdgeFilterPanel', () => {
         label: null,
         symmetric: true,
         tags: ['上司', '同級生'],
-        narrative: { summary: null, notes: null, turningPoints: [] },
+        narrative: { summary: null, notes: null },
         colorOverride: null,
         properties: {},
       });
@@ -137,7 +137,7 @@ describe('EdgeFilterPanel', () => {
         label: null,
         symmetric: true,
         tags: [],
-        narrative: { summary: null, notes: null, turningPoints: [] },
+        narrative: { summary: null, notes: null },
         colorOverride: null,
         properties: { closeness: 0.5, trust: 0.3, tension: 0.1, secrecy: 0.2 },
       });
@@ -259,7 +259,7 @@ describe('EdgeFilterPanel', () => {
         label: null,
         symmetric: true,
         tags: ['上司'],
-        narrative: { summary: null, notes: null, turningPoints: [] },
+        narrative: { summary: null, notes: null },
         colorOverride: null,
         properties: {},
       });
@@ -271,7 +271,7 @@ describe('EdgeFilterPanel', () => {
         label: null,
         symmetric: true,
         tags: ['友人', '上司'],
-        narrative: { summary: null, notes: null, turningPoints: [] },
+        narrative: { summary: null, notes: null },
         colorOverride: null,
         properties: {},
       });

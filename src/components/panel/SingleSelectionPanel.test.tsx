@@ -56,7 +56,7 @@ function makeRel(overrides: Partial<Relationship> & { id: string; sourceId: stri
     symmetric: false,
     tags: [],
     properties: {},
-    narrative: { summary: null, notes: null, turningPoints: [] },
+    narrative: { summary: null, notes: null },
     colorOverride: null,
     createdAt: '2024-01-03T00:00:00Z',
     updatedAt: '2024-01-03T00:00:00Z',

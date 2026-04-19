@@ -5,6 +5,7 @@
 
 import { useGraphStore } from '@/stores/useGraphStore';
 import { saveChart } from './chart-db';
+import { CURRENT_SCHEMA_VERSION } from '@/lib/migration';
 import type { Chart } from '@/types/chart';
 
 /**
@@ -73,7 +74,7 @@ function buildChartFromState(): Chart | null {
     forceParams: state.forceParams,
     egoLayoutParams: state.egoLayoutParams,
     snapshots: state.snapshots,
-    schemaVersion: 12,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
     createdAt: meta.createdAt,
     updatedAt: new Date().toISOString(),
   };

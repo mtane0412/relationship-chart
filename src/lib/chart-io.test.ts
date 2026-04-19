@@ -64,7 +64,6 @@ function makeTestChart(overrides?: Partial<Chart>): Chart {
         narrative: {
           summary: '',
           notes: '',
-          turningPoints: [],
         },
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z',
@@ -126,7 +125,6 @@ function makeTestChartWithSnapshot(): Chart {
         narrative: {
           summary: '',
           notes: '',
-          turningPoints: [],
         },
       },
     ],
@@ -513,12 +511,12 @@ describe('prepareChartForImport', () => {
     expect(prepared.name).toBe('源氏物語 人物相関図');
   });
 
-  it('normalizeChart経由でschemaVersion 13に正規化される', () => {
+  it('normalizeChart経由で最新schemaVersionに正規化される', () => {
     // schemaVersionが古い（または欠落した）データでもインポートできることを確認
     const chart = makeTestChart({ schemaVersion: undefined });
     const prepared = prepareChartForImport(chart);
 
-    expect(prepared.schemaVersion).toBe(13);
+    expect(prepared.schemaVersion).toBe(14);
   });
 
   it('スナップショットなしのChartも正常にインポートできる', () => {

@@ -59,7 +59,7 @@ function makeRel(overrides: Partial<Relationship> & { id: string; type: string; 
     label: null,
     symmetric: false,
     tags: [],
-    narrative: { summary: null, notes: null, turningPoints: [] },
+    narrative: { summary: null, notes: null },
     colorOverride: null,
     properties: {},
     createdAt: '2024-01-01T00:00:00.000Z',
@@ -1050,98 +1050,11 @@ describe('PairSelectionPanel', () => {
       });
     });
 
-    it('「+ ターニングポイントを追加」を押すと入力フィールドが追加される', async () => {
-      const user = userEvent.setup();
-      render(
-        <ReactFlowProvider>
-          <PairSelectionPanel persons={[person1, person2]} />
-        </ReactFlowProvider>
-      );
-
-      await user.click(screen.getByText('物語的情報'));
-      await waitFor(() => screen.getByRole('button', { name: /ターニングポイントを追加/ }));
-
-      await user.click(screen.getByRole('button', { name: /ターニングポイントを追加/ }));
-
-      await waitFor(() => {
-        expect(screen.getByPlaceholderText(/時期・時点/)).toBeInTheDocument();
-        expect(screen.getByPlaceholderText(/出来事/)).toBeInTheDocument();
-      });
-    });
-
-    it('ターニングポイントのatとnoteを入力して更新するとnarrative.turningPointsに保存される', async () => {
-      const user = userEvent.setup();
-      render(
-        <ReactFlowProvider>
-          <PairSelectionPanel persons={[person1, person2]} />
-        </ReactFlowProvider>
-      );
-
-      await user.click(screen.getByText('物語的情報'));
-      await waitFor(() => screen.getByRole('button', { name: /ターニングポイントを追加/ }));
-
-      await user.click(screen.getByRole('button', { name: /ターニングポイントを追加/ }));
-      await waitFor(() => screen.getByPlaceholderText(/時期・時点/));
-
-      await user.type(screen.getByPlaceholderText(/時期・時点/), '高校入学時');
-      await user.type(screen.getByPlaceholderText(/出来事/), '初めて出会った');
-      await user.click(screen.getByRole('button', { name: '更新' }));
-
-      await waitFor(() => {
-        const turningPoints = useGraphStore.getState().relationships[0].narrative.turningPoints;
-        expect(turningPoints).toHaveLength(1);
-        expect(turningPoints[0].at).toBe('高校入学時');
-        expect(turningPoints[0].note).toBe('初めて出会った');
-      });
-    });
-
-    it('atもnoteも空のターニングポイント行は保存から除外される', async () => {
-      const user = userEvent.setup();
-      render(
-        <ReactFlowProvider>
-          <PairSelectionPanel persons={[person1, person2]} />
-        </ReactFlowProvider>
-      );
-
-      await user.click(screen.getByText('物語的情報'));
-      await waitFor(() => screen.getByRole('button', { name: /ターニングポイントを追加/ }));
-
-      // 空行を追加してそのまま更新
-      await user.click(screen.getByRole('button', { name: /ターニングポイントを追加/ }));
-      await user.click(screen.getByRole('button', { name: '更新' }));
-
-      await waitFor(() => {
-        const turningPoints = useGraphStore.getState().relationships[0].narrative.turningPoints;
-        expect(turningPoints).toHaveLength(0);
-      });
-    });
-
-    it('ターニングポイント行の削除ボタンをクリックするとその行が消える', async () => {
-      const user = userEvent.setup();
-      render(
-        <ReactFlowProvider>
-          <PairSelectionPanel persons={[person1, person2]} />
-        </ReactFlowProvider>
-      );
-
-      await user.click(screen.getByText('物語的情報'));
-      await waitFor(() => screen.getByRole('button', { name: /ターニングポイントを追加/ }));
-
-      await user.click(screen.getByRole('button', { name: /ターニングポイントを追加/ }));
-      await waitFor(() => screen.getByPlaceholderText(/時期・時点/));
-
-      await user.click(screen.getByRole('button', { name: 'このターニングポイントを削除' }));
-
-      await waitFor(() => {
-        expect(screen.queryByPlaceholderText(/時期・時点/)).not.toBeInTheDocument();
-      });
-    });
-
     it('既存のnarrative.summaryが初期値としてtextareaに反映される', async () => {
       useGraphStore.setState({
         relationships: [{
           ...baseRel,
-          narrative: { summary: '幼馴染で高校まで同じ学校', notes: null, turningPoints: [] },
+          narrative: { summary: '幼馴染で高校まで同じ学校', notes: null },
         }],
       });
 
@@ -1262,10 +1175,16 @@ describe('PairSelectionPanel', () => {
     });
   });
 
-  // ─── スナップショットジャンプ ─────────────────────────────────────────────
+  // ─── 関連エピソード表示とスナップショットジャンプ ───────────────────────────
 
-  describe('スナップショットジャンプ', () => {
-    /** スナップショットの at と同名のラベルを持つスナップショット */
+  describe('関連エピソード表示', () => {
+    const baseRel = makeRel({
+      id: 'rel-1',
+      type: '友人',
+      sourceId: person1.id,
+      targetId: person2.id,
+    });
+
     const testSnapshot = {
       id: 'snap-1',
       label: '第1話',
@@ -1274,30 +1193,31 @@ describe('PairSelectionPanel', () => {
       createdAt: '2024-01-01T00:00:00.000Z',
     };
 
-    const relWithTurningPoint = makeRel({
-      id: 'rel-1',
-      type: '友人',
-      sourceId: person1.id,
-      targetId: person2.id,
-      narrative: {
-        summary: null,
-        notes: null,
-        turningPoints: [{ at: '第1話', note: '出会いのエピソード' }],
-      },
-    });
-
     beforeEach(() => {
       useGraphStore.setState({
         persons: [person1, person2],
-        relationships: [relWithTurningPoint],
+        relationships: [baseRel],
         selectedPersonIds: [person1.id, person2.id],
+        episodes: [],
         snapshots: [testSnapshot],
         timelineMode: false,
         activeSnapshotIndex: null,
       });
     });
 
-    it('turningPoints[].at がスナップショットのラベルに一致するとき、ジャンプボタンが表示される', async () => {
+    it('ペアのエッジに関連するエピソードが「物語的情報」内に表示される', async () => {
+      useGraphStore.setState({
+        episodes: [{
+          id: 'ep-1',
+          title: '初めての出会い',
+          occurredAt: '第1話',
+          relatedRelationshipIds: ['rel-1'],
+          properties: {},
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        }],
+      });
+
       const user = userEvent.setup();
       render(
         <ReactFlowProvider>
@@ -1305,14 +1225,80 @@ describe('PairSelectionPanel', () => {
         </ReactFlowProvider>
       );
 
-      // 物語的情報アコーディオンを開く
       await user.click(screen.getByText('物語的情報'));
+
+      await waitFor(() => {
+        expect(screen.getByText('初めての出会い')).toBeInTheDocument();
+        expect(screen.getByText('第1話')).toBeInTheDocument();
+      });
+    });
+
+    it('ペアに関連しないエピソードは表示されない', async () => {
+      useGraphStore.setState({
+        episodes: [{
+          id: 'ep-2',
+          title: '無関係の出来事',
+          relatedRelationshipIds: ['other-rel-id'],
+          properties: {},
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        }],
+      });
+
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      await user.click(screen.getByText('物語的情報'));
+
+      // 0件プレースホルダーが表示されるまで待つ
+      await waitFor(() => screen.getByText('関連するエピソードはありません'));
+      expect(screen.queryByText('無関係の出来事')).not.toBeInTheDocument();
+    });
+
+    it('occurredAt がスナップショットのラベルに一致するエピソードではジャンプボタンが表示される', async () => {
+      useGraphStore.setState({
+        episodes: [{
+          id: 'ep-1',
+          title: '初めての出会い',
+          occurredAt: '第1話',
+          relatedRelationshipIds: ['rel-1'],
+          properties: {},
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        }],
+      });
+
+      const user = userEvent.setup();
+      render(
+        <ReactFlowProvider>
+          <PairSelectionPanel persons={[person1, person2]} />
+        </ReactFlowProvider>
+      );
+
+      await user.click(screen.getByText('物語的情報'));
+
       await waitFor(() =>
-        expect(screen.getByRole('button', { name: /スナップショットへジャンプ/ })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: /スナップショット.*へジャンプ/ })).toBeInTheDocument()
       );
     });
 
-    it('ジャンプボタンをクリックするとタイムラインモードが有効になり、対応スナップショットに移動する', async () => {
+    it('ジャンプボタンをクリックするとタイムラインモードが有効になり対応スナップショットに移動する', async () => {
+      useGraphStore.setState({
+        episodes: [{
+          id: 'ep-1',
+          title: '初めての出会い',
+          occurredAt: '第1話',
+          relatedRelationshipIds: ['rel-1'],
+          properties: {},
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        }],
+      });
+
       const user = userEvent.setup();
       render(
         <ReactFlowProvider>
@@ -1321,7 +1307,7 @@ describe('PairSelectionPanel', () => {
       );
 
       await user.click(screen.getByText('物語的情報'));
-      const jumpButton = await screen.findByRole('button', { name: /スナップショットへジャンプ/ });
+      const jumpButton = await screen.findByRole('button', { name: /スナップショット.*へジャンプ/ });
       await user.click(jumpButton);
 
       await waitFor(() => {
@@ -1331,35 +1317,17 @@ describe('PairSelectionPanel', () => {
       });
     });
 
-    it('スナップショットが存在しない場合はジャンプボタンが表示されない', async () => {
-      useGraphStore.setState({ snapshots: [] });
-
-      const user = userEvent.setup();
-      render(
-        <ReactFlowProvider>
-          <PairSelectionPanel persons={[person1, person2]} />
-        </ReactFlowProvider>
-      );
-
-      await user.click(screen.getByText('物語的情報'));
-      await waitFor(() => screen.getByRole('button', { name: /ターニングポイントを追加/ }));
-
-      expect(screen.queryByRole('button', { name: /スナップショットへジャンプ/ })).not.toBeInTheDocument();
-    });
-
-    it('turningPoints[].at がどのスナップショットラベルにも一致しない場合はジャンプボタンが表示されない', async () => {
+    it('occurredAt がどのスナップショットラベルにも一致しない場合はジャンプボタンが表示されない', async () => {
       useGraphStore.setState({
-        relationships: [makeRel({
-          id: 'rel-1',
-          type: '友人',
-          sourceId: person1.id,
-          targetId: person2.id,
-          narrative: {
-            summary: null,
-            notes: null,
-            turningPoints: [{ at: '存在しない時点', note: '出来事' }],
-          },
-        })],
+        episodes: [{
+          id: 'ep-1',
+          title: '初めての出会い',
+          occurredAt: '存在しない時点',
+          relatedRelationshipIds: ['rel-1'],
+          properties: {},
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        }],
       });
 
       const user = userEvent.setup();
@@ -1370,9 +1338,9 @@ describe('PairSelectionPanel', () => {
       );
 
       await user.click(screen.getByText('物語的情報'));
-      await waitFor(() => screen.getByRole('button', { name: /ターニングポイントを追加/ }));
 
-      expect(screen.queryByRole('button', { name: /スナップショットへジャンプ/ })).not.toBeInTheDocument();
+      await waitFor(() => screen.getByText('初めての出会い'));
+      expect(screen.queryByRole('button', { name: /スナップショット.*へジャンプ/ })).not.toBeInTheDocument();
     });
   });
 });

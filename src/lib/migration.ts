@@ -1,22 +1,42 @@
 /**
  * マイグレーションロジック
- * LocalStorage/IndexedDB に保存された古い形式のデータを最新形式（v11）に変換する
+ * LocalStorage/IndexedDB に保存された古い形式のデータを最新形式に変換する
  *
  * スキーマ履歴:
  *   v0-v8: レイヤーベース方式（layer フィールドで関係を分類）
  *   v9: プロパティグラフ方式（forward/reverse/symmetric 構造）
  *   v10: labels[] 方式（Person.kind → Person.labels）
  *   v11: 正統プロパティグラフ方式（type/sourceId/targetId/properties 構造、マルチエッジ）
+ *   v12: snapshots フィールドの追加（タイムライン機能対応）
+ *   v13: episodes/episodeParticipations フィールドの追加（エピソードノード対応）
+ *   v14: Relationship.narrative.turningPoints → Episode への変換（turningPoints 完全削除）
  */
 
 import { nanoid } from 'nanoid';
 import type { Person } from '@/types/person';
 import type { Relationship, AwarenessKind } from '@/types/relationship';
+import type { Episode, EpisodeParticipation } from '@/types/episode';
 import { DEFAULT_FORCE_PARAMS, type ForceParams } from '@/stores/useGraphStore';
 import { DEFAULT_EGO_LAYOUT_PARAMS, type EgoLayoutParams } from './ego-layout';
 import type { Chart } from '@/types/chart';
 
+/** IndexedDB Chart スキーマの現在バージョン */
+export const CURRENT_SCHEMA_VERSION = 14;
+
 // ─── レガシー型定義（マイグレーション内部でのみ使用） ──────────────────────────
+
+/**
+ * v13 以前の Relationship 型（narrative.turningPoints を含む）
+ * v14 マイグレーション専用のレガシー型。
+ * @deprecated v14 以降は Relationship（turningPoints なし）を使用すること
+ */
+export type LegacyRelationshipV13 = Omit<Relationship, 'narrative'> & {
+  narrative: {
+    summary: string | null;
+    notes: string | null;
+    turningPoints: Array<{ at: string; note: string }>;
+  };
+};
 
 /**
  * v8 以前のレイヤーベース関係型
@@ -465,6 +485,88 @@ export function migratePersonsV10ToV11(persons: LegacyPersonV10[]): Person[] {
   }));
 }
 
+// ─── v13 → v14: turningPoints → Episode 変換 ──────────────────────────────────
+
+/**
+ * v13 形式の Relationship.narrative.turningPoints を Episode + EpisodeParticipation に変換する
+ *
+ * 変換ルール:
+ * - tp.note.trim() が非空なら title に使用。空なら tp.at.trim() を title に使用。
+ * - 両方空のエントリはスキップする（無意味なデータを生成しない）。
+ * - 各 Episode の relatedRelationshipIds に元 Relationship.id を設定する。
+ * - labels に '人物' が含まれる source/target のみ EpisodeParticipation を生成する。
+ * - 同一 Person が source/target 両方（自己ループ）の場合は重複を排除する。
+ * - 変換後の Relationship.narrative から turningPoints フィールドを除去する。
+ *
+ * @param legacyRels - turningPoints を含む v13 形式の Relationship 配列
+ * @param persons - ラベル照合用の現在の Person 配列
+ * @returns 変換後の relationships / 新規 episodes / 新規 episodeParticipations
+ */
+export function migrateTurningPointsToEpisodes(
+  legacyRels: LegacyRelationshipV13[],
+  persons: Person[],
+): {
+  relationships: Relationship[];
+  episodes: Episode[];
+  episodeParticipations: EpisodeParticipation[];
+} {
+  const personMap = new Map(persons.map((p) => [p.id, p]));
+
+  const relationships: Relationship[] = [];
+  const episodes: Episode[] = [];
+  const episodeParticipations: EpisodeParticipation[] = [];
+
+  for (const rel of legacyRels) {
+    for (const tp of (rel.narrative.turningPoints ?? [])) {
+      const note = tp.note.trim();
+      const at = tp.at.trim();
+
+      // 両方空のエントリはスキップ
+      if (!note && !at) continue;
+
+      const title = note || at;
+      const occurredAt = at || undefined;
+      const now = rel.updatedAt;
+
+      const episodeId = nanoid();
+      episodes.push({
+        id: episodeId,
+        title,
+        occurredAt,
+        relatedRelationshipIds: [rel.id],
+        properties: {},
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      // source/target のうち labels に '人物' を含む Person のみ参加者として登録（重複排除）
+      const seenPersonIds = new Set<string>();
+      for (const personId of [rel.sourceId, rel.targetId]) {
+        if (seenPersonIds.has(personId)) continue;
+        const person = personMap.get(personId);
+        if (!person || !person.labels.includes('人物')) continue;
+        seenPersonIds.add(personId);
+        episodeParticipations.push({
+          id: nanoid(),
+          episodeId,
+          personId,
+          createdAt: now,
+        });
+      }
+    }
+
+    // turningPoints フィールドを除いた narrative で Relationship を再構築
+    const { turningPoints: _tp, ...narrativeWithoutTurningPoints } = rel.narrative;
+    void _tp;
+    relationships.push({
+      ...rel,
+      narrative: narrativeWithoutTurningPoints,
+    } as Relationship);
+  }
+
+  return { relationships, episodes, episodeParticipations };
+}
+
 // ─── マイグレーションステートマシン ──────────────────────────────────────────
 
 /**
@@ -714,22 +816,23 @@ export function migrateGraphState(persistedState: unknown, version: number): unk
 // ─── IndexedDB Chart の正規化（v13 形式への変換） ──────────────────────────────
 
 /**
- * IndexedDB からロードした Chart を v13 形式に正規化する
+ * IndexedDB からロードした Chart を最新形式（CURRENT_SCHEMA_VERSION）に正規化する
  *
  * スキーマ変換の段階:
  *   v8以前  → v9:  レイヤーベース → プロパティグラフ（forward/reverse構造）
  *   v9/v10  → v11: Person.kind → labels、RelationshipV9 → Relationship
  *   v11     → v12: snapshots フィールドの追加（タイムライン機能対応）
  *   v12     → v13: episodes/episodeParticipations フィールドの追加（エピソードノード対応）
+ *   v13     → v14: Relationship.narrative.turningPoints → Episode への変換
  *
  * @param chart - ロードした Chart オブジェクト（古い schemaVersion の可能性あり）
- * @returns v13 形式に正規化された Chart
+ * @returns 最新形式に正規化された Chart
  */
 export function normalizeChart(chart: Chart): Chart {
   const schemaVersion = chart.schemaVersion ?? 0;
 
-  // v13以降はすでに最新形式
-  if (schemaVersion >= 13) return chart;
+  // 最新バージョン以降はすでに最新形式
+  if (schemaVersion >= CURRENT_SCHEMA_VERSION) return chart;
 
   let persons = chart.persons as unknown as LegacyPersonV10[];
   let relationships = chart.relationships as unknown[];
@@ -755,7 +858,7 @@ export function normalizeChart(chart: Chart): Chart {
       typeof r === 'object' &&
       ('sourcePersonId' in r || 'isDirected' in r || 'forward' in r)
   );
-  const normalizedRelationships = hasV9Fields
+  const v11Relationships = hasV9Fields
     ? migrateV10ToV11(relationships as LegacyRelationshipV9[])
     : (relationships as Relationship[]);
 
@@ -763,20 +866,37 @@ export function normalizeChart(chart: Chart): Chart {
   const normalizedPersons = migratePersonsV10ToV11(persons);
 
   // 既存スナップショットに episodes/episodeParticipations フィールドを補完（v13対応）
-  const normalizedSnapshots = (chart.snapshots ?? []).map((snapshot) => ({
+  const v13Snapshots = (chart.snapshots ?? []).map((snapshot) => ({
     ...snapshot,
     episodes: snapshot.episodes ?? [],
     episodeParticipations: snapshot.episodeParticipations ?? [],
   }));
 
-  // v13に変換（episodes/episodeParticipationsフィールドを補完）
+  // v13 → v14: ライブ Relationship.narrative.turningPoints → Episode に変換
+  const { relationships: v14Relationships, episodes: newEpisodes, episodeParticipations: newParticipations } =
+    migrateTurningPointsToEpisodes(v11Relationships as LegacyRelationshipV13[], normalizedPersons);
+
+  // 既存の episodes/episodeParticipations に新規生成分をマージ
+  const mergedEpisodes = [...(chart.episodes ?? []), ...newEpisodes];
+  const mergedParticipations = [...(chart.episodeParticipations ?? []), ...newParticipations];
+
+  // v14 のスナップショット: SnapshotRelationship.narrative から turningPoints フィールドを削除
+  const v14Snapshots = v13Snapshots.map((snapshot) => ({
+    ...snapshot,
+    relationships: snapshot.relationships.map((sr) => {
+      const { turningPoints: _tp, ...narrativeWithoutTurningPoints } = sr.narrative as (typeof sr.narrative & { turningPoints?: unknown });
+      void _tp;
+      return { ...sr, narrative: narrativeWithoutTurningPoints };
+    }),
+  }));
+
   return {
     ...chart,
     persons: normalizedPersons,
-    relationships: normalizedRelationships,
-    snapshots: normalizedSnapshots,
-    episodes: chart.episodes ?? [],
-    episodeParticipations: chart.episodeParticipations ?? [],
-    schemaVersion: 13,
+    relationships: v14Relationships,
+    snapshots: v14Snapshots,
+    episodes: mergedEpisodes,
+    episodeParticipations: mergedParticipations,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
   };
 }

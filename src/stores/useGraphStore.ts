@@ -35,7 +35,7 @@ import {
   getChartOrder,
   setChartOrder,
 } from '@/lib/chart-db';
-import { migrateGraphState, normalizeChart } from '@/lib/migration';
+import { migrateGraphState, normalizeChart, CURRENT_SCHEMA_VERSION } from '@/lib/migration';
 import {
   serializeChartForExport,
   sanitizeFilename,
@@ -191,8 +191,7 @@ function buildChartFromState(state: GraphState): Chart | null {
     forceParams: state.forceParams,
     egoLayoutParams: state.egoLayoutParams,
     snapshots: state.snapshots,
-    // v13 形式であることを明示する（ロード時の再マイグレーションを防ぐ）
-    schemaVersion: 13,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
     createdAt: meta.createdAt,
     updatedAt: new Date().toISOString(),
   };
@@ -1181,7 +1180,7 @@ export const useGraphStore = create<GraphStore>()(
                 forceParams: state.forceParams,
                 egoLayoutParams: state.egoLayoutParams,
                 snapshots: state.snapshots,
-                schemaVersion: 12,
+                schemaVersion: CURRENT_SCHEMA_VERSION,
                 createdAt: meta.createdAt,
                 updatedAt: new Date().toISOString(),
               };
@@ -1285,7 +1284,6 @@ export const useGraphStore = create<GraphStore>()(
             narrative: {
               summary: r.narrative.summary,
               notes: r.narrative.notes,
-              turningPoints: r.narrative.turningPoints.map((tp) => ({ ...tp })),
             },
           }));
 
@@ -1491,9 +1489,8 @@ export const useGraphStore = create<GraphStore>()(
               ? {
                   summary: sr.narrative.summary,
                   notes: sr.narrative.notes,
-                  turningPoints: sr.narrative.turningPoints.map((tp) => ({ ...tp })),
                 }
-              : { summary: null, notes: null, turningPoints: [] },
+              : { summary: null, notes: null },
             createdAt: snapshot.createdAt,
             updatedAt: snapshot.createdAt,
           }));

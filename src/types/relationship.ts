@@ -27,12 +27,10 @@ export type AwarenessKind = 'known' | 'unknown' | 'suspected' | null;
  * 関係の自由記述（narrative）
  * @property summary - 関係全体の物語的記述
  * @property notes - メモ・補足
- * @property turningPoints - ターニングポイントのリスト（時刻と内容）
  */
 export type RelationshipNarrative = {
   summary: string | null;
   notes: string | null;
-  turningPoints: Array<{ at: string; note: string }>;
 };
 
 /**

@@ -32,7 +32,7 @@ function makeSearchRel(overrides: {
     label: overrides.label ?? null,
     symmetric: overrides.symmetric ?? false,
     tags: [],
-    narrative: { summary: null, notes: null, turningPoints: [] },
+    narrative: { summary: null, notes: null },
     colorOverride: null,
     properties: {},
     createdAt: '2024-01-01T00:00:00Z',
