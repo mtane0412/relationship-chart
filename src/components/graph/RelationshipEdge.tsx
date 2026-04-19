@@ -165,7 +165,9 @@ export const RelationshipEdge = memo((props: EdgeProps) => {
   if (selected) {
     edgeStyle = { stroke: '#3b82f6', strokeWidth: 3.5, strokeDasharray };
   } else if (diffStyle) {
-    edgeStyle = { stroke: diffStyle.stroke, strokeWidth: diffStyle.strokeWidth, strokeDasharray };
+    // diffハイライト時はbaseStrokeWidthと比較して大きい方を採用する
+    // （closeness=1.0 の4pxより細くなるケースを防ぐため）
+    edgeStyle = { stroke: diffStyle.stroke, strokeWidth: Math.max(diffStyle.strokeWidth, baseStrokeWidth), strokeDasharray };
   } else {
     edgeStyle = { stroke: color, strokeWidth: baseStrokeWidth, strokeDasharray };
   }

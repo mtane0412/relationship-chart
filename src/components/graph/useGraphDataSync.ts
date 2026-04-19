@@ -33,7 +33,10 @@ export function useGraphDataSync() {
   const timelineMode = useGraphStore((state) => state.timelineMode);
   const activeSnapshotIndex = useGraphStore((state) => state.activeSnapshotIndex);
   const previousSnapshotIndex = useGraphStore((state) => state.previousSnapshotIndex);
-  const snapshots = useGraphStore((state) => state.snapshots);
+  // タイムラインモード時のみ snapshots を購読する
+  // timelineMode=false の場合は null を返す安定したセレクターにして、
+  // スナップショット追加/編集時の不要なuseEffect再実行を防ぐ
+  const snapshots = useGraphStore((state) => state.timelineMode ? state.snapshots : null);
 
   // React Flowのノード/エッジ状態
   const [nodes, setNodes, onNodesChange] = useNodesState<GraphNode>([]);
@@ -149,7 +152,8 @@ export function useGraphDataSync() {
     if (
       timelineMode &&
       previousSnapshotIndex !== null &&
-      activeSnapshotIndex !== null
+      activeSnapshotIndex !== null &&
+      snapshots !== null
     ) {
       const fromSnapshot = snapshots[previousSnapshotIndex];
       const toSnapshot = snapshots[activeSnapshotIndex];
