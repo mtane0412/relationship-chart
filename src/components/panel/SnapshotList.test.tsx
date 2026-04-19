@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { SnapshotList } from './SnapshotList';
+import { SnapshotList, computeReorderedSnapshotIds } from './SnapshotList';
 import { useGraphStore } from '@/stores/useGraphStore';
 import type { Snapshot } from '@/types/snapshot';
 
@@ -35,6 +35,7 @@ function makeStoreMock(overrides: Partial<{
   goToSnapshot: ReturnType<typeof vi.fn>;
   goToLive: ReturnType<typeof vi.fn>;
   deleteSnapshot: ReturnType<typeof vi.fn>;
+  reorderSnapshots: ReturnType<typeof vi.fn>;
 }> = {}) {
   return {
     snapshots: overrides.snapshots ?? [],
@@ -44,8 +45,53 @@ function makeStoreMock(overrides: Partial<{
     goToSnapshot: overrides.goToSnapshot ?? vi.fn(),
     goToLive: overrides.goToLive ?? vi.fn(),
     deleteSnapshot: overrides.deleteSnapshot ?? vi.fn(),
+    reorderSnapshots: overrides.reorderSnapshots ?? vi.fn(),
   };
 }
+
+describe('computeReorderedSnapshotIds', () => {
+  const makeSnapshotForUtil = (id: string): Snapshot => ({
+    id,
+    label: id,
+    persons: [],
+    relationships: [],
+    createdAt: new Date().toISOString(),
+  });
+
+  it('先頭要素を末尾に移動する', () => {
+    const snapshots = ['a', 'b', 'c'].map(makeSnapshotForUtil);
+
+    // 'a'を'c'の位置に移動 → ['b', 'c', 'a']
+    const result = computeReorderedSnapshotIds(snapshots, 'a', 'c');
+
+    expect(result).toEqual(['b', 'c', 'a']);
+  });
+
+  it('末尾要素を先頭に移動する', () => {
+    const snapshots = ['a', 'b', 'c'].map(makeSnapshotForUtil);
+
+    // 'c'を'a'の位置に移動 → ['c', 'a', 'b']
+    const result = computeReorderedSnapshotIds(snapshots, 'c', 'a');
+
+    expect(result).toEqual(['c', 'a', 'b']);
+  });
+
+  it('activeIdが存在しない場合はnullを返す', () => {
+    const snapshots = ['a', 'b'].map(makeSnapshotForUtil);
+
+    const result = computeReorderedSnapshotIds(snapshots, '存在しないID', 'b');
+
+    expect(result).toBeNull();
+  });
+
+  it('overIdが存在しない場合はnullを返す', () => {
+    const snapshots = ['a', 'b'].map(makeSnapshotForUtil);
+
+    const result = computeReorderedSnapshotIds(snapshots, 'a', '存在しないID');
+
+    expect(result).toBeNull();
+  });
+});
 
 describe('SnapshotList', () => {
   beforeEach(() => {
@@ -121,5 +167,27 @@ describe('SnapshotList', () => {
     await user.click(screen.getByRole('button', { name: /第1話を削除/i }));
 
     expect(mockDeleteSnapshot).toHaveBeenCalledWith('snap-001');
+  });
+
+  it('タイムラインモード外でドラッグハンドルが表示される', () => {
+    const snapshots = [makeSnapshot({ id: 'snap-001', label: '第1話' })];
+    mockUseGraphStore.mockReturnValue(makeStoreMock({ snapshots, timelineMode: false }));
+
+    render(<SnapshotList />);
+
+    // ドラッグハンドルボタンが存在すること
+    expect(screen.getByRole('button', { name: '並び替え' })).toBeInTheDocument();
+  });
+
+  it('タイムラインモード中はドラッグハンドルが表示されない', () => {
+    const snapshots = [makeSnapshot({ id: 'snap-001', label: '第1話' })];
+    mockUseGraphStore.mockReturnValue(
+      makeStoreMock({ snapshots, timelineMode: true, activeSnapshotIndex: 0 })
+    );
+
+    render(<SnapshotList />);
+
+    // タイムラインモード中はドラッグハンドルが非表示であること
+    expect(screen.queryByRole('button', { name: '並び替え' })).not.toBeInTheDocument();
   });
 });

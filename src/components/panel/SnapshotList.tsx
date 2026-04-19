@@ -6,15 +6,58 @@
  * - タイムライン再生モードの開始/終了
  * - 各スナップショットへのジャンプ
  * - スナップショットの削除
+ * - ドラッグ&ドロップによるスナップショットの並び替え（タイムラインモード外のみ）
  *
  * スナップショットが0件の場合は空状態メッセージを表示する。
+ *
+ * @module SnapshotList
  */
 
 'use client';
 
-import { Trash2, Play, StopCircle } from 'lucide-react';
+import { Play, StopCircle } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable';
 import { useShallow } from 'zustand/react/shallow';
 import { useGraphStore } from '@/stores/useGraphStore';
+import type { Snapshot } from '@/types/snapshot';
+import { SortableSnapshotItem } from './SortableSnapshotItem';
+
+/**
+ * ドラッグ終了イベントからスナップショットの新しいID順序を計算する純粋関数。
+ * テスト可能なロジックをコンポーネント外に切り出している。
+ *
+ * @param snapshots - 現在のスナップショット配列
+ * @param activeId - ドラッグ中のスナップショットID
+ * @param overId - ドロップ先のスナップショットID
+ * @returns 並び替え後のスナップショットIDの配列。activeIdまたはoverIdが見つからない場合はnull
+ */
+export function computeReorderedSnapshotIds(
+  snapshots: Snapshot[],
+  activeId: string,
+  overId: string
+): string[] | null {
+  const oldIndex = snapshots.findIndex((s) => s.id === activeId);
+  const newIndex = snapshots.findIndex((s) => s.id === overId);
+  if (oldIndex === -1 || newIndex === -1) return null;
+
+  const newOrder = [...snapshots];
+  const [removed] = newOrder.splice(oldIndex, 1);
+  newOrder.splice(newIndex, 0, removed);
+  return newOrder.map((s) => s.id);
+}
 
 /**
  * スナップショット一覧コンポーネント
@@ -28,6 +71,7 @@ export function SnapshotList() {
     goToSnapshot,
     goToLive,
     deleteSnapshot,
+    reorderSnapshots,
   } = useGraphStore(
     useShallow((state) => ({
       snapshots: state.snapshots,
@@ -37,8 +81,32 @@ export function SnapshotList() {
       goToSnapshot: state.goToSnapshot,
       goToLive: state.goToLive,
       deleteSnapshot: state.deleteSnapshot,
+      reorderSnapshots: state.reorderSnapshots,
     }))
   );
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  /**
+   * ドラッグ終了時に並び替えを適用する。
+   * タイムラインモード中は早期returnして操作を無視する（UIのハンドル非表示との二重防御）。
+   */
+  const handleDragEnd = (event: DragEndEvent) => {
+    if (timelineMode) return;
+
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const newIds = computeReorderedSnapshotIds(snapshots, String(active.id), String(over.id));
+    if (newIds !== null) {
+      reorderSnapshots(newIds);
+    }
+  };
 
   return (
     <div>
@@ -86,64 +154,35 @@ export function SnapshotList() {
 
       {/* スナップショット一覧 */}
       {snapshots.length > 0 && (
-        <ul className="space-y-1">
-          {snapshots.map((snapshot, index) => {
-            const isActive = timelineMode && activeSnapshotIndex === index;
-            return (
-              <li
-                key={snapshot.id}
-                className={`flex items-center gap-2 rounded-md px-2 py-1.5 group ${
-                  isActive
-                    ? 'bg-blue-50 border border-blue-200'
-                    : 'hover:bg-gray-50'
-                }`}
-              >
-                {/* スナップショット番号 */}
-                <span className="text-xs text-gray-400 min-w-[1.5rem] text-right">
-                  {index + 1}.
-                </span>
-
-                {/* ラベル（クリックでジャンプ） */}
-                <button
-                  onClick={() => {
-                    if (!timelineMode) {
-                      setTimelineMode(true);
-                    }
-                    goToSnapshot(index);
-                  }}
-                  className={`flex-1 text-left text-sm truncate ${
-                    isActive ? 'text-blue-700 font-medium' : 'text-gray-700 hover:text-gray-900'
-                  }`}
-                  title={snapshot.description ?? snapshot.label}
-                >
-                  {snapshot.label}
-                </button>
-
-                {/* ライブに戻るボタン（タイムラインモード中のアクティブ項目） */}
-                {isActive && (
-                  <button
-                    onClick={goToLive}
-                    className="text-xs text-blue-500 hover:text-blue-700 whitespace-nowrap transition-colors"
-                  >
-                    ライブへ
-                  </button>
-                )}
-
-                {/* 削除ボタン（タイムラインモード外のみ表示） */}
-                {!timelineMode && (
-                  <button
-                    onClick={() => deleteSnapshot(snapshot.id)}
-                    className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-gray-400 hover:text-red-500 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 rounded"
-                    aria-label={`${snapshot.label}を削除`}
-                    title={`${snapshot.label}を削除`}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={snapshots.map((s) => s.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <ul className="space-y-1">
+              {snapshots.map((snapshot, index) => {
+                const isActive = timelineMode && activeSnapshotIndex === index;
+                return (
+                  <SortableSnapshotItem
+                    key={snapshot.id}
+                    snapshot={snapshot}
+                    index={index}
+                    isActive={isActive}
+                    timelineMode={timelineMode}
+                    onGoToSnapshot={goToSnapshot}
+                    onSetTimelineMode={setTimelineMode}
+                    onGoToLive={goToLive}
+                    onDelete={deleteSnapshot}
+                  />
+                );
+              })}
+            </ul>
+          </SortableContext>
+        </DndContext>
       )}
     </div>
   );
