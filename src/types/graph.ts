@@ -5,6 +5,7 @@
 
 import type { Node as ReactFlowNode, Edge as ReactFlowEdge } from '@xyflow/react';
 import type { EdgeVisual } from '@/lib/relationship-visual';
+import type { DiffStatus } from '@/lib/diff-highlight';
 
 /**
  * カスタムノードのデータ型
@@ -41,6 +42,12 @@ export type RelationshipEdgeData = {
   edgeIndex: number;
   /** 同一ペア内のエッジ総数。並列描画オフセットの計算に使用 */
   totalEdgesInPair: number;
+  /**
+   * スナップショット間のdiff状態
+   * タイムラインモード中のスナップショット切り替え時にのみ設定される。
+   * null / undefined は通常表示（diffハイライトなし）
+   */
+  diffStatus?: DiffStatus;
 };
 
 /**

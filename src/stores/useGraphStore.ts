@@ -103,6 +103,11 @@ type GraphState = {
   isPlaying: boolean;
   /** 自動再生の再生間隔（ミリ秒）。PLAYBACK_SPEEDS で定義された3段階のみ有効 */
   playbackSpeed: PlaybackSpeed;
+  /**
+   * 直前に表示していたスナップショットのインデックス
+   * diffハイライト計算に使用する。null = 直前のスナップショットなし（diffハイライトなし）
+   */
+  previousSnapshotIndex: number | null;
 };
 
 /**
@@ -130,6 +135,7 @@ const INITIAL_STATE: GraphState = {
   _liveRelationships: null,
   isPlaying: false,
   playbackSpeed: 2000,
+  previousSnapshotIndex: null,
 };
 
 
@@ -1206,10 +1212,12 @@ export const useGraphStore = create<GraphStore>()(
           } else {
             // タイムラインモードを終了: ライブデータを復元してpauseAutoSave=false
             // isPlayingもリセットして再生を確実に停止する
+            // previousSnapshotIndexもリセットしてdiffハイライトをクリアする
             set((s) => ({
               timelineMode: false,
               pauseAutoSave: false,
               activeSnapshotIndex: null,
+              previousSnapshotIndex: null,
               isPlaying: false,
               persons: s._livePersons ?? s.persons,
               relationships: s._liveRelationships ?? s.relationships,
@@ -1278,8 +1286,11 @@ export const useGraphStore = create<GraphStore>()(
             updatedAt: snapshot.createdAt,
           }));
 
+          // 直前のスナップショットインデックスを保存してdiffハイライト計算に使用する
+          const previousIndex = state.activeSnapshotIndex;
           set(() => ({
             activeSnapshotIndex: index,
+            previousSnapshotIndex: previousIndex,
             persons: restoredPersons,
             relationships: restoredRelationships,
           }));
@@ -1292,6 +1303,7 @@ export const useGraphStore = create<GraphStore>()(
 
           set((s) => ({
             activeSnapshotIndex: null,
+            previousSnapshotIndex: null,
             persons: s._livePersons ?? s.persons,
             relationships: s._liveRelationships ?? s.relationships,
           }));
