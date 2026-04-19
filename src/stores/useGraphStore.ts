@@ -21,7 +21,8 @@ import { INITIAL_EDGE_FILTER } from '@/types/relationship';
 import type { EgoLayoutParams } from '@/lib/ego-layout';
 import { DEFAULT_EGO_LAYOUT_PARAMS } from '@/lib/ego-layout';
 import type { ChartMeta, Chart } from '@/types/chart';
-import type { Snapshot, SnapshotPerson, SnapshotRelationship } from '@/types/snapshot';
+import type { Snapshot, SnapshotPerson, SnapshotRelationship, SnapshotEpisode, SnapshotEpisodeParticipation } from '@/types/snapshot';
+import type { Episode, EpisodeParticipation } from '@/types/episode';
 import {
   initDB,
   saveChart,
@@ -96,6 +97,10 @@ type GraphState = {
   editingRelationshipId: string | null;
   /** エッジフィルタ（タグ・述語による絞り込み、セッション内のみ保持） */
   edgeFilter: EdgeFilter;
+  /** エピソードノード一覧（チャートに永続化される） */
+  episodes: Episode[];
+  /** エピソード参加エッジ一覧（チャートに永続化される） */
+  episodeParticipations: EpisodeParticipation[];
   /** タイムラインスナップショット一覧（チャートに永続化される） */
   snapshots: Snapshot[];
   /** タイムライン再生モード（true のとき編集操作を無効化、pauseAutoSave=true） */
@@ -106,6 +111,10 @@ type GraphState = {
   _livePersons: Person[] | null;
   /** タイムラインモード中のライブRelationshipsデータ退避（モード終了時に復元する） */
   _liveRelationships: Relationship[] | null;
+  /** タイムラインモード中のライブEpisodesデータ退避（モード終了時に復元する） */
+  _liveEpisodes: Episode[] | null;
+  /** タイムラインモード中のライブEpisodeParticipationsデータ退避（モード終了時に復元する） */
+  _liveEpisodeParticipations: EpisodeParticipation[] | null;
   /** アニメーション自動再生中かどうか */
   isPlaying: boolean;
   /** 自動再生の再生間隔（ミリ秒）。PLAYBACK_SPEEDS で定義された3段階のみ有効 */
@@ -135,11 +144,15 @@ const INITIAL_STATE: GraphState = {
   pauseAutoSave: false,
   editingRelationshipId: null,
   edgeFilter: INITIAL_EDGE_FILTER,
+  episodes: [],
+  episodeParticipations: [],
   snapshots: [],
   timelineMode: false,
   activeSnapshotIndex: null,
   _livePersons: null,
   _liveRelationships: null,
+  _liveEpisodes: null,
+  _liveEpisodeParticipations: null,
   isPlaying: false,
   playbackSpeed: 2000,
   previousSnapshotIndex: null,
@@ -172,12 +185,14 @@ function buildChartFromState(state: GraphState): Chart | null {
     // タイムラインモード中は退避したライブデータを保存（スナップショット表示状態を上書きしない）
     persons: state._livePersons ?? state.persons,
     relationships: state._liveRelationships ?? state.relationships,
+    episodes: state._liveEpisodes ?? state.episodes,
+    episodeParticipations: state._liveEpisodeParticipations ?? state.episodeParticipations,
     forceEnabled: state.forceEnabled,
     forceParams: state.forceParams,
     egoLayoutParams: state.egoLayoutParams,
     snapshots: state.snapshots,
-    // v12 形式であることを明示する（ロード時の再マイグレーションを防ぐ）
-    schemaVersion: 12,
+    // v13 形式であることを明示する（ロード時の再マイグレーションを防ぐ）
+    schemaVersion: 13,
     createdAt: meta.createdAt,
     updatedAt: new Date().toISOString(),
   };
@@ -468,6 +483,58 @@ type GraphActions = {
    * 退避していたライブデータを復元する
    */
   goToLive: () => void;
+
+  /**
+   * 新しいエピソードを作成する
+   * @param input - タイトル・説明・日時・関連関係IDなどの入力値
+   * @returns 作成したエピソードのID
+   */
+  createEpisode: (input: { title: string; description?: string; occurredAt?: string; relatedRelationshipIds?: string[]; position?: { x: number; y: number } }) => string;
+
+  /**
+   * エピソードを更新する
+   * @param id - 更新するエピソードのID
+   * @param patch - 更新する内容
+   */
+  updateEpisode: (id: string, patch: Partial<Omit<Episode, 'id' | 'createdAt'>>) => void;
+
+  /**
+   * エピソードを削除する（紐づく参加エッジも連動削除）
+   * @param id - 削除するエピソードのID
+   */
+  deleteEpisode: (id: string) => void;
+
+  /**
+   * エピソードの並び順を変更する
+   * @param orderedIds - 並び替え後のエピソードIDの配列
+   */
+  reorderEpisodes: (orderedIds: string[]) => void;
+
+  /**
+   * エピソードのキャンバス座標を更新する
+   * @param id - 更新するエピソードのID
+   * @param position - 新しいキャンバス座標
+   */
+  updateEpisodePosition: (id: string, position: { x: number; y: number }) => void;
+
+  /**
+   * 複数エピソードの位置を一括更新する（ドラッグ終了時の効率的バッチ更新用）
+   * @param positions - エピソードID → 座標 のMap
+   */
+  updateEpisodePositions: (positions: Map<string, { x: number; y: number }>) => void;
+
+  /**
+   * エピソードに参加者（人物）を追加する
+   * @param input - エピソードIDと人物ID
+   * @returns 作成した参加エッジのID
+   */
+  addParticipation: (input: { episodeId: string; personId: string }) => string;
+
+  /**
+   * エピソード参加エッジを削除する
+   * @param participationId - 削除する参加エッジのID
+   */
+  removeParticipation: (participationId: string) => void;
 };
 
 /**
@@ -778,6 +845,8 @@ export const useGraphStore = create<GraphStore>()(
             chartMetas,
             persons: chart.persons,
             relationships: chart.relationships,
+            episodes: chart.episodes ?? [],
+            episodeParticipations: chart.episodeParticipations ?? [],
             forceEnabled: chart.forceEnabled,
             forceParams: chart.forceParams,
             egoLayoutParams: chart.egoLayoutParams,
@@ -897,6 +966,8 @@ export const useGraphStore = create<GraphStore>()(
             activeChartId: chart.id,
             persons: chart.persons,
             relationships: chart.relationships,
+            episodes: chart.episodes ?? [],
+            episodeParticipations: chart.episodeParticipations ?? [],
             forceEnabled: chart.forceEnabled,
             forceParams: chart.forceParams,
             egoLayoutParams: chart.egoLayoutParams,
@@ -907,6 +978,8 @@ export const useGraphStore = create<GraphStore>()(
             activeSnapshotIndex: null,
             _livePersons: null,
             _liveRelationships: null,
+            _liveEpisodes: null,
+            _liveEpisodeParticipations: null,
             pauseAutoSave: false,
             // 再生状態もリセット（前チャートの再生状態が残らないように）
             isPlaying: false,
@@ -1216,12 +1289,33 @@ export const useGraphStore = create<GraphStore>()(
             },
           }));
 
+          // SnapshotEpisode: エピソードの軽量表現
+          const snapshotEpisodes: SnapshotEpisode[] = state.episodes.map((e) => ({
+            episodeId: e.id,
+            title: e.title,
+            ...(e.description !== undefined ? { description: e.description } : {}),
+            ...(e.occurredAt !== undefined ? { occurredAt: e.occurredAt } : {}),
+            relatedRelationshipIds: [...e.relatedRelationshipIds],
+            position: e.position ? { ...e.position } : undefined,
+            properties: { ...e.properties },
+          }));
+
+          // SnapshotEpisodeParticipation: 参加エッジの軽量表現
+          const snapshotParticipations: SnapshotEpisodeParticipation[] = state.episodeParticipations.map((p) => ({
+            participationId: p.id,
+            episodeId: p.episodeId,
+            personId: p.personId,
+            ...(p.role !== undefined ? { role: p.role } : {}),
+          }));
+
           const snapshot: Snapshot = {
             id: nanoid(),
             label,
             ...(description !== undefined ? { description } : {}),
             persons: snapshotPersons,
             relationships: snapshotRelationships,
+            episodes: snapshotEpisodes,
+            episodeParticipations: snapshotParticipations,
             createdAt: new Date().toISOString(),
           };
 
@@ -1320,6 +1414,8 @@ export const useGraphStore = create<GraphStore>()(
               activeSnapshotIndex: null,
               _livePersons: state.persons,
               _liveRelationships: state.relationships,
+              _liveEpisodes: state.episodes,
+              _liveEpisodeParticipations: state.episodeParticipations,
             }));
           } else {
             // タイムラインモードを終了: ライブデータを復元してpauseAutoSave=false
@@ -1333,8 +1429,12 @@ export const useGraphStore = create<GraphStore>()(
               isPlaying: false,
               persons: s._livePersons ?? s.persons,
               relationships: s._liveRelationships ?? s.relationships,
+              episodes: s._liveEpisodes ?? s.episodes,
+              episodeParticipations: s._liveEpisodeParticipations ?? s.episodeParticipations,
               _livePersons: null,
               _liveRelationships: null,
+              _liveEpisodes: null,
+              _liveEpisodeParticipations: null,
             }));
           }
         },
@@ -1398,6 +1498,28 @@ export const useGraphStore = create<GraphStore>()(
             updatedAt: snapshot.createdAt,
           }));
 
+          // スナップショット時点のEpisodeを復元する
+          const restoredEpisodes: Episode[] = (snapshot.episodes ?? []).map((se) => ({
+            id: se.episodeId,
+            title: se.title,
+            description: se.description,
+            occurredAt: se.occurredAt,
+            relatedRelationshipIds: [...se.relatedRelationshipIds],
+            position: se.position ? { ...se.position } : undefined,
+            properties: { ...se.properties },
+            createdAt: snapshot.createdAt,
+            updatedAt: snapshot.createdAt,
+          }));
+
+          // スナップショット時点のEpisodeParticipationを復元する
+          const restoredParticipations: EpisodeParticipation[] = (snapshot.episodeParticipations ?? []).map((sep) => ({
+            id: sep.participationId,
+            episodeId: sep.episodeId,
+            personId: sep.personId,
+            role: sep.role,
+            createdAt: snapshot.createdAt,
+          }));
+
           // 直前のスナップショットインデックスを保存してdiffハイライト計算に使用する
           const previousIndex = state.activeSnapshotIndex;
           set(() => ({
@@ -1405,6 +1527,8 @@ export const useGraphStore = create<GraphStore>()(
             previousSnapshotIndex: previousIndex,
             persons: restoredPersons,
             relationships: restoredRelationships,
+            episodes: restoredEpisodes,
+            episodeParticipations: restoredParticipations,
           }));
         },
 
@@ -1418,6 +1542,121 @@ export const useGraphStore = create<GraphStore>()(
             previousSnapshotIndex: null,
             persons: s._livePersons ?? s.persons,
             relationships: s._liveRelationships ?? s.relationships,
+            episodes: s._liveEpisodes ?? s.episodes,
+            episodeParticipations: s._liveEpisodeParticipations ?? s.episodeParticipations,
+          }));
+        },
+
+        createEpisode: (input) => {
+          const id = nanoid();
+          const now = new Date().toISOString();
+          const episode: Episode = {
+            id,
+            title: input.title,
+            ...(input.description !== undefined ? { description: input.description } : {}),
+            ...(input.occurredAt !== undefined ? { occurredAt: input.occurredAt } : {}),
+            relatedRelationshipIds: input.relatedRelationshipIds ?? [],
+            position: input.position,
+            properties: {},
+            createdAt: now,
+            updatedAt: now,
+          };
+          set((s) => ({ episodes: [...s.episodes, episode] }));
+          return id;
+        },
+
+        updateEpisode: (id, patch) => {
+          const now = new Date().toISOString();
+          set((s) => ({
+            episodes: s.episodes.map((e) =>
+              e.id === id ? { ...e, ...patch, updatedAt: now } : e
+            ),
+          }));
+        },
+
+        deleteEpisode: (id) => {
+          set((s) => ({
+            episodes: s.episodes.filter((e) => e.id !== id),
+            // 紐づく参加エッジも連動削除
+            episodeParticipations: s.episodeParticipations.filter((p) => p.episodeId !== id),
+          }));
+        },
+
+        reorderEpisodes: (orderedIds) => {
+          const { episodes } = get();
+
+          if (orderedIds.length !== episodes.length) {
+            throw new Error('並び順のエピソード数が一致しません');
+          }
+          if (new Set(orderedIds).size !== orderedIds.length) {
+            throw new Error('並び順に重複したエピソードIDが含まれています');
+          }
+          const currentIds = new Set(episodes.map((e) => e.id));
+          if (orderedIds.some((id) => !currentIds.has(id))) {
+            throw new Error('並び順に存在しないエピソードIDが含まれています');
+          }
+
+          set((s) => {
+            const episodeMap = new Map(s.episodes.map((e) => [e.id, e]));
+            const sortedEpisodes = orderedIds
+              .map((id) => episodeMap.get(id))
+              .filter((e): e is Episode => e !== undefined);
+            return { episodes: sortedEpisodes };
+          });
+        },
+
+        updateEpisodePosition: (id, position) => {
+          const now = new Date().toISOString();
+          set((s) => {
+            const target = s.episodes.find((e) => e.id === id);
+            // 位置が変わっていない場合は更新しない（updatedAt汚染を防ぐ）
+            if (
+              target &&
+              target.position?.x === position.x &&
+              target.position?.y === position.y
+            ) {
+              return {};
+            }
+            return {
+              episodes: s.episodes.map((e) =>
+                e.id === id ? { ...e, position, updatedAt: now } : e
+              ),
+            };
+          });
+        },
+
+        updateEpisodePositions: (positions) => {
+          if (positions.size === 0) return;
+          const now = new Date().toISOString();
+          set((s) => {
+            let hasChanged = false;
+            const updated = s.episodes.map((e) => {
+              const newPos = positions.get(e.id);
+              if (!newPos) return e;
+              // 位置が変わっていない場合はスキップ（updatedAt汚染を防ぐ）
+              if (e.position?.x === newPos.x && e.position?.y === newPos.y) return e;
+              hasChanged = true;
+              return { ...e, position: newPos, updatedAt: now };
+            });
+            return hasChanged ? { episodes: updated } : {};
+          });
+        },
+
+        addParticipation: ({ episodeId, personId }) => {
+          const id = nanoid();
+          const participation: EpisodeParticipation = {
+            id,
+            episodeId,
+            personId,
+            createdAt: new Date().toISOString(),
+          };
+          set((s) => ({ episodeParticipations: [...s.episodeParticipations, participation] }));
+          return id;
+        },
+
+        removeParticipation: (participationId) => {
+          set((s) => ({
+            episodeParticipations: s.episodeParticipations.filter((p) => p.id !== participationId),
           }));
         },
 

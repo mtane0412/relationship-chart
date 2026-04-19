@@ -4,10 +4,11 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { personsToNodes, relationshipsToEdges, matchesEdgeFilter, syncNodePositionsToStore, calculateParallelEdgeOffset } from './graph-utils';
+import { personsToNodes, relationshipsToEdges, matchesEdgeFilter, syncNodePositionsToStore, calculateParallelEdgeOffset, episodesToNodes, participationsToEdges } from './graph-utils';
 import type { Person } from '@/types/person';
 import type { Relationship, EdgeFilter } from '@/types/relationship';
 import type { GraphNode } from '@/types/graph';
+import type { Episode, EpisodeParticipation } from '@/types/episode';
 
 // ─── テストデータ ヘルパー ─────────────────────────────────────────────────────
 
@@ -807,5 +808,118 @@ describe('graph-utils', () => {
       // 合計間隔が正の値であること
       expect(offset1 - offset0).toBeGreaterThan(0);
     });
+  });
+});
+
+// ─── episodesToNodes / participationsToEdges ──────────────────────────────────
+
+/** テスト用エピソードのヘルパー */
+function makeEpisode(overrides: Partial<Episode> & { id: string; title: string }): Episode {
+  return {
+    relatedRelationshipIds: [],
+    properties: {},
+    createdAt: '2024-01-01T00:00:00.000Z',
+    updatedAt: '2024-01-01T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+describe('episodesToNodes', () => {
+  it('Episode配列をEpisodeNodeの配列に変換する', () => {
+    const episodes: Episode[] = [
+      makeEpisode({ id: 'ep-001', title: '初めての出会い' }),
+    ];
+
+    const nodes = episodesToNodes(episodes);
+
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].id).toBe('ep-001');
+    expect(nodes[0].type).toBe('episode');
+    expect(nodes[0].data.title).toBe('初めての出会い');
+  });
+
+  it('説明・日時・関連関係IDがdataに含まれる', () => {
+    const episodes: Episode[] = [
+      makeEpisode({
+        id: 'ep-002',
+        title: '決別の朝',
+        description: '二人の関係が壊れた',
+        occurredAt: '第5話',
+        relatedRelationshipIds: ['rel-001'],
+      }),
+    ];
+
+    const nodes = episodesToNodes(episodes);
+
+    expect(nodes[0].data.description).toBe('二人の関係が壊れた');
+    expect(nodes[0].data.occurredAt).toBe('第5話');
+    expect(nodes[0].data.relatedRelationshipIds).toEqual(['rel-001']);
+  });
+
+  it('position が設定されている場合はそれを使用する', () => {
+    const episodes: Episode[] = [
+      makeEpisode({ id: 'ep-003', title: '再会', position: { x: 200, y: 300 } }),
+    ];
+
+    const nodes = episodesToNodes(episodes);
+
+    expect(nodes[0].position).toEqual({ x: 200, y: 300 });
+  });
+
+  it('position がない場合は (0, 0) をデフォルトにする', () => {
+    const episodes: Episode[] = [
+      makeEpisode({ id: 'ep-004', title: '別れ' }),
+    ];
+
+    const nodes = episodesToNodes(episodes);
+
+    expect(nodes[0].position).toEqual({ x: 0, y: 0 });
+  });
+
+  it('空配列を渡すと空配列が返る', () => {
+    const nodes = episodesToNodes([]);
+    expect(nodes).toEqual([]);
+  });
+});
+
+describe('participationsToEdges', () => {
+  it('EpisodeParticipation配列をParticipationEdgeの配列に変換する', () => {
+    const participations: EpisodeParticipation[] = [
+      {
+        id: 'part-001',
+        episodeId: 'ep-001',
+        personId: 'person-001',
+        createdAt: '2024-01-01T00:00:00.000Z',
+      },
+    ];
+
+    const edges = participationsToEdges(participations);
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0].id).toBe('part-001');
+    expect(edges[0].type).toBe('participation');
+    expect(edges[0].source).toBe('ep-001');
+    expect(edges[0].target).toBe('person-001');
+  });
+
+  it('roleがある場合はdataに含まれる', () => {
+    const participations: EpisodeParticipation[] = [
+      {
+        id: 'part-002',
+        episodeId: 'ep-002',
+        personId: 'person-002',
+        role: '主人公',
+        createdAt: '2024-01-01T00:00:00.000Z',
+      },
+    ];
+
+    const edges = participationsToEdges(participations);
+
+    expect(edges[0].data?.role).toBe('主人公');
+  });
+
+  it('空配列を渡すと空配列が返る', () => {
+    const edges = participationsToEdges([]);
+    expect(edges).toEqual([]);
   });
 });

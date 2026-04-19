@@ -513,12 +513,12 @@ describe('prepareChartForImport', () => {
     expect(prepared.name).toBe('源氏物語 人物相関図');
   });
 
-  it('normalizeChart経由でschemaVersion 12に正規化される', () => {
+  it('normalizeChart経由でschemaVersion 13に正規化される', () => {
     // schemaVersionが古い（または欠落した）データでもインポートできることを確認
     const chart = makeTestChart({ schemaVersion: undefined });
     const prepared = prepareChartForImport(chart);
 
-    expect(prepared.schemaVersion).toBe(12);
+    expect(prepared.schemaVersion).toBe(13);
   });
 
   it('スナップショットなしのChartも正常にインポートできる', () => {

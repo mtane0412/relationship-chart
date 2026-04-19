@@ -1,16 +1,16 @@
 /**
  * useGraphDataSyncカスタムフック
- * ストアデータ（persons, relationships）をReact Flowのノード/エッジに変換し、状態を同期する
+ * ストアデータ（persons, relationships, episodes, episodeParticipations）をReact Flowのノード/エッジに変換し、状態を同期する
  */
 
 import { useEffect, useCallback, useRef } from 'react';
 import { useNodesState, useEdgesState, useReactFlow } from '@xyflow/react';
 import { useGraphStore } from '@/stores/useGraphStore';
-import { personsToNodes, relationshipsToEdges, syncNodePositionsToStore } from '@/lib/graph-utils';
+import { personsToNodes, relationshipsToEdges, syncNodePositionsToStore, episodesToNodes, participationsToEdges } from '@/lib/graph-utils';
 import { resolveCollisions, DEFAULT_COLLISION_OPTIONS } from '@/lib/collision-resolver';
 import { computeSnapshotDiff } from '@/lib/snapshot-diff';
 import type { Node } from '@xyflow/react';
-import type { GraphNode, RelationshipEdge } from '@/types/graph';
+import type { AnyGraphNode, AnyGraphEdge } from '@/types/graph';
 import type { DiffStatus } from '@/lib/diff-highlight';
 
 /**
@@ -26,9 +26,12 @@ export function useGraphDataSync() {
   // Zustandストアから状態を取得
   const persons = useGraphStore((state) => state.persons);
   const relationships = useGraphStore((state) => state.relationships);
+  const episodes = useGraphStore((state) => state.episodes);
+  const episodeParticipations = useGraphStore((state) => state.episodeParticipations);
   const forceEnabled = useGraphStore((state) => state.forceEnabled);
   const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
   const updatePersonPositions = useGraphStore((state) => state.updatePersonPositions);
+  const updateEpisodePositions = useGraphStore((state) => state.updateEpisodePositions);
   const edgeFilter = useGraphStore((state) => state.edgeFilter);
   const timelineMode = useGraphStore((state) => state.timelineMode);
   const activeSnapshotIndex = useGraphStore((state) => state.activeSnapshotIndex);
@@ -39,8 +42,8 @@ export function useGraphDataSync() {
   const snapshots = useGraphStore((state) => state.timelineMode ? state.snapshots : null);
 
   // React Flowのノード/エッジ状態
-  const [nodes, setNodes, onNodesChange] = useNodesState<GraphNode>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<RelationshipEdge>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<AnyGraphNode>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<AnyGraphEdge>([]);
 
   // React FlowのgetNodes取得
   const { getNodes } = useReactFlow();
@@ -69,18 +72,22 @@ export function useGraphDataSync() {
           };
         });
 
-        return nodesWithSelection as GraphNode[];
+        return nodesWithSelection as AnyGraphNode[];
       });
     },
     [setNodes]
   );
 
-  // ストアのデータ（persons, relationships）が変更されたらノードとエッジを更新
+  // ストアのデータ（persons, relationships, episodes, episodeParticipations）が変更されたらノードとエッジを更新
   // 選択状態の変更ではシミュレーション再初期化を避けるため、selectedPersonIdsを依存配列から除外
   useEffect(() => {
-    const newNodes = personsToNodes(persons);
+    const newPersonNodes = personsToNodes(persons);
+    const newEpisodeNodes = episodesToNodes(episodes);
+    const newNodes = [...newPersonNodes, ...newEpisodeNodes];
     // edgeFilter に基づいて表示するエッジを絞り込む
-    const newEdges = relationshipsToEdges(relationships, edgeFilter);
+    const newRelEdges = relationshipsToEdges(relationships, edgeFilter);
+    const newPartEdges = participationsToEdges(episodeParticipations);
+    const newEdges = [...newRelEdges, ...newPartEdges];
 
     // setNodesの関数型アップデータ内からRAFをスケジュールしています
     // React 18 StrictModeではアップデータが2回呼ばれる可能性がありますが、
@@ -90,6 +97,8 @@ export function useGraphDataSync() {
       const prevNodeMap = new Map(prevNodes.map((node) => [node.id, node]));
       // personsもMapに変換してO(n²)を回避
       const personMap = new Map(persons.map((p) => [p.id, p]));
+      // episodesもMapに変換
+      const episodeMap = new Map(episodes.map((e) => [e.id, e]));
 
       // 既存のノード位置を保持しながら更新（選択状態は既存ノードから引き継ぐ）
       const updatedNodes = newNodes.map((newNode) => {
@@ -102,14 +111,14 @@ export function useGraphDataSync() {
             selected: existingNode.selected,
           };
         }
-        // 新規ノードの場合
-        // person.positionが未設定（undefined）の場合のみランダムな位置に配置
-        // person.positionが設定されている場合は、(0,0)であってもその座標を使用
+        // 新規ノードの場合: positionが設定されていなければランダム配置
+        // Personノードとエピソードノードで同じ方針
         const person = personMap.get(newNode.id);
-        const shouldUseRandomPosition = !person?.position;
+        const episode = episodeMap.get(newNode.id);
+        const hasStoredPosition = person?.position ?? episode?.position;
         return {
           ...newNode,
-          position: shouldUseRandomPosition
+          position: !hasStoredPosition
             ? {
                 x: Math.random() * 500 + 100,
                 y: Math.random() * 500 + 100,
@@ -136,8 +145,8 @@ export function useGraphDataSync() {
           // resolveCollisionsは変更がない場合に元の配列を返すため、参照等価性でチェック
           if (resolvedNodes !== currentNodes) {
             // 位置が変更された場合のみ更新
-            setNodes(resolvedNodes as GraphNode[]);
-            syncNodePositionsToStore(resolvedNodes, updatePersonPositions);
+            setNodes(resolvedNodes as AnyGraphNode[]);
+            syncNodePositionsToStore(resolvedNodes, updatePersonPositions, updateEpisodePositions);
           }
           collisionResolutionRafIdRef.current = null;
         });
@@ -174,7 +183,7 @@ export function useGraphDataSync() {
       const prevEdgeMap = new Map(prevEdges.map((edge) => [edge.id, edge]));
       const updatedEdges = newEdges.map((newEdge) => {
         const existingEdge = prevEdgeMap.get(newEdge.id);
-        // タイムラインモードのdiff表示: diffStatusMapに存在するIDのみハイライト
+        // タイムラインモードのdiff表示: diffStatusMapに存在するIDのみハイライト（participationエッジは対象外）
         const diffStatus = diffStatusMap.size > 0
           ? (diffStatusMap.get(newEdge.id) ?? null)
           : undefined;
@@ -184,7 +193,7 @@ export function useGraphDataSync() {
           // newEdge.data が存在する場合は diffStatus を付与する。
           // data が undefined の場合（通常は発生しない）はそのまま渡す
           ...(newEdge.data ? { data: { ...newEdge.data, diffStatus } } : {}),
-        } as RelationshipEdge;
+        } as AnyGraphEdge;
       });
       return updatedEdges;
     });
@@ -196,7 +205,7 @@ export function useGraphDataSync() {
         collisionResolutionRafIdRef.current = null;
       }
     };
-  }, [persons, relationships, setNodes, setEdges, forceEnabled, updatePersonPositions, edgeFilter, timelineMode, activeSnapshotIndex, previousSnapshotIndex, snapshots]);
+  }, [persons, relationships, episodes, episodeParticipations, setNodes, setEdges, forceEnabled, updatePersonPositions, updateEpisodePositions, edgeFilter, timelineMode, activeSnapshotIndex, previousSnapshotIndex, snapshots]);
 
   // 選択状態の変更時に既存ノード/エッジのselectedプロパティのみ更新
   // 配列参照を変更しないようにhasChangedフラグで最適化

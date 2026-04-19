@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useMemo, useRef, useCallback, useEffect } from 'react';
+import { useMemo, useRef, useCallback, useEffect, useState } from 'react';
 import {
   ReactFlow,
   Background,
@@ -22,12 +22,15 @@ import {
 import '@xyflow/react/dist/style.css';
 import { GraphNodeComponent } from './GraphNodeComponent';
 import { RelationshipEdge as RelationshipEdgeComponent } from './RelationshipEdge';
+import { EpisodeNodeComponent } from './EpisodeNodeComponent';
+import { ParticipationEdge } from './ParticipationEdge';
 import { ConnectionLine } from './ConnectionLine';
 import { ForceLayoutPanel } from './ForceLayoutPanel';
 import ShareButton from './ShareButton';
 import SearchBar from './SearchBar';
 import { PersonRegistrationModal } from './PersonRegistrationModal';
 import { RelationshipRegistrationModal } from './RelationshipRegistrationModal';
+import { EpisodeCaptureDialog, type EpisodeCaptureValues } from '@/components/ui/EpisodeCaptureDialog';
 import { useForceLayout } from './useForceLayout';
 import { useGraphDataSync } from './useGraphDataSync';
 import { useGraphInteractions } from './useGraphInteractions';
@@ -53,16 +56,18 @@ const EDGE_MARKER_COLORS = [
 ] as const;
 import { resolveCollisions, DEFAULT_COLLISION_OPTIONS } from '@/lib/collision-resolver';
 import { syncNodePositionsToStore } from '@/lib/graph-utils';
-import type { GraphNode } from '@/types/graph';
+import type { AnyGraphNode } from '@/types/graph';
 
 // カスタムノードタイプの定義（プロパティグラフ方式: 全ノードを単一の 'graph' タイプで扱う）
 const nodeTypes: NodeTypes = {
   graph: GraphNodeComponent,
+  episode: EpisodeNodeComponent,
 };
 
 // カスタムエッジタイプの定義
 const edgeTypes: EdgeTypes = {
   relationship: RelationshipEdgeComponent,
+  participation: ParticipationEdge,
 };
 
 /**
@@ -74,6 +79,12 @@ export function RelationshipGraph() {
   const relationships = useGraphStore((state) => state.relationships);
   const forceParams = useGraphStore((state) => state.forceParams);
   const updatePersonPositions = useGraphStore((state) => state.updatePersonPositions);
+  const updateEpisodePositions = useGraphStore((state) => state.updateEpisodePositions);
+  const createEpisode = useGraphStore((state) => state.createEpisode);
+  const addParticipation = useGraphStore((state) => state.addParticipation);
+
+  // エピソード追加ダイアログの状態（位置情報付き）
+  const [episodeDialogPosition, setEpisodeDialogPosition] = useState<{ x: number; y: number } | null>(null);
 
   // React Flow APIを取得
   const { screenToFlowPosition, getNodes } = useReactFlow();
@@ -135,6 +146,7 @@ export function RelationshipGraph() {
     closeContextMenu,
     switchToAddRelationshipMode,
     handleNodeContextMenu,
+    onAddEpisode: (pos) => setEpisodeDialogPosition(pos),
   });
 
   // getNodesをrefに退避（onNodeDragStopHandlerの依存配列から除外するため）
@@ -184,17 +196,17 @@ export function RelationshipGraph() {
         const resolvedNodes = resolveCollisions(currentNodes, DEFAULT_COLLISION_OPTIONS);
         // 位置が変更されたノードがあれば更新
         if (resolvedNodes !== currentNodes) {
-          setNodes(resolvedNodes as GraphNode[]);
+          setNodes(resolvedNodes as AnyGraphNode[]);
         }
         // 衝突解消後の位置をストアに書き戻す
-        syncNodePositionsToStore(resolvedNodes, updatePersonPositions);
+        syncNodePositionsToStore(resolvedNodes, updatePersonPositions, updateEpisodePositions);
       } else {
         // Force Layout有効時は全ノードの位置を書き戻す（他ノードもシミュレーションで移動するため）
         const currentNodes = getNodesRef.current();
-        syncNodePositionsToStore(currentNodes, updatePersonPositions);
+        syncNodePositionsToStore(currentNodes, updatePersonPositions, updateEpisodePositions);
       }
     },
-    [handleNodeDragEnd, forceEnabled, setNodes, updatePersonPositions]
+    [handleNodeDragEnd, forceEnabled, setNodes, updatePersonPositions, updateEpisodePositions]
   );
 
   // Force Layout無効化時の位置書き戻し
@@ -203,10 +215,27 @@ export function RelationshipGraph() {
     // forceEnabledがtrue→falseに変わった時
     if (prevForceEnabledRef.current && !forceEnabled) {
       const currentNodes = getNodesRef.current();
-      syncNodePositionsToStore(currentNodes, updatePersonPositions);
+      syncNodePositionsToStore(currentNodes, updatePersonPositions, updateEpisodePositions);
     }
     prevForceEnabledRef.current = forceEnabled;
-  }, [forceEnabled, updatePersonPositions]);
+  }, [forceEnabled, updatePersonPositions, updateEpisodePositions]);
+
+  const handleEpisodeSave = useCallback(
+    (values: EpisodeCaptureValues) => {
+      const episodeId = createEpisode({
+        title: values.title,
+        description: values.description,
+        occurredAt: values.occurredAt,
+        relatedRelationshipIds: values.relatedRelationshipIds,
+        position: episodeDialogPosition ?? undefined,
+      });
+      for (const personId of values.participantPersonIds) {
+        addParticipation({ episodeId, personId });
+      }
+      setEpisodeDialogPosition(null);
+    },
+    [createEpisode, addParticipation, episodeDialogPosition]
+  );
 
   return (
     <div className="w-full h-screen relative" onDrop={handleDrop} onDragOver={handleDragOver}>
@@ -389,6 +418,13 @@ export function RelationshipGraph() {
 
       {/* AIインタビュアー チャットモーダル */}
       <InterviewModal />
+
+      {/* エピソード追加ダイアログ（コンテキストメニューから起動） */}
+      <EpisodeCaptureDialog
+        isOpen={episodeDialogPosition !== null}
+        onSave={handleEpisodeSave}
+        onCancel={() => setEpisodeDialogPosition(null)}
+      />
     </div>
   );
 }

@@ -1,11 +1,12 @@
 /**
  * 相関図（Chart）の型定義
- * 複数の相関図を管理するためのデータモデル（v12 タイムラインスナップショット対応）
+ * 複数の相関図を管理するためのデータモデル（v13 エピソードノード対応）
  */
 
 import type { Person } from './person';
 import type { Relationship } from './relationship';
 import type { Snapshot } from './snapshot';
+import type { Episode, EpisodeParticipation } from './episode';
 import type { ForceParams } from '@/stores/useGraphStore';
 import type { EgoLayoutParams } from '@/lib/ego-layout';
 
@@ -15,6 +16,8 @@ import type { EgoLayoutParams } from '@/lib/ego-layout';
  * @property name - 相関図の名前（最大50文字）
  * @property persons - この相関図に含まれる人物のリスト
  * @property relationships - この相関図に含まれる関係のリスト
+ * @property episodes - この相関図に含まれるエピソードのリスト（v13以降）
+ * @property episodeParticipations - エピソード参加エッジのリスト（v13以降）
  * @property forceEnabled - force-directedレイアウトが有効かどうか
  * @property forceParams - force-directedレイアウトのパラメータ
  * @property egoLayoutParams - EGO Layoutのパラメータ
@@ -28,6 +31,10 @@ export type Chart = {
   name: string;
   persons: Person[];
   relationships: Relationship[];
+  /** エピソードノード一覧（v13以降、省略時は空配列として扱う） */
+  episodes?: Episode[];
+  /** エピソード参加エッジ一覧（v13以降、省略時は空配列として扱う） */
+  episodeParticipations?: EpisodeParticipation[];
   forceEnabled: boolean;
   forceParams: ForceParams;
   egoLayoutParams: EgoLayoutParams;

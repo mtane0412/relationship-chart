@@ -1534,7 +1534,7 @@ describe('migrateV9ToV10', () => {
 });
 
 describe('normalizeChart', () => {
-  // v12マイグレーションのテスト
+  // v12/v13マイグレーションのテスト
 
   // v11チャートのベースデータ（スナップショットなし）
   const baseV11Chart = {
@@ -1558,12 +1558,14 @@ describe('normalizeChart', () => {
     updatedAt: '2024-01-01T00:00:00.000Z',
   };
 
-  describe('v11チャートのv12への正規化', () => {
-    it('schemaVersion: 11 のチャートに snapshots: [] を補完する', () => {
+  describe('v11チャートのv13への正規化', () => {
+    it('schemaVersion: 11 のチャートに snapshots/episodes/episodeParticipations を補完する', () => {
       const result = normalizeChart({ ...baseV11Chart });
 
-      expect(result.schemaVersion).toBe(12);
+      expect(result.schemaVersion).toBe(13);
       expect(result.snapshots).toEqual([]);
+      expect(result.episodes).toEqual([]);
+      expect(result.episodeParticipations).toEqual([]);
     });
 
     it('既に snapshots が設定されている場合はそのまま保持する', () => {
@@ -1582,24 +1584,113 @@ describe('normalizeChart', () => {
 
       const result = normalizeChart(chartWithSnapshots);
 
-      expect(result.schemaVersion).toBe(12);
+      expect(result.schemaVersion).toBe(13);
       expect(result.snapshots).toHaveLength(1);
       expect(result.snapshots?.[0].label).toBe('第1話');
     });
   });
 
-  describe('v12チャートはそのまま返す', () => {
-    it('schemaVersion: 12 のチャートはデータ変更なしで返す', () => {
+  describe('v12チャートのv13への正規化', () => {
+    it('schemaVersion: 12 のチャートに episodes: [] と episodeParticipations: [] を補完する', () => {
+      // NOTE: v12 → v13 のマイグレーション。schemaVersion: 12 はもはや早期リターンしない
       const v12Chart = {
         ...baseV11Chart,
         snapshots: [],
         schemaVersion: 12,
       };
 
-      const result = normalizeChart(v12Chart);
+      const result = normalizeChart(v12Chart as Parameters<typeof normalizeChart>[0]);
 
-      // 同一オブジェクトが返ること（変換処理なし）
-      expect(result).toBe(v12Chart);
+      expect(result.schemaVersion).toBe(13);
+      expect(result.episodes).toEqual([]);
+      expect(result.episodeParticipations).toEqual([]);
+    });
+
+    it('既に episodes が設定されている v12 チャートはその値を保持する', () => {
+      const v12ChartWithEpisodes = {
+        ...baseV11Chart,
+        snapshots: [],
+        episodes: [
+          {
+            id: 'ep-001',
+            title: '運命の出会い',
+            relatedRelationshipIds: [],
+            properties: {},
+            createdAt: '2024-06-01T00:00:00.000Z',
+            updatedAt: '2024-06-01T00:00:00.000Z',
+          },
+        ],
+        episodeParticipations: [],
+        schemaVersion: 12,
+      };
+
+      const result = normalizeChart(v12ChartWithEpisodes as Parameters<typeof normalizeChart>[0]);
+
+      expect(result.schemaVersion).toBe(13);
+      expect(result.episodes).toHaveLength(1);
+      expect(result.episodes?.[0].title).toBe('運命の出会い');
+    });
+
+    it('既存スナップショットに episodes: [] と episodeParticipations: [] を補完する', () => {
+      const v12ChartWithSnapshot = {
+        ...baseV11Chart,
+        snapshots: [
+          {
+            id: 'snap-001',
+            label: '第1話',
+            persons: [],
+            relationships: [],
+            createdAt: '2024-06-01T00:00:00.000Z',
+            // episodes/episodeParticipationsは未設定（古いスナップショット）
+          },
+        ],
+        schemaVersion: 12,
+      };
+
+      const result = normalizeChart(v12ChartWithSnapshot as Parameters<typeof normalizeChart>[0]);
+
+      expect(result.schemaVersion).toBe(13);
+      expect(result.snapshots?.[0].episodes).toEqual([]);
+      expect(result.snapshots?.[0].episodeParticipations).toEqual([]);
+    });
+
+    it('既存スナップショットに episodes が設定済みの場合はそのまま保持する', () => {
+      const v12ChartWithEpisodeSnapshot = {
+        ...baseV11Chart,
+        snapshots: [
+          {
+            id: 'snap-001',
+            label: '第2話',
+            persons: [],
+            relationships: [],
+            episodes: [{ episodeId: 'ep-001', title: '再会', relatedRelationshipIds: [], properties: {} }],
+            episodeParticipations: [],
+            createdAt: '2024-06-01T00:00:00.000Z',
+          },
+        ],
+        schemaVersion: 12,
+      };
+
+      const result = normalizeChart(v12ChartWithEpisodeSnapshot as Parameters<typeof normalizeChart>[0]);
+
+      expect(result.snapshots?.[0].episodes).toHaveLength(1);
+      expect(result.snapshots?.[0].episodes?.[0].title).toBe('再会');
+    });
+  });
+
+  describe('v13チャートはそのまま返す', () => {
+    it('schemaVersion: 13 のチャートはデータ変更なしで返す', () => {
+      const v13Chart = {
+        ...baseV11Chart,
+        snapshots: [],
+        episodes: [],
+        episodeParticipations: [],
+        schemaVersion: 13,
+      };
+
+      const result = normalizeChart(v13Chart as Parameters<typeof normalizeChart>[0]);
+
+      expect(result).toBe(v13Chart);
     });
   });
 });

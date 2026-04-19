@@ -9,7 +9,7 @@ import { useGraphStore } from '@/stores/useGraphStore';
 import { useDialogStore } from '@/stores/useDialogStore';
 import { readFileAsDataUrl } from '@/lib/image-utils';
 import { findClosestTargetNode } from '@/lib/connection-target-detection';
-import type { GraphNode, RelationshipEdge } from '@/types/graph';
+import type { GraphNode, RelationshipEdge, AnyGraphEdge } from '@/types/graph';
 import type { ContextMenuState } from './useContextMenu';
 
 /**
@@ -67,6 +67,7 @@ export function useGraphInteractions({
   const updateRelationship = useGraphStore((state) => state.updateRelationship);
   const removePerson = useGraphStore((state) => state.removePerson);
   const removeRelationship = useGraphStore((state) => state.removeRelationship);
+  const removeParticipation = useGraphStore((state) => state.removeParticipation);
   const setSelectedPersonIds = useGraphStore((state) => state.setSelectedPersonIds);
   const clearSelection = useGraphStore((state) => state.clearSelection);
   const selectPersonPairForEdit = useGraphStore((state) => state.selectPersonPairForEdit);
@@ -441,10 +442,13 @@ export function useGraphInteractions({
       }
       if (edgesToDelete.length > 0) {
         const count = edgesToDelete.length;
-        const firstEdge = edgesToDelete[0] as RelationshipEdge;
+        const firstEdge = edgesToDelete[0] as AnyGraphEdge;
+        const edgeLabel = firstEdge.type === 'participation'
+          ? '参加関係'
+          : ((firstEdge as RelationshipEdge).data?.label ?? (firstEdge as RelationshipEdge).data?.edgeType ?? '不明な関係');
         messages.push(
-          count === 1 && firstEdge
-            ? `「${firstEdge.data?.label ?? firstEdge.data?.edgeType ?? '不明な関係'}」を削除してもよろしいですか？`
+          count === 1
+            ? `「${edgeLabel}」を削除してもよろしいですか？`
             : `${count}個の関係を削除してもよろしいですか？`
         );
       }
@@ -471,13 +475,18 @@ export function useGraphInteractions({
   );
 
   // エッジ削除ハンドラ（確認はonBeforeDeleteで実行済み）
+  // participation エッジと relationship エッジを type で判別して適切なアクションを呼ぶ
   const handleEdgesDelete = useCallback(
-    (edgesToDelete: RelationshipEdge[]) => {
+    (edgesToDelete: AnyGraphEdge[]) => {
       edgesToDelete.forEach((edge) => {
-        removeRelationship(edge.id);
+        if (edge.type === 'participation') {
+          removeParticipation(edge.id);
+        } else {
+          removeRelationship(edge.id);
+        }
       });
     },
-    [removeRelationship]
+    [removeRelationship, removeParticipation]
   );
 
   // モーダルからの登録ハンドラ

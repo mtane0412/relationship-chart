@@ -1,11 +1,12 @@
 /**
  * グラフ変換ユーティリティ
- * Person/RelationshipをReact FlowのNode/Edgeに変換する
+ * Person/Relationship/Episode/EpisodeParticipationをReact FlowのNode/Edgeに変換する
  */
 
 import type { Person } from '@/types/person';
 import type { Relationship, EdgeFilter } from '@/types/relationship';
-import type { GraphNode, RelationshipEdge } from '@/types/graph';
+import type { GraphNode, RelationshipEdge, EpisodeNode, ParticipationEdge } from '@/types/graph';
+import type { Episode, EpisodeParticipation } from '@/types/episode';
 import { deriveEdgeVisual } from './relationship-visual';
 
 /**
@@ -176,17 +177,68 @@ export function calculateParallelEdgeOffset(
 }
 
 /**
+ * Episode配列をEpisodeNode配列に変換する
+ * @param episodes - 変換対象のEpisode配列
+ * @returns EpisodeNode配列。episode.positionがある場合はそれを使用し、ない場合は(0, 0)に設定される
+ */
+export function episodesToNodes(episodes: Episode[]): EpisodeNode[] {
+  return episodes.map((episode) => ({
+    id: episode.id,
+    type: 'episode' as const,
+    data: {
+      title: episode.title,
+      description: episode.description,
+      occurredAt: episode.occurredAt,
+      relatedRelationshipIds: episode.relatedRelationshipIds,
+    },
+    position: episode.position ?? { x: 0, y: 0 },
+  }));
+}
+
+/**
+ * EpisodeParticipation配列をParticipationEdge配列に変換する
+ * @param participations - 変換対象のEpisodeParticipation配列
+ * @returns ParticipationEdge配列。エピソードから人物への破線エッジを生成する
+ */
+export function participationsToEdges(participations: EpisodeParticipation[]): ParticipationEdge[] {
+  return participations.map((participation) => ({
+    id: participation.id,
+    type: 'participation' as const,
+    source: participation.episodeId,
+    target: participation.personId,
+    data: {
+      role: participation.role,
+    },
+  }));
+}
+
+/**
  * React Flowのノード配列からMapを構築してストアの位置更新関数を呼ぶヘルパー
+ *
  * @param nodes - id と position を持つノード配列
- * @param updatePositions - ストアの位置更新関数
+ * @param updatePersonPositions - Personストアの位置一括更新関数
+ * @param updateEpisodePositions - Episodeストアの位置一括更新関数（省略可）
+ *
+ * @description
+ * EpisodeNodeはtype='episode'で判定し、それ以外はPersonノードとして扱う。
+ * Episode位置をMapにまとめてから一括更新することでZustand setの連続発火を防ぐ。
  */
 export function syncNodePositionsToStore(
-  nodes: Array<{ id: string; position: { x: number; y: number } }>,
-  updatePositions: (positions: Map<string, { x: number; y: number }>) => void
+  nodes: Array<{ id: string; type?: string; position: { x: number; y: number } }>,
+  updatePersonPositions: (positions: Map<string, { x: number; y: number }>) => void,
+  updateEpisodePositions?: (positions: Map<string, { x: number; y: number }>) => void
 ): void {
-  const positions = new Map<string, { x: number; y: number }>();
+  const personPositions = new Map<string, { x: number; y: number }>();
+  const episodePositions = new Map<string, { x: number; y: number }>();
   for (const node of nodes) {
-    positions.set(node.id, node.position);
+    if (node.type === 'episode') {
+      episodePositions.set(node.id, node.position);
+    } else {
+      personPositions.set(node.id, node.position);
+    }
   }
-  updatePositions(positions);
+  updatePersonPositions(personPositions);
+  if (episodePositions.size > 0) {
+    updateEpisodePositions?.(episodePositions);
+  }
 }
