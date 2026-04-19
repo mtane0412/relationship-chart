@@ -55,7 +55,6 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
   const clearSelection = useGraphStore((state) => state.clearSelection);
   const selectPerson = useGraphStore((state) => state.selectPerson);
   const snapshots = useGraphStore((state) => state.snapshots);
-  const timelineMode = useGraphStore((state) => state.timelineMode);
   const setTimelineMode = useGraphStore((state) => state.setTimelineMode);
   const goToSnapshot = useGraphStore((state) => state.goToSnapshot);
 
@@ -177,17 +176,15 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
 
   /**
    * 指定インデックスのスナップショットへジャンプする。
-   * タイムラインモード外の場合はモードを有効化してからジャンプする。
+   * setTimelineMode(true) は既にモード中でも副作用なく呼べるため常に呼び出す。
    * 2人選択状態は維持する（タイムラインモード中でも関係パネルを確認できるよう）。
    */
   const handleJumpToSnapshot = useCallback(
     (index: number) => {
-      if (!timelineMode) {
-        setTimelineMode(true);
-      }
+      setTimelineMode(true);
       goToSnapshot(index);
     },
-    [timelineMode, setTimelineMode, goToSnapshot]
+    [setTimelineMode, goToSnapshot]
   );
 
   /** ノードを画面中央に移動する */

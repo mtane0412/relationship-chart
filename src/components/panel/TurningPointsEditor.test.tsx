@@ -134,7 +134,7 @@ describe('TurningPointsEditor', () => {
         />
       );
 
-      expect(screen.getByRole('button', { name: /スナップショットへジャンプ/ })).toBeTruthy();
+      expect(screen.getByRole('button', { name: /スナップショットへジャンプ/ })).toBeInTheDocument();
     });
 
     it('at が空文字の行にはジャンプボタンが表示されない', () => {

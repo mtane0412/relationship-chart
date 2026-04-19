@@ -38,6 +38,37 @@ export type TurningPointsEditorProps = {
 };
 
 /**
+ * スナップショットジャンプボタン
+ *
+ * at が空でなく、かつ対応するスナップショットが存在するときのみ表示する。
+ */
+type JumpButtonProps = {
+  at: string;
+  findSnapshotIndexByAt: (at: string) => number | null;
+  onJumpToSnapshot: (index: number) => void;
+};
+
+function JumpButton({ at, findSnapshotIndexByAt, onJumpToSnapshot }: JumpButtonProps) {
+  const trimmedAt = at.trim();
+  if (!trimmedAt) return null;
+
+  const snapshotIndex = findSnapshotIndexByAt(trimmedAt);
+  if (snapshotIndex === null) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={() => onJumpToSnapshot(snapshotIndex)}
+      aria-label={`「${trimmedAt}」のスナップショットへジャンプ`}
+      title={`「${trimmedAt}」のスナップショットへジャンプ`}
+      className="shrink-0 text-blue-400 hover:text-blue-600 px-1 py-1"
+    >
+      <SkipForward size={12} />
+    </button>
+  );
+}
+
+/**
  * ターニングポイント動的リストエディタ
  * 行の追加・削除・編集を提供する
  */
@@ -75,22 +106,13 @@ export function TurningPointsEditor({ value, onChange, findSnapshotIndexByAt, on
             placeholder="出来事"
             className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
-          {/* at が空でなく、かつスナップショットに一致する場合のみジャンプボタンを表示する */}
-          {row.at.trim() && findSnapshotIndexByAt && onJumpToSnapshot && (() => {
-            const snapshotIndex = findSnapshotIndexByAt(row.at);
-            if (snapshotIndex === null) return null;
-            return (
-              <button
-                type="button"
-                onClick={() => onJumpToSnapshot(snapshotIndex)}
-                aria-label={`「${row.at}」のスナップショットへジャンプ`}
-                title={`「${row.at}」のスナップショットへジャンプ`}
-                className="shrink-0 text-blue-400 hover:text-blue-600 px-1 py-1"
-              >
-                <SkipForward size={12} />
-              </button>
-            );
-          })()}
+          {findSnapshotIndexByAt && onJumpToSnapshot && (
+            <JumpButton
+              at={row.at}
+              findSnapshotIndexByAt={findSnapshotIndexByAt}
+              onJumpToSnapshot={onJumpToSnapshot}
+            />
+          )}
           <button
             type="button"
             onClick={() => handleRemove(row.id)}
