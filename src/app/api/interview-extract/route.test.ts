@@ -49,6 +49,7 @@ const validExtractionResult = {
       properties: { closeness: 0.7, affection: 0.8, awareness: 'known' },
     },
   ],
+  episodes: [],
 };
 
 function makeRequest(body: unknown): Request {
@@ -136,7 +137,7 @@ describe('POST /api/interview-extract', () => {
   });
 
   it('generateObject に渡されるプロンプトにチャット履歴が含まれること', async () => {
-    mockGenerateObject.mockResolvedValueOnce({ object: { persons: [], relationships: [] } } as GenerateObjectResult);
+    mockGenerateObject.mockResolvedValueOnce({ object: { persons: [], relationships: [], episodes: [] } } as GenerateObjectResult);
 
     const req = makeRequest(baseRequestBody);
     await POST(req);
@@ -145,5 +146,39 @@ describe('POST /api/interview-extract', () => {
     const prompt = callArgs.prompt ?? '';
     // チャット履歴のテキストが含まれていること
     expect(prompt).toContain('太宰治と芥川龍之介が登場します');
+  });
+
+  it('プロンプトにエピソード抽出指示が含まれること', async () => {
+    mockGenerateObject.mockResolvedValueOnce({ object: { persons: [], relationships: [], episodes: [] } } as GenerateObjectResult);
+
+    const req = makeRequest(baseRequestBody);
+    await POST(req);
+
+    const callArgs = mockGenerateObject.mock.calls[0][0] as { prompt?: string };
+    const prompt = callArgs.prompt ?? '';
+    expect(prompt).toContain('episodes');
+  });
+
+  it('existingEpisodeTitles が指定された場合はプロンプトに含まれること', async () => {
+    mockGenerateObject.mockResolvedValueOnce({ object: { persons: [], relationships: [], episodes: [] } } as GenerateObjectResult);
+
+    const req = makeRequest({
+      ...baseRequestBody,
+      existingEpisodeTitles: ['太宰と芥川の初対面', '文学サロンでの再会'],
+    });
+    const res = await POST(req);
+
+    expect(res.status).toBe(200);
+
+    const callArgs = mockGenerateObject.mock.calls[0][0] as { prompt?: string };
+    const prompt = callArgs.prompt ?? '';
+    expect(prompt).toContain('太宰と芥川の初対面');
+    expect(prompt).toContain('文学サロンでの再会');
+  });
+
+  it('existingEpisodeTitles が配列でない場合は 400 を返すこと', async () => {
+    const req = makeRequest({ ...baseRequestBody, existingEpisodeTitles: '無効な値' });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
   });
 });

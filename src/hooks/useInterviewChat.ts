@@ -85,21 +85,22 @@ export function useInterviewChat() {
     }))
   );
 
-  // persons と relationships を一つのセレクタで取得してサブスクリプションを減らす
-  const { persons, relationships } = useGraphStore(
-    useShallow((s) => ({ persons: s.persons, relationships: s.relationships }))
+  // persons・relationships・episodes を一つのセレクタで取得してサブスクリプションを減らす
+  const { persons, relationships, episodes } = useGraphStore(
+    useShallow((s) => ({ persons: s.persons, relationships: s.relationships, episodes: s.episodes }))
   );
 
-  // 既存人物名・関係サマリを persons/relationships が変化したときのみ再計算する
-  const { existingPersonNames, existingRelationshipSummaries } = useMemo(() => {
+  // 既存人物名・関係サマリ・エピソードタイトルを persons/relationships/episodes が変化したときのみ再計算する
+  const { existingPersonNames, existingRelationshipSummaries, existingEpisodeTitles } = useMemo(() => {
     const personNames = new Map(persons.map((p) => [p.id, p.name]));
     return {
       existingPersonNames: persons.map((p) => p.name),
       existingRelationshipSummaries: relationships.map((rel) =>
         buildRelationshipSummary(rel, personNames)
       ),
+      existingEpisodeTitles: episodes.map((e) => e.title),
     };
-  }, [persons, relationships]);
+  }, [persons, relationships, episodes]);
 
   /**
    * 進行中のストリーミング fetch を中断する
@@ -160,6 +161,7 @@ export function useInterviewChat() {
             messages: updatedMessages.map((m) => ({ role: m.role, content: m.content })),
             existingPersonNames,
             existingRelationshipSummaries,
+            existingEpisodeTitles,
             apiKey: openRouterApiKey,
             model: openRouterModel,
           }),
@@ -235,6 +237,7 @@ export function useInterviewChat() {
       isConfigured,
       existingPersonNames,
       existingRelationshipSummaries,
+      existingEpisodeTitles,
       openRouterApiKey,
       openRouterModel,
       setError,
@@ -275,6 +278,7 @@ export function useInterviewChat() {
         body: JSON.stringify({
           chatHistory,
           existingPersonNames,
+          existingEpisodeTitles,
           apiKey: openRouterApiKey,
           model: openRouterModel,
         }),
@@ -312,6 +316,7 @@ export function useInterviewChat() {
     openRouterApiKey,
     openRouterModel,
     existingPersonNames,
+    existingEpisodeTitles,
     setSessionStatus,
     setExtractionResult,
     setError,

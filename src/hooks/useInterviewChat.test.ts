@@ -26,9 +26,12 @@ vi.mock('@/stores/useAiSettingsStore', () => ({
 }));
 
 // useGraphStore をモック
+const mockEpisodes = [
+  { id: 'ep1', title: '部活での初対面', relatedRelationshipIds: [], properties: {}, createdAt: '2024-01-01T00:00:00.000Z', updatedAt: '2024-01-01T00:00:00.000Z' },
+];
 vi.mock('@/stores/useGraphStore', () => ({
-  useGraphStore: vi.fn((selector: (s: { persons: unknown[]; relationships: unknown[] }) => unknown) => {
-    const store = { persons: [], relationships: [] };
+  useGraphStore: vi.fn((selector: (s: { persons: unknown[]; relationships: unknown[]; episodes: typeof mockEpisodes }) => unknown) => {
+    const store = { persons: [], relationships: [], episodes: mockEpisodes };
     return selector ? selector(store) : store;
   }),
 }));
@@ -108,7 +111,7 @@ describe('useInterviewChat', () => {
 
     vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
       ok: true,
-      json: vi.fn().mockResolvedValueOnce({ persons: [], relationships: [] }),
+      json: vi.fn().mockResolvedValueOnce({ persons: [], relationships: [], episodes: [] }),
     }));
 
     const { result } = renderHook(() => useInterviewChat());
@@ -146,6 +149,45 @@ describe('useInterviewChat', () => {
     });
 
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('append で既存エピソードタイトルがリクエストに含まれること', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(
+      createStreamResponse('テスト応答')
+    ));
+
+    const { result } = renderHook(() => useInterviewChat());
+
+    await act(async () => {
+      await result.current.append({ role: 'user', content: 'テスト' });
+    });
+
+    const fetchMock = vi.mocked(global.fetch);
+    const calls = fetchMock.mock.calls as unknown as [string, RequestInit][];
+    const body = JSON.parse(calls[0][1].body as string);
+    // mockEpisodes に含まれる '部活での初対面' が interview-chat リクエストに含まれていること
+    expect(body.existingEpisodeTitles).toContain('部活での初対面');
+  });
+
+  it('endSession で既存エピソードタイトルが抽出APIリクエストに含まれること', async () => {
+    useInterviewStore.getState().startSession('chart-001');
+
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: vi.fn().mockResolvedValueOnce({ persons: [], relationships: [], episodes: [] }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result } = renderHook(() => useInterviewChat());
+
+    await act(async () => {
+      await result.current.endSession();
+    });
+
+    const calls = fetchMock.mock.calls as unknown as [string, RequestInit][];
+    const body = JSON.parse(calls[0][1].body as string);
+    // mockEpisodes に含まれる '部活での初対面' が interview-extract リクエストに含まれていること
+    expect(body.existingEpisodeTitles).toContain('部活での初対面');
   });
 
   it('endSession で抽出API失敗時にエラーがセットされること', async () => {

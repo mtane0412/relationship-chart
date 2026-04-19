@@ -17,6 +17,7 @@
 
 import { useEffect, useCallback, useRef } from 'react';
 import { Loader2, Users, Link } from 'lucide-react';
+import { EpisodePreviewSection } from '@/components/graph/EpisodePreviewSection';
 import { useShallow } from 'zustand/react/shallow';
 import { useInterviewStore } from '@/stores/useInterviewStore';
 import { useInterviewChat } from '@/hooks/useInterviewChat';
@@ -112,6 +113,9 @@ function InterviewExtractionPreview({
             </ul>
           )}
         </div>
+
+        {/* エピソードセクション */}
+        <EpisodePreviewSection episodes={result.episodes} />
       </div>
 
       {/* アクションボタン */}
@@ -164,10 +168,12 @@ export function InterviewModal() {
   );
 
   const { messages, append, setMessages, isLoading, endSession, abort } = useInterviewChat();
-  const { addPerson, addRelationship, persons, activeChartId } = useGraphStore(
+  const { addPerson, addRelationship, createEpisode, addParticipation, persons, activeChartId } = useGraphStore(
     useShallow((s) => ({
       addPerson: s.addPerson,
       addRelationship: s.addRelationship,
+      createEpisode: s.createEpisode,
+      addParticipation: s.addParticipation,
       persons: s.persons,
       activeChartId: s.activeChartId,
     }))
@@ -266,6 +272,11 @@ export function InterviewModal() {
 
   /**
    * 抽出結果を相関図に反映する
+   *
+   * 3 パスで人物・関係・エピソードをストアに追加する:
+   *   1. resolveExtractionResult で新規人物を特定し addPerson で追加
+   *   2. 追加後のストア状態で関係とエピソードを解決
+   *   3. エピソードを createEpisode で追加し、参加エッジを addParticipation で追加
    */
   const handleConfirm = useCallback(() => {
     if (!extractionResult) return;
@@ -274,17 +285,29 @@ export function InterviewModal() {
     const { newPersons } = resolveExtractionResult(extractionResult, persons, new Map());
     newPersons.forEach((person) => addPerson({ name: person.name, labels: person.labels, properties: {} }));
 
-    // 2パス目: 人物追加後のストア状態で関係を解決
+    // 2パス目: 人物追加後のストア状態で関係とエピソードを解決
     const updatedPersons = useGraphStore.getState().persons;
-    const { relationships: resolvedRelationships } = resolveExtractionResult(
+    const { relationships: resolvedRelationships, episodes } = resolveExtractionResult(
       extractionResult,
       updatedPersons,
       new Map(),
     );
     resolvedRelationships.forEach((rel) => addRelationship(rel));
 
+    // 3パス目: エピソード作成＋参加エッジ追加
+    for (const ep of episodes) {
+      const episodeId = createEpisode({
+        title: ep.title,
+        description: ep.description,
+        occurredAt: ep.occurredAt,
+      });
+      for (const personId of ep.participantPersonIds) {
+        addParticipation({ episodeId, personId });
+      }
+    }
+
     setSessionStatus('completed');
-  }, [extractionResult, persons, addPerson, addRelationship, setSessionStatus]);
+  }, [extractionResult, persons, addPerson, addRelationship, createEpisode, addParticipation, setSessionStatus]);
 
   /**
    * 抽出結果をキャンセルしてインタビューに戻る

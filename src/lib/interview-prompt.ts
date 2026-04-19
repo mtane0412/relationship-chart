@@ -14,6 +14,7 @@
 /** プロンプトインジェクション対策のための最大件数 */
 const MAX_EXISTING_NAMES = 200;
 const MAX_EXISTING_RELATIONSHIPS = 200;
+const MAX_EXISTING_EPISODES = 200;
 
 /**
  * プロンプトインジェクション対策のため人物名をサニタイズする
@@ -33,11 +34,13 @@ function sanitizeName(name: string): string {
  *
  * @param existingPersonNames - 既に相関図に登録されている人物名リスト
  * @param existingRelationshipSummaries - 既に登録されている関係のサマリリスト（例: "AさんとBさんは友人"）
+ * @param existingEpisodeTitles - 既に登録されているエピソードのタイトルリスト（重複探索抑制のため）
  * @returns システムプロンプト文字列
  */
 export function buildInterviewSystemPrompt(
   existingPersonNames: string[],
   existingRelationshipSummaries: string[],
+  existingEpisodeTitles: string[] = [],
 ): string {
   const sanitizedNames = existingPersonNames
     .slice(0, MAX_EXISTING_NAMES)
@@ -49,10 +52,15 @@ export function buildInterviewSystemPrompt(
     .map(sanitizeName)
     .filter((s) => s.length > 0);
 
+  const sanitizedEpisodeTitles = existingEpisodeTitles
+    .slice(0, MAX_EXISTING_EPISODES)
+    .map(sanitizeName)
+    .filter((t) => t.length > 0);
+
   // 既存データのコンテキストセクション
   const existingDataSection =
-    sanitizedNames.length > 0 || sanitizedRelationships.length > 0
-      ? buildExistingDataSection(sanitizedNames, sanitizedRelationships)
+    sanitizedNames.length > 0 || sanitizedRelationships.length > 0 || sanitizedEpisodeTitles.length > 0
+      ? buildExistingDataSection(sanitizedNames, sanitizedRelationships, sanitizedEpisodeTitles)
       : '';
 
   return `あなたは人物相関図を作成するためのインタビュアーです。
@@ -73,7 +81,8 @@ export function buildInterviewSystemPrompt(
 1. **登場人物の列挙**: まず「この物語・出来事・組織などに登場する人物や物をすべて教えてください」と聞く
 2. **個々の属性の深掘り**: 各登場人物について「どのような人ですか？」「どのような役割を持っていますか？」などを聞く
 3. **人物間の関係の探索**: 「〇〇さんと△△さんはどのような関係ですか？」「どのくらい仲が良いですか？」「信頼関係はありますか？」「何か秘密にしていることはありますか？」などを聞く
-4. **確認・補足**: 「他に付け加えることはありますか？」「見落としている関係はありますか？」と聞く
+3.5. **重要な出来事の探索**: 「この人物たちに関わった印象的な出来事や場面はありますか？」「転機となった瞬間を覚えていますか？」「複数の人が関わったエピソードがあれば教えてください」と聞く
+4. **確認・補足**: 「他に付け加えることはありますか？」「見落としている関係や出来事はありますか？」と聞く
 
 ## 質問のコツ
 
@@ -104,9 +113,10 @@ export function buildInterviewSystemPrompt(
  *
  * @param names - サニタイズ済みの既存人物名リスト
  * @param relationships - サニタイズ済みの既存関係サマリリスト
+ * @param episodeTitles - サニタイズ済みの既存エピソードタイトルリスト
  * @returns コンテキストセクション文字列
  */
-function buildExistingDataSection(names: string[], relationships: string[]): string {
+function buildExistingDataSection(names: string[], relationships: string[], episodeTitles: string[]): string {
   let section = '\n\n## 相関図に登録済みの情報\n\n以下の情報はすでに相関図に登録されています。これらを踏まえて、新しい情報や関係を中心に聞き取りを行ってください。';
 
   if (names.length > 0) {
@@ -115,6 +125,10 @@ function buildExistingDataSection(names: string[], relationships: string[]): str
 
   if (relationships.length > 0) {
     section += `\n\n### 登録済みの関係\n${relationships.map((r) => `- ${r}`).join('\n')}`;
+  }
+
+  if (episodeTitles.length > 0) {
+    section += `\n\n### 登録済みのエピソード\n${episodeTitles.map((t) => `- ${t}`).join('\n')}`;
   }
 
   return section;

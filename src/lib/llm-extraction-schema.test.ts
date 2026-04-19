@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import {
   LlmPersonSchema,
   LlmRelationshipSchema,
+  LlmEpisodeSchema,
   LlmExtractionResultSchema,
   getLlmExtractionJsonSchema,
   type LlmExtractionResult,
@@ -149,8 +150,75 @@ describe('LlmRelationshipSchema', () => {
   });
 });
 
+describe('LlmEpisodeSchema', () => {
+  it('有効なエピソードデータをパースできること', () => {
+    const valid = {
+      title: '初めての出会い',
+      description: '田中と山田が部活で初めて出会った。',
+      occurredAt: '高校1年の春',
+      participantNames: ['田中太郎', '山田花子'],
+    };
+    const result = LlmEpisodeSchema.safeParse(valid);
+    expect(result.success).toBe(true);
+  });
+
+  it('description が null でも有効であること', () => {
+    const valid = {
+      title: '卒業式',
+      description: null,
+      occurredAt: '2024年3月',
+      participantNames: ['田中太郎'],
+    };
+    const result = LlmEpisodeSchema.safeParse(valid);
+    expect(result.success).toBe(true);
+  });
+
+  it('occurredAt が null でも有効であること', () => {
+    const valid = {
+      title: '初めての喧嘩',
+      description: '些細なことで口論になった。',
+      occurredAt: null,
+      participantNames: ['田中太郎', '山田花子'],
+    };
+    const result = LlmEpisodeSchema.safeParse(valid);
+    expect(result.success).toBe(true);
+  });
+
+  it('participantNames が空配列でも有効であること', () => {
+    const valid = {
+      title: '謎の事件',
+      description: null,
+      occurredAt: null,
+      participantNames: [],
+    };
+    const result = LlmEpisodeSchema.safeParse(valid);
+    expect(result.success).toBe(true);
+  });
+
+  it('title が欠けている場合はパース失敗すること', () => {
+    const invalid = {
+      description: '説明文',
+      occurredAt: null,
+      participantNames: ['田中太郎'],
+    };
+    const result = LlmEpisodeSchema.safeParse(invalid);
+    expect(result.success).toBe(false);
+  });
+
+  it('participantNames が配列でない場合はパース失敗すること', () => {
+    const invalid = {
+      title: 'エピソード',
+      description: null,
+      occurredAt: null,
+      participantNames: '田中太郎',
+    };
+    const result = LlmEpisodeSchema.safeParse(invalid);
+    expect(result.success).toBe(false);
+  });
+});
+
 describe('LlmExtractionResultSchema', () => {
-  it('有効な抽出結果をパースできること', () => {
+  it('有効な抽出結果（episodes含む）をパースできること', () => {
     const valid: LlmExtractionResult = {
       persons: [
         { name: '田中太郎', labels: ['人物'] },
@@ -168,15 +236,29 @@ describe('LlmExtractionResultSchema', () => {
           properties: { affection: 0.9, awareness: 'known', role: null },
         },
       ],
+      episodes: [
+        {
+          title: '初めての出会い',
+          description: '部活で出会った。',
+          occurredAt: '高校1年の春',
+          participantNames: ['田中太郎', '山田花子'],
+        },
+      ],
     };
     const result = LlmExtractionResultSchema.safeParse(valid);
     expect(result.success).toBe(true);
   });
 
-  it('persons・relationships が空配列でも有効であること', () => {
-    const valid = { persons: [], relationships: [] };
+  it('persons・relationships・episodes が空配列でも有効であること', () => {
+    const valid = { persons: [], relationships: [], episodes: [] };
     const result = LlmExtractionResultSchema.safeParse(valid);
     expect(result.success).toBe(true);
+  });
+
+  it('episodes が欠けている場合はパース失敗すること', () => {
+    const invalid = { persons: [], relationships: [] };
+    const result = LlmExtractionResultSchema.safeParse(invalid);
+    expect(result.success).toBe(false);
   });
 });
 
@@ -194,7 +276,7 @@ describe('getLlmExtractionJsonSchema', () => {
     expect(schema).toHaveProperty('properties');
   });
 
-  it('persons と relationships プロパティが含まれること', () => {
+  it('persons と relationships と episodes プロパティが含まれること', () => {
     const schema = getLlmExtractionJsonSchema();
     // ランタイム型ガードで properties の存在を確認してからアクセス
     expect(schema !== null && typeof schema === 'object' && 'properties' in schema).toBe(true);
@@ -203,6 +285,29 @@ describe('getLlmExtractionJsonSchema', () => {
     const propsObj = props as Record<string, unknown>;
     expect(propsObj).toHaveProperty('persons');
     expect(propsObj).toHaveProperty('relationships');
+    expect(propsObj).toHaveProperty('episodes');
+  });
+
+  it('episodes が required 配列に含まれること（strict mode 対応）', () => {
+    const schema = getLlmExtractionJsonSchema() as Record<string, unknown>;
+    expect(Array.isArray(schema.required)).toBe(true);
+    expect((schema.required as string[]).includes('episodes')).toBe(true);
+  });
+
+  it('episodes.items に title / participantNames / description / occurredAt が required として含まれること', () => {
+    type JsonSchemaObj = Record<string, unknown>;
+    const schema = getLlmExtractionJsonSchema() as JsonSchemaObj;
+    const schemaProps = schema.properties as JsonSchemaObj;
+    const episodesSchema = schemaProps.episodes as JsonSchemaObj;
+    const episodeItems = episodesSchema.items as JsonSchemaObj;
+
+    expect(Array.isArray(episodeItems.required)).toBe(true);
+    const required = episodeItems.required as string[];
+    expect(required).toContain('title');
+    expect(required).toContain('participantNames');
+    expect(required).toContain('description');
+    expect(required).toContain('occurredAt');
+    expect(episodeItems.additionalProperties).toBe(false);
   });
 
   it('生成されたスキーマが JSON シリアライズ可能であること', () => {
