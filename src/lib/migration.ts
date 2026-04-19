@@ -711,19 +711,24 @@ export function migrateGraphState(persistedState: unknown, version: number): unk
   return state;
 }
 
-// ─── IndexedDB Chart の正規化（v11 へのインプレース変換） ─────────────────────
+// ─── IndexedDB Chart の正規化（v12 形式への変換） ──────────────────────────────
 
 /**
- * IndexedDB からロードした Chart を v11 形式に正規化する
+ * IndexedDB からロードした Chart を v12 形式に正規化する
+ *
+ * スキーマ変換の段階:
+ *   v8以前  → v9: レイヤーベース → プロパティグラフ（forward/reverse構造）
+ *   v9/v10  → v11: Person.kind → labels、RelationshipV9 → Relationship
+ *   v11     → v12: snapshots フィールドの追加（タイムライン機能対応）
  *
  * @param chart - ロードした Chart オブジェクト（古い schemaVersion の可能性あり）
- * @returns v11 形式に正規化された Chart
+ * @returns v12 形式に正規化された Chart
  */
 export function normalizeChart(chart: Chart): Chart {
   const schemaVersion = chart.schemaVersion ?? 0;
 
-  // v11以降はすでに最新形式
-  if (schemaVersion >= 11) return chart;
+  // v12以降はすでに最新形式
+  if (schemaVersion >= 12) return chart;
 
   let persons = chart.persons as unknown as LegacyPersonV10[];
   let relationships = chart.relationships as unknown[];
@@ -756,10 +761,12 @@ export function normalizeChart(chart: Chart): Chart {
   // persons に properties フィールドを追加
   const normalizedPersons = migratePersonsV10ToV11(persons);
 
+  // v11形式に正規化したチャートをv12に変換（snapshotsフィールドを補完）
   return {
     ...chart,
     persons: normalizedPersons,
     relationships: normalizedRelationships,
-    schemaVersion: 11,
+    snapshots: chart.snapshots ?? [],
+    schemaVersion: 12,
   };
 }
