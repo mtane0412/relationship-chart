@@ -1031,15 +1031,17 @@ export const useGraphStore = create<GraphStore>()(
           if (state.timelineMode) return;
 
           // SnapshotPerson: imageDataUrlを除いた軽量表現（personIdで画像を参照）
+          // 配列・オブジェクトは後続の編集で過去スナップショットが変化しないようディープクローンする
           const snapshotPersons: SnapshotPerson[] = state.persons.map((p) => ({
             personId: p.id,
             name: p.name,
-            labels: p.labels,
-            position: p.position,
-            properties: p.properties,
+            labels: [...p.labels],
+            position: p.position ? { ...p.position } : undefined,
+            properties: { ...p.properties },
           }));
 
           // SnapshotRelationship: 全フィールドをコピー（数値変化のアニメーション追跡用）
+          // 配列・オブジェクト・narrativeもディープクローンして不変性を保証
           const snapshotRelationships: SnapshotRelationship[] = state.relationships.map((r) => ({
             relationshipId: r.id,
             type: r.type,
@@ -1047,9 +1049,14 @@ export const useGraphStore = create<GraphStore>()(
             targetId: r.targetId,
             label: r.label,
             symmetric: r.symmetric,
-            tags: r.tags,
+            tags: [...r.tags],
             colorOverride: r.colorOverride,
-            properties: r.properties,
+            properties: { ...r.properties },
+            narrative: {
+              summary: r.narrative.summary,
+              notes: r.narrative.notes,
+              turningPoints: r.narrative.turningPoints.map((tp) => ({ ...tp })),
+            },
           }));
 
           const snapshot: Snapshot = {
@@ -1081,9 +1088,19 @@ export const useGraphStore = create<GraphStore>()(
               }
             }
 
+            // アクティブスナップショットを削除した場合はライブデータへ復元する
+            const deletingActiveSnapshot =
+              s.activeSnapshotIndex !== null && deletedIndex === s.activeSnapshotIndex;
+
             return {
               snapshots: newSnapshots,
               activeSnapshotIndex: newActiveSnapshotIndex,
+              ...(deletingActiveSnapshot && s.timelineMode
+                ? {
+                    persons: s._livePersons ?? s.persons,
+                    relationships: s._liveRelationships ?? s.relationships,
+                  }
+                : {}),
             };
           });
         },
@@ -1098,6 +1115,11 @@ export const useGraphStore = create<GraphStore>()(
 
         setTimelineMode: (enabled) => {
           const state = get();
+
+          // 既に同じモードなら何もしない（再入時にliveデータを上書きしないため）
+          if (enabled === state.timelineMode) {
+            return;
+          }
 
           if (enabled) {
             // タイムラインモードに入る: ライブデータを退避してpauseAutoSave=true
@@ -1140,9 +1162,9 @@ export const useGraphStore = create<GraphStore>()(
             return {
               id: sp.personId,
               name: sp.name,
-              labels: sp.labels,
-              position: sp.position,
-              properties: sp.properties,
+              labels: [...sp.labels],
+              position: sp.position ? { ...sp.position } : undefined,
+              properties: { ...sp.properties },
               imageDataUrl: livePerson?.imageDataUrl,
               createdAt: livePerson?.createdAt ?? snapshot.createdAt,
             };
@@ -1156,11 +1178,17 @@ export const useGraphStore = create<GraphStore>()(
             targetId: sr.targetId,
             label: sr.label,
             symmetric: sr.symmetric,
-            tags: sr.tags,
+            tags: [...sr.tags],
             colorOverride: sr.colorOverride,
-            properties: sr.properties,
-            // narrativeはスナップショットに含まないのでデフォルト値
-            narrative: { summary: null, notes: null, turningPoints: [] },
+            properties: { ...sr.properties },
+            // narrativeを復元する（古いスナップショットにnarrativeがない場合はデフォルト値）
+            narrative: sr.narrative
+              ? {
+                  summary: sr.narrative.summary,
+                  notes: sr.narrative.notes,
+                  turningPoints: sr.narrative.turningPoints.map((tp) => ({ ...tp })),
+                }
+              : { summary: null, notes: null, turningPoints: [] },
             createdAt: snapshot.createdAt,
             updatedAt: snapshot.createdAt,
           }));
@@ -1230,9 +1258,12 @@ export const useGraphStore = create<GraphStore>()(
       {
         // UI状態（selectedPersonIds, forceEnabled, egoLayoutParams, sidePanelOpen, activeChartId, chartMetas, isInitialized, isLoading）はundo対象外
         // データ状態（persons, relationships）のみをundo履歴に保存
+        // タイムラインモード中はgoToSnapshotによる一時的な切り替えをUndo履歴に記録しない
         partialize: (state) => ({
-          persons: state.persons,
-          relationships: state.relationships,
+          persons: state.timelineMode ? (state._livePersons ?? state.persons) : state.persons,
+          relationships: state.timelineMode
+            ? (state._liveRelationships ?? state.relationships)
+            : state.relationships,
         }),
       }
     )

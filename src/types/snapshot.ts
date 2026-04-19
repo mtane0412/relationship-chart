@@ -10,7 +10,7 @@
  * - Chart.persons[] が参照元。削除済み Person はプレースホルダー表示する
  */
 
-import type { RelationshipProperties } from './relationship';
+import type { RelationshipNarrative, RelationshipProperties } from './relationship';
 
 /**
  * スナップショット時点の人物の軽量表現
@@ -41,6 +41,7 @@ export type SnapshotPerson = {
  * @property tags - 分類タグ配列
  * @property colorOverride - エッジ色の手動上書き
  * @property properties - ドメイン属性 + カスタムプロパティ（数値変化のアニメーション追跡用）
+ * @property narrative - 自由記述（タイムライン表示での欠落を防ぐため保存）
  */
 export type SnapshotRelationship = {
   relationshipId: string;
@@ -52,6 +53,7 @@ export type SnapshotRelationship = {
   tags: string[];
   colorOverride: string | null;
   properties: RelationshipProperties;
+  narrative: RelationshipNarrative;
 };
 
 /**
