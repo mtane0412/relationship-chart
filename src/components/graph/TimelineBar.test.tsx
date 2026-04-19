@@ -33,6 +33,10 @@ function makeStoreMock(overrides: Partial<{
   setTimelineMode: ReturnType<typeof vi.fn>;
   goToSnapshot: ReturnType<typeof vi.fn>;
   goToLive: ReturnType<typeof vi.fn>;
+  isPlaying: boolean;
+  playbackSpeed: number;
+  setPlaying: ReturnType<typeof vi.fn>;
+  setPlaybackSpeed: ReturnType<typeof vi.fn>;
 }> = {}) {
   return {
     snapshots: overrides.snapshots ?? [],
@@ -41,6 +45,10 @@ function makeStoreMock(overrides: Partial<{
     setTimelineMode: overrides.setTimelineMode ?? vi.fn(),
     goToSnapshot: overrides.goToSnapshot ?? vi.fn(),
     goToLive: overrides.goToLive ?? vi.fn(),
+    isPlaying: overrides.isPlaying ?? false,
+    playbackSpeed: overrides.playbackSpeed ?? 2000,
+    setPlaying: overrides.setPlaying ?? vi.fn(),
+    setPlaybackSpeed: overrides.setPlaybackSpeed ?? vi.fn(),
   };
 }
 
@@ -135,5 +143,174 @@ describe('TimelineBar', () => {
     await user.click(screen.getByRole('button', { name: /終了/i }));
 
     expect(mockSetTimelineMode).toHaveBeenCalledWith(false);
+  });
+
+  describe('再生コントロール', () => {
+    it('isPlaying=false のとき再生ボタン(▶)が表示される', () => {
+      // GIVEN: スナップショットあり、停止中
+      const snapshots = [makeSnapshot('第1話'), makeSnapshot('第2話')];
+      mockUseGraphStore.mockReturnValue(
+        makeStoreMock({ snapshots, timelineMode: true, activeSnapshotIndex: 0, isPlaying: false })
+      );
+
+      render(<TimelineBar />);
+
+      // THEN: 再生ボタンが存在する
+      expect(screen.getByRole('button', { name: /再生/i })).toBeInTheDocument();
+    });
+
+    it('再生ボタンをクリックすると setPlaying(true) が呼ばれる', async () => {
+      // GIVEN
+      const user = userEvent.setup();
+      const mockSetPlaying = vi.fn();
+      const snapshots = [makeSnapshot('第1話'), makeSnapshot('第2話')];
+      mockUseGraphStore.mockReturnValue(
+        makeStoreMock({ snapshots, timelineMode: true, activeSnapshotIndex: 0, isPlaying: false, setPlaying: mockSetPlaying })
+      );
+
+      render(<TimelineBar />);
+
+      // WHEN
+      await user.click(screen.getByRole('button', { name: /再生/i }));
+
+      // THEN
+      expect(mockSetPlaying).toHaveBeenCalledWith(true);
+    });
+
+    it('isPlaying=true のとき停止ボタン(⏸)が表示される', () => {
+      // GIVEN: 再生中
+      const snapshots = [makeSnapshot('第1話'), makeSnapshot('第2話')];
+      mockUseGraphStore.mockReturnValue(
+        makeStoreMock({ snapshots, timelineMode: true, activeSnapshotIndex: 0, isPlaying: true })
+      );
+
+      render(<TimelineBar />);
+
+      // THEN: 停止ボタンが存在する
+      expect(screen.getByRole('button', { name: /停止/i })).toBeInTheDocument();
+    });
+
+    it('停止ボタンをクリックすると setPlaying(false) が呼ばれる', async () => {
+      // GIVEN: 再生中
+      const user = userEvent.setup();
+      const mockSetPlaying = vi.fn();
+      const snapshots = [makeSnapshot('第1話'), makeSnapshot('第2話')];
+      mockUseGraphStore.mockReturnValue(
+        makeStoreMock({ snapshots, timelineMode: true, activeSnapshotIndex: 0, isPlaying: true, setPlaying: mockSetPlaying })
+      );
+
+      render(<TimelineBar />);
+
+      // WHEN
+      await user.click(screen.getByRole('button', { name: /停止/i }));
+
+      // THEN
+      expect(mockSetPlaying).toHaveBeenCalledWith(false);
+    });
+
+    it('スナップショット0件のとき再生ボタンがdisabledになる', () => {
+      // GIVEN: スナップショットなし
+      mockUseGraphStore.mockReturnValue(
+        makeStoreMock({ snapshots: [], timelineMode: true, isPlaying: false })
+      );
+
+      render(<TimelineBar />);
+
+      // THEN: 再生ボタンはdisabled
+      expect(screen.getByRole('button', { name: /再生/i })).toBeDisabled();
+    });
+
+    it('前へボタンをクリックすると onTransition が activeSnapshotIndex-1 で呼ばれる', async () => {
+      // GIVEN: 第2話（index=1）を表示中
+      const user = userEvent.setup();
+      const mockOnTransition = vi.fn();
+      const snapshots = [makeSnapshot('第1話'), makeSnapshot('第2話'), makeSnapshot('第3話')];
+      mockUseGraphStore.mockReturnValue(
+        makeStoreMock({ snapshots, timelineMode: true, activeSnapshotIndex: 1 })
+      );
+
+      render(<TimelineBar onTransition={mockOnTransition} />);
+
+      // WHEN: 前へボタンをクリック
+      await user.click(screen.getByRole('button', { name: /前へ/i }));
+
+      // THEN: index=0 へ遷移
+      expect(mockOnTransition).toHaveBeenCalledWith(0);
+    });
+
+    it('次へボタンをクリックすると onTransition が activeSnapshotIndex+1 で呼ばれる', async () => {
+      // GIVEN: 第1話（index=0）を表示中
+      const user = userEvent.setup();
+      const mockOnTransition = vi.fn();
+      const snapshots = [makeSnapshot('第1話'), makeSnapshot('第2話')];
+      mockUseGraphStore.mockReturnValue(
+        makeStoreMock({ snapshots, timelineMode: true, activeSnapshotIndex: 0 })
+      );
+
+      render(<TimelineBar onTransition={mockOnTransition} />);
+
+      // WHEN: 次へボタンをクリック
+      await user.click(screen.getByRole('button', { name: /次へ/i }));
+
+      // THEN: index=1 へ遷移
+      expect(mockOnTransition).toHaveBeenCalledWith(1);
+    });
+
+    it('前へボタンはライブ状態（activeSnapshotIndex=null）のときdisabledになる', () => {
+      // GIVEN: ライブ状態
+      const snapshots = [makeSnapshot('第1話')];
+      mockUseGraphStore.mockReturnValue(
+        makeStoreMock({ snapshots, timelineMode: true, activeSnapshotIndex: null })
+      );
+
+      render(<TimelineBar />);
+
+      // THEN: 前へボタンはdisabled
+      expect(screen.getByRole('button', { name: /前へ/i })).toBeDisabled();
+    });
+
+    it('次へボタンは最後のスナップショットのときdisabledになる', () => {
+      // GIVEN: 最後のスナップショット（index=1、全2件）
+      const snapshots = [makeSnapshot('第1話'), makeSnapshot('第2話')];
+      mockUseGraphStore.mockReturnValue(
+        makeStoreMock({ snapshots, timelineMode: true, activeSnapshotIndex: 1 })
+      );
+
+      render(<TimelineBar />);
+
+      // THEN: 次へボタンはdisabled
+      expect(screen.getByRole('button', { name: /次へ/i })).toBeDisabled();
+    });
+
+    it('isTransitioning=true のときスライダーがdisabledになる', () => {
+      // GIVEN: アニメーション遷移中
+      const snapshots = [makeSnapshot('第1話'), makeSnapshot('第2話')];
+      mockUseGraphStore.mockReturnValue(
+        makeStoreMock({ snapshots, timelineMode: true, activeSnapshotIndex: 0 })
+      );
+
+      render(<TimelineBar isTransitioning={true} />);
+
+      // THEN: スライダーがdisabled
+      expect(screen.getByRole('slider')).toBeDisabled();
+    });
+
+    it('速度ボタンをクリックすると setPlaybackSpeed が次の速度で呼ばれる', async () => {
+      // GIVEN: 現在の速度は 2000ms（1.5x）
+      const user = userEvent.setup();
+      const mockSetPlaybackSpeed = vi.fn();
+      const snapshots = [makeSnapshot('第1話')];
+      mockUseGraphStore.mockReturnValue(
+        makeStoreMock({ snapshots, timelineMode: true, playbackSpeed: 2000, setPlaybackSpeed: mockSetPlaybackSpeed })
+      );
+
+      render(<TimelineBar />);
+
+      // WHEN: 速度ボタンをクリック（2000ms → 1000ms へ循環）
+      await user.click(screen.getByRole('button', { name: /速度/i }));
+
+      // THEN: 次の速度に変更される
+      expect(mockSetPlaybackSpeed).toHaveBeenCalled();
+    });
   });
 });

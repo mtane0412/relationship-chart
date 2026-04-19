@@ -4,6 +4,15 @@
  */
 
 import { create } from 'zustand';
+
+/**
+ * 自動再生の再生速度（ミリ秒）の許可値
+ * UIの3段階（1x/1.5x/2x）に対応する。TimelineBar.tsx も参照する。
+ */
+export const PLAYBACK_SPEEDS = [3000, 2000, 1000] as const;
+
+/** 自動再生の再生速度型（許可された3値のみ） */
+export type PlaybackSpeed = (typeof PLAYBACK_SPEEDS)[number];
 import { temporal } from 'zundo';
 import { nanoid } from 'nanoid';
 import type { Person } from '@/types/person';
@@ -90,6 +99,10 @@ type GraphState = {
   _livePersons: Person[] | null;
   /** タイムラインモード中のライブRelationshipsデータ退避（モード終了時に復元する） */
   _liveRelationships: Relationship[] | null;
+  /** アニメーション自動再生中かどうか */
+  isPlaying: boolean;
+  /** 自動再生の再生間隔（ミリ秒）。PLAYBACK_SPEEDS で定義された3段階のみ有効 */
+  playbackSpeed: PlaybackSpeed;
 };
 
 /**
@@ -115,6 +128,8 @@ const INITIAL_STATE: GraphState = {
   activeSnapshotIndex: null,
   _livePersons: null,
   _liveRelationships: null,
+  isPlaying: false,
+  playbackSpeed: 2000,
 };
 
 
@@ -390,10 +405,22 @@ type GraphActions = {
   /**
    * タイムライン再生モードの有効/無効を切り替える
    * - true: ライブデータを退避し、pauseAutoSave=true で編集操作を無効化
-   * - false: ライブデータを復元し、pauseAutoSave=false で通常モードに戻る
+   * - false: ライブデータを復元し、pauseAutoSave=false で通常モードに戻る（isPlayingもリセット）
    * @param enabled - true でタイムラインモードに入る
    */
   setTimelineMode: (enabled: boolean) => void;
+
+  /**
+   * アニメーション自動再生状態を設定する
+   * @param playing - true で再生開始、false で停止
+   */
+  setPlaying: (playing: boolean) => void;
+
+  /**
+   * 自動再生の再生速度を設定する
+   * @param ms - 再生間隔（ミリ秒）。PLAYBACK_SPEEDS で定義された値のみ有効
+   */
+  setPlaybackSpeed: (ms: PlaybackSpeed) => void;
 
   /**
    * 指定インデックスのスナップショット状態をグラフに反映する
@@ -805,6 +832,8 @@ export const useGraphStore = create<GraphStore>()(
             activeSnapshotIndex: null,
             _livePersons: null,
             _liveRelationships: null,
+            // 再生状態もリセット（別チャートの再生状態が残らないように）
+            isPlaying: false,
           }));
 
           // 9. lastActiveChartIdを更新
@@ -845,6 +874,8 @@ export const useGraphStore = create<GraphStore>()(
             _livePersons: null,
             _liveRelationships: null,
             pauseAutoSave: false,
+            // 再生状態もリセット（前チャートの再生状態が残らないように）
+            isPlaying: false,
           }));
 
           // 4. lastActiveChartIdを更新
@@ -1132,16 +1163,28 @@ export const useGraphStore = create<GraphStore>()(
             }));
           } else {
             // タイムラインモードを終了: ライブデータを復元してpauseAutoSave=false
+            // isPlayingもリセットして再生を確実に停止する
             set((s) => ({
               timelineMode: false,
               pauseAutoSave: false,
               activeSnapshotIndex: null,
+              isPlaying: false,
               persons: s._livePersons ?? s.persons,
               relationships: s._liveRelationships ?? s.relationships,
               _livePersons: null,
               _liveRelationships: null,
             }));
           }
+        },
+
+        setPlaying: (playing) => {
+          set(() => ({ isPlaying: playing }));
+        },
+
+        setPlaybackSpeed: (ms) => {
+          // PLAYBACK_SPEEDS 以外の値は無視する（防御的ガード）
+          if (!(PLAYBACK_SPEEDS as readonly number[]).includes(ms)) return;
+          set(() => ({ playbackSpeed: ms }));
         },
 
         goToSnapshot: (index) => {
