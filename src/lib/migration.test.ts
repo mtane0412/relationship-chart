@@ -10,6 +10,7 @@ import {
   migrateV9ToV10,
   migrateV10ToV11,
   migratePersonsV10ToV11,
+  normalizeChart,
 } from './migration';
 import type { Person } from '@/types/person';
 import type { LegacyRelationshipV8, LegacyRelationshipV9, LegacyPersonV10 } from './migration';
@@ -1529,5 +1530,76 @@ describe('migrateV9ToV10', () => {
     expect(result[1].labels).toEqual(['物']);
     expect(result[2].labels).toEqual(['人物']);
     result.forEach((p) => expect(p).not.toHaveProperty('kind'));
+  });
+});
+
+describe('normalizeChart', () => {
+  // v12マイグレーションのテスト
+
+  // v11チャートのベースデータ（スナップショットなし）
+  const baseV11Chart = {
+    id: 'chart-001',
+    name: '戦国時代の相関図',
+    persons: [
+      {
+        id: 'p1',
+        labels: ['人物'],
+        name: '織田信長',
+        properties: {},
+        createdAt: '2024-01-01T00:00:00.000Z',
+      },
+    ],
+    relationships: [],
+    forceEnabled: false,
+    forceParams: DEFAULT_FORCE_PARAMS,
+    egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+    schemaVersion: 11,
+    createdAt: '2024-01-01T00:00:00.000Z',
+    updatedAt: '2024-01-01T00:00:00.000Z',
+  };
+
+  describe('v11チャートのv12への正規化', () => {
+    it('schemaVersion: 11 のチャートに snapshots: [] を補完する', () => {
+      const result = normalizeChart({ ...baseV11Chart });
+
+      expect(result.schemaVersion).toBe(12);
+      expect(result.snapshots).toEqual([]);
+    });
+
+    it('既に snapshots が設定されている場合はそのまま保持する', () => {
+      const existingSnapshot = {
+        id: 'snap-001',
+        label: '第1話',
+        persons: [],
+        relationships: [],
+        createdAt: '2024-06-01T00:00:00.000Z',
+      };
+      const chartWithSnapshots = {
+        ...baseV11Chart,
+        snapshots: [existingSnapshot],
+        schemaVersion: 11,
+      };
+
+      const result = normalizeChart(chartWithSnapshots);
+
+      expect(result.schemaVersion).toBe(12);
+      expect(result.snapshots).toHaveLength(1);
+      expect(result.snapshots?.[0].label).toBe('第1話');
+    });
+  });
+
+  describe('v12チャートはそのまま返す', () => {
+    it('schemaVersion: 12 のチャートはデータ変更なしで返す', () => {
+      const v12Chart = {
+        ...baseV11Chart,
+        snapshots: [],
+        schemaVersion: 12,
+      };
+
+      const result = normalizeChart(v12Chart);
+
+      // 同一オブジェクトが返ること（変換処理なし）
+      expect(result).toBe(v12Chart);
+    });
   });
 });

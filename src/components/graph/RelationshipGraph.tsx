@@ -11,6 +11,7 @@ import {
   Background,
   Controls,
   MiniMap,
+  Panel,
   useReactFlow,
   ConnectionMode,
   ConnectionLineType,
@@ -35,6 +36,8 @@ import { useContextMenu } from './useContextMenu';
 import { ContextMenu } from './ContextMenu';
 import { EdgeFilterPanel } from './EdgeFilterPanel';
 import { ChatInputBar } from './ChatInputBar';
+import { SnapshotCaptureButton } from './SnapshotCaptureButton';
+import { TimelineBar } from './TimelineBar';
 import { InterviewModal } from '@/components/interview/InterviewModal';
 import { useGraphStore } from '@/stores/useGraphStore';
 /** 固定 6 色の SVG マーカー定義（deriveEdgeVisual の markerKey と対応） */
@@ -238,6 +241,10 @@ export function RelationshipGraph() {
         <ShareButton />
         <SearchBar />
         <EdgeFilterPanel />
+        {/* スナップショット保存ボタン（右下のFAB） */}
+        <Panel position="bottom-right">
+          <SnapshotCaptureButton />
+        </Panel>
 
         {/* SVGマーカー定義（全エッジで共有）: 固定6色 + selected */}
         <svg>
@@ -306,6 +313,9 @@ export function RelationshipGraph() {
           </button>
         </div>
       )}
+
+      {/* タイムラインバー（タイムラインモード中に下部に表示） */}
+      <TimelineBar />
 
       {/* フローティングチャット入力バー */}
       <ChatInputBar />

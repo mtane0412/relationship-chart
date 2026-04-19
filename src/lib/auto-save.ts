@@ -64,6 +64,8 @@ function buildChartFromState(): Chart | null {
     forceEnabled: state.forceEnabled,
     forceParams: state.forceParams,
     egoLayoutParams: state.egoLayoutParams,
+    snapshots: state.snapshots,
+    schemaVersion: 12,
     createdAt: meta.createdAt,
     updatedAt: new Date().toISOString(),
   };
@@ -124,6 +126,7 @@ export function startAutoSave(): void {
     forceEnabled: initialState.forceEnabled,
     forceParams: initialState.forceParams,
     egoLayoutParams: initialState.egoLayoutParams,
+    snapshots: initialState.snapshots,
   });
 
   // ストアの変更を監視
@@ -135,6 +138,7 @@ export function startAutoSave(): void {
       forceEnabled: state.forceEnabled,
       forceParams: state.forceParams,
       egoLayoutParams: state.egoLayoutParams,
+      snapshots: state.snapshots,
     });
 
     // 変更がない場合はスキップ

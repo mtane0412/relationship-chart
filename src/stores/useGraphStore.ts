@@ -12,6 +12,7 @@ import { INITIAL_EDGE_FILTER } from '@/types/relationship';
 import type { EgoLayoutParams } from '@/lib/ego-layout';
 import { DEFAULT_EGO_LAYOUT_PARAMS } from '@/lib/ego-layout';
 import type { ChartMeta, Chart } from '@/types/chart';
+import type { Snapshot, SnapshotPerson, SnapshotRelationship } from '@/types/snapshot';
 import {
   initDB,
   saveChart,
@@ -79,6 +80,16 @@ type GraphState = {
   editingRelationshipId: string | null;
   /** エッジフィルタ（タグ・述語による絞り込み、セッション内のみ保持） */
   edgeFilter: EdgeFilter;
+  /** タイムラインスナップショット一覧（チャートに永続化される） */
+  snapshots: Snapshot[];
+  /** タイムライン再生モード（true のとき編集操作を無効化、pauseAutoSave=true） */
+  timelineMode: boolean;
+  /** 再生中のスナップショットインデックス（null = ライブ状態） */
+  activeSnapshotIndex: number | null;
+  /** タイムラインモード中のライブPersonsデータ退避（モード終了時に復元する） */
+  _livePersons: Person[] | null;
+  /** タイムラインモード中のライブRelationshipsデータ退避（モード終了時に復元する） */
+  _liveRelationships: Relationship[] | null;
 };
 
 /**
@@ -99,6 +110,11 @@ const INITIAL_STATE: GraphState = {
   pauseAutoSave: false,
   editingRelationshipId: null,
   edgeFilter: INITIAL_EDGE_FILTER,
+  snapshots: [],
+  timelineMode: false,
+  activeSnapshotIndex: null,
+  _livePersons: null,
+  _liveRelationships: null,
 };
 
 
@@ -125,13 +141,15 @@ function buildChartFromState(state: GraphState): Chart | null {
   return {
     id: state.activeChartId,
     name: meta.name,
-    persons: state.persons,
-    relationships: state.relationships,
+    // タイムラインモード中は退避したライブデータを保存（スナップショット表示状態を上書きしない）
+    persons: state._livePersons ?? state.persons,
+    relationships: state._liveRelationships ?? state.relationships,
     forceEnabled: state.forceEnabled,
     forceParams: state.forceParams,
     egoLayoutParams: state.egoLayoutParams,
-    // v11 形式であることを明示する（ロード時の再マイグレーションを防ぐ）
-    schemaVersion: 11,
+    snapshots: state.snapshots,
+    // v12 形式であることを明示する（ロード時の再マイグレーションを防ぐ）
+    schemaVersion: 12,
     createdAt: meta.createdAt,
     updatedAt: new Date().toISOString(),
   };
@@ -348,6 +366,47 @@ type GraphActions = {
    * すべてのデータをリセットする（全チャート削除 + デフォルトチャート作成）
    */
   resetAllData: () => Promise<void>;
+
+  /**
+   * 現在のグラフ状態をスナップショットとして保存する
+   * @param label - スナップショットの名前（例: "第1話", "2024年春"）
+   * @param description - 任意の説明文
+   */
+  captureSnapshot: (label: string, description?: string) => void;
+
+  /**
+   * 指定したIDのスナップショットを削除する
+   * @param snapshotId - 削除するスナップショットのID
+   */
+  deleteSnapshot: (snapshotId: string) => void;
+
+  /**
+   * スナップショットのラベルまたは説明を更新する
+   * @param snapshotId - 更新するスナップショットのID
+   * @param updates - 更新する内容（label または description）
+   */
+  updateSnapshot: (snapshotId: string, updates: { label?: string; description?: string }) => void;
+
+  /**
+   * タイムライン再生モードの有効/無効を切り替える
+   * - true: ライブデータを退避し、pauseAutoSave=true で編集操作を無効化
+   * - false: ライブデータを復元し、pauseAutoSave=false で通常モードに戻る
+   * @param enabled - true でタイムラインモードに入る
+   */
+  setTimelineMode: (enabled: boolean) => void;
+
+  /**
+   * 指定インデックスのスナップショット状態をグラフに反映する
+   * タイムラインモード中のみ有効（タイムラインモード外では何もしない）
+   * @param index - スナップショットのインデックス
+   */
+  goToSnapshot: (index: number) => void;
+
+  /**
+   * ライブ状態（最新の編集状態）に戻る
+   * 退避していたライブデータを復元する
+   */
+  goToLive: () => void;
 };
 
 /**
@@ -661,6 +720,7 @@ export const useGraphStore = create<GraphStore>()(
             forceEnabled: chart.forceEnabled,
             forceParams: chart.forceParams,
             egoLayoutParams: chart.egoLayoutParams,
+            snapshots: chart.snapshots ?? [],
             isInitialized: true,
           }));
 
@@ -737,8 +797,14 @@ export const useGraphStore = create<GraphStore>()(
             forceEnabled: false,
             forceParams: DEFAULT_FORCE_PARAMS,
             egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+            snapshots: [],
             selectedPersonIds: [],
             chartMetas: updatedMetas,
+            // タイムラインモードも解除（新チャート作成時はライブ状態で開始）
+            timelineMode: false,
+            activeSnapshotIndex: null,
+            _livePersons: null,
+            _liveRelationships: null,
           }));
 
           // 9. lastActiveChartIdを更新
@@ -771,7 +837,14 @@ export const useGraphStore = create<GraphStore>()(
             forceEnabled: chart.forceEnabled,
             forceParams: chart.forceParams,
             egoLayoutParams: chart.egoLayoutParams,
+            snapshots: chart.snapshots ?? [],
             selectedPersonIds: [], // 選択状態をクリア
+            // タイムラインモードも解除（チャート切り替え時はライブ状態に戻す）
+            timelineMode: false,
+            activeSnapshotIndex: null,
+            _livePersons: null,
+            _liveRelationships: null,
+            pauseAutoSave: false,
           }));
 
           // 4. lastActiveChartIdを更新
@@ -949,6 +1022,165 @@ export const useGraphStore = create<GraphStore>()(
           // 5. ストアを更新
           set(() => ({
             chartMetas: sortedMetas,
+          }));
+        },
+
+        captureSnapshot: (label, description) => {
+          const state = get();
+          // タイムラインモード中はスナップショット保存を禁止
+          if (state.timelineMode) return;
+
+          // SnapshotPerson: imageDataUrlを除いた軽量表現（personIdで画像を参照）
+          const snapshotPersons: SnapshotPerson[] = state.persons.map((p) => ({
+            personId: p.id,
+            name: p.name,
+            labels: p.labels,
+            position: p.position,
+            properties: p.properties,
+          }));
+
+          // SnapshotRelationship: 全フィールドをコピー（数値変化のアニメーション追跡用）
+          const snapshotRelationships: SnapshotRelationship[] = state.relationships.map((r) => ({
+            relationshipId: r.id,
+            type: r.type,
+            sourceId: r.sourceId,
+            targetId: r.targetId,
+            label: r.label,
+            symmetric: r.symmetric,
+            tags: r.tags,
+            colorOverride: r.colorOverride,
+            properties: r.properties,
+          }));
+
+          const snapshot: Snapshot = {
+            id: nanoid(),
+            label,
+            ...(description !== undefined ? { description } : {}),
+            persons: snapshotPersons,
+            relationships: snapshotRelationships,
+            createdAt: new Date().toISOString(),
+          };
+
+          set((s) => ({ snapshots: [...s.snapshots, snapshot] }));
+        },
+
+        deleteSnapshot: (snapshotId) => {
+          set((s) => {
+            const deletedIndex = s.snapshots.findIndex((snap) => snap.id === snapshotId);
+            const newSnapshots = s.snapshots.filter((snap) => snap.id !== snapshotId);
+
+            // activeSnapshotIndex を削除後の配列に合わせて調整
+            let newActiveSnapshotIndex = s.activeSnapshotIndex;
+            if (s.activeSnapshotIndex !== null && deletedIndex !== -1) {
+              if (deletedIndex < s.activeSnapshotIndex) {
+                // 削除されたスナップショットが現在地より前ならインデックスを1つ前にずらす
+                newActiveSnapshotIndex = s.activeSnapshotIndex - 1;
+              } else if (deletedIndex === s.activeSnapshotIndex) {
+                // 削除されたスナップショットが現在地ならライブに戻す
+                newActiveSnapshotIndex = null;
+              }
+            }
+
+            return {
+              snapshots: newSnapshots,
+              activeSnapshotIndex: newActiveSnapshotIndex,
+            };
+          });
+        },
+
+        updateSnapshot: (snapshotId, updates) => {
+          set((state) => ({
+            snapshots: state.snapshots.map((s) =>
+              s.id === snapshotId ? { ...s, ...updates } : s
+            ),
+          }));
+        },
+
+        setTimelineMode: (enabled) => {
+          const state = get();
+
+          if (enabled) {
+            // タイムラインモードに入る: ライブデータを退避してpauseAutoSave=true
+            set(() => ({
+              timelineMode: true,
+              pauseAutoSave: true,
+              activeSnapshotIndex: null,
+              _livePersons: state.persons,
+              _liveRelationships: state.relationships,
+            }));
+          } else {
+            // タイムラインモードを終了: ライブデータを復元してpauseAutoSave=false
+            set((s) => ({
+              timelineMode: false,
+              pauseAutoSave: false,
+              activeSnapshotIndex: null,
+              persons: s._livePersons ?? s.persons,
+              relationships: s._liveRelationships ?? s.relationships,
+              _livePersons: null,
+              _liveRelationships: null,
+            }));
+          }
+        },
+
+        goToSnapshot: (index) => {
+          const state = get();
+          // タイムラインモード外では何もしない
+          if (!state.timelineMode) return;
+
+          const snapshot = state.snapshots[index];
+          if (!snapshot) return;
+
+          // スナップショット時点のPersonを復元する
+          // imageDataUrlは現在のlivePersonsから personId で引く（削除済みはプレースホルダー表示）
+          const livePersonMap = new Map(
+            (state._livePersons ?? []).map((p) => [p.id, p])
+          );
+          const restoredPersons: Person[] = snapshot.persons.map((sp) => {
+            const livePerson = livePersonMap.get(sp.personId);
+            return {
+              id: sp.personId,
+              name: sp.name,
+              labels: sp.labels,
+              position: sp.position,
+              properties: sp.properties,
+              imageDataUrl: livePerson?.imageDataUrl,
+              createdAt: livePerson?.createdAt ?? snapshot.createdAt,
+            };
+          });
+
+          // スナップショット時点のRelationshipを復元する
+          const restoredRelationships: Relationship[] = snapshot.relationships.map((sr) => ({
+            id: sr.relationshipId,
+            type: sr.type,
+            sourceId: sr.sourceId,
+            targetId: sr.targetId,
+            label: sr.label,
+            symmetric: sr.symmetric,
+            tags: sr.tags,
+            colorOverride: sr.colorOverride,
+            properties: sr.properties,
+            // narrativeはスナップショットに含まないのでデフォルト値
+            narrative: { summary: null, notes: null, turningPoints: [] },
+            createdAt: snapshot.createdAt,
+            updatedAt: snapshot.createdAt,
+          }));
+
+          set(() => ({
+            activeSnapshotIndex: index,
+            persons: restoredPersons,
+            relationships: restoredRelationships,
+          }));
+        },
+
+        goToLive: () => {
+          const state = get();
+          // タイムラインモード外では何もしない
+          if (!state.timelineMode) return;
+
+          set((s) => ({
+            activeSnapshotIndex: null,
+            persons: s._livePersons ?? s.persons,
+            relationships: s._liveRelationships ?? s.relationships,
           }));
         },
 

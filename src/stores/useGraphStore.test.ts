@@ -3276,4 +3276,281 @@ describe('useGraphStore', () => {
       });
     });
   });
+
+  // ─── タイムラインスナップショット機能 ──────────────────────────────────────────
+
+  describe('スナップショット機能', () => {
+    beforeEach(async () => {
+      const store = useGraphStore.getState();
+      // snapshotsの初期化（タイムライン状態もリセット）
+      useGraphStore.setState({
+        snapshots: [],
+        timelineMode: false,
+        activeSnapshotIndex: null,
+        _livePersons: null,
+        _liveRelationships: null,
+      });
+      store.persons.forEach((p) => store.removePerson(p.id));
+      store.relationships.forEach((r) => store.removeRelationship(r.id));
+    });
+
+    describe('captureSnapshot', () => {
+      it('現在の状態をスナップショットとして保存する', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        // 人物を追加した状態でスナップショットを保存
+        act(() => {
+          result.current.addPerson({
+            labels: ['人物'],
+            name: '織田信長',
+            properties: {},
+          });
+        });
+
+        act(() => {
+          result.current.captureSnapshot('第1話');
+        });
+
+        expect(result.current.snapshots).toHaveLength(1);
+        expect(result.current.snapshots[0].label).toBe('第1話');
+        expect(result.current.snapshots[0].persons).toHaveLength(1);
+        expect(result.current.snapshots[0].persons[0].name).toBe('織田信長');
+        expect(result.current.snapshots[0].id).toBeTruthy();
+        expect(result.current.snapshots[0].createdAt).toBeTruthy();
+      });
+
+      it('descriptionを指定してスナップショットを保存できる', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        act(() => {
+          result.current.captureSnapshot('第2話', '明智光秀が登場する回');
+        });
+
+        expect(result.current.snapshots[0].description).toBe('明智光秀が登場する回');
+      });
+
+      it('スナップショットのpersonsはimageDataUrlを含まない', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        act(() => {
+          result.current.addPerson({
+            labels: ['人物'],
+            name: '豊臣秀吉',
+            imageDataUrl: 'data:image/webp;base64,AAAA',
+            properties: {},
+          });
+        });
+
+        act(() => {
+          result.current.captureSnapshot('第3話');
+        });
+
+        // SnapshotPersonはimageDataUrlを持たないこと
+        const snapshotPerson = result.current.snapshots[0].persons[0];
+        expect(snapshotPerson).not.toHaveProperty('imageDataUrl');
+        expect(snapshotPerson.personId).toBeTruthy();
+        expect(snapshotPerson.name).toBe('豊臣秀吉');
+      });
+
+      it('複数のスナップショットを追加できる', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        act(() => {
+          result.current.captureSnapshot('第1話');
+        });
+
+        act(() => {
+          result.current.captureSnapshot('第2話');
+        });
+
+        expect(result.current.snapshots).toHaveLength(2);
+        expect(result.current.snapshots[0].label).toBe('第1話');
+        expect(result.current.snapshots[1].label).toBe('第2話');
+      });
+    });
+
+    describe('deleteSnapshot', () => {
+      it('指定したIDのスナップショットを削除する', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        act(() => {
+          result.current.captureSnapshot('第1話');
+          result.current.captureSnapshot('第2話');
+        });
+
+        const snapshotId = result.current.snapshots[0].id;
+
+        act(() => {
+          result.current.deleteSnapshot(snapshotId);
+        });
+
+        expect(result.current.snapshots).toHaveLength(1);
+        expect(result.current.snapshots[0].label).toBe('第2話');
+      });
+    });
+
+    describe('updateSnapshot', () => {
+      it('スナップショットのラベルを更新する', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        act(() => {
+          result.current.captureSnapshot('第1話');
+        });
+
+        const snapshotId = result.current.snapshots[0].id;
+
+        act(() => {
+          result.current.updateSnapshot(snapshotId, { label: '序章' });
+        });
+
+        expect(result.current.snapshots[0].label).toBe('序章');
+      });
+
+      it('スナップショットの説明を更新する', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        act(() => {
+          result.current.captureSnapshot('第1話');
+        });
+
+        const snapshotId = result.current.snapshots[0].id;
+
+        act(() => {
+          result.current.updateSnapshot(snapshotId, { description: '物語の始まり' });
+        });
+
+        expect(result.current.snapshots[0].description).toBe('物語の始まり');
+      });
+    });
+
+    describe('setTimelineMode / goToSnapshot / goToLive', () => {
+      it('タイムラインモードに入るとpauseAutoSaveがtrueになる', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        act(() => {
+          result.current.captureSnapshot('第1話');
+          result.current.captureSnapshot('第2話');
+        });
+
+        act(() => {
+          result.current.setTimelineMode(true);
+        });
+
+        expect(result.current.timelineMode).toBe(true);
+        expect(result.current.pauseAutoSave).toBe(true);
+      });
+
+      it('タイムラインモードを終了するとpauseAutoSaveがfalseになり、ライブ状態が復元される', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        act(() => {
+          result.current.addPerson({
+            labels: ['人物'],
+            name: '徳川家康',
+            properties: {},
+          });
+          result.current.captureSnapshot('第1話');
+          result.current.captureSnapshot('第2話');
+        });
+
+        act(() => {
+          result.current.setTimelineMode(true);
+        });
+
+        act(() => {
+          result.current.goToSnapshot(0);
+        });
+
+        // タイムラインモード終了
+        act(() => {
+          result.current.setTimelineMode(false);
+        });
+
+        expect(result.current.timelineMode).toBe(false);
+        expect(result.current.pauseAutoSave).toBe(false);
+        // ライブ状態の人物が復元されていること
+        expect(result.current.persons[0].name).toBe('徳川家康');
+      });
+
+      it('goToSnapshotで指定インデックスのスナップショット状態が反映される', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        // 第1話: 人物1人
+        act(() => {
+          result.current.addPerson({
+            labels: ['人物'],
+            name: '上杉謙信',
+            properties: {},
+          });
+          result.current.captureSnapshot('第1話');
+        });
+
+        // 第2話: 人物2人
+        act(() => {
+          result.current.addPerson({
+            labels: ['人物'],
+            name: '武田信玄',
+            properties: {},
+          });
+          result.current.captureSnapshot('第2話');
+        });
+
+        act(() => {
+          result.current.setTimelineMode(true);
+        });
+
+        // 第1話スナップショットに移動
+        act(() => {
+          result.current.goToSnapshot(0);
+        });
+
+        expect(result.current.activeSnapshotIndex).toBe(0);
+        // 第1話時点では人物1人
+        expect(result.current.persons).toHaveLength(1);
+        expect(result.current.persons[0].name).toBe('上杉謙信');
+      });
+
+      it('goToLiveでライブ状態に戻る', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        act(() => {
+          result.current.addPerson({
+            labels: ['人物'],
+            name: '明智光秀',
+            properties: {},
+          });
+          result.current.addPerson({
+            labels: ['人物'],
+            name: '細川藤孝',
+            properties: {},
+          });
+          result.current.captureSnapshot('第1話');
+        });
+
+        // 第1話から人物を削除してライブ状態へ
+        act(() => {
+          const mitsuhideId = result.current.persons.find(
+            (p) => p.name === '明智光秀'
+          )!.id;
+          result.current.removePerson(mitsuhideId);
+          result.current.captureSnapshot('第2話');
+        });
+
+        act(() => {
+          result.current.setTimelineMode(true);
+          result.current.goToSnapshot(0);
+        });
+
+        // ライブ状態に戻る（明智光秀が削除された最終状態）
+        act(() => {
+          result.current.goToLive();
+        });
+
+        expect(result.current.activeSnapshotIndex).toBeNull();
+        // ライブ状態は人物1人（明智光秀を削除済み）
+        expect(result.current.persons).toHaveLength(1);
+        expect(result.current.persons[0].name).toBe('細川藤孝');
+      });
+    });
+  });
 });
