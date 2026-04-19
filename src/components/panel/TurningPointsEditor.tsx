@@ -8,6 +8,7 @@
 
 import { useCallback } from 'react';
 import { nanoid } from 'nanoid';
+import { SkipForward } from 'lucide-react';
 
 /** ターニングポイントの行（ローカルステート用） */
 export type TurningPointRow = {
@@ -24,13 +25,54 @@ export type TurningPointsEditorProps = {
   value: TurningPointRow[];
   /** 変更時に呼ばれるコールバック */
   onChange: (rows: TurningPointRow[]) => void;
+  /**
+   * at 文字列から対応するスナップショットのインデックスを解決する関数（省略可）。
+   * null を返した場合はジャンプボタンを非表示にする。
+   */
+  findSnapshotIndexByAt?: (at: string) => number | null;
+  /**
+   * スナップショットへジャンプするコールバック（省略可）。
+   * @param index - ジャンプ先スナップショットのインデックス
+   */
+  onJumpToSnapshot?: (index: number) => void;
 };
+
+/**
+ * スナップショットジャンプボタン
+ *
+ * at が空でなく、かつ対応するスナップショットが存在するときのみ表示する。
+ */
+type JumpButtonProps = {
+  at: string;
+  findSnapshotIndexByAt: (at: string) => number | null;
+  onJumpToSnapshot: (index: number) => void;
+};
+
+function JumpButton({ at, findSnapshotIndexByAt, onJumpToSnapshot }: JumpButtonProps) {
+  const trimmedAt = at.trim();
+  if (!trimmedAt) return null;
+
+  const snapshotIndex = findSnapshotIndexByAt(trimmedAt);
+  if (snapshotIndex === null) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={() => onJumpToSnapshot(snapshotIndex)}
+      aria-label={`「${trimmedAt}」のスナップショットへジャンプ`}
+      title={`「${trimmedAt}」のスナップショットへジャンプ`}
+      className="shrink-0 text-blue-400 hover:text-blue-600 px-1 py-1"
+    >
+      <SkipForward size={12} />
+    </button>
+  );
+}
 
 /**
  * ターニングポイント動的リストエディタ
  * 行の追加・削除・編集を提供する
  */
-export function TurningPointsEditor({ value, onChange }: TurningPointsEditorProps) {
+export function TurningPointsEditor({ value, onChange, findSnapshotIndexByAt, onJumpToSnapshot }: TurningPointsEditorProps) {
   const handleAdd = useCallback(() => {
     onChange([...value, { id: nanoid(), at: '', note: '' }]);
   }, [value, onChange]);
@@ -64,6 +106,13 @@ export function TurningPointsEditor({ value, onChange }: TurningPointsEditorProp
             placeholder="出来事"
             className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
+          {findSnapshotIndexByAt && onJumpToSnapshot && (
+            <JumpButton
+              at={row.at}
+              findSnapshotIndexByAt={findSnapshotIndexByAt}
+              onJumpToSnapshot={onJumpToSnapshot}
+            />
+          )}
           <button
             type="button"
             onClick={() => handleRemove(row.id)}

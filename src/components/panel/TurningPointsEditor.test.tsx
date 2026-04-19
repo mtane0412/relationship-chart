@@ -14,6 +14,8 @@ function makeRow(id: string, at: string, note: string): TurningPointRow {
   return { id, at, note };
 }
 
+const noopChange = () => {};
+
 describe('TurningPointsEditor', () => {
   describe('描画', () => {
     it('「ターニングポイント」ラベルが表示される', () => {
@@ -97,6 +99,117 @@ describe('TurningPointsEditor', () => {
       fireEvent.change(noteInput, { target: { value: '再会' } });
       expect(onChange).toHaveBeenCalledTimes(1);
       expect(onChange).toHaveBeenCalledWith([{ id: 'r1', at: '2020年', note: '再会' }]);
+    });
+  });
+
+  describe('スナップショットジャンプボタン', () => {
+    it('findSnapshotIndexByAt が null を返す行にはジャンプボタンが表示されない', () => {
+      const rows = [makeRow('r1', '第1話', '出来事')];
+      const findSnapshotIndexByAt = vi.fn().mockReturnValue(null);
+      const onJumpToSnapshot = vi.fn();
+
+      render(
+        <TurningPointsEditor
+          value={rows}
+          onChange={noopChange}
+          findSnapshotIndexByAt={findSnapshotIndexByAt}
+          onJumpToSnapshot={onJumpToSnapshot}
+        />
+      );
+
+      expect(screen.queryByRole('button', { name: /スナップショットへジャンプ/ })).toBeNull();
+    });
+
+    it('findSnapshotIndexByAt が 0 以上の値を返す行にはジャンプボタンが表示される', () => {
+      const rows = [makeRow('r1', '第1話', '出来事')];
+      const findSnapshotIndexByAt = vi.fn().mockReturnValue(0);
+      const onJumpToSnapshot = vi.fn();
+
+      render(
+        <TurningPointsEditor
+          value={rows}
+          onChange={noopChange}
+          findSnapshotIndexByAt={findSnapshotIndexByAt}
+          onJumpToSnapshot={onJumpToSnapshot}
+        />
+      );
+
+      expect(screen.getByRole('button', { name: /スナップショットへジャンプ/ })).toBeInTheDocument();
+    });
+
+    it('at が空文字の行にはジャンプボタンが表示されない', () => {
+      const rows = [makeRow('r1', '', '出来事')];
+      const findSnapshotIndexByAt = vi.fn().mockReturnValue(0);
+      const onJumpToSnapshot = vi.fn();
+
+      render(
+        <TurningPointsEditor
+          value={rows}
+          onChange={noopChange}
+          findSnapshotIndexByAt={findSnapshotIndexByAt}
+          onJumpToSnapshot={onJumpToSnapshot}
+        />
+      );
+
+      expect(screen.queryByRole('button', { name: /スナップショットへジャンプ/ })).toBeNull();
+    });
+
+    it('ジャンプボタンをクリックすると onJumpToSnapshot がマッチしたインデックスで呼ばれる', async () => {
+      const user = userEvent.setup();
+      const rows = [makeRow('r1', '第1話', '出来事')];
+      const findSnapshotIndexByAt = vi.fn().mockReturnValue(2);
+      const onJumpToSnapshot = vi.fn();
+
+      render(
+        <TurningPointsEditor
+          value={rows}
+          onChange={noopChange}
+          findSnapshotIndexByAt={findSnapshotIndexByAt}
+          onJumpToSnapshot={onJumpToSnapshot}
+        />
+      );
+
+      const jumpButton = screen.getByRole('button', { name: /スナップショットへジャンプ/ });
+      await user.click(jumpButton);
+
+      expect(onJumpToSnapshot).toHaveBeenCalledOnce();
+      expect(onJumpToSnapshot).toHaveBeenCalledWith(2);
+    });
+
+    it('findSnapshotIndexByAt と onJumpToSnapshot を渡さない場合（後方互換）、ジャンプボタンが表示されない', () => {
+      const rows = [makeRow('r1', '第1話', '出来事')];
+
+      render(
+        <TurningPointsEditor
+          value={rows}
+          onChange={noopChange}
+        />
+      );
+
+      expect(screen.queryByRole('button', { name: /スナップショットへジャンプ/ })).toBeNull();
+    });
+
+    it('複数行のうちマッチする行にだけジャンプボタンが表示される', () => {
+      const rows = [
+        makeRow('r1', '第1話', '出来事A'),
+        makeRow('r2', '該当なし', '出来事B'),
+      ];
+      const findSnapshotIndexByAt = vi.fn().mockImplementation((at: string) => {
+        return at === '第1話' ? 0 : null;
+      });
+      const onJumpToSnapshot = vi.fn();
+
+      render(
+        <TurningPointsEditor
+          value={rows}
+          onChange={noopChange}
+          findSnapshotIndexByAt={findSnapshotIndexByAt}
+          onJumpToSnapshot={onJumpToSnapshot}
+        />
+      );
+
+      const jumpButtons = screen.queryAllByRole('button', { name: /スナップショットへジャンプ/ });
+      expect(jumpButtons).toHaveLength(1);
     });
   });
 });
