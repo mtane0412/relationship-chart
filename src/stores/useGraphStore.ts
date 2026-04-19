@@ -823,6 +823,8 @@ export const useGraphStore = create<GraphStore>()(
             activeSnapshotIndex: null,
             _livePersons: null,
             _liveRelationships: null,
+            // 再生状態もリセット（別チャートの再生状態が残らないように）
+            isPlaying: false,
           }));
 
           // 9. lastActiveChartIdを更新
@@ -863,6 +865,8 @@ export const useGraphStore = create<GraphStore>()(
             _livePersons: null,
             _liveRelationships: null,
             pauseAutoSave: false,
+            // 再生状態もリセット（前チャートの再生状態が残らないように）
+            isPlaying: false,
           }));
 
           // 4. lastActiveChartIdを更新

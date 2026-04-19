@@ -27,15 +27,24 @@ export function useTimelinePlayback(
   transitionToSnapshot: (index: number) => void,
   isTransitioning: boolean
 ): void {
-  const { snapshots, isPlaying, playbackSpeed, activeSnapshotIndex, setPlaying } = useGraphStore(
+  const { snapshots, isPlaying, playbackSpeed, activeSnapshotIndex, timelineMode, setPlaying } = useGraphStore(
     useShallow((state) => ({
       snapshots: state.snapshots,
       isPlaying: state.isPlaying,
       playbackSpeed: state.playbackSpeed,
       activeSnapshotIndex: state.activeSnapshotIndex,
+      timelineMode: state.timelineMode,
       setPlaying: state.setPlaying,
     }))
   );
+
+  // タイムラインモード外で isPlaying が true になった場合は即座に停止する（防御的ガード）
+  // timelineMode=false のとき goToSnapshot が無効化されるため、再生を続けると UI とストアが不整合になる
+  useEffect(() => {
+    if (!timelineMode && isPlaying) {
+      setPlaying(false);
+    }
+  }, [timelineMode, isPlaying, setPlaying]);
 
   // 最新の値をrefで保持してsetInterval内でも参照できるようにする
   const isTransitioningRef = useRef(isTransitioning);
@@ -52,8 +61,8 @@ export function useTimelinePlayback(
   setPlayingRef.current = setPlaying;
 
   useEffect(() => {
-    // isPlaying=false のときはタイマーを起動しない
-    if (!isPlaying) return;
+    // isPlaying=false またはタイムラインモード外のときはタイマーを起動しない
+    if (!isPlaying || !timelineMode) return;
 
     const intervalId = setInterval(() => {
       // アニメーション遷移中はスキップ（前のアニメーションが完了するまで待機）
@@ -80,9 +89,9 @@ export function useTimelinePlayback(
       }
     }, playbackSpeed);
 
-    // クリーンアップ: isPlaying が false になったとき、または playbackSpeed が変わったときにタイマーを停止
+    // クリーンアップ: isPlaying/timelineMode が false になったとき、または playbackSpeed が変わったときにタイマーを停止
     return () => {
       clearInterval(intervalId);
     };
-  }, [isPlaying, playbackSpeed]);
+  }, [isPlaying, playbackSpeed, timelineMode]);
 }

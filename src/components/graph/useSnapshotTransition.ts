@@ -17,7 +17,7 @@
 
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useReactFlow } from '@xyflow/react';
 import { useShallow } from 'zustand/react/shallow';
 import { useGraphStore } from '@/stores/useGraphStore';
@@ -73,6 +73,21 @@ export function useSnapshotTransition(): UseSnapshotTransitionResult {
   // useCallback の依存配列に入れられない値をrefで保持する
   const storeRef = useRef({ snapshots, _livePersons, goToSnapshot });
   storeRef.current = { snapshots, _livePersons, goToSnapshot };
+
+  // アンマウント時に rAF と setTimeout をクリーンアップする
+  // これにより unmount 後に setNodes / setIsTransitioning / goToSnapshot が呼ばれるリークを防ぐ
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      if (timeoutRef.current !== null) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const transitionToSnapshot = useCallback(
     (targetIndex: number) => {

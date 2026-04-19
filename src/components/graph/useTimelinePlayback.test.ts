@@ -23,6 +23,7 @@ function setupStoreMock(overrides: {
   isPlaying?: boolean;
   playbackSpeed?: number;
   activeSnapshotIndex?: number | null;
+  timelineMode?: boolean;
   setPlaying?: ReturnType<typeof vi.fn>;
 }) {
   const setPlaying = overrides.setPlaying ?? vi.fn();
@@ -31,6 +32,8 @@ function setupStoreMock(overrides: {
     isPlaying: overrides.isPlaying ?? false,
     playbackSpeed: overrides.playbackSpeed ?? 2000,
     activeSnapshotIndex: overrides.activeSnapshotIndex ?? null,
+    // タイムラインモード外では再生タイマーが起動しないため、再生テストでは true にする
+    timelineMode: overrides.timelineMode ?? true,
     setPlaying,
   } as ReturnType<typeof useGraphStore>);
   return { setPlaying };

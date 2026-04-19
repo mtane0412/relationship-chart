@@ -140,7 +140,9 @@ export function TimelineBar({ onTransition, isTransitioning = false }: TimelineB
   // 前へボタンのdisabled条件
   const isPrevDisabled = activeSnapshotIndex === null || activeSnapshotIndex === 0;
   // 次へボタンのdisabled条件
-  const isNextDisabled = activeSnapshotIndex === snapshots.length - 1;
+  // snapshots.length === 0 のとき activeSnapshotIndex === snapshots.length - 1 は null === -1 で false になるため
+  // スナップショットが0件の場合も明示的に disabled にする
+  const isNextDisabled = snapshots.length === 0 || activeSnapshotIndex === snapshots.length - 1;
   // 再生/停止ボタンのdisabled条件
   const isPlayDisabled = snapshots.length === 0;
 
