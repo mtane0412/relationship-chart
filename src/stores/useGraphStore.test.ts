@@ -3,7 +3,7 @@
  * Zustandストアの状態管理とアクションの振る舞いを検証
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useGraphStore } from './useGraphStore';
 import type { Person } from '@/types/person';
@@ -3273,6 +3273,196 @@ describe('useGraphStore', () => {
         const chartOrder = await getChartOrder();
         expect(chartOrder).toEqual([chartIdA, defaultChartId]);
         expect(chartOrder).not.toContain(chartIdB);
+      });
+    });
+
+    describe('importChart', () => {
+      /** テスト用の最小有効チャートJSONを生成するヘルパー */
+      function makeValidChartJson(overrides: { name?: string } = {}): string {
+        return JSON.stringify({
+          id: 'original-id',
+          name: overrides.name ?? 'インポートテスト相関図',
+          persons: [
+            {
+              id: 'person-1',
+              name: '山田太郎',
+              labels: [],
+              properties: {},
+              createdAt: '2024-01-01T00:00:00.000Z',
+              updatedAt: '2024-01-01T00:00:00.000Z',
+            },
+          ],
+          relationships: [
+            {
+              id: 'rel-1',
+              sourceId: 'person-1',
+              targetId: 'person-1',
+              type: '友人',
+              label: null,
+              symmetric: false,
+              tags: [],
+              narrative: { summary: null, notes: null, turningPoints: [] },
+              colorOverride: null,
+              properties: {},
+              createdAt: '2024-01-01T00:00:00.000Z',
+              updatedAt: '2024-01-01T00:00:00.000Z',
+            },
+          ],
+          snapshots: [],
+          forceEnabled: false,
+          forceParams: {},
+          egoLayoutParams: {},
+          schemaVersion: 12,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        });
+      }
+
+      it('有効なJSONをインポートすると新チャートが追加されアクティブになる', async () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        // アプリを初期化
+        await act(async () => {
+          await result.current.initializeApp();
+        });
+
+        // 初期状態: 1チャート
+        expect(result.current.chartMetas).toHaveLength(1);
+
+        // インポート実行
+        const jsonString = makeValidChartJson({ name: 'インポートテスト相関図' });
+        let importResult: Awaited<ReturnType<typeof result.current.importChart>> | undefined;
+        await act(async () => {
+          importResult = await result.current.importChart(jsonString);
+        });
+
+        // 成功結果
+        expect(importResult?.ok).toBe(true);
+
+        // chartMetasに新チャートが先頭に追加されている
+        expect(result.current.chartMetas).toHaveLength(2);
+        expect(result.current.chartMetas[0].name).toBe('インポートテスト相関図');
+
+        // 新チャートがアクティブになっている
+        expect(result.current.activeChartId).toBe(result.current.chartMetas[0].id);
+      });
+
+      it('インポートしたチャートには元データのIDではなく新しいIDが振り直される', async () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        await act(async () => {
+          await result.current.initializeApp();
+        });
+
+        const jsonString = makeValidChartJson();
+        await act(async () => {
+          await result.current.importChart(jsonString);
+        });
+
+        // インポート後のアクティブチャートID は元の 'original-id' ではない
+        expect(result.current.activeChartId).not.toBe('original-id');
+
+        // インポートされた人物のIDも振り直されている
+        expect(result.current.persons[0].id).not.toBe('person-1');
+      });
+
+      it('chartOrderに新チャートが先頭に追加される', async () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        await act(async () => {
+          await result.current.initializeApp();
+        });
+
+        const defaultChartId = result.current.chartMetas[0].id;
+
+        const jsonString = makeValidChartJson();
+        await act(async () => {
+          await result.current.importChart(jsonString);
+        });
+
+        const newChartId = result.current.activeChartId!;
+
+        // IndexedDBのchartOrderを確認
+        const { getChartOrder } = await import('@/lib/chart-db');
+        const chartOrder = await getChartOrder();
+
+        // 新チャートが先頭
+        expect(chartOrder?.[0]).toBe(newChartId);
+        expect(chartOrder).toContain(defaultChartId);
+      });
+
+      it('不正なJSON文字列は { ok: false } を返す', async () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        await act(async () => {
+          await result.current.initializeApp();
+        });
+
+        let importResult: Awaited<ReturnType<typeof result.current.importChart>> | undefined;
+        await act(async () => {
+          importResult = await result.current.importChart('{ invalid json }');
+        });
+
+        expect(importResult?.ok).toBe(false);
+        expect(importResult?.ok === false && importResult.error).toMatch(/JSON/);
+      });
+
+      it('バリデーション失敗（nameなし）は { ok: false } を返す', async () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        await act(async () => {
+          await result.current.initializeApp();
+        });
+
+        // name が欠落したJSON
+        const invalidJson = JSON.stringify({
+          id: 'x',
+          persons: [],
+          relationships: [],
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        });
+
+        let importResult: Awaited<ReturnType<typeof result.current.importChart>> | undefined;
+        await act(async () => {
+          importResult = await result.current.importChart(invalidJson);
+        });
+
+        expect(importResult?.ok).toBe(false);
+        expect(importResult?.ok === false && importResult.error).toMatch(/name/);
+      });
+    });
+
+    describe('exportChart', () => {
+      it('アクティブチャートをエクスポートしてもエラーが発生しない', async () => {
+        // jsdom では URL.createObjectURL が未実装のためスタブに差し替え
+        const originalCreateObjectURL = URL.createObjectURL;
+        const originalRevokeObjectURL = URL.revokeObjectURL;
+        URL.createObjectURL = vi.fn().mockReturnValue('blob:mock-url');
+        URL.revokeObjectURL = vi.fn();
+
+        try {
+          const { result } = renderHook(() => useGraphStore());
+
+          await act(async () => {
+            await result.current.initializeApp();
+          });
+
+          const activeChartId = result.current.activeChartId!;
+          expect(activeChartId).toBeTruthy();
+
+          // アクティブチャートのエクスポートがエラーなく完了する
+          await act(async () => {
+            await result.current.exportChart(activeChartId);
+          });
+
+          // URL.createObjectURL が呼ばれたことを確認（ダウンロード処理が実行された）
+          expect(URL.createObjectURL).toHaveBeenCalled();
+        } finally {
+          // スタブを元に戻す
+          URL.createObjectURL = originalCreateObjectURL;
+          URL.revokeObjectURL = originalRevokeObjectURL;
+        }
       });
     });
   });

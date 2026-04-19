@@ -35,6 +35,13 @@ import {
   setChartOrder,
 } from '@/lib/chart-db';
 import { migrateGraphState, normalizeChart } from '@/lib/migration';
+import {
+  serializeChartForExport,
+  sanitizeFilename,
+  downloadChartJson,
+  validateChartData,
+  prepareChartForImport,
+} from '@/lib/chart-io';
 
 /**
  * force-directedレイアウトのパラメータ型
@@ -387,6 +394,19 @@ type GraphActions = {
    * すべてのデータをリセットする（全チャート削除 + デフォルトチャート作成）
    */
   resetAllData: () => Promise<void>;
+
+  /**
+   * 指定したチャートをJSON形式でエクスポートしてダウンロードする
+   * @param chartId - エクスポートする相関図ID
+   */
+  exportChart: (chartId: string) => Promise<void>;
+
+  /**
+   * JSON文字列から新しいチャートをインポートする
+   * @param jsonString - ファイルから読み取ったJSON文字列
+   * @returns インポート結果（成功時は新チャートID、失敗時はエラーメッセージ）
+   */
+  importChart: (jsonString: string) => Promise<{ ok: true; chartId: string } | { ok: false; error: string }>;
 
   /**
    * 現在のグラフ状態をスナップショットとして保存する
@@ -1068,6 +1088,98 @@ export const useGraphStore = create<GraphStore>()(
           set(() => ({
             chartMetas: sortedMetas,
           }));
+        },
+
+        exportChart: async (chartId: string) => {
+          let chart: Chart | null = null;
+
+          if (chartId === get().activeChartId) {
+            // アクティブチャートはメモリ内の最新状態を使用（pauseAutoSave 中でもライブデータを正しく取得するため）
+            const state = get();
+            const meta = state.chartMetas.find((m) => m.id === state.activeChartId);
+            if (meta && state.activeChartId) {
+              chart = {
+                id: state.activeChartId,
+                name: meta.name,
+                // タイムラインモード中は退避したライブデータを使用
+                persons: state._livePersons ?? state.persons,
+                relationships: state._liveRelationships ?? state.relationships,
+                forceEnabled: state.forceEnabled,
+                forceParams: state.forceParams,
+                egoLayoutParams: state.egoLayoutParams,
+                snapshots: state.snapshots,
+                schemaVersion: 12,
+                createdAt: meta.createdAt,
+                updatedAt: new Date().toISOString(),
+              };
+            }
+          }
+
+          // アクティブチャートが取得できない場合、または非アクティブチャートはIndexedDBから取得
+          if (!chart) {
+            const rawChart = await getChart(chartId);
+            if (!rawChart) {
+              throw new Error(`Chart not found: ${chartId}`);
+            }
+            chart = normalizeChart(rawChart);
+          }
+
+          const json = serializeChartForExport(chart);
+          const filename = sanitizeFilename(chart.name) + '.json';
+          downloadChartJson(json, filename);
+        },
+
+        importChart: async (jsonString: string) => {
+          // 1. JSONパース
+          let parsed: unknown;
+          try {
+            parsed = JSON.parse(jsonString);
+          } catch {
+            return { ok: false, error: '不正なJSON形式です' };
+          }
+
+          // 2. バリデーション
+          const validateResult = validateChartData(parsed);
+          if (!validateResult.ok) {
+            return { ok: false, error: validateResult.error };
+          }
+
+          try {
+            // 3. ID振り直し + マイグレーション
+            const prepared = prepareChartForImport(validateResult.chart);
+
+            // 4. IndexedDBに保存
+            await saveChart(prepared);
+
+            // 5. chartMetasとchartOrderを更新（新チャートを先頭に追加）
+            const newMeta = {
+              id: prepared.id,
+              name: prepared.name,
+              personCount: prepared.persons.length,
+              relationshipCount: prepared.relationships.length,
+              createdAt: prepared.createdAt,
+              updatedAt: prepared.updatedAt,
+            };
+            const currentMetas = get().chartMetas;
+            const updatedMetas = [newMeta, ...currentMetas];
+            set(() => ({ chartMetas: updatedMetas }));
+
+            // chartOrderを更新（新チャートを先頭に追加）
+            const currentOrder = await getChartOrder();
+            const currentOrderIds = currentOrder ?? currentMetas.map((m) => m.id);
+            await setChartOrder([prepared.id, ...currentOrderIds]);
+
+            // 6. 新チャートに切り替え
+            await get().switchChart(prepared.id);
+
+            return { ok: true, chartId: prepared.id };
+          } catch (error) {
+            console.error('[useGraphStore.importChart] インポート処理に失敗しました:', error);
+            return {
+              ok: false,
+              error: error instanceof Error ? error.message : 'インポート処理に失敗しました',
+            };
+          }
         },
 
         captureSnapshot: (label, description) => {
