@@ -11,6 +11,7 @@ import { userEvent } from '@testing-library/user-event';
 import { DndContext } from '@dnd-kit/core';
 import { SortableSnapshotItem } from './SortableSnapshotItem';
 import type { Snapshot } from '@/types/snapshot';
+import type { SortableSnapshotItemProps } from './SortableSnapshotItem';
 
 /** テスト用スナップショットを生成する */
 const createMockSnapshot = (overrides: Partial<Snapshot> = {}): Snapshot => ({
@@ -27,12 +28,14 @@ describe('SortableSnapshotItem', () => {
   const mockOnSetTimelineMode = vi.fn();
   const mockOnGoToLive = vi.fn();
   const mockOnDelete = vi.fn();
+  const mockOnRenameSnapshot = vi.fn();
 
   beforeEach(() => {
     mockOnGoToSnapshot.mockClear();
     mockOnSetTimelineMode.mockClear();
     mockOnGoToLive.mockClear();
     mockOnDelete.mockClear();
+    mockOnRenameSnapshot.mockClear();
   });
 
   /** デフォルトのpropsでコンポーネントを描画するヘルパー */
@@ -43,18 +46,20 @@ describe('SortableSnapshotItem', () => {
     timelineMode?: boolean;
   } = {}) => {
     const snapshot = createMockSnapshot(overrides.snapshot);
+    const props: SortableSnapshotItemProps = {
+      snapshot,
+      index: overrides.index ?? 0,
+      isActive: overrides.isActive ?? false,
+      timelineMode: overrides.timelineMode ?? false,
+      onGoToSnapshot: mockOnGoToSnapshot,
+      onSetTimelineMode: mockOnSetTimelineMode,
+      onGoToLive: mockOnGoToLive,
+      onDelete: mockOnDelete,
+      onRenameSnapshot: mockOnRenameSnapshot,
+    };
     return render(
       <DndContext>
-        <SortableSnapshotItem
-          snapshot={snapshot}
-          index={overrides.index ?? 0}
-          isActive={overrides.isActive ?? false}
-          timelineMode={overrides.timelineMode ?? false}
-          onGoToSnapshot={mockOnGoToSnapshot}
-          onSetTimelineMode={mockOnSetTimelineMode}
-          onGoToLive={mockOnGoToLive}
-          onDelete={mockOnDelete}
-        />
+        <SortableSnapshotItem {...props} />
       </DndContext>
     );
   };
@@ -143,5 +148,102 @@ describe('SortableSnapshotItem', () => {
     await user.click(screen.getByRole('button', { name: '第1話を削除' }));
 
     expect(mockOnDelete).toHaveBeenCalledWith('test-snapshot-id');
+  });
+
+  describe('ラベル編集', () => {
+    it('タイムラインモード外で編集ボタンが表示される', () => {
+      renderComponent({ snapshot: { label: '第1話' }, timelineMode: false });
+
+      expect(screen.getByRole('button', { name: '第1話を編集' })).toBeInTheDocument();
+    });
+
+    it('タイムラインモード中は編集ボタンが非表示になる', () => {
+      renderComponent({ snapshot: { label: '第1話' }, timelineMode: true });
+
+      expect(screen.queryByRole('button', { name: '第1話を編集' })).not.toBeInTheDocument();
+    });
+
+    it('編集ボタンクリックでinputが表示され、現在のラベルがvalueに入る', async () => {
+      const user = userEvent.setup();
+      renderComponent({ snapshot: { label: '第1話' }, timelineMode: false });
+
+      await user.click(screen.getByRole('button', { name: '第1話を編集' }));
+
+      const input = screen.getByRole('textbox', { name: 'ラベルを編集' });
+      expect(input).toBeInTheDocument();
+      expect(input).toHaveValue('第1話');
+    });
+
+    it('Enterキーを押すとonRenameSnapshotが新しいラベルで呼ばれる', async () => {
+      const user = userEvent.setup();
+      renderComponent({
+        snapshot: { id: 'snap-001', label: '第1話' },
+        timelineMode: false,
+      });
+
+      await user.click(screen.getByRole('button', { name: '第1話を編集' }));
+      const input = screen.getByRole('textbox', { name: 'ラベルを編集' });
+      await user.clear(input);
+      await user.type(input, '第一章');
+      await user.keyboard('{Enter}');
+
+      expect(mockOnRenameSnapshot).toHaveBeenCalledWith('snap-001', '第一章');
+    });
+
+    it('Escapeキーを押すとキャンセルされてonRenameSnapshotが呼ばれない', async () => {
+      const user = userEvent.setup();
+      renderComponent({ snapshot: { label: '第1話' }, timelineMode: false });
+
+      await user.click(screen.getByRole('button', { name: '第1話を編集' }));
+      const input = screen.getByRole('textbox', { name: 'ラベルを編集' });
+      await user.clear(input);
+      await user.type(input, '第一章');
+      await user.keyboard('{Escape}');
+
+      expect(mockOnRenameSnapshot).not.toHaveBeenCalled();
+      // 編集モードが終了してラベルボタンが元に戻る
+      expect(screen.getByText('第1話')).toBeInTheDocument();
+    });
+
+    it('blurするとonRenameSnapshotが呼ばれる', async () => {
+      const user = userEvent.setup();
+      renderComponent({
+        snapshot: { id: 'snap-001', label: '第1話' },
+        timelineMode: false,
+      });
+
+      await user.click(screen.getByRole('button', { name: '第1話を編集' }));
+      const input = screen.getByRole('textbox', { name: 'ラベルを編集' });
+      await user.clear(input);
+      await user.type(input, '第一章');
+      // inputからフォーカスを外す（blur）
+      await user.tab();
+
+      expect(mockOnRenameSnapshot).toHaveBeenCalledWith('snap-001', '第一章');
+    });
+
+    it('空白のみのラベルでは保存されずonRenameSnapshotが呼ばれない', async () => {
+      const user = userEvent.setup();
+      renderComponent({ snapshot: { label: '第1話' }, timelineMode: false });
+
+      await user.click(screen.getByRole('button', { name: '第1話を編集' }));
+      const input = screen.getByRole('textbox', { name: 'ラベルを編集' });
+      await user.clear(input);
+      await user.type(input, '   ');
+      await user.keyboard('{Enter}');
+
+      expect(mockOnRenameSnapshot).not.toHaveBeenCalled();
+    });
+
+    it('ラベルを変更せずにEnterを押してもonRenameSnapshotが呼ばれない', async () => {
+      const user = userEvent.setup();
+      renderComponent({ snapshot: { label: '第1話' }, timelineMode: false });
+
+      await user.click(screen.getByRole('button', { name: '第1話を編集' }));
+      // 変更せずにEnter
+      await user.keyboard('{Enter}');
+
+      expect(mockOnRenameSnapshot).not.toHaveBeenCalled();
+    });
   });
 });

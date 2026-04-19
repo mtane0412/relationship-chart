@@ -72,6 +72,7 @@ export function SnapshotList() {
     goToLive,
     deleteSnapshot,
     reorderSnapshots,
+    updateSnapshot,
   } = useGraphStore(
     useShallow((state) => ({
       snapshots: state.snapshots,
@@ -82,6 +83,7 @@ export function SnapshotList() {
       goToLive: state.goToLive,
       deleteSnapshot: state.deleteSnapshot,
       reorderSnapshots: state.reorderSnapshots,
+      updateSnapshot: state.updateSnapshot,
     }))
   );
 
@@ -177,6 +179,7 @@ export function SnapshotList() {
                     onSetTimelineMode={setTimelineMode}
                     onGoToLive={goToLive}
                     onDelete={deleteSnapshot}
+                    onRenameSnapshot={(id, label) => updateSnapshot(id, { label })}
                   />
                 );
               })}
