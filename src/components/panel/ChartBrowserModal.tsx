@@ -5,8 +5,8 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
-import { X, Plus } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { X, Plus, Upload } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -46,9 +46,13 @@ export function ChartBrowserModal({ isOpen, onClose }: ChartBrowserModalProps) {
   const deleteChart = useGraphStore((state) => state.deleteChart);
   const renameChart = useGraphStore((state) => state.renameChart);
   const reorderCharts = useGraphStore((state) => state.reorderCharts);
+  const exportChart = useGraphStore((state) => state.exportChart);
+  const importChart = useGraphStore((state) => state.importChart);
   const openConfirm = useDialogStore((state) => state.openConfirm);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  /** ファイル選択inputへの参照（インポートUIで使用） */
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   // D&Dセンサーの設定（キーボード操作のUX改善）
   const sensors = useSensors(
@@ -147,6 +151,54 @@ export function ChartBrowserModal({ isOpen, onClose }: ChartBrowserModalProps) {
   };
 
   /**
+   * チャートエクスポートハンドラー
+   */
+  const handleChartExport = (chartId: string) => {
+    void exportChart(chartId);
+  };
+
+  /**
+   * インポートボタンクリックハンドラー（隠しinputをクリックして選択ダイアログを開く）
+   */
+  const handleImportClick = () => {
+    importInputRef.current?.click();
+  };
+
+  /**
+   * インポートファイル選択ハンドラー
+   */
+  const handleImportFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const jsonString = event.target?.result;
+      if (typeof jsonString !== 'string') return;
+
+      void importChart(jsonString).then((result) => {
+        if (result.ok) {
+          // 成功: 新チャートに切り替え済みのためモーダルを閉じる
+          onClose();
+        } else {
+          // 失敗: エラーメッセージを表示
+          window.alert(`インポートに失敗しました: ${result.error}`);
+        }
+      });
+    };
+    reader.onerror = (event) => {
+      // ファイル読み込みエラー（ファイル破損・権限問題等）
+      const error = (event.target as FileReader | null)?.error;
+      console.error('[ChartBrowserModal] ファイル読み込みエラー:', error);
+      window.alert(`ファイルの読み込みに失敗しました: ${error?.message ?? '不明なエラー'}`);
+    };
+    reader.readAsText(file);
+
+    // 同じファイルを再選択できるようにリセット
+    e.target.value = '';
+  };
+
+  /**
    * 新規作成モーダルを開く
    */
   const handleOpenCreateModal = () => {
@@ -211,6 +263,7 @@ export function ChartBrowserModal({ isOpen, onClose }: ChartBrowserModalProps) {
                       onSwitch={handleChartClick}
                       onDelete={handleChartDelete}
                       onRename={handleChartRename}
+                      onExport={handleChartExport}
                     />
                   );
                 })}
@@ -218,15 +271,36 @@ export function ChartBrowserModal({ isOpen, onClose }: ChartBrowserModalProps) {
             </SortableContext>
           </DndContext>
 
-          {/* 新規作成ボタン */}
-          <button
-            type="button"
-            onClick={handleOpenCreateModal}
-            className="w-full p-4 rounded-lg border border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 text-gray-600 hover:text-blue-600 transition-colors flex items-center justify-center gap-2"
-          >
-            <Plus size={20} />
-            <span className="font-medium">新規作成</span>
-          </button>
+          {/* 新規作成 / インポートボタン */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleOpenCreateModal}
+              className="flex-1 p-4 rounded-lg border border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 text-gray-600 hover:text-blue-600 transition-colors flex items-center justify-center gap-2"
+            >
+              <Plus size={20} />
+              <span className="font-medium">新規作成</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleImportClick}
+              className="flex-1 p-4 rounded-lg border border-dashed border-gray-300 hover:border-green-400 hover:bg-green-50 text-gray-600 hover:text-green-600 transition-colors flex items-center justify-center gap-2"
+            >
+              <Upload size={20} />
+              <span className="font-medium">インポート</span>
+            </button>
+          </div>
+
+          {/* インポート用隠しinput */}
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleImportFileChange}
+            className="hidden"
+            aria-label="インポートするJSONファイルを選択"
+          />
         </div>
       </div>
 

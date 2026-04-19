@@ -14,6 +14,7 @@ describe('SortableChartCard', () => {
   const mockOnSwitch = vi.fn();
   const mockOnDelete = vi.fn();
   const mockOnRename = vi.fn();
+  const mockOnExport = vi.fn();
 
   const createMockChart = (overrides: Partial<ChartMeta> = {}): ChartMeta => ({
     id: nanoid(),
@@ -29,6 +30,7 @@ describe('SortableChartCard', () => {
     mockOnSwitch.mockClear();
     mockOnDelete.mockClear();
     mockOnRename.mockClear();
+    mockOnExport.mockClear();
   });
 
   it('チャート名とメタデータが表示される', () => {
@@ -46,6 +48,7 @@ describe('SortableChartCard', () => {
           onSwitch={mockOnSwitch}
           onDelete={mockOnDelete}
           onRename={mockOnRename}
+          onExport={mockOnExport}
         />
       </DndContext>
     );
@@ -69,6 +72,7 @@ describe('SortableChartCard', () => {
           onSwitch={mockOnSwitch}
           onDelete={mockOnDelete}
           onRename={mockOnRename}
+          onExport={mockOnExport}
         />
       </DndContext>
     );
@@ -89,6 +93,7 @@ describe('SortableChartCard', () => {
           onSwitch={mockOnSwitch}
           onDelete={mockOnDelete}
           onRename={mockOnRename}
+          onExport={mockOnExport}
         />
       </DndContext>
     );
@@ -115,6 +120,7 @@ describe('SortableChartCard', () => {
           onSwitch={mockOnSwitch}
           onDelete={mockOnDelete}
           onRename={mockOnRename}
+          onExport={mockOnExport}
         />
       </DndContext>
     );
@@ -139,6 +145,7 @@ describe('SortableChartCard', () => {
           onSwitch={mockOnSwitch}
           onDelete={mockOnDelete}
           onRename={mockOnRename}
+          onExport={mockOnExport}
         />
       </DndContext>
     );
@@ -162,6 +169,7 @@ describe('SortableChartCard', () => {
           onSwitch={mockOnSwitch}
           onDelete={mockOnDelete}
           onRename={mockOnRename}
+          onExport={mockOnExport}
         />
       </DndContext>
     );
@@ -183,6 +191,7 @@ describe('SortableChartCard', () => {
           onSwitch={mockOnSwitch}
           onDelete={mockOnDelete}
           onRename={mockOnRename}
+          onExport={mockOnExport}
         />
       </DndContext>
     );
@@ -209,6 +218,7 @@ describe('SortableChartCard', () => {
           onSwitch={mockOnSwitch}
           onDelete={mockOnDelete}
           onRename={mockOnRename}
+          onExport={mockOnExport}
         />
       </DndContext>
     );
@@ -241,6 +251,7 @@ describe('SortableChartCard', () => {
           onSwitch={mockOnSwitch}
           onDelete={mockOnDelete}
           onRename={mockOnRename}
+          onExport={mockOnExport}
         />
       </DndContext>
     );
@@ -262,5 +273,77 @@ describe('SortableChartCard', () => {
 
     // 元の名前が表示されることを確認
     expect(screen.getByText('元の名前')).toBeInTheDocument();
+  });
+
+  it('エクスポートボタンが表示される', () => {
+    const chart = createMockChart({ id: 'test-chart-id' });
+
+    render(
+      <DndContext>
+        <SortableChartCard
+          chart={chart}
+          isActive={false}
+          onSwitch={mockOnSwitch}
+          onDelete={mockOnDelete}
+          onRename={mockOnRename}
+          onExport={mockOnExport}
+        />
+      </DndContext>
+    );
+
+    // エクスポートボタンが表示されることを確認
+    const exportButton = screen.getByLabelText('エクスポート');
+    expect(exportButton).toBeInTheDocument();
+  });
+
+  it('エクスポートボタンクリックでonExportが呼ばれる', async () => {
+    const user = userEvent.setup();
+    const chart = createMockChart({ id: 'test-chart-id' });
+
+    render(
+      <DndContext>
+        <SortableChartCard
+          chart={chart}
+          isActive={false}
+          onSwitch={mockOnSwitch}
+          onDelete={mockOnDelete}
+          onRename={mockOnRename}
+          onExport={mockOnExport}
+        />
+      </DndContext>
+    );
+
+    // エクスポートボタンをクリック
+    const exportButton = screen.getByLabelText('エクスポート');
+    await user.click(exportButton);
+
+    // onExportが呼ばれたことを確認
+    expect(mockOnExport).toHaveBeenCalledWith('test-chart-id');
+  });
+
+  it('エクスポートボタンクリック時にonSwitchは呼ばれない（イベント伝播停止）', async () => {
+    const user = userEvent.setup();
+    const chart = createMockChart({ id: 'test-chart-id' });
+
+    render(
+      <DndContext>
+        <SortableChartCard
+          chart={chart}
+          isActive={false}
+          onSwitch={mockOnSwitch}
+          onDelete={mockOnDelete}
+          onRename={mockOnRename}
+          onExport={mockOnExport}
+        />
+      </DndContext>
+    );
+
+    // エクスポートボタンをクリック
+    const exportButton = screen.getByLabelText('エクスポート');
+    await user.click(exportButton);
+
+    // onExportは呼ばれたがonSwitchは呼ばれていないことを確認（stopPropagation の動作）
+    expect(mockOnExport).toHaveBeenCalledWith('test-chart-id');
+    expect(mockOnSwitch).not.toHaveBeenCalled();
   });
 });

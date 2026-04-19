@@ -8,7 +8,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Trash2 } from 'lucide-react';
+import { Download, GripVertical, Trash2 } from 'lucide-react';
 import type { ChartMeta } from '@/types/chart';
 import { ChartPreview } from './ChartPreview';
 
@@ -26,6 +26,8 @@ export type SortableChartCardProps = {
   onDelete: (chartId: string) => void;
   /** チャート名変更ハンドラー */
   onRename: (chartId: string, newName: string) => void;
+  /** チャートエクスポートハンドラー */
+  onExport: (chartId: string) => void;
 };
 
 /**
@@ -37,6 +39,7 @@ export function SortableChartCard({
   onSwitch,
   onDelete,
   onRename,
+  onExport,
 }: SortableChartCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(chart.name);
@@ -149,6 +152,14 @@ export function SortableChartCard({
     onDelete(chart.id);
   };
 
+  /**
+   * エクスポートボタンクリックハンドラー
+   */
+  const handleExportClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // カードのクリックイベントを伝播させない
+    onExport(chart.id);
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -215,6 +226,17 @@ export function SortableChartCard({
           </div>
         )}
       </div>
+
+      {/* エクスポートボタン */}
+      <button
+        type="button"
+        onClick={handleExportClick}
+        className="m-2 p-2 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors flex-shrink-0"
+        aria-label="エクスポート"
+        title="JSONでエクスポート"
+      >
+        <Download size={18} />
+      </button>
 
       {/* 削除ボタン */}
       <button
