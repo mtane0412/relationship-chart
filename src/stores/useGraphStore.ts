@@ -1144,34 +1144,42 @@ export const useGraphStore = create<GraphStore>()(
             return { ok: false, error: validateResult.error };
           }
 
-          // 3. ID振り直し + マイグレーション
-          const prepared = prepareChartForImport(validateResult.chart);
+          try {
+            // 3. ID振り直し + マイグレーション
+            const prepared = prepareChartForImport(validateResult.chart);
 
-          // 4. IndexedDBに保存
-          await saveChart(prepared);
+            // 4. IndexedDBに保存
+            await saveChart(prepared);
 
-          // 5. chartMetasとchartOrderを更新（新チャートを先頭に追加）
-          const newMeta = {
-            id: prepared.id,
-            name: prepared.name,
-            personCount: prepared.persons.length,
-            relationshipCount: prepared.relationships.length,
-            createdAt: prepared.createdAt,
-            updatedAt: prepared.updatedAt,
-          };
-          const currentMetas = get().chartMetas;
-          const updatedMetas = [newMeta, ...currentMetas];
-          set(() => ({ chartMetas: updatedMetas }));
+            // 5. chartMetasとchartOrderを更新（新チャートを先頭に追加）
+            const newMeta = {
+              id: prepared.id,
+              name: prepared.name,
+              personCount: prepared.persons.length,
+              relationshipCount: prepared.relationships.length,
+              createdAt: prepared.createdAt,
+              updatedAt: prepared.updatedAt,
+            };
+            const currentMetas = get().chartMetas;
+            const updatedMetas = [newMeta, ...currentMetas];
+            set(() => ({ chartMetas: updatedMetas }));
 
-          // chartOrderを更新（新チャートを先頭に追加）
-          const currentOrder = await getChartOrder();
-          const currentOrderIds = currentOrder ?? currentMetas.map((m) => m.id);
-          await setChartOrder([prepared.id, ...currentOrderIds]);
+            // chartOrderを更新（新チャートを先頭に追加）
+            const currentOrder = await getChartOrder();
+            const currentOrderIds = currentOrder ?? currentMetas.map((m) => m.id);
+            await setChartOrder([prepared.id, ...currentOrderIds]);
 
-          // 6. 新チャートに切り替え
-          await get().switchChart(prepared.id);
+            // 6. 新チャートに切り替え
+            await get().switchChart(prepared.id);
 
-          return { ok: true, chartId: prepared.id };
+            return { ok: true, chartId: prepared.id };
+          } catch (error) {
+            console.error('[useGraphStore.importChart] インポート処理に失敗しました:', error);
+            return {
+              ok: false,
+              error: error instanceof Error ? error.message : 'インポート処理に失敗しました',
+            };
+          }
         },
 
         captureSnapshot: (label, description) => {

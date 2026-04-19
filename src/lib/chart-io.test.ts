@@ -311,6 +311,57 @@ describe('validateChartData', () => {
 
     expect(result.ok).toBe(true);
   });
+
+  it('persons配列にidが欠落した要素がある場合はok: falseを返す', () => {
+    const data = {
+      ...makeTestChart(),
+      persons: [{ name: '光源氏', labels: [] }], // idが欠落
+    };
+    const result = validateChartData(data);
+
+    expect(result.ok).toBe(false);
+  });
+
+  it('persons配列にnullが含まれる場合はok: falseを返す', () => {
+    const data = {
+      ...makeTestChart(),
+      persons: [null],
+    };
+    const result = validateChartData(data);
+
+    expect(result.ok).toBe(false);
+  });
+
+  it('relationships配列にsourceIdが欠落した要素がある場合はok: falseを返す', () => {
+    const data = {
+      ...makeTestChart(),
+      relationships: [{ id: 'rel-001', targetId: 'person-002' }], // sourceIdが欠落
+    };
+    const result = validateChartData(data);
+
+    expect(result.ok).toBe(false);
+  });
+
+  it('snapshotsが配列でない場合はok: falseを返す', () => {
+    const data = { ...makeTestChart(), snapshots: '無効' };
+    const result = validateChartData(data);
+
+    expect(result.ok).toBe(false);
+  });
+
+  it('snapshots配列にpersonIdが欠落したSnapshot人物がある場合はok: falseを返す', () => {
+    const invalidSnapshot = {
+      id: 'snap-001',
+      label: '第1話',
+      persons: [{ name: '光源氏' }], // personIdが欠落
+      relationships: [],
+      createdAt: '2024-01-01T00:00:00.000Z',
+    };
+    const data = { ...makeTestChart(), snapshots: [invalidSnapshot] };
+    const result = validateChartData(data);
+
+    expect(result.ok).toBe(false);
+  });
 });
 
 // ─── prepareChartForImport ───────────────────────────────────────────────────
@@ -381,6 +432,18 @@ describe('prepareChartForImport', () => {
     const prepared = prepareChartForImport(chart);
 
     expect(prepared.relationships.length).toBe(chart.relationships.length);
+  });
+
+  it('Snapshot.id自体が振り直される（複数回インポートによる重複を防ぐ）', () => {
+    const chart = makeTestChartWithSnapshot();
+    const prepared = prepareChartForImport(chart);
+
+    const originalSnapshotId = chart.snapshots?.[0]?.id;
+    const newSnapshotId = prepared.snapshots?.[0]?.id;
+
+    expect(newSnapshotId).toBeDefined();
+    expect(newSnapshotId).not.toBe(originalSnapshotId);
+    expect(newSnapshotId).not.toBe('snapshot-id-001');
   });
 
   it('Snapshot内のpersonIdがPersonのID変更に追従する', () => {

@@ -49,6 +49,7 @@ export function ChartBrowserModal({ isOpen, onClose }: ChartBrowserModalProps) {
   const exportChart = useGraphStore((state) => state.exportChart);
   const importChart = useGraphStore((state) => state.importChart);
   const openConfirm = useDialogStore((state) => state.openConfirm);
+  const openAlert = useDialogStore((state) => state.openAlert);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   /** ファイル選択inputへの参照（インポートUIで使用） */
@@ -154,7 +155,11 @@ export function ChartBrowserModal({ isOpen, onClose }: ChartBrowserModalProps) {
    * チャートエクスポートハンドラー
    */
   const handleChartExport = (chartId: string) => {
-    void exportChart(chartId);
+    void exportChart(chartId).catch((error) => {
+      console.error('[ChartBrowserModal] エクスポートエラー:', error);
+      const message = error instanceof Error ? error.message : '不明なエラー';
+      void openAlert({ title: 'エクスポートエラー', message: `エクスポートに失敗しました: ${message}` });
+    });
   };
 
   /**
@@ -176,21 +181,30 @@ export function ChartBrowserModal({ isOpen, onClose }: ChartBrowserModalProps) {
       const jsonString = event.target?.result;
       if (typeof jsonString !== 'string') return;
 
-      void importChart(jsonString).then((result) => {
-        if (result.ok) {
-          // 成功: 新チャートに切り替え済みのためモーダルを閉じる
-          onClose();
-        } else {
-          // 失敗: エラーメッセージを表示
-          window.alert(`インポートに失敗しました: ${result.error}`);
-        }
-      });
+      void importChart(jsonString)
+        .then((result) => {
+          if (result.ok) {
+            // 成功: 新チャートに切り替え済みのためモーダルを閉じる
+            onClose();
+          } else {
+            // 失敗: エラーメッセージを表示
+            void openAlert({ title: 'インポートエラー', message: `インポートに失敗しました: ${result.error}` });
+          }
+        })
+        .catch((error) => {
+          console.error('[ChartBrowserModal] インポートエラー:', error);
+          const message = error instanceof Error ? error.message : '不明なエラー';
+          void openAlert({ title: 'インポートエラー', message: `インポートに失敗しました: ${message}` });
+        });
     };
     reader.onerror = (event) => {
       // ファイル読み込みエラー（ファイル破損・権限問題等）
       const error = (event.target as FileReader | null)?.error;
       console.error('[ChartBrowserModal] ファイル読み込みエラー:', error);
-      window.alert(`ファイルの読み込みに失敗しました: ${error?.message ?? '不明なエラー'}`);
+      void openAlert({
+        title: 'ファイル読み込みエラー',
+        message: `ファイルの読み込みに失敗しました: ${error?.message ?? '不明なエラー'}`,
+      });
     };
     reader.readAsText(file);
 

@@ -6,7 +6,8 @@
  * - インポート: JSON文字列 → バリデーション → ID振り直し → 新規Chart
  *
  * 設計方針:
- * - 純粋関数として実装（副作用は downloadChartJson のみ）
+ * - データ変換処理は副作用を最小限に保ち、明示的なI/Oは downloadChartJson が担う
+ * - インポート準備では診断のためのログ出力（console.warn）が発生する場合がある
  * - インポート時はID衝突を避けるため全階層のIDを振り直す
  * - normalizeChart() を経由してスキーママイグレーションを適用
  */
@@ -106,14 +107,62 @@ export function validateChartData(data: unknown): ValidateChartResult {
     return { ok: false, error: 'チャート名（name）が見つからないか無効です' };
   }
 
-  // persons: 配列
+  /** オブジェクトかつnullでないか確認するヘルパー */
+  const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null;
+  /** 空でない文字列か確認するヘルパー */
+  const isNonEmptyString = (value: unknown): value is string =>
+    typeof value === 'string' && value.trim() !== '';
+
+  // persons: 配列かつ各要素がid（文字列）を持つオブジェクト
   if (!Array.isArray(obj.persons)) {
     return { ok: false, error: 'persons フィールドが配列ではありません' };
   }
+  if (!obj.persons.every((p) => isRecord(p) && isNonEmptyString(p.id))) {
+    return { ok: false, error: 'persons フィールドに無効な要素があります（id が必要です）' };
+  }
 
-  // relationships: 配列
+  // relationships: 配列かつ各要素がid/sourceId/targetId（文字列）を持つオブジェクト
   if (!Array.isArray(obj.relationships)) {
     return { ok: false, error: 'relationships フィールドが配列ではありません' };
+  }
+  if (
+    !obj.relationships.every(
+      (r) =>
+        isRecord(r) &&
+        isNonEmptyString(r.id) &&
+        isNonEmptyString(r.sourceId) &&
+        isNonEmptyString(r.targetId)
+    )
+  ) {
+    return {
+      ok: false,
+      error: 'relationships フィールドに無効な要素があります（id/sourceId/targetId が必要です）',
+    };
+  }
+
+  // snapshots: 存在する場合は配列かつ各要素が最低限の構造を持つオブジェクト
+  if (obj.snapshots !== undefined) {
+    if (!Array.isArray(obj.snapshots)) {
+      return { ok: false, error: 'snapshots フィールドが配列ではありません' };
+    }
+    const hasInvalidSnapshot = obj.snapshots.some((snapshot) => {
+      if (!isRecord(snapshot)) return true;
+      if (!Array.isArray(snapshot.persons) || !Array.isArray(snapshot.relationships)) return true;
+      return (
+        snapshot.persons.some((sp) => !isRecord(sp) || !isNonEmptyString(sp.personId)) ||
+        snapshot.relationships.some(
+          (sr) =>
+            !isRecord(sr) ||
+            !isNonEmptyString(sr.relationshipId) ||
+            !isNonEmptyString(sr.sourceId) ||
+            !isNonEmptyString(sr.targetId)
+        )
+      );
+    });
+    if (hasInvalidSnapshot) {
+      return { ok: false, error: 'snapshots フィールドに無効な要素があります' };
+    }
   }
 
   // createdAt: 文字列
@@ -144,6 +193,7 @@ export function validateChartData(data: unknown): ValidateChartResult {
  * - Chart.id
  * - Person.id（全Person）
  * - Relationship.id, sourceId, targetId（全Relationship）
+ * - Snapshot.id（全Snapshot）
  * - Snapshot内のpersonId, relationshipId, sourceId, targetId（全Snapshot）
  *
  * normalizeChart() を経由してスキーママイグレーションを適用するため、
@@ -223,6 +273,8 @@ function remapSnapshotIds(
 ): Snapshot {
   return {
     ...snapshot,
+    // Snapshot自体のIDも振り直す（同一JSONを複数回インポートした際の重複を防ぐ）
+    id: nanoid(),
     persons: snapshot.persons.map((sp) => ({
       ...sp,
       personId: personIdMap.get(sp.personId) ?? sp.personId,
