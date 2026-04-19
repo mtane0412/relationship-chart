@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useMemo, useRef, useCallback, useEffect } from 'react';
+import { useMemo, useRef, useCallback, useEffect, useState } from 'react';
 import {
   ReactFlow,
   Background,
@@ -30,6 +30,7 @@ import ShareButton from './ShareButton';
 import SearchBar from './SearchBar';
 import { PersonRegistrationModal } from './PersonRegistrationModal';
 import { RelationshipRegistrationModal } from './RelationshipRegistrationModal';
+import { EpisodeCaptureDialog, type EpisodeCaptureValues } from '@/components/ui/EpisodeCaptureDialog';
 import { useForceLayout } from './useForceLayout';
 import { useGraphDataSync } from './useGraphDataSync';
 import { useGraphInteractions } from './useGraphInteractions';
@@ -79,6 +80,11 @@ export function RelationshipGraph() {
   const forceParams = useGraphStore((state) => state.forceParams);
   const updatePersonPositions = useGraphStore((state) => state.updatePersonPositions);
   const updateEpisodePosition = useGraphStore((state) => state.updateEpisodePosition);
+  const createEpisode = useGraphStore((state) => state.createEpisode);
+  const addParticipation = useGraphStore((state) => state.addParticipation);
+
+  // エピソード追加ダイアログの状態（位置情報付き）
+  const [episodeDialogPosition, setEpisodeDialogPosition] = useState<{ x: number; y: number } | null>(null);
 
   // React Flow APIを取得
   const { screenToFlowPosition, getNodes } = useReactFlow();
@@ -140,6 +146,7 @@ export function RelationshipGraph() {
     closeContextMenu,
     switchToAddRelationshipMode,
     handleNodeContextMenu,
+    onAddEpisode: (pos) => setEpisodeDialogPosition(pos),
   });
 
   // getNodesをrefに退避（onNodeDragStopHandlerの依存配列から除外するため）
@@ -212,6 +219,23 @@ export function RelationshipGraph() {
     }
     prevForceEnabledRef.current = forceEnabled;
   }, [forceEnabled, updatePersonPositions, updateEpisodePosition]);
+
+  const handleEpisodeSave = useCallback(
+    (values: EpisodeCaptureValues) => {
+      const episodeId = createEpisode({
+        title: values.title,
+        description: values.description,
+        occurredAt: values.occurredAt,
+        relatedRelationshipIds: values.relatedRelationshipIds,
+        position: episodeDialogPosition ?? undefined,
+      });
+      for (const personId of values.participantPersonIds) {
+        addParticipation({ episodeId, personId });
+      }
+      setEpisodeDialogPosition(null);
+    },
+    [createEpisode, addParticipation, episodeDialogPosition]
+  );
 
   return (
     <div className="w-full h-screen relative" onDrop={handleDrop} onDragOver={handleDragOver}>
@@ -394,6 +418,13 @@ export function RelationshipGraph() {
 
       {/* AIインタビュアー チャットモーダル */}
       <InterviewModal />
+
+      {/* エピソード追加ダイアログ（コンテキストメニューから起動） */}
+      <EpisodeCaptureDialog
+        isOpen={episodeDialogPosition !== null}
+        onSave={handleEpisodeSave}
+        onCancel={() => setEpisodeDialogPosition(null)}
+      />
     </div>
   );
 }

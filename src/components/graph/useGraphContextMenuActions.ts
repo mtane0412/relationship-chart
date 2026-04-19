@@ -8,7 +8,7 @@ import { useReactFlow, type Node } from '@xyflow/react';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { useDialogStore } from '@/stores/useDialogStore';
 import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils';
-import { UserPlus, XCircle, Pencil, Trash2, Maximize2, Link, ArrowLeft } from 'lucide-react';
+import { UserPlus, XCircle, Pencil, Trash2, Maximize2, Link, ArrowLeft, BookOpen } from 'lucide-react';
 import type { ContextMenuState } from './useContextMenu';
 import type { ContextMenuItem } from './ContextMenu';
 import type { AnyGraphEdge, RelationshipEdge } from '@/types/graph';
@@ -32,6 +32,8 @@ type UseGraphContextMenuActionsParams = {
   switchToAddRelationshipMode: (sourceNodeId: string, position: { x: number; y: number }) => void;
   /** ノードコンテキストメニューハンドラ（「戻る」ボタンで使用） */
   handleNodeContextMenu: (event: React.MouseEvent, node: Node) => void;
+  /** エピソード追加ダイアログを開くコールバック（位置情報付き） */
+  onAddEpisode?: (position: { x: number; y: number }) => void;
 };
 
 /**
@@ -52,6 +54,7 @@ export function useGraphContextMenuActions({
   closeContextMenu,
   switchToAddRelationshipMode,
   handleNodeContextMenu,
+  onAddEpisode,
 }: UseGraphContextMenuActionsParams) {
   // Zustandストアから状態とアクションを取得
   const persons = useGraphStore((state) => state.persons);
@@ -290,6 +293,14 @@ export function useGraphContextMenuActions({
             closeContextMenu();
           },
         },
+        {
+          label: 'エピソードをここに追加',
+          icon: BookOpen,
+          onClick: () => {
+            onAddEpisode?.(flowPosition);
+            closeContextMenu();
+          },
+        },
       ];
 
       // 選択がある場合は「選択をすべて解除」を追加
@@ -311,7 +322,7 @@ export function useGraphContextMenuActions({
 
       return items;
     },
-    [selectedPersonIds, setPendingRegistration, closeContextMenu, clearSelection]
+    [selectedPersonIds, setPendingRegistration, closeContextMenu, clearSelection, onAddEpisode]
   );
 
   // コンテキストメニュー項目の構築
