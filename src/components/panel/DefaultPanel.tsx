@@ -8,6 +8,7 @@
 import { PersonList } from './PersonList';
 import { ActiveChartHeader } from './ActiveChartHeader';
 import { SnapshotList } from './SnapshotList';
+import { EpisodeList } from './EpisodeList';
 
 /**
  * デフォルトパネルコンポーネント
@@ -23,6 +24,11 @@ export function DefaultPanel() {
       {/* タイムラインセクション */}
       <div>
         <SnapshotList />
+      </div>
+
+      {/* エピソードセクション */}
+      <div>
+        <EpisodeList />
       </div>
 
       {/* 人物管理セクション */}
