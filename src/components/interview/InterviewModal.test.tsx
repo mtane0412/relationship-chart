@@ -19,6 +19,7 @@ vi.mock('@/hooks/useInterviewChat', () => ({
     isLoading: false,
     chatError: null,
     endSession: vi.fn(),
+    abort: vi.fn(),
   })),
 }));
 

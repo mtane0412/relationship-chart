@@ -57,6 +57,12 @@ export function useInterviewChat() {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   /**
+   * 同期的な多重送信を防ぐための ref フラグ
+   * isLoading は React state のため非同期更新で短時間の連続操作だと false のまま複数 fetch が走る危険がある
+   */
+  const isStreamingRef = useRef(false);
+
+  /**
    * メッセージの最新値を参照するための ref（append の依存配列から messages を外すため）
    * React の state は async コールバックから直接参照すると古い値になる可能性があるため ref で管理する
    */
@@ -96,13 +102,30 @@ export function useInterviewChat() {
   }, [persons, relationships]);
 
   /**
+   * 進行中のストリーミング fetch を中断する
+   * モーダルクローズ時やセッション完了時に呼び出す
+   */
+  const abort = useCallback(() => {
+    abortControllerRef.current?.abort();
+  }, []);
+
+  /**
    * ユーザーメッセージを送信してストリーミングで AI 応答を受信する
    *
    * @param message - 送信するユーザーメッセージ（role は常に 'user'）
    */
   const append = useCallback(
     async (message: { role: 'user'; content: string }) => {
-      if (isLoading) return;
+      // 同期的な多重送信を防ぐ（isLoading は非同期更新のため ref で確実にガード）
+      if (isLoading || isStreamingRef.current) return;
+
+      // APIキー未設定の場合はユーザーに通知して中断する
+      if (!isConfigured()) {
+        setError('OpenRouter APIキーが設定されていません。設定画面からAPIキーを入力してください。');
+        return;
+      }
+
+      isStreamingRef.current = true;
 
       // ユーザーメッセージを履歴に追加
       const userMessage: ChatMessage = {
@@ -176,26 +199,45 @@ export function useInterviewChat() {
             return newMessages;
           });
         }
+
+        // 最終フラッシュ: マルチバイト文字が chunk 境界で分断された場合に残りバッファを取り出す
+        const remaining = decoder.decode();
+        if (remaining) {
+          assistantContent += remaining;
+          setMessages((prev) => {
+            const newMessages = [...prev];
+            const lastMsg = newMessages[newMessages.length - 1];
+            if (lastMsg?.role === 'assistant') {
+              return [...newMessages.slice(0, -1), { ...lastMsg, content: assistantContent }];
+            }
+            return newMessages;
+          });
+        }
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') {
           // 中断は正常
           return;
         }
         const errMessage = err instanceof Error ? err.message : 'チャットに失敗しました。';
+        // chatError（ローカル）と store.error の両方にセットしてUIに確実に表示する
         setChatError(errMessage);
+        setError(errMessage);
         // エラー時はプレースホルダーを削除
         setMessages(updatedMessages);
       } finally {
+        isStreamingRef.current = false;
         setIsLoading(false);
         abortControllerRef.current = null;
       }
     },
     [
       isLoading,
+      isConfigured,
       existingPersonNames,
       existingRelationshipSummaries,
       openRouterApiKey,
       openRouterModel,
+      setError,
     ]
   );
 
@@ -282,5 +324,6 @@ export function useInterviewChat() {
     isLoading,
     chatError,
     endSession,
+    abort,
   };
 }

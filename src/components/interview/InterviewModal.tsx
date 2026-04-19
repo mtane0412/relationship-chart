@@ -163,7 +163,7 @@ export function InterviewModal() {
     }))
   );
 
-  const { messages, append, setMessages, isLoading, endSession } = useInterviewChat();
+  const { messages, append, setMessages, isLoading, endSession, abort } = useInterviewChat();
   const { addPerson, addRelationship, persons, activeChartId } = useGraphStore(
     useShallow((s) => ({
       addPerson: s.addPerson,
@@ -208,24 +208,28 @@ export function InterviewModal() {
 
   /**
    * セッションが completed になったらモーダルを閉じる
+   * ストリーミング中の場合は abort() で確実に中断してからクリアする
    */
   useEffect(() => {
     if (session?.status === 'completed') {
+      abort();
       closeModal();
       clearSession();
       setMessages([]);
     }
-  }, [session?.status, closeModal, clearSession, setMessages]);
+  }, [session?.status, abort, closeModal, clearSession, setMessages]);
 
   /**
    * モーダルを閉じてセッションをクリアする
+   * ストリーミング中の場合は abort() で確実に中断してからクリアする
    */
   const handleClose = useCallback(() => {
+    abort();
     closeModal();
     clearSession();
     setMessages([]);
     hasInitiatedRef.current = false;
-  }, [closeModal, clearSession, setMessages]);
+  }, [abort, closeModal, clearSession, setMessages]);
 
   /**
    * handleClose の最新参照を保持する ref（Escape キーの stale closure を防ぐ）
