@@ -46,6 +46,7 @@ export function useExtractRelationships(): UseExtractRelationshipsReturn {
   const [extractionResult, setExtractionResult] = useState<LlmExtractionResult | null>(null);
 
   const persons = useGraphStore((s) => s.persons);
+  const episodes = useGraphStore((s) => s.episodes);
   const openRouterApiKey = useAiSettingsStore((s) => s.openRouterApiKey);
   const openRouterModel = useAiSettingsStore((s) => s.openRouterModel);
   const isConfigured = useAiSettingsStore((s) => s.isConfigured);
@@ -65,6 +66,7 @@ export function useExtractRelationships(): UseExtractRelationshipsReturn {
       setExtractionResult(null);
 
       const existingPersonNames = persons.map((p) => p.name);
+      const existingEpisodeTitles = episodes.map((e) => e.title);
 
       try {
         const response = await fetch('/api/extract-relationships', {
@@ -73,6 +75,7 @@ export function useExtractRelationships(): UseExtractRelationshipsReturn {
           body: JSON.stringify({
             text,
             existingPersonNames,
+            existingEpisodeTitles,
             apiKey: openRouterApiKey,
             model: openRouterModel,
           }),
@@ -101,7 +104,7 @@ export function useExtractRelationships(): UseExtractRelationshipsReturn {
         setIsLoading(false);
       }
     },
-    [persons, openRouterApiKey, openRouterModel, isConfigured]
+    [persons, episodes, openRouterApiKey, openRouterModel, isConfigured]
   );
 
   const reset = useCallback(() => {

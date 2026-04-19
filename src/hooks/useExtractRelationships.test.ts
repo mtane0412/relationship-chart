@@ -7,11 +7,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useExtractRelationships } from './useExtractRelationships';
 
-// useGraphStore をモック（既存人物名の取得のため）
+// useGraphStore をモック（既存人物名・エピソードタイトルの取得のため）
 const mockPersons = [{ id: 'p1', name: '田中太郎', createdAt: '2024-01-01T00:00:00.000Z' }];
+const mockEpisodes = [{ id: 'e1', title: '初めての出会い', relatedRelationshipIds: [], properties: {}, createdAt: '2024-01-01T00:00:00.000Z', updatedAt: '2024-01-01T00:00:00.000Z' }];
 vi.mock('@/stores/useGraphStore', () => ({
-  useGraphStore: vi.fn((selector: (s: { persons: typeof mockPersons }) => unknown) => {
-    const store = { persons: mockPersons };
+  useGraphStore: vi.fn((selector: (s: { persons: typeof mockPersons; episodes: typeof mockEpisodes }) => unknown) => {
+    const store = { persons: mockPersons, episodes: mockEpisodes };
     return selector ? selector(store) : store;
   }),
 }));
@@ -34,6 +35,7 @@ vi.mock('@/stores/useAiSettingsStore', () => ({
 const validResult = {
   persons: [{ name: '田中太郎', labels: ['人物'] }],
   relationships: [],
+  episodes: [],
 };
 
 describe('useExtractRelationships', () => {
@@ -191,5 +193,25 @@ describe('useExtractRelationships', () => {
     expect(body.existingPersonNames).toContain('田中太郎');
     expect(body.apiKey).toBe('sk-or-test-key');
     expect(body.model).toBe('anthropic/claude-sonnet-4-5');
+  });
+
+  it('既存エピソードタイトルがリクエストに含まれること', async () => {
+    const mockFetch = vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify(validResult), { status: 200 }))
+    );
+    vi.stubGlobal('fetch', mockFetch);
+
+    const { result } = renderHook(() => useExtractRelationships());
+
+    await act(async () => {
+      await result.current.extract('テスト');
+    });
+
+    // fetch の第2引数（RequestInit）から body を取り出して検証
+    const calls = mockFetch.mock.calls as unknown as [string, RequestInit][];
+    const requestInit = calls[0][1];
+    const body = JSON.parse(requestInit.body as string);
+    // mockEpisodes に含まれる '初めての出会い' がリクエストに含まれていること
+    expect(body.existingEpisodeTitles).toContain('初めての出会い');
   });
 });

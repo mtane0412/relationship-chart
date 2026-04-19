@@ -139,4 +139,22 @@ describe('POST /api/interview-chat', () => {
     expect(callArgs.system).toContain('田中太郎と佐藤花子は親友');
     expect(callArgs.system).toContain('佐藤花子と鈴木一郎は同僚');
   });
+
+  it('既存エピソードタイトルがシステムプロンプトに含まれること', async () => {
+    const req = makeRequest({
+      ...baseRequestBody,
+      existingEpisodeTitles: ['田中と佐藤の初対面', '部活の合宿での出来事'],
+    });
+    await POST(req);
+
+    const callArgs = mockStreamText.mock.calls[0][0] as { system?: string };
+    expect(callArgs.system).toContain('田中と佐藤の初対面');
+    expect(callArgs.system).toContain('部活の合宿での出来事');
+  });
+
+  it('existingEpisodeTitles が配列でない場合は 400 を返すこと', async () => {
+    const req = makeRequest({ ...baseRequestBody, existingEpisodeTitles: '無効な値' });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+  });
 });

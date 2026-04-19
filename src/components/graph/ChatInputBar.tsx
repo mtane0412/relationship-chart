@@ -102,6 +102,8 @@ export function ChatInputBar() {
   const persons = useGraphStore((s) => s.persons);
   const addPerson = useGraphStore((s) => s.addPerson);
   const addRelationship = useGraphStore((s) => s.addRelationship);
+  const createEpisode = useGraphStore((s) => s.createEpisode);
+  const addParticipation = useGraphStore((s) => s.addParticipation);
 
   /**
    * ハイライト計算用: 人物を名前の長さ降順にソートしてキャッシュする
@@ -347,9 +349,10 @@ export function ChatInputBar() {
   /**
    * 「相関図に追加」ボタンを押したときの処理
    *
-   * 2 パスで人物と関係をストアに追加する（ExtractionModal と同じロジック）:
+   * 3 パスで人物・関係・エピソードをストアに追加する:
    *   1. resolveExtractionResult で新規人物を特定し addPerson で追加
-   *   2. 追加後のストア状態で再度 resolveExtractionResult を呼び出し関係を解決
+   *   2. 追加後のストア状態で関係とエピソードを解決
+   *   3. エピソードを createEpisode で追加し、参加エッジを addParticipation で追加
    */
   const handleConfirm = useCallback(() => {
     if (!extractionResult) return;
@@ -360,18 +363,30 @@ export function ChatInputBar() {
       addPerson({ name: person.name, labels: person.labels, properties: {} });
     }
 
-    // 2 パス目: 追加後のストア状態で関係を解決
+    // 2 パス目: 追加後のストア状態で関係とエピソードを解決
     const currentPersons = useGraphStore.getState().persons;
-    const { relationships } = resolveExtractionResult(extractionResult, currentPersons, new Map());
+    const { relationships, episodes } = resolveExtractionResult(extractionResult, currentPersons, new Map());
     for (const rel of relationships) {
       addRelationship(rel);
+    }
+
+    // 3 パス目: エピソード作成＋参加エッジ追加
+    for (const ep of episodes) {
+      const episodeId = createEpisode({
+        title: ep.title,
+        description: ep.description,
+        occurredAt: ep.occurredAt,
+      });
+      for (const personId of ep.participantPersonIds) {
+        addParticipation({ episodeId, personId });
+      }
     }
 
     // 入力とプレビューをリセット
     setText('');
     reset();
     setTimeout(() => adjustHeight(), 0);
-  }, [extractionResult, persons, addPerson, addRelationship, reset, adjustHeight]);
+  }, [extractionResult, persons, addPerson, addRelationship, createEpisode, addParticipation, reset, adjustHeight]);
 
   /**
    * キャンセルボタンを押したときの処理

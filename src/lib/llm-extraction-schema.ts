@@ -95,6 +95,31 @@ export const LlmRelationshipSchema = z.object({
 });
 
 /**
+ * LLM が出力するエピソードスキーマ
+ *
+ * Episode は人物相関図上の「出来事・場面・イベント」を表す第一級ノード。
+ * 複数人物が関与する独立した出来事を抽出する用途で使用する。
+ * （関係の当事者2人に閉じた時系列イベントは Relationship.narrative.turningPoints ではなく、
+ *   今後はすべてエピソードとして抽出する）
+ */
+export const LlmEpisodeSchema = z.object({
+  /** 出来事の短いタイトル（例: "初めての出会い", "卒業式の告白"） */
+  title: z.string().describe('出来事の短いタイトル（例: "初めての出会い", "卒業式"）'),
+  /** エピソードの詳細説明（1〜数文）。情報がない場合は null */
+  description: z.string().nullable(),
+  /**
+   * 発生時点の自由記述（"第3話", "2024年春", "2020-04-01" 等）。
+   * テキストに記述がない場合は null
+   */
+  occurredAt: z.string().nullable().describe('発生時点の自由記述（"第3話", "2024年春" など）。不明なら null'),
+  /**
+   * このエピソードに参加した人物名の配列。
+   * persons 配列に列挙した人物名と完全一致させること
+   */
+  participantNames: z.array(z.string()).describe('参加した人物名。persons 配列と一致させる'),
+});
+
+/**
  * LLM が出力する抽出結果全体のスキーマ
  */
 export const LlmExtractionResultSchema = z.object({
@@ -102,6 +127,11 @@ export const LlmExtractionResultSchema = z.object({
   persons: z.array(LlmPersonSchema),
   /** テキストから抽出された関係のリスト */
   relationships: z.array(LlmRelationshipSchema),
+  /**
+   * テキストから抽出されたエピソード（出来事・場面・イベント）のリスト。
+   * 複数人物が関与する独立した出来事を抽出する。ない場合は空配列 []
+   */
+  episodes: z.array(LlmEpisodeSchema),
 });
 
 /** LlmExtractionResult の TypeScript 型（zod スキーマから導出） */
@@ -112,6 +142,9 @@ export type LlmPerson = z.infer<typeof LlmPersonSchema>;
 
 /** LlmRelationship の TypeScript 型 */
 export type LlmRelationship = z.infer<typeof LlmRelationshipSchema>;
+
+/** LlmEpisode の TypeScript 型 */
+export type LlmEpisode = z.infer<typeof LlmEpisodeSchema>;
 
 /**
  * JSON Schema を OpenAI/Azure strict mode 準拠に再帰変換する

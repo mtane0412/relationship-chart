@@ -52,6 +52,18 @@ type NewPersonData = Omit<Person, 'createdAt'>;
 type NewRelationshipData = Omit<Relationship, 'id' | 'createdAt' | 'updatedAt'>;
 
 /**
+ * ストア投入用の新規エピソードデータの型
+ * createEpisode / addParticipation の引数形式に合わせる（id / createdAt / updatedAt / position / properties は自動生成のため除外）
+ */
+type NewEpisodeData = {
+  title: string;
+  description?: string;
+  occurredAt?: string;
+  /** 解決済みの参加者 Person ID 配列（解決できなかった参加者は除外済み） */
+  participantPersonIds: string[];
+};
+
+/**
  * resolveExtractionResult の戻り値型
  */
 export type ExtractionResolutionResult = {
@@ -59,6 +71,8 @@ export type ExtractionResolutionResult = {
   newPersons: NewPersonData[];
   /** ストアに追加する関係リスト（sourceId / targetId が解決済み） */
   relationships: NewRelationshipData[];
+  /** ストアに追加するエピソードリスト（participantPersonIds が解決済み） */
+  episodes: NewEpisodeData[];
 };
 
 /**
@@ -150,5 +164,39 @@ export function resolveExtractionResult(
     });
   }
 
-  return { newPersons, relationships };
+  // エピソードの解決（relationships と同じ nameToId マップを再利用）
+  const episodes: NewEpisodeData[] = [];
+
+  for (const llmEpisode of result.episodes) {
+    const title = llmEpisode.title.trim();
+    // タイトルが空文字の Episode はスキップ
+    if (!title) continue;
+
+    // 参加者名を Person ID に解決（解決できない参加者は除外して Episode は保持）
+    // 同一 Person が重複登録されないよう Set で一意化する
+    const seenParticipantIds = new Set<string>();
+    const participantPersonIds: string[] = [];
+    for (const name of llmEpisode.participantNames) {
+      const personId = nameToId.get(normalizeName(name));
+      if (personId !== undefined && !seenParticipantIds.has(personId)) {
+        seenParticipantIds.add(personId);
+        participantPersonIds.push(personId);
+      }
+    }
+
+    // 参加者が 0 人になった Episode はスキップ（ストア上で意味をなさないため）
+    if (participantPersonIds.length === 0) continue;
+
+    const episode: NewEpisodeData = {
+      title,
+      participantPersonIds,
+    };
+    // null を undefined に変換（型の都合で optional フィールドは undefined を使う）
+    if (llmEpisode.description !== null) episode.description = llmEpisode.description;
+    if (llmEpisode.occurredAt !== null) episode.occurredAt = llmEpisode.occurredAt;
+
+    episodes.push(episode);
+  }
+
+  return { newPersons, relationships, episodes };
 }

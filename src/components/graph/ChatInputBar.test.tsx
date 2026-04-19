@@ -25,12 +25,16 @@ vi.mock('@/hooks/useExtractRelationships', () => ({
 // useGraphStore をモック
 const mockAddPerson = vi.fn();
 const mockAddRelationship = vi.fn();
+const mockCreateEpisode = vi.fn(() => 'episode-new-id');
+const mockAddParticipation = vi.fn();
 
 function getMockStore() {
   return {
     persons: [] as { id: string; name: string; createdAt: string }[],
     addPerson: mockAddPerson,
     addRelationship: mockAddRelationship,
+    createEpisode: mockCreateEpisode,
+    addParticipation: mockAddParticipation,
   };
 }
 
@@ -133,6 +137,7 @@ describe('ChatInputBar', () => {
             properties: {},
           },
         ],
+        episodes: [],
       },
       reset: mockReset,
     });
@@ -148,7 +153,7 @@ describe('ChatInputBar', () => {
       extract: mockExtract,
       isLoading: false,
       error: null,
-      extractionResult: { persons: [], relationships: [] },
+      extractionResult: { persons: [], relationships: [], episodes: [] },
       reset: mockReset,
     });
 
@@ -179,6 +184,7 @@ describe('ChatInputBar', () => {
             properties: {},
           },
         ],
+        episodes: [],
       },
       reset: mockReset,
     });
@@ -189,6 +195,58 @@ describe('ChatInputBar', () => {
     await waitFor(() => {
       expect(mockAddPerson).toHaveBeenCalled();
       expect(mockAddRelationship).toHaveBeenCalled();
+      expect(mockReset).toHaveBeenCalled();
+    });
+  });
+
+  it('抽出結果にエピソードがある場合 createEpisode と addParticipation が呼ばれること', async () => {
+    // persons を空にして、エピソード参加者の解決が正常に動作するかをテスト
+    // 参加者名 '田中太郎'・'山田花子' が persons に存在する状態でエピソードを解決する
+    const mockGetState = vi.fn().mockReturnValue({
+      persons: [
+        { id: 'p1', name: '田中太郎', createdAt: '2024-01-01T00:00:00.000Z' },
+        { id: 'p2', name: '山田花子', createdAt: '2024-01-01T00:00:00.000Z' },
+      ],
+      addPerson: mockAddPerson,
+      addRelationship: mockAddRelationship,
+      createEpisode: mockCreateEpisode,
+      addParticipation: mockAddParticipation,
+    });
+    const { useGraphStore } = await import('@/stores/useGraphStore');
+    vi.mocked(useGraphStore).getState = mockGetState;
+
+    mockUseExtractRelationships.mockReturnValue({
+      extract: mockExtract,
+      isLoading: false,
+      error: null,
+      extractionResult: {
+        persons: [
+          { name: '田中太郎', labels: ['人物'] },
+          { name: '山田花子', labels: ['人物'] },
+        ],
+        relationships: [],
+        episodes: [
+          {
+            title: '初めての出会い',
+            description: null,
+            occurredAt: null,
+            participantNames: ['田中太郎', '山田花子'],
+          },
+        ],
+      },
+      reset: mockReset,
+    });
+
+    render(<ChatInputBar />);
+    fireEvent.click(screen.getByRole('button', { name: /追加/ }));
+
+    await waitFor(() => {
+      // エピソード作成が呼ばれること
+      expect(mockCreateEpisode).toHaveBeenCalledWith(
+        expect.objectContaining({ title: '初めての出会い' })
+      );
+      // 参加エッジが追加されること（2人分）
+      expect(mockAddParticipation).toHaveBeenCalledTimes(2);
       expect(mockReset).toHaveBeenCalled();
     });
   });

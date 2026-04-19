@@ -37,10 +37,13 @@ const MAX_EXISTING_PERSON_NAMES = 200;
 /** existingRelationshipSummaries の最大件数 */
 const MAX_EXISTING_RELATIONSHIP_SUMMARIES = 200;
 
+/** existingEpisodeTitles の最大件数 */
+const MAX_EXISTING_EPISODE_TITLES = 200;
+
 /** メッセージ本文の最大文字数 */
 const MAX_CONTENT_LENGTH = 10000;
 
-/** 人物名・関係サマリの要素ごとの最大文字数 */
+/** 人物名・関係サマリ・エピソードタイトルの要素ごとの最大文字数 */
 const MAX_NAME_LENGTH = 200;
 
 /** チャットメッセージのスキーマ */
@@ -57,6 +60,8 @@ const RequestBodySchema = z.object({
   existingPersonNames: z.array(z.string().max(MAX_NAME_LENGTH)).max(MAX_EXISTING_PERSON_NAMES),
   /** 既存の関係サマリリスト（システムプロンプトに注入する） */
   existingRelationshipSummaries: z.array(z.string().max(MAX_NAME_LENGTH)).max(MAX_EXISTING_RELATIONSHIP_SUMMARIES),
+  /** 既存のエピソードタイトルリスト（重複探索抑制のためシステムプロンプトに注入する） */
+  existingEpisodeTitles: z.array(z.string().max(MAX_NAME_LENGTH)).max(MAX_EXISTING_EPISODE_TITLES).optional().default([]),
   /** OpenRouter APIキー（クライアントの設定から渡す） */
   apiKey: z.string().min(1),
   /** 使用するモデル（OpenRouter モデル ID 形式） */
@@ -88,7 +93,7 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const { messages, existingPersonNames, existingRelationshipSummaries, apiKey, model } = parsed.data;
+  const { messages, existingPersonNames, existingRelationshipSummaries, existingEpisodeTitles, apiKey, model } = parsed.data;
 
   try {
     // OpenRouter プロバイダを初期化（クライアントから受け取った APIキーを使用）
@@ -98,6 +103,7 @@ export async function POST(request: Request): Promise<Response> {
     const systemPrompt = buildInterviewSystemPrompt(
       existingPersonNames,
       existingRelationshipSummaries,
+      existingEpisodeTitles,
     );
 
     const result = streamText({

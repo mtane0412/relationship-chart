@@ -9,6 +9,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { InterviewModal } from './InterviewModal';
 import { useInterviewStore } from '@/stores/useInterviewStore';
+import type { ExtractionResolutionResult } from '@/lib/person-matching';
 
 // useInterviewChat をモック
 vi.mock('@/hooks/useInterviewChat', () => ({
@@ -24,11 +25,34 @@ vi.mock('@/hooks/useInterviewChat', () => ({
 }));
 
 // useGraphStore をモック
-vi.mock('@/stores/useGraphStore', () => ({
-  useGraphStore: vi.fn((selector: (s: { persons: unknown[] }) => unknown) => {
-    return selector({ persons: [] });
-  }),
-}));
+const mockAddPerson = vi.fn();
+const mockAddRelationship = vi.fn();
+const mockCreateEpisode = vi.fn(() => 'episode-new-id');
+const mockAddParticipation = vi.fn();
+
+function getMockGraphStore() {
+  return {
+    persons: [] as { id: string; name: string; createdAt: string }[],
+    addPerson: mockAddPerson,
+    addRelationship: mockAddRelationship,
+    createEpisode: mockCreateEpisode,
+    addParticipation: mockAddParticipation,
+    activeChartId: 'chart-001',
+  };
+}
+
+vi.mock('@/stores/useGraphStore', () => {
+  const mockUseGraphStore = vi.fn(
+    (selector: (s: ReturnType<typeof getMockGraphStore>) => unknown) => {
+      return selector(getMockGraphStore());
+    }
+  );
+  Object.defineProperty(mockUseGraphStore, 'getState', {
+    value: () => getMockGraphStore(),
+    writable: true,
+  });
+  return { useGraphStore: mockUseGraphStore };
+});
 
 // useAiSettingsStore をモック
 vi.mock('@/stores/useAiSettingsStore', () => ({
@@ -38,8 +62,13 @@ vi.mock('@/stores/useAiSettingsStore', () => ({
 }));
 
 // person-matching をモック
+const mockResolveExtractionResult = vi.fn((): ExtractionResolutionResult => ({
+  newPersons: [],
+  relationships: [],
+  episodes: [],
+}));
 vi.mock('@/lib/person-matching', () => ({
-  resolveExtractionResult: vi.fn(() => ({ newPersons: [], relationships: [] })),
+  resolveExtractionResult: () => mockResolveExtractionResult(),
 }));
 
 /** ストア状態をリセットするヘルパー */
@@ -113,5 +142,40 @@ describe('InterviewModal', () => {
     useInterviewStore.setState({ isModalOpen: true, session: null });
     render(<InterviewModal />);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('プレビューで「相関図に反映」をクリックするとエピソードが追加されること', async () => {
+    // エピソードを含む抽出結果をセット
+    mockResolveExtractionResult.mockReturnValue({
+      newPersons: [],
+      relationships: [],
+      episodes: [
+        {
+          title: '卒業式での再会',
+          description: '久しぶりの再会を果たした',
+          occurredAt: '2023年春',
+          participantPersonIds: ['p1', 'p2'],
+        },
+      ],
+    });
+
+    useInterviewStore.setState({ isModalOpen: true });
+    useInterviewStore.getState().startSession('chart-001');
+    useInterviewStore.getState().setExtractionResult({
+      persons: [],
+      relationships: [],
+      episodes: [],
+    });
+    useInterviewStore.getState().setSessionStatus('preview');
+
+    render(<InterviewModal />);
+    fireEvent.click(screen.getByRole('button', { name: /相関図に追加/ }));
+
+    // エピソード作成が呼ばれること
+    expect(mockCreateEpisode).toHaveBeenCalledWith(
+      expect.objectContaining({ title: '卒業式での再会' })
+    );
+    // 参加エッジが2人分追加されること
+    expect(mockAddParticipation).toHaveBeenCalledTimes(2);
   });
 });

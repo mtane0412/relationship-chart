@@ -13,6 +13,7 @@
 
 import { Users, Link } from 'lucide-react';
 import type { LlmExtractionResult } from '@/lib/llm-extraction-schema';
+import { EpisodePreviewSection } from './EpisodePreviewSection';
 
 /**
  * ExtractionPreviewPanel の Props
@@ -115,6 +116,8 @@ export function ExtractionPreviewPanel({
             </ul>
           )}
         </div>
+        {/* エピソードセクション */}
+        <EpisodePreviewSection episodes={result.episodes} />
       </div>
 
       {/* アクションボタン */}

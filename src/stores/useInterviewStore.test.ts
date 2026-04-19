@@ -22,6 +22,7 @@ function resetStore() {
 const mockExtractionResult: LlmExtractionResult = {
   persons: [{ name: '山田太郎', labels: ['人物'] }],
   relationships: [],
+  episodes: [],
 };
 
 describe('useInterviewStore', () => {

@@ -47,6 +47,7 @@ const validExtractionResult = {
       properties: { closeness: 0.8, affection: 0.9, awareness: 'known' },
     },
   ],
+  episodes: [],
 };
 
 function makeRequest(body: unknown): Request {
@@ -138,7 +139,7 @@ describe('POST /api/extract-relationships', () => {
   });
 
   it('existingPersonNames が指定された場合はプロンプトに含まれること', async () => {
-    mockGenerateObject.mockResolvedValueOnce({ object: { persons: [], relationships: [] } } as GenerateObjectResult);
+    mockGenerateObject.mockResolvedValueOnce({ object: { persons: [], relationships: [], episodes: [] } } as GenerateObjectResult);
 
     const req = makeRequest({
       ...baseRequestBody,
@@ -155,5 +156,40 @@ describe('POST /api/extract-relationships', () => {
     const prompt = (callArgs as { prompt?: string }).prompt ?? '';
     expect(prompt).toContain('田中太郎');
     expect(prompt).toContain('山田花子');
+  });
+
+  it('プロンプトにエピソード抽出指示が含まれること', async () => {
+    mockGenerateObject.mockResolvedValueOnce({ object: { persons: [], relationships: [], episodes: [] } } as GenerateObjectResult);
+
+    const req = makeRequest(baseRequestBody);
+    await POST(req);
+
+    const callArgs = mockGenerateObject.mock.calls[0][0] as { prompt?: string };
+    const prompt = callArgs.prompt ?? '';
+    // episodes 抽出の指示が含まれていること
+    expect(prompt).toContain('episodes');
+  });
+
+  it('existingEpisodeTitles が指定された場合はプロンプトに含まれること', async () => {
+    mockGenerateObject.mockResolvedValueOnce({ object: { persons: [], relationships: [], episodes: [] } } as GenerateObjectResult);
+
+    const req = makeRequest({
+      ...baseRequestBody,
+      existingEpisodeTitles: ['初めての出会い', '卒業式の告白'],
+    });
+    const res = await POST(req);
+
+    expect(res.status).toBe(200);
+
+    const callArgs = mockGenerateObject.mock.calls[0][0] as { prompt?: string };
+    const prompt = callArgs.prompt ?? '';
+    expect(prompt).toContain('初めての出会い');
+    expect(prompt).toContain('卒業式の告白');
+  });
+
+  it('existingEpisodeTitles が配列でない場合は 400 を返すこと', async () => {
+    const req = makeRequest({ ...baseRequestBody, existingEpisodeTitles: '無効な値' });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
   });
 });
