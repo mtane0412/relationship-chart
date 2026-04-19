@@ -46,8 +46,10 @@ export type SnapshotDiff = {
     added: SnapshotPerson[];
     /** Aにのみ存在する人物（消滅） */
     removed: SnapshotPerson[];
-    /** A/B両方に存在し位置が変化した人物 */
+    /** A/B両方に存在し位置が変化した人物（属性変化も同時に起きている場合を含む） */
     moved: MovedPerson[];
+    /** A/B両方に存在し位置は同じだが属性（name/labels/properties）が変化した人物 */
+    changed: SnapshotPerson[];
     /** A/B両方に存在し変化がない人物 */
     unchanged: SnapshotPerson[];
   };
@@ -84,12 +86,28 @@ function isSamePosition(
 }
 
 /**
+ * 人物の属性（name/labels/properties）が変化しているかどうかをJSON文字列比較で判定する
+ * - position は別途 isSamePosition で比較するため、ここでは比較しない
+ */
+function isPersonAttributeChanged(a: SnapshotPerson, b: SnapshotPerson): boolean {
+  const pickComparableFields = (p: SnapshotPerson) => ({
+    name: p.name,
+    labels: p.labels,
+    properties: p.properties,
+  });
+  return JSON.stringify(pickComparableFields(a)) !== JSON.stringify(pickComparableFields(b));
+}
+
+/**
  * 関係の属性が変化しているかどうかをJSON文字列比較で判定する
+ * - sourceId/targetId の接続先変更も変化として検出する
  * - label, symmetric, colorOverride, tags, type, properties を対象とする
  * - narrative は変化検出対象に含めない（narrative変化はアニメーション対象外）
  */
 function isRelationshipChanged(a: SnapshotRelationship, b: SnapshotRelationship): boolean {
   const pickComparableFields = (r: SnapshotRelationship) => ({
+    sourceId: r.sourceId,
+    targetId: r.targetId,
     type: r.type,
     label: r.label,
     symmetric: r.symmetric,
@@ -119,21 +137,25 @@ export function computeSnapshotDiff(from: Snapshot, to: Snapshot): SnapshotDiff 
   const addedPersons: SnapshotPerson[] = [];
   const removedPersons: SnapshotPerson[] = [];
   const movedPersons: MovedPerson[] = [];
+  const changedPersons: SnapshotPerson[] = [];
   const unchangedPersons: SnapshotPerson[] = [];
 
-  // toを走査: added or moved or unchanged
+  // toを走査: added or moved or changed or unchanged
   for (const [personId, toPerson] of toPersonMap) {
     const fromPerson = fromPersonMap.get(personId);
     if (fromPerson === undefined) {
       // Bにのみ存在 → added
       addedPersons.push(toPerson);
     } else if (!isSamePosition(fromPerson.position, toPerson.position)) {
-      // 位置が変化 → moved
+      // 位置が変化 → moved（属性変化も同時に起きていても位置変化を優先）
       movedPersons.push({
         personId,
         from: resolvePosition(fromPerson.position),
         to: resolvePosition(toPerson.position),
       });
+    } else if (isPersonAttributeChanged(fromPerson, toPerson)) {
+      // 位置は同じだが属性が変化 → changed
+      changedPersons.push(toPerson);
     } else {
       // 変化なし → unchanged
       unchangedPersons.push(toPerson);
@@ -187,6 +209,7 @@ export function computeSnapshotDiff(from: Snapshot, to: Snapshot): SnapshotDiff 
       added: addedPersons,
       removed: removedPersons,
       moved: movedPersons,
+      changed: changedPersons,
       unchanged: unchangedPersons,
     },
     relationships: {

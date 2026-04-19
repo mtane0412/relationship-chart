@@ -18,6 +18,11 @@ vi.mock('@xyflow/react');
 const mockUseGraphStore = vi.mocked(useGraphStore);
 const mockUseReactFlow = vi.mocked(useReactFlow);
 
+/** テスト用のデフォルトRelationshipNarrative */
+const defaultNarrative = { summary: '', notes: '', turningPoints: [] };
+/** テスト用のデフォルトRelationshipProperties */
+const defaultProperties = { startDate: null, endDate: null, strength: null, customProperties: {} };
+
 /**
  * テスト用のデフォルトスナップショット
  */
@@ -38,10 +43,37 @@ const defaultSnapshot = {
 };
 
 /**
+ * エッジを含むスナップショット（エッジアニメーションテスト用）
+ */
+const snapshotWithEdge = {
+  id: 'snap-edge',
+  label: 'エッジあり',
+  persons: [
+    { personId: 'person-A', name: '人物A', labels: [], position: { x: 100, y: 100 }, properties: {} },
+    { personId: 'person-B', name: '人物B', labels: [], position: { x: 300, y: 100 }, properties: {} },
+  ],
+  relationships: [
+    {
+      relationshipId: 'rel-1',
+      type: '友人',
+      sourceId: 'person-A',
+      targetId: 'person-B',
+      label: null,
+      symmetric: false,
+      tags: [],
+      colorOverride: null,
+      properties: defaultProperties,
+      narrative: defaultNarrative,
+    },
+  ],
+  createdAt: '2026-01-01T00:00:00.000Z',
+};
+
+/**
  * ストアモックを設定するヘルパー
  */
 function setupStoreMock(overrides: {
-  snapshots?: typeof defaultSnapshot[];
+  snapshots?: unknown[];
   activeSnapshotIndex?: number | null;
   _livePersons?: { id: string; imageDataUrl?: string }[];
   goToSnapshot?: ReturnType<typeof vi.fn>;
@@ -226,6 +258,28 @@ describe('useSnapshotTransition', () => {
     // THEN: goToSnapshot は呼ばれない
     expect(goToSnapshot).not.toHaveBeenCalled();
     expect(result.current.isTransitioning).toBe(false);
+  });
+
+  it('rAF コールバック実行後に setEdges が呼ばれる（エッジアニメーション）', () => {
+    // GIVEN: エッジを含むスナップショットへ遷移
+    setupStoreMock({ snapshots: [snapshotWithEdge] });
+    const { setEdges } = setupReactFlowMock({ currentNodes: [] });
+    const { result } = renderHook(() => useSnapshotTransition());
+
+    // WHEN: アニメーション開始
+    act(() => {
+      result.current.transitionToSnapshot(0);
+    });
+
+    // rAF コールバックを手動実行
+    act(() => {
+      const callbacks = [...capturedRafCallbacks];
+      capturedRafCallbacks = [];
+      callbacks.forEach((cb) => cb(400));
+    });
+
+    // THEN: setEdges が呼ばれてエッジが設定された
+    expect(setEdges).toHaveBeenCalled();
   });
 
   it('遷移中に再度 transitionToSnapshot を呼ぶと前のアニメーションがキャンセルされる', () => {

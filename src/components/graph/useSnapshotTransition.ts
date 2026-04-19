@@ -6,13 +6,15 @@
  * - ノード位置移動: rAF + easeOutCubic によるフレーム補間
  * - ノード出現（追加）: opacity 0→1 のフェードイン
  * - ノード消滅（削除）: opacity 1→0 のフェードアウト
+ * - エッジ出現（追加）: opacity 0→1 のフェードイン
+ * - エッジ消滅（削除）: opacity 1→0 のフェードアウト
  *
  * 設計方針:
  * - アニメーション中はストアの persons/relationships を変更しない
  *   → useGraphDataSync の useEffect が発火せず、アニメーションと競合しない
  * - TRANSITION_DURATION_MS 後に setTimeout でストアの goToSnapshot を呼んで状態を確定する
  * - 連続呼び出しには cancelAnimationFrame + clearTimeout で前のアニメーションをキャンセルする
- * - ノードの style.opacity を直接操作することでフェードイン/フェードアウトを実現する
+ * - ノード/エッジの style.opacity を直接操作することでフェードイン/フェードアウトを実現する
  */
 
 'use client';
@@ -21,7 +23,10 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useReactFlow } from '@xyflow/react';
 import { useShallow } from 'zustand/react/shallow';
 import { useGraphStore } from '@/stores/useGraphStore';
-import type { GraphNode } from '@/types/graph';
+import { deriveEdgeVisual } from '@/lib/relationship-visual';
+import type { GraphNode, RelationshipEdge } from '@/types/graph';
+import type { SnapshotRelationship } from '@/types/snapshot';
+import type { Relationship } from '@/types/relationship';
 
 /** アニメーション時間（ミリ秒） */
 const TRANSITION_DURATION_MS = 300;
@@ -49,12 +54,53 @@ function easeOutCubic(t: number): number {
 }
 
 /**
+ * SnapshotRelationship 配列を RelationshipEdge 配列に変換するヘルパー
+ * - 同一ペア間の並列エッジに対して edgeIndex / totalEdgesInPair を付与する
+ * - SnapshotRelationship は Relationship と共通フィールドを持つため deriveEdgeVisual に渡せる
+ *
+ * @param relationships - スナップショット時点の関係リスト
+ * @returns React Flow 用 RelationshipEdge 配列
+ */
+function snapshotRelationshipsToEdges(relationships: SnapshotRelationship[]): RelationshipEdge[] {
+  // 同一ペア内のエッジ数をカウント（並列エッジのオフセット計算用）
+  const pairCountMap = new Map<string, number>();
+  for (const r of relationships) {
+    const key = [r.sourceId, r.targetId].sort().join(':');
+    pairCountMap.set(key, (pairCountMap.get(key) ?? 0) + 1);
+  }
+  const pairIndexMap = new Map<string, number>();
+
+  return relationships.map((r) => {
+    const key = [r.sourceId, r.targetId].sort().join(':');
+    const edgeIndex = pairIndexMap.get(key) ?? 0;
+    pairIndexMap.set(key, edgeIndex + 1);
+    const totalEdgesInPair = pairCountMap.get(key) ?? 1;
+
+    return {
+      id: r.relationshipId,
+      source: r.sourceId,
+      target: r.targetId,
+      type: 'relationship' as const,
+      data: {
+        edgeType: r.type,
+        label: r.label,
+        symmetric: r.symmetric,
+        // SnapshotRelationship は Relationship と必要フィールドが一致するためキャストして渡す
+        visual: deriveEdgeVisual(r as unknown as Relationship),
+        edgeIndex,
+        totalEdgesInPair,
+      },
+    };
+  });
+}
+
+/**
  * スナップショット間アニメーション遷移フック
  *
  * @returns transitionToSnapshot 関数と isTransitioning フラグ
  */
 export function useSnapshotTransition(): UseSnapshotTransitionResult {
-  const { getNodes, setNodes } = useReactFlow();
+  const { getNodes, setNodes, getEdges, setEdges } = useReactFlow();
 
   const { snapshots, _livePersons, goToSnapshot } = useGraphStore(
     useShallow((state) => ({
@@ -115,6 +161,10 @@ export function useSnapshotTransition(): UseSnapshotTransitionResult {
       const currentNodes = getNodes();
       const currentNodeMap = new Map(currentNodes.map((n) => [n.id, n]));
 
+      // 現在のエッジを取得（フェードアウト対象の特定用）
+      const currentEdges = getEdges();
+      const currentEdgeMap = new Map(currentEdges.map((e) => [e.id, e]));
+
       // 遷移先スナップショットからターゲットノードを構築する
       const targetNodes: GraphNode[] = targetSnapshot.persons.map((sp) => ({
         id: sp.personId,
@@ -128,6 +178,10 @@ export function useSnapshotTransition(): UseSnapshotTransitionResult {
       }));
       const targetNodeMap = new Map(targetNodes.map((n) => [n.id, n]));
 
+      // 遷移先スナップショットからターゲットエッジを構築する
+      const targetEdges = snapshotRelationshipsToEdges(targetSnapshot.relationships);
+      const targetEdgeMap = new Map(targetEdges.map((e) => [e.id, e]));
+
       // アニメーション開始位置を記録（移動ノードの補間用）
       const startPositions = new Map(
         currentNodes.map((n) => [n.id, { x: n.position.x, y: n.position.y }])
@@ -140,6 +194,8 @@ export function useSnapshotTransition(): UseSnapshotTransitionResult {
        * rAF アニメーションループ
        * - ターゲットノード: 出現（opacity 0→1）または位置補間（opacity 1）
        * - 削除ノード: 消滅（opacity 1→0）
+       * - ターゲットエッジ: 出現（opacity 0→1）または維持（opacity 1）
+       * - 削除エッジ: 消滅（opacity 1→0）
        */
       const animate = () => {
         const elapsed = performance.now() - startTime;
@@ -180,6 +236,35 @@ export function useSnapshotTransition(): UseSnapshotTransitionResult {
 
         setNodes(animatedNodes);
 
+        // エッジアニメーション
+        const animatedEdges: RelationshipEdge[] = [];
+
+        // ターゲットエッジ（維持/追加）: フェードイン
+        for (const targetEdge of targetEdges) {
+          const isNewEdge = !currentEdgeMap.has(targetEdge.id);
+          animatedEdges.push({
+            ...targetEdge,
+            style: {
+              // 新規エッジはフェードイン、既存エッジは不透明のまま
+              opacity: isNewEdge ? easedProgress : 1,
+            },
+          });
+        }
+
+        // 削除エッジ: フェードアウト（ターゲットに存在しないもの）
+        for (const [id, currentEdge] of currentEdgeMap) {
+          if (!targetEdgeMap.has(id)) {
+            animatedEdges.push({
+              ...(currentEdge as RelationshipEdge),
+              style: {
+                opacity: 1 - easedProgress,
+              },
+            });
+          }
+        }
+
+        setEdges(animatedEdges);
+
         // アニメーション継続判定
         if (progress < 1) {
           animationFrameRef.current = requestAnimationFrame(animate);
@@ -203,7 +288,7 @@ export function useSnapshotTransition(): UseSnapshotTransitionResult {
         timeoutRef.current = null;
       }, TRANSITION_DURATION_MS);
     },
-    [getNodes, setNodes]
+    [getNodes, setNodes, getEdges, setEdges]
   );
 
   return { transitionToSnapshot, isTransitioning };

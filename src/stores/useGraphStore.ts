@@ -4,6 +4,15 @@
  */
 
 import { create } from 'zustand';
+
+/**
+ * 自動再生の再生速度（ミリ秒）の許可値
+ * UIの3段階（1x/1.5x/2x）に対応する。TimelineBar.tsx も参照する。
+ */
+export const PLAYBACK_SPEEDS = [3000, 2000, 1000] as const;
+
+/** 自動再生の再生速度型（許可された3値のみ） */
+export type PlaybackSpeed = (typeof PLAYBACK_SPEEDS)[number];
 import { temporal } from 'zundo';
 import { nanoid } from 'nanoid';
 import type { Person } from '@/types/person';
@@ -92,8 +101,8 @@ type GraphState = {
   _liveRelationships: Relationship[] | null;
   /** アニメーション自動再生中かどうか */
   isPlaying: boolean;
-  /** 自動再生の再生間隔（ミリ秒）。デフォルト: 2000ms */
-  playbackSpeed: number;
+  /** 自動再生の再生間隔（ミリ秒）。PLAYBACK_SPEEDS で定義された3段階のみ有効 */
+  playbackSpeed: PlaybackSpeed;
 };
 
 /**
@@ -409,9 +418,9 @@ type GraphActions = {
 
   /**
    * 自動再生の再生速度を設定する
-   * @param ms - 再生間隔（ミリ秒）。1000 / 2000 / 3000 の3段階を推奨
+   * @param ms - 再生間隔（ミリ秒）。PLAYBACK_SPEEDS で定義された値のみ有効
    */
-  setPlaybackSpeed: (ms: number) => void;
+  setPlaybackSpeed: (ms: PlaybackSpeed) => void;
 
   /**
    * 指定インデックスのスナップショット状態をグラフに反映する
@@ -1173,6 +1182,8 @@ export const useGraphStore = create<GraphStore>()(
         },
 
         setPlaybackSpeed: (ms) => {
+          // PLAYBACK_SPEEDS 以外の値は無視する（防御的ガード）
+          if (!(PLAYBACK_SPEEDS as readonly number[]).includes(ms)) return;
           set(() => ({ playbackSpeed: ms }));
         },
 

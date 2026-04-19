@@ -217,6 +217,91 @@ describe('computeSnapshotDiff', () => {
       expect(diff.persons.moved).toHaveLength(0);
       expect(diff.persons.unchanged).toHaveLength(0);
     });
+
+    it('同じ位置でも名前が変化した人物はchangedに分類される', () => {
+      // GIVEN: personIdと位置は同じだが名前が異なる
+      const personA: SnapshotPerson = {
+        personId: 'person-1',
+        name: '旧名前',
+        labels: [],
+        position: { x: 100, y: 200 },
+        properties: {},
+      };
+      const personB: SnapshotPerson = {
+        personId: 'person-1',
+        name: '新名前',
+        labels: [],
+        position: { x: 100, y: 200 },
+        properties: {},
+      };
+      const snapshotA = makeSnapshot([personA], []);
+      const snapshotB = makeSnapshot([personB], []);
+
+      // WHEN
+      const diff = computeSnapshotDiff(snapshotA, snapshotB);
+
+      // THEN: 位置は同じだが名前が変化 → changed に分類
+      expect(diff.persons.changed).toHaveLength(1);
+      expect(diff.persons.changed[0].personId).toBe('person-1');
+      expect(diff.persons.changed[0].name).toBe('新名前');
+      expect(diff.persons.unchanged).toHaveLength(0);
+      expect(diff.persons.moved).toHaveLength(0);
+    });
+
+    it('同じ位置でもラベルが変化した人物はchangedに分類される', () => {
+      // GIVEN
+      const personA: SnapshotPerson = {
+        personId: 'person-1',
+        name: '織田信長',
+        labels: ['武将'],
+        position: { x: 100, y: 200 },
+        properties: {},
+      };
+      const personB: SnapshotPerson = {
+        personId: 'person-1',
+        name: '織田信長',
+        labels: ['武将', '天下人'],
+        position: { x: 100, y: 200 },
+        properties: {},
+      };
+      const snapshotA = makeSnapshot([personA], []);
+      const snapshotB = makeSnapshot([personB], []);
+
+      // WHEN
+      const diff = computeSnapshotDiff(snapshotA, snapshotB);
+
+      // THEN
+      expect(diff.persons.changed).toHaveLength(1);
+      expect(diff.persons.unchanged).toHaveLength(0);
+    });
+
+    it('位置と属性の両方が変化した人物はmovedに分類される（位置変化を優先）', () => {
+      // GIVEN: 位置も名前も変化
+      const personA: SnapshotPerson = {
+        personId: 'person-1',
+        name: '旧名前',
+        labels: [],
+        position: { x: 100, y: 200 },
+        properties: {},
+      };
+      const personB: SnapshotPerson = {
+        personId: 'person-1',
+        name: '新名前',
+        labels: [],
+        position: { x: 500, y: 600 },
+        properties: {},
+      };
+      const snapshotA = makeSnapshot([personA], []);
+      const snapshotB = makeSnapshot([personB], []);
+
+      // WHEN
+      const diff = computeSnapshotDiff(snapshotA, snapshotB);
+
+      // THEN: 位置変化を優先してmovedに分類
+      expect(diff.persons.moved).toHaveLength(1);
+      expect(diff.persons.changed).toHaveLength(0);
+      expect(diff.persons.unchanged).toHaveLength(0);
+    });
   });
 
   describe('関係のdiff計算', () => {
@@ -264,6 +349,23 @@ describe('computeSnapshotDiff', () => {
       // THEN
       expect(diff.relationships.removed).toHaveLength(1);
       expect(diff.relationships.removed[0].relationshipId).toBe('rel-2');
+    });
+
+    it('接続先（sourceId/targetId）が変化した関係はchangedに分類される', () => {
+      // GIVEN: 同一IDだがtargetIdが異なる（エッジの張り替え）
+      const relA = makeRelationship('rel-1', 'person-1', 'person-2');
+      const relB = makeRelationship('rel-1', 'person-1', 'person-3');
+      const snapshotA = makeSnapshot([], [relA]);
+      const snapshotB = makeSnapshot([], [relB]);
+
+      // WHEN
+      const diff = computeSnapshotDiff(snapshotA, snapshotB);
+
+      // THEN: 接続先が変化したのでchangedに分類
+      expect(diff.relationships.changed).toHaveLength(1);
+      expect(diff.relationships.changed[0].relationshipId).toBe('rel-1');
+      expect(diff.relationships.changed[0].from.targetId).toBe('person-2');
+      expect(diff.relationships.changed[0].to.targetId).toBe('person-3');
     });
 
     it('属性（label）が変化した関係はchangedに分類される', () => {

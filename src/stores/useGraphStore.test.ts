@@ -3289,6 +3289,8 @@ describe('useGraphStore', () => {
         activeSnapshotIndex: null,
         _livePersons: null,
         _liveRelationships: null,
+        isPlaying: false,
+        playbackSpeed: 2000,
       });
       store.persons.forEach((p) => store.removePerson(p.id));
       store.relationships.forEach((r) => store.removeRelationship(r.id));

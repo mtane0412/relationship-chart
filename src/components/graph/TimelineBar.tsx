@@ -18,10 +18,8 @@
 
 import { Pause, Play, SkipBack, SkipForward, X } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
-import { useGraphStore } from '@/stores/useGraphStore';
-
-/** 再生速度の設定（ミリ秒）。循環する順番で定義 */
-const PLAYBACK_SPEEDS = [3000, 2000, 1000] as const;
+import { useGraphStore, PLAYBACK_SPEEDS } from '@/stores/useGraphStore';
+import type { PlaybackSpeed } from '@/stores/useGraphStore';
 
 /** 再生速度ラベルのマッピング */
 const SPEED_LABELS: Record<number, string> = {
@@ -121,7 +119,7 @@ export function TimelineBar({ onTransition, isTransitioning = false }: TimelineB
    * 現在の速度から次の速度へ循環する: 3000ms → 2000ms → 1000ms → 3000ms
    */
   const handleSpeedCycle = () => {
-    const currentIndex = PLAYBACK_SPEEDS.indexOf(playbackSpeed as typeof PLAYBACK_SPEEDS[number]);
+    const currentIndex = PLAYBACK_SPEEDS.indexOf(playbackSpeed as PlaybackSpeed);
     const nextIndex = (currentIndex + 1) % PLAYBACK_SPEEDS.length;
     setPlaybackSpeed(PLAYBACK_SPEEDS[nextIndex]);
   };
@@ -144,7 +142,8 @@ export function TimelineBar({ onTransition, isTransitioning = false }: TimelineB
   // スナップショットが0件の場合も明示的に disabled にする
   const isNextDisabled = snapshots.length === 0 || activeSnapshotIndex === snapshots.length - 1;
   // 再生/停止ボタンのdisabled条件
-  const isPlayDisabled = snapshots.length === 0;
+  // スナップショット0件、または最後のスナップショット表示中（進む先がない）
+  const isPlayDisabled = snapshots.length === 0 || activeSnapshotIndex === snapshots.length - 1;
 
   // 現在の速度ラベル
   const currentSpeedLabel = SPEED_LABELS[playbackSpeed] ?? '1.5x';
