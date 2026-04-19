@@ -11,7 +11,7 @@ import { getNodeCenter, VIEWPORT_ANIMATION_DURATION } from '@/lib/viewport-utils
 import { UserPlus, XCircle, Pencil, Trash2, Maximize2, Link, ArrowLeft } from 'lucide-react';
 import type { ContextMenuState } from './useContextMenu';
 import type { ContextMenuItem } from './ContextMenu';
-import type { RelationshipEdge } from '@/types/graph';
+import type { AnyGraphEdge, RelationshipEdge } from '@/types/graph';
 import type { PendingConnection, PendingRegistration } from './useGraphInteractions';
 
 /**
@@ -21,7 +21,7 @@ type UseGraphContextMenuActionsParams = {
   /** コンテキストメニューの状態 */
   contextMenu: ContextMenuState | null;
   /** グラフのエッジ配列 */
-  edges: RelationshipEdge[];
+  edges: AnyGraphEdge[];
   /** 関係登録の待機状態をセットする関数 */
   setPendingConnection: (pending: PendingConnection | null) => void;
   /** 人物登録の待機状態をセットする関数 */
@@ -263,7 +263,7 @@ export function useGraphContextMenuActions({
           onClick: async () => {
             closeContextMenu();
             const confirmed = await openConfirm({
-              message: `「${edge?.data?.label ?? edge?.data?.edgeType ?? '不明な関係'}」を削除してもよろしいですか？`,
+              message: `「${(edge as RelationshipEdge | undefined)?.data?.label ?? (edge as RelationshipEdge | undefined)?.data?.edgeType ?? '不明な関係'}」を削除してもよろしいですか？`,
               isDanger: true,
             });
             if (confirmed) {

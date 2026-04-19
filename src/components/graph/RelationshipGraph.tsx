@@ -22,6 +22,8 @@ import {
 import '@xyflow/react/dist/style.css';
 import { GraphNodeComponent } from './GraphNodeComponent';
 import { RelationshipEdge as RelationshipEdgeComponent } from './RelationshipEdge';
+import { EpisodeNodeComponent } from './EpisodeNodeComponent';
+import { ParticipationEdge } from './ParticipationEdge';
 import { ConnectionLine } from './ConnectionLine';
 import { ForceLayoutPanel } from './ForceLayoutPanel';
 import ShareButton from './ShareButton';
@@ -53,16 +55,18 @@ const EDGE_MARKER_COLORS = [
 ] as const;
 import { resolveCollisions, DEFAULT_COLLISION_OPTIONS } from '@/lib/collision-resolver';
 import { syncNodePositionsToStore } from '@/lib/graph-utils';
-import type { GraphNode } from '@/types/graph';
+import type { AnyGraphNode } from '@/types/graph';
 
 // カスタムノードタイプの定義（プロパティグラフ方式: 全ノードを単一の 'graph' タイプで扱う）
 const nodeTypes: NodeTypes = {
   graph: GraphNodeComponent,
+  episode: EpisodeNodeComponent,
 };
 
 // カスタムエッジタイプの定義
 const edgeTypes: EdgeTypes = {
   relationship: RelationshipEdgeComponent,
+  participation: ParticipationEdge,
 };
 
 /**
@@ -74,6 +78,7 @@ export function RelationshipGraph() {
   const relationships = useGraphStore((state) => state.relationships);
   const forceParams = useGraphStore((state) => state.forceParams);
   const updatePersonPositions = useGraphStore((state) => state.updatePersonPositions);
+  const updateEpisodePosition = useGraphStore((state) => state.updateEpisodePosition);
 
   // React Flow APIを取得
   const { screenToFlowPosition, getNodes } = useReactFlow();
@@ -184,17 +189,17 @@ export function RelationshipGraph() {
         const resolvedNodes = resolveCollisions(currentNodes, DEFAULT_COLLISION_OPTIONS);
         // 位置が変更されたノードがあれば更新
         if (resolvedNodes !== currentNodes) {
-          setNodes(resolvedNodes as GraphNode[]);
+          setNodes(resolvedNodes as AnyGraphNode[]);
         }
         // 衝突解消後の位置をストアに書き戻す
-        syncNodePositionsToStore(resolvedNodes, updatePersonPositions);
+        syncNodePositionsToStore(resolvedNodes, updatePersonPositions, updateEpisodePosition);
       } else {
         // Force Layout有効時は全ノードの位置を書き戻す（他ノードもシミュレーションで移動するため）
         const currentNodes = getNodesRef.current();
-        syncNodePositionsToStore(currentNodes, updatePersonPositions);
+        syncNodePositionsToStore(currentNodes, updatePersonPositions, updateEpisodePosition);
       }
     },
-    [handleNodeDragEnd, forceEnabled, setNodes, updatePersonPositions]
+    [handleNodeDragEnd, forceEnabled, setNodes, updatePersonPositions, updateEpisodePosition]
   );
 
   // Force Layout無効化時の位置書き戻し
@@ -203,10 +208,10 @@ export function RelationshipGraph() {
     // forceEnabledがtrue→falseに変わった時
     if (prevForceEnabledRef.current && !forceEnabled) {
       const currentNodes = getNodesRef.current();
-      syncNodePositionsToStore(currentNodes, updatePersonPositions);
+      syncNodePositionsToStore(currentNodes, updatePersonPositions, updateEpisodePosition);
     }
     prevForceEnabledRef.current = forceEnabled;
-  }, [forceEnabled, updatePersonPositions]);
+  }, [forceEnabled, updatePersonPositions, updateEpisodePosition]);
 
   return (
     <div className="w-full h-screen relative" onDrop={handleDrop} onDragOver={handleDragOver}>

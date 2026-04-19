@@ -711,24 +711,25 @@ export function migrateGraphState(persistedState: unknown, version: number): unk
   return state;
 }
 
-// ─── IndexedDB Chart の正規化（v12 形式への変換） ──────────────────────────────
+// ─── IndexedDB Chart の正規化（v13 形式への変換） ──────────────────────────────
 
 /**
- * IndexedDB からロードした Chart を v12 形式に正規化する
+ * IndexedDB からロードした Chart を v13 形式に正規化する
  *
  * スキーマ変換の段階:
- *   v8以前  → v9: レイヤーベース → プロパティグラフ（forward/reverse構造）
+ *   v8以前  → v9:  レイヤーベース → プロパティグラフ（forward/reverse構造）
  *   v9/v10  → v11: Person.kind → labels、RelationshipV9 → Relationship
  *   v11     → v12: snapshots フィールドの追加（タイムライン機能対応）
+ *   v12     → v13: episodes/episodeParticipations フィールドの追加（エピソードノード対応）
  *
  * @param chart - ロードした Chart オブジェクト（古い schemaVersion の可能性あり）
- * @returns v12 形式に正規化された Chart
+ * @returns v13 形式に正規化された Chart
  */
 export function normalizeChart(chart: Chart): Chart {
   const schemaVersion = chart.schemaVersion ?? 0;
 
-  // v12以降はすでに最新形式
-  if (schemaVersion >= 12) return chart;
+  // v13以降はすでに最新形式
+  if (schemaVersion >= 13) return chart;
 
   let persons = chart.persons as unknown as LegacyPersonV10[];
   let relationships = chart.relationships as unknown[];
@@ -761,12 +762,21 @@ export function normalizeChart(chart: Chart): Chart {
   // persons に properties フィールドを追加
   const normalizedPersons = migratePersonsV10ToV11(persons);
 
-  // v11形式に正規化したチャートをv12に変換（snapshotsフィールドを補完）
+  // 既存スナップショットに episodes/episodeParticipations フィールドを補完（v13対応）
+  const normalizedSnapshots = (chart.snapshots ?? []).map((snapshot) => ({
+    ...snapshot,
+    episodes: snapshot.episodes ?? [],
+    episodeParticipations: snapshot.episodeParticipations ?? [],
+  }));
+
+  // v13に変換（episodes/episodeParticipationsフィールドを補完）
   return {
     ...chart,
     persons: normalizedPersons,
     relationships: normalizedRelationships,
-    snapshots: chart.snapshots ?? [],
-    schemaVersion: 12,
+    snapshots: normalizedSnapshots,
+    episodes: chart.episodes ?? [],
+    episodeParticipations: chart.episodeParticipations ?? [],
+    schemaVersion: 13,
   };
 }

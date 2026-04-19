@@ -57,6 +57,42 @@ export type SnapshotRelationship = {
 };
 
 /**
+ * スナップショット時点のエピソードの軽量表現
+ *
+ * @property episodeId - Episode.id への参照
+ * @property title - スナップショット時点のタイトル
+ * @property description - スナップショット時点の説明文
+ * @property occurredAt - スナップショット時点のユーザー指定日時
+ * @property relatedRelationshipIds - 関連関係のID参照配列
+ * @property position - スナップショット時点のキャンバス座標
+ * @property properties - カスタムプロパティ
+ */
+export type SnapshotEpisode = {
+  episodeId: string;
+  title: string;
+  description?: string;
+  occurredAt?: string;
+  relatedRelationshipIds: string[];
+  position?: { x: number; y: number };
+  properties: Record<string, unknown>;
+};
+
+/**
+ * スナップショット時点のエピソード参加エッジの軽量表現
+ *
+ * @property participationId - EpisodeParticipation.id への参照
+ * @property episodeId - 参加するエピソードのID
+ * @property personId - 参加する人物のID
+ * @property role - 将来拡張用のロール
+ */
+export type SnapshotEpisodeParticipation = {
+  participationId: string;
+  episodeId: string;
+  personId: string;
+  role?: string;
+};
+
+/**
  * タイムラインスナップショット
  *
  * ユーザーが保存したある時点のグラフ全体の状態を表す。
@@ -67,6 +103,8 @@ export type SnapshotRelationship = {
  * @property description - 任意の説明文
  * @property persons - スナップショット時点の人物リスト（imageDataUrl を除く軽量表現）
  * @property relationships - スナップショット時点の関係リスト
+ * @property episodes - スナップショット時点のエピソードリスト（v13以降）
+ * @property episodeParticipations - スナップショット時点の参加エッジリスト（v13以降）
  * @property createdAt - 保存日時（ISO 8601形式）
  */
 export type Snapshot = {
@@ -75,5 +113,9 @@ export type Snapshot = {
   description?: string;
   persons: SnapshotPerson[];
   relationships: SnapshotRelationship[];
+  /** エピソードリスト（v13以降、省略時は空配列として扱う） */
+  episodes?: SnapshotEpisode[];
+  /** エピソード参加エッジリスト（v13以降、省略時は空配列として扱う） */
+  episodeParticipations?: SnapshotEpisodeParticipation[];
   createdAt: string;
 };

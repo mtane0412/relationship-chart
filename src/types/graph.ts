@@ -1,6 +1,6 @@
 /**
  * グラフ描画に関連する型定義
- * React Flowで使用するノードとエッジの型を定義（v11 プロパティグラフ方式）
+ * React Flowで使用するノードとエッジの型を定義（v13 エピソードノード対応）
  */
 
 import type { Node as ReactFlowNode, Edge as ReactFlowEdge } from '@xyflow/react';
@@ -60,3 +60,50 @@ export type GraphNode = ReactFlowNode<PersonNodeData, 'graph'>;
  * React Flowで使用する関係エッジ型
  */
 export type RelationshipEdge = ReactFlowEdge<RelationshipEdgeData>;
+
+/**
+ * エピソードノードのデータ型
+ * EpisodeNodeComponentで使用される
+ *
+ * @property title - エピソードのタイトル
+ * @property description - 任意の説明文（複数行）
+ * @property occurredAt - 任意のユーザー指定日時（自由文字列）
+ * @property relatedRelationshipIds - 関連する関係のID参照配列
+ */
+export type EpisodeNodeData = {
+  title: string;
+  description?: string;
+  occurredAt?: string;
+  relatedRelationshipIds: string[];
+};
+
+/**
+ * React Flowで使用するエピソードノード型
+ */
+export type EpisodeNode = ReactFlowNode<EpisodeNodeData, 'episode'>;
+
+/**
+ * エピソード参加エッジのデータ型
+ * ParticipationEdgeコンポーネントで使用される
+ *
+ * @property role - 将来拡張用のロール（初版では未使用）
+ */
+export type ParticipationEdgeData = {
+  role?: string;
+};
+
+/**
+ * React Flowで使用するエピソード参加エッジ型
+ * EpisodeノードとPersonノードを破線で繋ぐ向きなしエッジ
+ */
+export type ParticipationEdge = ReactFlowEdge<ParticipationEdgeData>;
+
+/**
+ * グラフ上のノード全種別のユニオン型
+ */
+export type AnyGraphNode = GraphNode | EpisodeNode;
+
+/**
+ * グラフ上のエッジ全種別のユニオン型
+ */
+export type AnyGraphEdge = RelationshipEdge | ParticipationEdge;

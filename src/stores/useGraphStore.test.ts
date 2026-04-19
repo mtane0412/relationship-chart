@@ -4023,4 +4023,304 @@ describe('useGraphStore', () => {
       });
     });
   });
+
+  describe('エピソード機能', () => {
+    beforeEach(() => {
+      // エピソード関連の状態を初期化
+      useGraphStore.setState({
+        episodes: [],
+        episodeParticipations: [],
+      });
+    });
+
+    describe('createEpisode', () => {
+      it('新しいエピソードを作成できる', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        let episodeId!: string;
+        act(() => {
+          episodeId = result.current.createEpisode({
+            title: '初めての出会い',
+          });
+        });
+
+        expect(result.current.episodes).toHaveLength(1);
+        expect(result.current.episodes[0].id).toBe(episodeId!);
+        expect(result.current.episodes[0].title).toBe('初めての出会い');
+        expect(result.current.episodes[0].relatedRelationshipIds).toEqual([]);
+        expect(result.current.episodes[0].properties).toEqual({});
+        expect(result.current.episodes[0].createdAt).toBeTruthy();
+        expect(result.current.episodes[0].updatedAt).toBeTruthy();
+      });
+
+      it('説明・日時・関連関係IDを指定してエピソードを作成できる', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        act(() => {
+          result.current.createEpisode({
+            title: '決別の朝',
+            description: '二人の関係が決定的に壊れた朝の場面',
+            occurredAt: '第5話',
+            relatedRelationshipIds: ['rel-001'],
+          });
+        });
+
+        expect(result.current.episodes[0].description).toBe('二人の関係が決定的に壊れた朝の場面');
+        expect(result.current.episodes[0].occurredAt).toBe('第5話');
+        expect(result.current.episodes[0].relatedRelationshipIds).toEqual(['rel-001']);
+      });
+
+      it('複数のエピソードを作成できる', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        act(() => {
+          result.current.createEpisode({ title: 'エピソード1' });
+          result.current.createEpisode({ title: 'エピソード2' });
+        });
+
+        expect(result.current.episodes).toHaveLength(2);
+      });
+    });
+
+    describe('updateEpisode', () => {
+      it('エピソードのタイトルを更新できる', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        let episodeId!: string;
+        act(() => {
+          episodeId = result.current.createEpisode({ title: '旧タイトル' });
+        });
+
+        act(() => {
+          result.current.updateEpisode(episodeId!, { title: '再会の瞬間' });
+        });
+
+        expect(result.current.episodes[0].title).toBe('再会の瞬間');
+        expect(result.current.episodes[0].updatedAt).toBeTruthy();
+      });
+
+      it('複数フィールドを同時に更新できる', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        let episodeId!: string;
+        act(() => {
+          episodeId = result.current.createEpisode({ title: '最初の邂逅' });
+        });
+
+        act(() => {
+          result.current.updateEpisode(episodeId!, {
+            description: '二人が運命的に出会った場面',
+            occurredAt: '第1話 冒頭',
+          });
+        });
+
+        expect(result.current.episodes[0].description).toBe('二人が運命的に出会った場面');
+        expect(result.current.episodes[0].occurredAt).toBe('第1話 冒頭');
+        // タイトルは変更されていないこと
+        expect(result.current.episodes[0].title).toBe('最初の邂逅');
+      });
+    });
+
+    describe('deleteEpisode', () => {
+      it('エピソードを削除できる', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        let episodeId!: string;
+        act(() => {
+          episodeId = result.current.createEpisode({ title: '幻の再会' });
+        });
+
+        act(() => {
+          result.current.deleteEpisode(episodeId!);
+        });
+
+        expect(result.current.episodes).toHaveLength(0);
+      });
+
+      it('エピソード削除時に紐づく参加エッジも削除される', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        // 人物とエピソードを作成
+        act(() => {
+          result.current.addPerson({ name: '桐島 遥', labels: ['人物'], properties: {} });
+        });
+        let episodeId!: string;
+        act(() => {
+          episodeId = result.current.createEpisode({ title: '対峙' });
+        });
+        const personId = result.current.persons[0].id;
+
+        // 参加エッジを追加
+        act(() => {
+          result.current.addParticipation({ episodeId, personId });
+        });
+        expect(result.current.episodeParticipations).toHaveLength(1);
+
+        // エピソードを削除すると参加エッジも消える
+        act(() => {
+          result.current.deleteEpisode(episodeId);
+        });
+
+        expect(result.current.episodes).toHaveLength(0);
+        expect(result.current.episodeParticipations).toHaveLength(0);
+      });
+    });
+
+    describe('reorderEpisodes', () => {
+      it('エピソードをID配列の順序で並び替えられる', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        let id1!: string, id2!: string, id3!: string;
+        act(() => {
+          id1 = result.current.createEpisode({ title: '第1エピソード' });
+          id2 = result.current.createEpisode({ title: '第2エピソード' });
+          id3 = result.current.createEpisode({ title: '第3エピソード' });
+        });
+
+        // 逆順に並び替え
+        act(() => {
+          result.current.reorderEpisodes([id3!, id2!, id1!]);
+        });
+
+        expect(result.current.episodes[0].title).toBe('第3エピソード');
+        expect(result.current.episodes[1].title).toBe('第2エピソード');
+        expect(result.current.episodes[2].title).toBe('第1エピソード');
+      });
+    });
+
+    describe('updateEpisodePosition', () => {
+      it('エピソードのキャンバス座標を更新できる', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        let episodeId!: string;
+        act(() => {
+          episodeId = result.current.createEpisode({ title: '運命の分岐点' });
+        });
+
+        act(() => {
+          result.current.updateEpisodePosition(episodeId!, { x: 150, y: 300 });
+        });
+
+        expect(result.current.episodes[0].position).toEqual({ x: 150, y: 300 });
+      });
+    });
+
+    describe('addParticipation', () => {
+      it('エピソードに人物を参加者として追加できる', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        let episodeId!: string;
+        act(() => {
+          result.current.addPerson({ name: '水城 葵', labels: ['人物'], properties: {} });
+          episodeId = result.current.createEpisode({ title: '静寂の告白' });
+        });
+        const personId = result.current.persons[0].id;
+
+        let participationId!: string;
+        act(() => {
+          participationId = result.current.addParticipation({ episodeId, personId });
+        });
+
+        expect(result.current.episodeParticipations).toHaveLength(1);
+        expect(result.current.episodeParticipations[0].id).toBe(participationId);
+        expect(result.current.episodeParticipations[0].episodeId).toBe(episodeId);
+        expect(result.current.episodeParticipations[0].personId).toBe(personId);
+        expect(result.current.episodeParticipations[0].createdAt).toBeTruthy();
+      });
+    });
+
+    describe('removeParticipation', () => {
+      it('参加エッジを削除できる', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        let episodeId!: string;
+        act(() => {
+          result.current.addPerson({ name: '黒瀬 律', labels: ['人物'], properties: {} });
+          episodeId = result.current.createEpisode({ title: '因縁の対決' });
+        });
+        const personId = result.current.persons[0].id;
+
+        let participationId!: string;
+        act(() => {
+          participationId = result.current.addParticipation({ episodeId, personId });
+        });
+
+        act(() => {
+          result.current.removeParticipation(participationId);
+        });
+
+        expect(result.current.episodeParticipations).toHaveLength(0);
+      });
+    });
+
+    describe('captureSnapshot でエピソードが取り込まれる', () => {
+      it('スナップショット保存時にエピソードと参加エッジが含まれる', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        useGraphStore.setState({ snapshots: [], timelineMode: false, activeSnapshotIndex: null });
+
+        let episodeId!: string;
+        act(() => {
+          result.current.addPerson({ name: '橘 咲良', labels: ['人物'], properties: {} });
+          episodeId = result.current.createEpisode({
+            title: '出発の朝',
+            description: '長い旅の始まり',
+            occurredAt: '第1話',
+          });
+        });
+        const personId = result.current.persons[0].id;
+        act(() => {
+          result.current.addParticipation({ episodeId, personId });
+        });
+
+        act(() => {
+          result.current.captureSnapshot('第1話スナップショット');
+        });
+
+        const snapshot = result.current.snapshots[0];
+        expect(snapshot.episodes).toHaveLength(1);
+        expect(snapshot.episodes![0].title).toBe('出発の朝');
+        expect(snapshot.episodes![0].episodeId).toBe(episodeId);
+        expect(snapshot.episodeParticipations).toHaveLength(1);
+        expect(snapshot.episodeParticipations![0].episodeId).toBe(episodeId);
+        expect(snapshot.episodeParticipations![0].personId).toBe(personId);
+      });
+    });
+
+    describe('goToSnapshot でエピソードが復元される', () => {
+      it('スナップショットに戻ると保存時のエピソードが復元される', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        useGraphStore.setState({ snapshots: [], timelineMode: false, activeSnapshotIndex: null });
+
+        let episodeId!: string;
+        act(() => {
+          result.current.addPerson({ name: '霧島 蒼', labels: ['人物'], properties: {} });
+          episodeId = result.current.createEpisode({ title: '雨の日の記憶' });
+        });
+        const personId = result.current.persons[0].id;
+        act(() => {
+          result.current.addParticipation({ episodeId, personId });
+          result.current.captureSnapshot('第2話');
+        });
+
+        // スナップショット保存後にエピソードを削除
+        act(() => {
+          result.current.deleteEpisode(episodeId);
+        });
+        expect(result.current.episodes).toHaveLength(0);
+
+        // タイムラインモードでスナップショットに戻る
+        act(() => {
+          result.current.setTimelineMode(true);
+          result.current.goToSnapshot(0);
+        });
+
+        // エピソードが復元されていること
+        expect(result.current.episodes).toHaveLength(1);
+        expect(result.current.episodes[0].title).toBe('雨の日の記憶');
+        expect(result.current.episodeParticipations).toHaveLength(1);
+      });
+    });
+  });
 });
