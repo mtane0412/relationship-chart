@@ -83,6 +83,21 @@ function sanitizePersonName(name: string): string {
 }
 
 /**
+ * エピソードタイトルをサニタイズする
+ *
+ * 人物名とは異なり、日付（2024-04-01）やスラッシュを含むタイトルを変形しないよう
+ * 改行・制御文字のみ除去し、それ以外の記号はそのまま保持する。
+ * @param title - サニタイズ対象のエピソードタイトル
+ * @returns サニタイズ後のエピソードタイトル
+ */
+function sanitizeEpisodeTitle(title: string): string {
+  return title
+    .replace(/[\r\n\t]/g, ' ') // 改行・タブを空白に
+    .replace(/\p{C}/gu, '') // Unicode 制御文字を除去
+    .trim();
+}
+
+/**
  * チャット履歴と既存人物名から LLM に渡すプロンプトを構築する
  *
  * @param chatHistory - インタビューのチャット履歴
@@ -100,7 +115,7 @@ function buildPrompt(
     .filter((n) => n.length > 0);
 
   const sanitizedEpisodeTitles = existingEpisodeTitles
-    .map(sanitizePersonName)
+    .map(sanitizeEpisodeTitle)
     .filter((t) => t.length > 0);
 
   const existingNamesSection =

@@ -226,6 +226,45 @@ describe('resolveExtractionResult', () => {
       expect(result.episodes).toHaveLength(0);
     });
 
+    it('participantNames に重複がある場合 participantPersonIds が重複排除されること', () => {
+      const resultWithDuplicates: LlmExtractionResult = {
+        // 田中太郎・山田花子は existingPersons に存在するため LLM の persons に含めなくてもよい
+        persons: [{ name: '田中太郎', labels: ['人物'] }, { name: '山田花子', labels: ['人物'] }],
+        relationships: [],
+        episodes: [
+          {
+            title: '重複参加者テスト',
+            description: null,
+            occurredAt: null,
+            // 田中太郎が2回登場（LLMが重複出力した想定）
+            participantNames: ['田中太郎', '田中太郎', '山田花子'],
+          },
+        ],
+      };
+      const result = resolveExtractionResult(resultWithDuplicates, existingPersons, new Map());
+      expect(result.episodes).toHaveLength(1);
+      // 重複排除後は person-001（田中太郎）・person-002（山田花子）の2件のみ
+      expect(result.episodes[0].participantPersonIds).toHaveLength(2);
+    });
+
+    it('title が前後の空白を持つ場合 trim されること', () => {
+      const resultWithPaddedTitle: LlmExtractionResult = {
+        persons: [{ name: '田中太郎', labels: ['人物'] }],
+        relationships: [],
+        episodes: [
+          {
+            title: '  初めての出会い  ',
+            description: null,
+            occurredAt: null,
+            participantNames: ['田中太郎'],
+          },
+        ],
+      };
+      const result = resolveExtractionResult(resultWithPaddedTitle, existingPersons, new Map());
+      expect(result.episodes).toHaveLength(1);
+      expect(result.episodes[0].title).toBe('初めての出会い');
+    });
+
     it('description と occurredAt が null の Episode が正しく解決されること', () => {
       const resultWithNulls: LlmExtractionResult = {
         persons: [{ name: '山田花子', labels: ['人物'] }],

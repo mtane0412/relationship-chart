@@ -35,17 +35,27 @@ const MAX_TEXT_LENGTH = 10000;
 /** existingPersonNames の最大件数（プロンプト長制限のため） */
 const MAX_EXISTING_PERSON_NAMES = 200;
 
+/** existingPersonNames の各要素の最大文字数（プロンプト肥大化防止のため） */
+const MAX_EXISTING_PERSON_NAME_LENGTH = 200;
+
 /** existingEpisodeTitles の最大件数 */
 const MAX_EXISTING_EPISODE_TITLES = 200;
+
+/** existingEpisodeTitles の各要素の最大文字数（プロンプト肥大化防止のため） */
+const MAX_EXISTING_EPISODE_TITLE_LENGTH = 200;
 
 /** リクエストボディのバリデーションスキーマ */
 const RequestBodySchema = z.object({
   /** 関係を抽出するテキスト（1〜10000文字） */
   text: z.string().min(1).max(MAX_TEXT_LENGTH),
   /** 既存の人物名リスト（LLM に渡してマッチングを促す。最大 200 件） */
-  existingPersonNames: z.array(z.string()).max(MAX_EXISTING_PERSON_NAMES),
+  existingPersonNames: z.array(z.string().max(MAX_EXISTING_PERSON_NAME_LENGTH)).max(MAX_EXISTING_PERSON_NAMES),
   /** 既存のエピソードタイトルリスト（重複探索抑制のためプロンプトに注入する） */
-  existingEpisodeTitles: z.array(z.string()).max(MAX_EXISTING_EPISODE_TITLES).optional().default([]),
+  existingEpisodeTitles: z
+    .array(z.string().max(MAX_EXISTING_EPISODE_TITLE_LENGTH))
+    .max(MAX_EXISTING_EPISODE_TITLES)
+    .optional()
+    .default([]),
   /** OpenRouter APIキー（クライアントの設定から渡す） */
   apiKey: z.string().min(1),
   /** 使用するモデル（OpenRouter モデル ID 形式: "provider/model-name"） */
@@ -66,6 +76,20 @@ function sanitizePersonName(name: string): string {
 }
 
 /**
+ * エピソードタイトルをサニタイズする
+ *
+ * 人物名とは異なり、日付（2024-04-01）やスラッシュを含むタイトルを変形しないよう
+ * 改行・制御文字のみ除去し、それ以外の記号はそのまま保持する。
+ * @param title - サニタイズ対象のエピソードタイトル
+ */
+function sanitizeEpisodeTitle(title: string): string {
+  return title
+    .replace(/[\r\n\t]/g, ' ') // 改行・タブを空白に
+    .replace(/\p{C}/gu, '') // Unicode 制御文字を除去
+    .trim();
+}
+
+/**
  * LLM に渡すプロンプトを構築する
  * @param text - ユーザーが入力したテキスト
  * @param existingPersonNames - 既存の人物名リスト（サニタイズ済み）
@@ -77,7 +101,7 @@ function buildPrompt(text: string, existingPersonNames: string[], existingEpisod
     .filter((n) => n.length > 0);
 
   const sanitizedEpisodeTitles = existingEpisodeTitles
-    .map(sanitizePersonName)
+    .map(sanitizeEpisodeTitle)
     .filter((t) => t.length > 0);
 
   const existingNamesSection =

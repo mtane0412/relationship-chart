@@ -168,14 +168,18 @@ export function resolveExtractionResult(
   const episodes: NewEpisodeData[] = [];
 
   for (const llmEpisode of result.episodes) {
+    const title = llmEpisode.title.trim();
     // タイトルが空文字の Episode はスキップ
-    if (!llmEpisode.title.trim()) continue;
+    if (!title) continue;
 
     // 参加者名を Person ID に解決（解決できない参加者は除外して Episode は保持）
+    // 同一 Person が重複登録されないよう Set で一意化する
+    const seenParticipantIds = new Set<string>();
     const participantPersonIds: string[] = [];
     for (const name of llmEpisode.participantNames) {
       const personId = nameToId.get(normalizeName(name));
-      if (personId !== undefined) {
+      if (personId !== undefined && !seenParticipantIds.has(personId)) {
+        seenParticipantIds.add(personId);
         participantPersonIds.push(personId);
       }
     }
@@ -184,7 +188,7 @@ export function resolveExtractionResult(
     if (participantPersonIds.length === 0) continue;
 
     const episode: NewEpisodeData = {
-      title: llmEpisode.title,
+      title,
       participantPersonIds,
     };
     // null を undefined に変換（型の都合で optional フィールドは undefined を使う）
