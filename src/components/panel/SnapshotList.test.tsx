@@ -35,6 +35,7 @@ function makeStoreMock(overrides: Partial<{
   goToSnapshot: ReturnType<typeof vi.fn>;
   goToLive: ReturnType<typeof vi.fn>;
   deleteSnapshot: ReturnType<typeof vi.fn>;
+  reorderSnapshots: ReturnType<typeof vi.fn>;
 }> = {}) {
   return {
     snapshots: overrides.snapshots ?? [],
@@ -44,6 +45,7 @@ function makeStoreMock(overrides: Partial<{
     goToSnapshot: overrides.goToSnapshot ?? vi.fn(),
     goToLive: overrides.goToLive ?? vi.fn(),
     deleteSnapshot: overrides.deleteSnapshot ?? vi.fn(),
+    reorderSnapshots: overrides.reorderSnapshots ?? vi.fn(),
   };
 }
 
@@ -121,5 +123,27 @@ describe('SnapshotList', () => {
     await user.click(screen.getByRole('button', { name: /第1話を削除/i }));
 
     expect(mockDeleteSnapshot).toHaveBeenCalledWith('snap-001');
+  });
+
+  it('タイムラインモード外でドラッグハンドルが表示される', () => {
+    const snapshots = [makeSnapshot({ id: 'snap-001', label: '第1話' })];
+    mockUseGraphStore.mockReturnValue(makeStoreMock({ snapshots, timelineMode: false }));
+
+    render(<SnapshotList />);
+
+    // ドラッグハンドルボタンが存在すること
+    expect(screen.getByRole('button', { name: '並び替え' })).toBeInTheDocument();
+  });
+
+  it('タイムラインモード中はドラッグハンドルが表示されない', () => {
+    const snapshots = [makeSnapshot({ id: 'snap-001', label: '第1話' })];
+    mockUseGraphStore.mockReturnValue(
+      makeStoreMock({ snapshots, timelineMode: true, activeSnapshotIndex: 0 })
+    );
+
+    render(<SnapshotList />);
+
+    // タイムラインモード中はドラッグハンドルが非表示であること
+    expect(screen.queryByRole('button', { name: '並び替え' })).not.toBeInTheDocument();
   });
 });

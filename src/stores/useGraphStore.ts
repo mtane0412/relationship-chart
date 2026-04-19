@@ -403,6 +403,14 @@ type GraphActions = {
   updateSnapshot: (snapshotId: string, updates: { label?: string; description?: string }) => void;
 
   /**
+   * スナップショットの並び順を変更する
+   * - タイムラインモード中は無操作（activeSnapshotIndexがインデックスベースのため）
+   * @param snapshotIds - 並び替え後のスナップショットIDの配列
+   * @throws スナップショット数が一致しない場合、または存在しないIDが含まれる場合
+   */
+  reorderSnapshots: (snapshotIds: string[]) => void;
+
+  /**
    * タイムライン再生モードの有効/無効を切り替える
    * - true: ライブデータを退避し、pauseAutoSave=true で編集操作を無効化
    * - false: ライブデータを復元し、pauseAutoSave=false で通常モードに戻る（isPlayingもリセット）
@@ -1142,6 +1150,35 @@ export const useGraphStore = create<GraphStore>()(
               s.id === snapshotId ? { ...s, ...updates } : s
             ),
           }));
+        },
+
+        reorderSnapshots: (snapshotIds) => {
+          const { snapshots, timelineMode } = get();
+
+          // タイムラインモード中は並び替え禁止（activeSnapshotIndexがインデックスベースのため表示がズレる）
+          if (timelineMode) {
+            return;
+          }
+
+          if (snapshotIds.length !== snapshots.length) {
+            throw new Error('並び順のスナップショット数が一致しません');
+          }
+
+          const currentIds = new Set(snapshots.map((s) => s.id));
+          const hasInvalidId = snapshotIds.some((id) => !currentIds.has(id));
+          if (hasInvalidId) {
+            throw new Error('並び順に存在しないスナップショットIDが含まれています');
+          }
+
+          // snapshotIdsの順序に従ってsnapshots配列を並び替える
+          const orderMap = new Map(snapshotIds.map((id, index) => [id, index]));
+          const sortedSnapshots = [...snapshots].sort((a, b) => {
+            const indexA = orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+            const indexB = orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+            return indexA - indexB;
+          });
+
+          set(() => ({ snapshots: sortedSnapshots }));
         },
 
         setTimelineMode: (enabled) => {

@@ -3425,6 +3425,82 @@ describe('useGraphStore', () => {
       });
     });
 
+    describe('reorderSnapshots', () => {
+      it('スナップショットの順序を並び替える', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        // 3件のスナップショットを作成する
+        act(() => {
+          result.current.captureSnapshot('第1話');
+          result.current.captureSnapshot('第2話');
+          result.current.captureSnapshot('第3話');
+        });
+
+        const [id1, id2, id3] = result.current.snapshots.map((s) => s.id);
+
+        // 順序を逆にする
+        act(() => {
+          result.current.reorderSnapshots([id3, id2, id1]);
+        });
+
+        expect(result.current.snapshots[0].label).toBe('第3話');
+        expect(result.current.snapshots[1].label).toBe('第2話');
+        expect(result.current.snapshots[2].label).toBe('第1話');
+      });
+
+      it('タイムラインモード中は並び替えを無視する', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        act(() => {
+          result.current.captureSnapshot('第1話');
+          result.current.captureSnapshot('第2話');
+        });
+
+        const [id1, id2] = result.current.snapshots.map((s) => s.id);
+
+        // タイムラインモードに入る
+        act(() => {
+          result.current.setTimelineMode(true);
+        });
+
+        // タイムラインモード中に並び替えを試みる（無視される）
+        act(() => {
+          result.current.reorderSnapshots([id2, id1]);
+        });
+
+        // 順序は変わらないこと
+        expect(result.current.snapshots[0].label).toBe('第1話');
+        expect(result.current.snapshots[1].label).toBe('第2話');
+      });
+
+      it('存在しないIDが含まれる場合はエラーをスローする', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        act(() => {
+          result.current.captureSnapshot('第1話');
+        });
+
+        expect(() => {
+          result.current.reorderSnapshots(['存在しないID']);
+        }).toThrow('並び順に存在しないスナップショットIDが含まれています');
+      });
+
+      it('スナップショット数と異なる長さの配列はエラーをスローする', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        act(() => {
+          result.current.captureSnapshot('第1話');
+          result.current.captureSnapshot('第2話');
+        });
+
+        const [id1] = result.current.snapshots.map((s) => s.id);
+
+        expect(() => {
+          result.current.reorderSnapshots([id1]);
+        }).toThrow('並び順のスナップショット数が一致しません');
+      });
+    });
+
     describe('setTimelineMode / goToSnapshot / goToLive', () => {
       it('タイムラインモードに入るとpauseAutoSaveがtrueになる', () => {
         const { result } = renderHook(() => useGraphStore());
