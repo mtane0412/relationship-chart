@@ -8,6 +8,7 @@ import { PersonEditForm } from './PersonEditForm';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { readFileAsDataUrl } from '@/lib/image-utils';
 import type { Person } from '@/types/person';
+import { makePerson } from '@/test/factories';
 
 // Zustandストアをモック
 vi.mock('@/stores/useGraphStore');
@@ -28,14 +29,11 @@ vi.mock('@/components/ui/ImageCropper', () => ({
 }));
 
 describe('PersonEditForm', () => {
-  const mockPerson: Person = {
+  const mockPerson: Person = makePerson({
     id: 'person-1',
     name: '山田太郎',
     imageDataUrl: 'data:image/jpeg;base64,existing-image',
-    labels: ['人物'],
-    properties: {},
-    createdAt: '2024-01-01T00:00:00.000Z',
-  };
+  });
 
   const mockUpdatePerson = vi.fn();
   const mockRemovePerson = vi.fn();

@@ -8,6 +8,7 @@ import { ChartPreview } from './ChartPreview';
 import { useGraphStore } from '@/stores/useGraphStore';
 import * as chartDB from '@/lib/chart-db';
 import { nanoid } from 'nanoid';
+import { makePerson } from '@/test/factories';
 
 // IndexedDBのクリーンアップ用
 async function clearIndexedDB() {
@@ -46,22 +47,8 @@ describe('ChartPreview', () => {
     useGraphStore.setState({
       activeChartId: chartId,
       persons: [
-        {
-          id: nanoid(),
-          name: '山田太郎',
-          imageDataUrl: 'data:image/webp;base64,TEST_IMAGE_1',
-          labels: ['人物'],
-          properties: {},
-          createdAt: now,
-        },
-        {
-          id: nanoid(),
-          name: '佐藤花子',
-          imageDataUrl: 'data:image/webp;base64,TEST_IMAGE_2',
-          labels: ['人物'],
-          properties: {},
-          createdAt: now,
-        },
+        makePerson({ id: nanoid(), name: '山田太郎', imageDataUrl: 'data:image/webp;base64,TEST_IMAGE_1', createdAt: now, updatedAt: now }),
+        makePerson({ id: nanoid(), name: '佐藤花子', imageDataUrl: 'data:image/webp;base64,TEST_IMAGE_2', createdAt: now, updatedAt: now }),
       ],
     });
 
@@ -82,20 +69,8 @@ describe('ChartPreview', () => {
     useGraphStore.setState({
       activeChartId: chartId,
       persons: [
-        {
-          id: nanoid(),
-          name: '山田太郎',
-          labels: ['人物'],
-          properties: {},
-          createdAt: now,
-        },
-        {
-          id: nanoid(),
-          name: '佐藤花子',
-          labels: ['人物'],
-          properties: {},
-          createdAt: now,
-        },
+        makePerson({ id: nanoid(), name: '山田太郎', createdAt: now, updatedAt: now }),
+        makePerson({ id: nanoid(), name: '佐藤花子', createdAt: now, updatedAt: now }),
       ],
     });
 
@@ -130,13 +105,9 @@ describe('ChartPreview', () => {
     // 6人の人物データを設定（表示上限を5人と仮定）
     useGraphStore.setState({
       activeChartId: chartId,
-      persons: Array.from({ length: 6 }, (_, i) => ({
-        id: nanoid(),
-        name: `人物${i + 1}`,
-        labels: ['人物'],
-        properties: {},
-        createdAt: now,
-      })),
+      persons: Array.from({ length: 6 }, (_, i) =>
+        makePerson({ id: nanoid(), name: `人物${i + 1}`, createdAt: now, updatedAt: now })
+      ),
     });
 
     render(<ChartPreview chartId={chartId} isActive={true} />);
@@ -155,14 +126,7 @@ describe('ChartPreview', () => {
       id: chartId,
       name: 'テストチャート',
       persons: [
-        {
-          id: nanoid(),
-          name: '田中一郎',
-          imageDataUrl: 'data:image/webp;base64,TEST_IMAGE',
-          labels: ['人物'],
-          properties: {},
-          createdAt: now,
-        },
+        makePerson({ id: nanoid(), name: '田中一郎', imageDataUrl: 'data:image/webp;base64,TEST_IMAGE', createdAt: now, updatedAt: now }),
       ],
       relationships: [],
       forceEnabled: false,

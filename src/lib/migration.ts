@@ -10,10 +10,11 @@
  *   v12: snapshots フィールドの追加（タイムライン機能対応）
  *   v13: episodes/episodeParticipations フィールドの追加（エピソードノード対応）
  *   v14: Relationship.narrative.turningPoints → Episode への変換（turningPoints 完全削除）
+ *   v15: Person に tags / narrative / colorOverride / updatedAt を追加（Relationship との対称性）
  */
 
 import { nanoid } from 'nanoid';
-import type { Person } from '@/types/person';
+import type { Person, PersonNarrative } from '@/types/person';
 import type { Relationship, AwarenessKind } from '@/types/relationship';
 import type { Episode, EpisodeParticipation } from '@/types/episode';
 import { DEFAULT_FORCE_PARAMS, type ForceParams } from '@/stores/useGraphStore';
@@ -21,7 +22,7 @@ import { DEFAULT_EGO_LAYOUT_PARAMS, type EgoLayoutParams } from './ego-layout';
 import type { Chart } from '@/types/chart';
 
 /** IndexedDB Chart スキーマの現在バージョン */
-export const CURRENT_SCHEMA_VERSION = 14;
+export const CURRENT_SCHEMA_VERSION = 15;
 
 // ─── レガシー型定義（マイグレーション内部でのみ使用） ──────────────────────────
 
@@ -114,6 +115,21 @@ export type LegacyPersonV10 = {
   imageDataUrl?: string;
   position?: { x: number; y: number };
   properties?: Record<string, unknown>;
+  createdAt: string;
+};
+
+/**
+ * v14 以前の Person 型（tags / narrative / colorOverride / updatedAt なし）
+ * v15 マイグレーション専用のレガシー型。
+ * @deprecated v15 以降は Person を使用すること
+ */
+export type LegacyPersonV14 = {
+  id: string;
+  labels: string[];
+  name: string;
+  imageDataUrl?: string;
+  position?: { x: number; y: number };
+  properties: Record<string, unknown>;
   createdAt: string;
 };
 
@@ -477,11 +493,35 @@ export function migrateV10ToV11(rels: LegacyRelationshipV9[]): Relationship[] {
  * @param persons - v10 形式の LegacyPersonV10 配列
  * @returns v11 形式の Person 配列（properties フィールドを持つ）
  */
-export function migratePersonsV10ToV11(persons: LegacyPersonV10[]): Person[] {
+export function migratePersonsV10ToV11(persons: LegacyPersonV10[]): LegacyPersonV14[] {
   return persons.map((p) => ({
     ...p,
     labels: p.labels ?? ['人物'],
     properties: p.properties ?? {},
+  }));
+}
+
+// ─── v14 → v15: Person に tags / narrative / colorOverride / updatedAt 追加 ───
+
+/** v14 以前の Person に存在しないフィールドのデフォルト値 */
+const DEFAULT_PERSON_NARRATIVE: PersonNarrative = { summary: null, notes: null };
+
+/**
+ * v14 以前の Person 配列に tags / narrative / colorOverride / updatedAt を補完する
+ *
+ * - 既にフィールドが存在する場合は上書きしない（冪等性）
+ * - updatedAt は createdAt と同値を設定する
+ *
+ * @param persons - v14 以前の Person 配列
+ * @returns v15 形式の Person 配列
+ */
+export function migratePersonsV14ToV15(persons: LegacyPersonV14[]): Person[] {
+  return persons.map((p) => ({
+    ...p,
+    tags: (p as Partial<Person>).tags ?? [],
+    narrative: (p as Partial<Person>).narrative ?? DEFAULT_PERSON_NARRATIVE,
+    colorOverride: (p as Partial<Person>).colorOverride ?? null,
+    updatedAt: (p as Partial<Person>).updatedAt ?? p.createdAt,
   }));
 }
 
@@ -862,8 +902,9 @@ export function normalizeChart(chart: Chart): Chart {
     ? migrateV10ToV11(relationships as LegacyRelationshipV9[])
     : (relationships as Relationship[]);
 
-  // persons に properties フィールドを追加
-  const normalizedPersons = migratePersonsV10ToV11(persons);
+  // persons に properties フィールドを追加（v10→v11）してから v15 フィールドも補完
+  const v11Persons = migratePersonsV10ToV11(persons);
+  const normalizedPersons = migratePersonsV14ToV15(v11Persons);
 
   // 既存スナップショットに episodes/episodeParticipations フィールドを補完（v13対応）
   const v13Snapshots = (chart.snapshots ?? []).map((snapshot) => ({
@@ -881,8 +922,16 @@ export function normalizeChart(chart: Chart): Chart {
   const mergedParticipations = [...(chart.episodeParticipations ?? []), ...newParticipations];
 
   // v14 のスナップショット: SnapshotRelationship.narrative から turningPoints フィールドを削除
-  const v14Snapshots = v13Snapshots.map((snapshot) => ({
+  // v15 のスナップショット: SnapshotPerson に tags / narrative / colorOverride を補完
+  const v15Snapshots = v13Snapshots.map((snapshot) => ({
     ...snapshot,
+    // SnapshotPerson に v15 フィールドを補完
+    persons: snapshot.persons.map((sp) => ({
+      ...sp,
+      tags: (sp as Partial<typeof sp> & { tags?: string[] }).tags ?? [],
+      narrative: (sp as Partial<typeof sp> & { narrative?: { summary: string | null; notes: string | null } }).narrative ?? { summary: null, notes: null },
+      colorOverride: (sp as Partial<typeof sp> & { colorOverride?: string | null }).colorOverride ?? null,
+    })),
     relationships: snapshot.relationships.map((sr) => {
       // sr.narrative が null/undefined の場合はデフォルト値を補完してから turningPoints を除去
       const narrative = (sr.narrative ?? { summary: null, notes: null }) as (NonNullable<typeof sr.narrative> & { turningPoints?: unknown });
@@ -896,7 +945,7 @@ export function normalizeChart(chart: Chart): Chart {
     ...chart,
     persons: normalizedPersons,
     relationships: v14Relationships,
-    snapshots: v14Snapshots,
+    snapshots: v15Snapshots,
     episodes: mergedEpisodes,
     episodeParticipations: mergedParticipations,
     schemaVersion: CURRENT_SCHEMA_VERSION,

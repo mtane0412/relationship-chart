@@ -15,8 +15,12 @@ const makePerson = (name: string, id: string): Person => ({
   id,
   name,
   labels: ['人物'],
+  tags: [],
+  narrative: { summary: null, notes: null },
+  colorOverride: null,
   properties: {},
   createdAt: '2024-01-01T00:00:00.000Z',
+  updatedAt: '2024-01-01T00:00:00.000Z',
 });
 
 const existingPersons: Person[] = [

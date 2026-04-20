@@ -38,14 +38,18 @@ vi.mock('@xyflow/react', async () => {
 // ─── テストデータファクトリ ─────────────────────────────────────────────────
 
 /**
- * v11 Person オブジェクトを生成するファクトリ
+ * Person オブジェクトを生成するファクトリ
  */
 function makePerson(overrides: Partial<Person> & { id: string; name: string }): Person {
   return {
     imageDataUrl: undefined,
     labels: ['人物'],
+    tags: [],
+    narrative: { summary: null, notes: null },
+    colorOverride: null,
     properties: {},
     createdAt: '2024-01-01T00:00:00.000Z',
+    updatedAt: '2024-01-01T00:00:00.000Z',
     ...overrides,
   };
 }

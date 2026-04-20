@@ -12,6 +12,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PersonList } from './PersonList';
 import type { Person } from '@/types/person';
+import { makePerson } from '@/test/factories';
 
 // useGraphStoreのモック
 vi.mock('@/stores/useGraphStore', () => ({
@@ -34,14 +35,7 @@ describe('PersonList - ノード中央移動', () => {
   const mockGetNode = vi.fn();
   const mockSetCenter = vi.fn();
 
-  const testPerson: Person = {
-    id: 'person-1',
-    name: '山田太郎',
-    imageDataUrl: undefined,
-    labels: ['人物'],
-    properties: {},
-    createdAt: '2024-01-01T00:00:00Z',
-  };
+  const testPerson: Person = makePerson({ id: 'person-1', name: '山田太郎' });
 
   beforeEach(() => {
     vi.clearAllMocks();

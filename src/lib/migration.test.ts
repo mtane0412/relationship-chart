@@ -10,12 +10,13 @@ import {
   migrateV9ToV10,
   migrateV10ToV11,
   migratePersonsV10ToV11,
+  migratePersonsV14ToV15,
   normalizeChart,
   migrateTurningPointsToEpisodes,
   CURRENT_SCHEMA_VERSION,
 } from './migration';
 import type { Person } from '@/types/person';
-import type { LegacyRelationshipV8, LegacyRelationshipV9, LegacyPersonV10, LegacyRelationshipV13 } from './migration';
+import type { LegacyRelationshipV8, LegacyRelationshipV9, LegacyPersonV10, LegacyRelationshipV13, LegacyPersonV14 } from './migration';
 import { DEFAULT_FORCE_PARAMS } from '@/stores/useGraphStore';
 import { DEFAULT_EGO_LAYOUT_PARAMS } from './ego-layout';
 
@@ -100,20 +101,8 @@ describe('migrateGraphState', () => {
   // v1からv9への変換（v3形式を経由して最終的にv9形式になることを確認）
   describe('v1からv9への変換', () => {
     it('Relationshipの形式を変換する（directed）', () => {
-      const person1: Person = {
-        id: 'person-1',
-        name: '田中太郎',
-        labels: ['人物'],
-        properties: {},
-        createdAt: '2024-01-01T00:00:00.000Z',
-      };
-      const person2: Person = {
-        id: 'person-2',
-        name: '鈴木花子',
-        labels: ['人物'],
-        properties: {},
-        createdAt: '2024-01-01T00:00:00.000Z',
-      };
+      const person1: Person = { id: 'person-1', name: '田中太郎', labels: ['人物'], tags: [], narrative: { summary: null, notes: null }, colorOverride: null, properties: {}, createdAt: '2024-01-01T00:00:00.000Z', updatedAt: '2024-01-01T00:00:00.000Z' };
+      const person2: Person = { id: 'person-2', name: '鈴木花子', labels: ['人物'], tags: [], narrative: { summary: null, notes: null }, colorOverride: null, properties: {}, createdAt: '2024-01-01T00:00:00.000Z', updatedAt: '2024-01-01T00:00:00.000Z' };
 
       const v1State = {
         persons: [person1, person2],
@@ -1547,8 +1536,12 @@ describe('normalizeChart', () => {
         id: 'p1',
         labels: ['人物'],
         name: '織田信長',
+        tags: [],
+        narrative: { summary: null, notes: null },
+        colorOverride: null,
         properties: {},
         createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
       },
     ],
     relationships: [],
@@ -1601,7 +1594,7 @@ describe('normalizeChart', () => {
         schemaVersion: 12,
       };
 
-      const result = normalizeChart(v12Chart as Parameters<typeof normalizeChart>[0]);
+      const result = normalizeChart(v12Chart as unknown as Parameters<typeof normalizeChart>[0]);
 
       expect(result.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
       expect(result.episodes).toEqual([]);
@@ -1626,7 +1619,7 @@ describe('normalizeChart', () => {
         schemaVersion: 12,
       };
 
-      const result = normalizeChart(v12ChartWithEpisodes as Parameters<typeof normalizeChart>[0]);
+      const result = normalizeChart(v12ChartWithEpisodes as unknown as Parameters<typeof normalizeChart>[0]);
 
       expect(result.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
       expect(result.episodes).toHaveLength(1);
@@ -1649,7 +1642,7 @@ describe('normalizeChart', () => {
         schemaVersion: 12,
       };
 
-      const result = normalizeChart(v12ChartWithSnapshot as Parameters<typeof normalizeChart>[0]);
+      const result = normalizeChart(v12ChartWithSnapshot as unknown as Parameters<typeof normalizeChart>[0]);
 
       expect(result.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
       expect(result.snapshots?.[0].episodes).toEqual([]);
@@ -1673,7 +1666,7 @@ describe('normalizeChart', () => {
         schemaVersion: 12,
       };
 
-      const result = normalizeChart(v12ChartWithEpisodeSnapshot as Parameters<typeof normalizeChart>[0]);
+      const result = normalizeChart(v12ChartWithEpisodeSnapshot as unknown as Parameters<typeof normalizeChart>[0]);
 
       expect(result.snapshots?.[0].episodes).toHaveLength(1);
       expect(result.snapshots?.[0].episodes?.[0].title).toBe('再会');
@@ -1690,7 +1683,7 @@ describe('normalizeChart', () => {
         schemaVersion: CURRENT_SCHEMA_VERSION,
       };
 
-      const result = normalizeChart(latestChart as Parameters<typeof normalizeChart>[0]);
+      const result = normalizeChart(latestChart as unknown as Parameters<typeof normalizeChart>[0]);
 
       expect(result).toBe(latestChart);
     });
@@ -1734,7 +1727,7 @@ describe('normalizeChart', () => {
     };
 
     it('ライブ turningPoints が Episode と EpisodeParticipation に変換される', () => {
-      const result = normalizeChart(baseV13Chart as Parameters<typeof normalizeChart>[0]);
+      const result = normalizeChart(baseV13Chart as unknown as Parameters<typeof normalizeChart>[0]);
 
       expect(result.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
       // turningPoints が 2 件 → Episodes が 2 件
@@ -1748,7 +1741,7 @@ describe('normalizeChart', () => {
     });
 
     it('変換後の Relationship の narrative に turningPoints フィールドが存在しないこと', () => {
-      const result = normalizeChart(baseV13Chart as Parameters<typeof normalizeChart>[0]);
+      const result = normalizeChart(baseV13Chart as unknown as Parameters<typeof normalizeChart>[0]);
 
       const narrative = result.relationships[0].narrative as Record<string, unknown>;
       expect(narrative.turningPoints).toBeUndefined();
@@ -1789,7 +1782,7 @@ describe('normalizeChart', () => {
         ],
       };
 
-      const result = normalizeChart(v13ChartWithSnapshot as Parameters<typeof normalizeChart>[0]);
+      const result = normalizeChart(v13ChartWithSnapshot as unknown as Parameters<typeof normalizeChart>[0]);
 
       const snapshotNarrative = result.snapshots?.[0].relationships[0].narrative as Record<string, unknown>;
       expect(snapshotNarrative.turningPoints).toBeUndefined();
@@ -1823,7 +1816,7 @@ describe('normalizeChart', () => {
         schemaVersion: 13,
       };
 
-      const result = normalizeChart(v13ChartEmpty as Parameters<typeof normalizeChart>[0]);
+      const result = normalizeChart(v13ChartEmpty as unknown as Parameters<typeof normalizeChart>[0]);
 
       expect(result.episodes).toHaveLength(0);
       expect(result.episodeParticipations).toHaveLength(0);
@@ -1838,7 +1831,7 @@ describe('normalizeChart', () => {
         schemaVersion: CURRENT_SCHEMA_VERSION,
       };
 
-      const result = normalizeChart(v14Chart as Parameters<typeof normalizeChart>[0]);
+      const result = normalizeChart(v14Chart as unknown as Parameters<typeof normalizeChart>[0]);
 
       // 同一オブジェクト参照が返ること（no-op）
       expect(result).toBe(v14Chart);
@@ -1873,8 +1866,12 @@ describe('migrateTurningPointsToEpisodes', () => {
     id,
     name,
     labels,
+    tags: [],
+    narrative: { summary: null, notes: null },
+    colorOverride: null,
     properties: {},
     createdAt: '2024-01-01T00:00:00.000Z',
+    updatedAt: '2024-01-01T00:00:00.000Z',
   });
 
   const persons = [
@@ -2034,7 +2031,168 @@ describe('migrateTurningPointsToEpisodes', () => {
     expect(result.relationships[0].narrative.notes).toBe('メモ');
   });
 
-  it('CURRENT_SCHEMA_VERSION が 14 であること', () => {
-    expect(CURRENT_SCHEMA_VERSION).toBe(14);
+  it('CURRENT_SCHEMA_VERSION が 15 であること', () => {
+    expect(CURRENT_SCHEMA_VERSION).toBe(15);
+  });
+});
+
+// ─── migratePersonsV14ToV15 ───────────────────────────────────────────────────
+
+describe('migratePersonsV14ToV15', () => {
+  it('tags / narrative / colorOverride / updatedAt が存在しない v14 Person にデフォルト値を補完する', () => {
+    // v14形式のPerson（新フィールドなし）
+    const v14Persons: LegacyPersonV14[] = [
+      {
+        id: 'p-001',
+        labels: ['人物'],
+        name: '山田太郎',
+        properties: {},
+        createdAt: '2024-01-15T09:00:00.000Z',
+      },
+    ];
+
+    const result = migratePersonsV14ToV15(v14Persons);
+
+    expect(result[0].tags).toEqual([]);
+    expect(result[0].narrative).toEqual({ summary: null, notes: null });
+    expect(result[0].colorOverride).toBeNull();
+    // updatedAt は createdAt と同値になる
+    expect(result[0].updatedAt).toBe('2024-01-15T09:00:00.000Z');
+  });
+
+  it('既存フィールド（id / name / labels / properties / createdAt）を保持する', () => {
+    const v14Persons: LegacyPersonV14[] = [
+      {
+        id: 'p-002',
+        labels: ['物'],
+        name: '魔法の剣',
+        imageDataUrl: 'data:image/webp;base64,abc',
+        properties: { 攻撃力: 100 },
+        createdAt: '2024-03-01T12:00:00.000Z',
+      },
+    ];
+
+    const result = migratePersonsV14ToV15(v14Persons);
+
+    expect(result[0].id).toBe('p-002');
+    expect(result[0].name).toBe('魔法の剣');
+    expect(result[0].labels).toEqual(['物']);
+    expect(result[0].imageDataUrl).toBe('data:image/webp;base64,abc');
+    expect(result[0].properties).toEqual({ 攻撃力: 100 });
+    expect(result[0].createdAt).toBe('2024-03-01T12:00:00.000Z');
+  });
+
+  it('複数人分を正しく変換する', () => {
+    const v14Persons: LegacyPersonV14[] = [
+      { id: 'p-001', labels: ['人物'], name: '織田信長', properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
+      { id: 'p-002', labels: ['人物'], name: '豊臣秀吉', properties: {}, createdAt: '2024-02-01T00:00:00.000Z' },
+    ];
+
+    const result = migratePersonsV14ToV15(v14Persons);
+
+    expect(result).toHaveLength(2);
+    expect(result[0].updatedAt).toBe('2024-01-01T00:00:00.000Z');
+    expect(result[1].updatedAt).toBe('2024-02-01T00:00:00.000Z');
+  });
+
+  it('空配列を渡した場合は空配列を返す', () => {
+    const result = migratePersonsV14ToV15([]);
+    expect(result).toEqual([]);
+  });
+});
+
+// ─── normalizeChart v14 → v15 ─────────────────────────────────────────────────
+
+describe('normalizeChart v14 → v15', () => {
+  // v14形式のベースチャート（persons に新フィールドなし）
+  const v14Chart = {
+    id: 'chart-001',
+    name: '戦国相関図',
+    persons: [
+      {
+        id: 'p-001',
+        labels: ['人物'],
+        name: '徳川家康',
+        properties: {},
+        createdAt: '2024-01-01T00:00:00.000Z',
+      },
+    ],
+    relationships: [],
+    snapshots: [],
+    episodes: [],
+    episodeParticipations: [],
+    forceEnabled: false,
+    forceParams: DEFAULT_FORCE_PARAMS,
+    egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
+    schemaVersion: 14,
+    createdAt: '2024-01-01T00:00:00.000Z',
+    updatedAt: '2024-01-01T00:00:00.000Z',
+  };
+
+  it('v14 チャートの persons に tags / narrative / colorOverride / updatedAt が補完される', () => {
+    const result = normalizeChart(v14Chart as unknown as Parameters<typeof normalizeChart>[0]);
+
+    expect(result.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    const person = result.persons[0] as Person;
+    expect(person.tags).toEqual([]);
+    expect(person.narrative).toEqual({ summary: null, notes: null });
+    expect(person.colorOverride).toBeNull();
+    expect(person.updatedAt).toBe('2024-01-01T00:00:00.000Z');
+  });
+
+  it('v14 チャートの スナップショット内 persons にも新フィールドが補完される', () => {
+    const v14ChartWithSnapshot = {
+      ...v14Chart,
+      snapshots: [
+        {
+          id: 'snap-001',
+          label: '第1話',
+          persons: [
+            {
+              personId: 'p-001',
+              name: '徳川家康',
+              labels: ['人物'],
+              properties: {},
+            },
+          ],
+          relationships: [],
+          episodes: [],
+          episodeParticipations: [],
+          createdAt: '2024-06-01T00:00:00.000Z',
+        },
+      ],
+    };
+
+    const result = normalizeChart(v14ChartWithSnapshot as unknown as Parameters<typeof normalizeChart>[0]);
+
+    const snapshotPerson = result.snapshots![0].persons[0];
+    expect(snapshotPerson.tags).toEqual([]);
+    expect(snapshotPerson.narrative).toEqual({ summary: null, notes: null });
+    expect(snapshotPerson.colorOverride).toBeNull();
+  });
+
+  it('v15 チャートはそのまま返す（冪等性）', () => {
+    const v15Chart = {
+      ...v14Chart,
+      persons: [
+        {
+          id: 'p-001',
+          labels: ['人物'],
+          name: '徳川家康',
+          tags: ['主人公'],
+          narrative: { summary: '征夷大将軍', notes: null },
+          colorOverride: '#ff0000',
+          properties: {},
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-06-01T00:00:00.000Z',
+        },
+      ],
+      schemaVersion: 15,
+    };
+
+    const result = normalizeChart(v15Chart as unknown as Parameters<typeof normalizeChart>[0]);
+
+    // 参照が同一（変更なし）
+    expect(result).toBe(v15Chart);
   });
 });

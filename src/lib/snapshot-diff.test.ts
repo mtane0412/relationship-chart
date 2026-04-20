@@ -7,6 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import { computeSnapshotDiff } from './snapshot-diff';
 import type { Snapshot, SnapshotPerson, SnapshotRelationship } from '@/types/snapshot';
+import { makeSnapshotPerson } from '@/test/factories';
 
 // テスト用のデフォルトRelationshipNarrative
 const defaultNarrative = {
@@ -35,6 +36,9 @@ function makePerson(
     name: `人物${personId}`,
     labels: [],
     position,
+    tags: [],
+    narrative: { summary: null, notes: null },
+    colorOverride: null,
     properties: {},
   };
 }
@@ -220,20 +224,8 @@ describe('computeSnapshotDiff', () => {
 
     it('同じ位置でも名前が変化した人物はchangedに分類される', () => {
       // GIVEN: personIdと位置は同じだが名前が異なる
-      const personA: SnapshotPerson = {
-        personId: 'person-1',
-        name: '旧名前',
-        labels: [],
-        position: { x: 100, y: 200 },
-        properties: {},
-      };
-      const personB: SnapshotPerson = {
-        personId: 'person-1',
-        name: '新名前',
-        labels: [],
-        position: { x: 100, y: 200 },
-        properties: {},
-      };
+      const personA: SnapshotPerson = makeSnapshotPerson({ personId: 'person-1', name: '旧名前', labels: [], position: { x: 100, y: 200 } });
+      const personB: SnapshotPerson = makeSnapshotPerson({ personId: 'person-1', name: '新名前', labels: [], position: { x: 100, y: 200 } });
       const snapshotA = makeSnapshot([personA], []);
       const snapshotB = makeSnapshot([personB], []);
 
@@ -250,20 +242,8 @@ describe('computeSnapshotDiff', () => {
 
     it('同じ位置でもラベルが変化した人物はchangedに分類される', () => {
       // GIVEN
-      const personA: SnapshotPerson = {
-        personId: 'person-1',
-        name: '織田信長',
-        labels: ['武将'],
-        position: { x: 100, y: 200 },
-        properties: {},
-      };
-      const personB: SnapshotPerson = {
-        personId: 'person-1',
-        name: '織田信長',
-        labels: ['武将', '天下人'],
-        position: { x: 100, y: 200 },
-        properties: {},
-      };
+      const personA: SnapshotPerson = makeSnapshotPerson({ personId: 'person-1', name: '織田信長', labels: ['武将'], position: { x: 100, y: 200 } });
+      const personB: SnapshotPerson = makeSnapshotPerson({ personId: 'person-1', name: '織田信長', labels: ['武将', '天下人'], position: { x: 100, y: 200 } });
       const snapshotA = makeSnapshot([personA], []);
       const snapshotB = makeSnapshot([personB], []);
 
@@ -277,20 +257,8 @@ describe('computeSnapshotDiff', () => {
 
     it('位置と属性の両方が変化した人物はmovedに分類される（位置変化を優先）', () => {
       // GIVEN: 位置も名前も変化
-      const personA: SnapshotPerson = {
-        personId: 'person-1',
-        name: '旧名前',
-        labels: [],
-        position: { x: 100, y: 200 },
-        properties: {},
-      };
-      const personB: SnapshotPerson = {
-        personId: 'person-1',
-        name: '新名前',
-        labels: [],
-        position: { x: 500, y: 600 },
-        properties: {},
-      };
+      const personA: SnapshotPerson = makeSnapshotPerson({ personId: 'person-1', name: '旧名前', labels: [], position: { x: 100, y: 200 } });
+      const personB: SnapshotPerson = makeSnapshotPerson({ personId: 'person-1', name: '新名前', labels: [], position: { x: 500, y: 600 } });
       const snapshotA = makeSnapshot([personA], []);
       const snapshotB = makeSnapshot([personB], []);
 

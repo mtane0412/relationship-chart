@@ -131,7 +131,11 @@ export function resolveExtractionResult(
       name: llmPerson.name,
       // labels が null の場合は ['人物'] をデフォルトとして使用する
       labels: llmPerson.labels ?? ['人物'],
+      tags: [],
+      narrative: { summary: null, notes: null },
+      colorOverride: null,
       properties: {},
+      updatedAt: new Date().toISOString(),
     });
   }
 

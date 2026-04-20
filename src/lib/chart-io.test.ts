@@ -9,6 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { makePerson, makeSnapshotPerson } from '@/test/factories';
 import {
   sanitizeFilename,
   serializeChartForExport,
@@ -29,20 +30,8 @@ function makeTestChart(overrides?: Partial<Chart>): Chart {
     id: 'chart-id-001',
     name: '源氏物語 人物相関図',
     persons: [
-      {
-        id: 'person-id-001',
-        name: '光源氏',
-        labels: ['主人公'],
-        properties: {},
-        createdAt: '2024-01-01T00:00:00.000Z',
-      },
-      {
-        id: 'person-id-002',
-        name: '紫の上',
-        labels: [],
-        properties: {},
-        createdAt: '2024-01-01T00:00:00.000Z',
-      },
+      makePerson({ id: 'person-id-001', name: '光源氏', labels: ['主人公'] }),
+      makePerson({ id: 'person-id-002', name: '紫の上', labels: [] }),
     ],
     relationships: [
       {
@@ -97,13 +86,7 @@ function makeTestChartWithSnapshot(): Chart {
     label: '第1話',
     description: '物語の始まり',
     persons: [
-      {
-        personId: 'person-id-001',
-        name: '光源氏',
-        labels: ['主人公'],
-        position: { x: 100, y: 200 },
-        properties: {},
-      },
+      makeSnapshotPerson({ personId: 'person-id-001', name: '光源氏', labels: ['主人公'], position: { x: 100, y: 200 } }),
     ],
     relationships: [
       {

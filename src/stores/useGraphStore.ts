@@ -15,7 +15,7 @@ export const PLAYBACK_SPEEDS = [3000, 2000, 1000] as const;
 export type PlaybackSpeed = (typeof PLAYBACK_SPEEDS)[number];
 import { temporal } from 'zundo';
 import { nanoid } from 'nanoid';
-import type { Person } from '@/types/person';
+import type { Person, PersonNarrative } from '@/types/person';
 import type { Relationship, EdgeFilter } from '@/types/relationship';
 import { INITIAL_EDGE_FILTER } from '@/types/relationship';
 import type { EgoLayoutParams } from '@/lib/ego-layout';
@@ -233,17 +233,36 @@ async function createDefaultChart(): Promise<Chart> {
 }
 
 /**
+ * addPerson の入力型
+ * tags / narrative / colorOverride / updatedAt は省略可能（省略時にデフォルト値を補完）。
+ * 既存の { name, labels, properties } のみの呼び出しとの後方互換を保つ。
+ */
+export type NewPersonInput = Omit<Person, 'id' | 'createdAt' | 'updatedAt' | 'tags' | 'narrative' | 'colorOverride'> & {
+  tags?: string[];
+  narrative?: PersonNarrative;
+  colorOverride?: string | null;
+  updatedAt?: string;
+};
+
+/** addPerson 内で使用するデフォルトの PersonNarrative 値 */
+const DEFAULT_PERSON_NARRATIVE: PersonNarrative = { summary: null, notes: null };
+
+/**
  * グラフストアのアクション型
  */
 type GraphActions = {
   /**
    * 新しい人物を追加する
-   * @param person - 追加する人物データ（idとcreatedAtは自動生成される）
+   * id / createdAt / updatedAt は自動生成される。
+   * tags / narrative / colorOverride は省略時にデフォルト値が補完されるため、
+   * 既存の呼び出し元（{ name, labels, properties } のみ渡す箇所）はそのまま動作する。
+   * @param person - 追加する人物データ
    */
-  addPerson: (person: Omit<Person, 'id' | 'createdAt'>) => void;
+  addPerson: (person: NewPersonInput) => void;
 
   /**
    * 指定したIDの人物を更新する
+   * updatedAt は自動で現在時刻に更新される。
    * @param personId - 更新する人物のID
    * @param updates - 更新する内容（idとcreatedAtは更新不可）
    */
@@ -557,21 +576,26 @@ export const useGraphStore = create<GraphStore>()(
 
         // アクション
         addPerson: (person) =>
-          set((state) => ({
-            persons: [
-              ...state.persons,
-              {
-                ...person,
-                id: nanoid(),
-                createdAt: new Date().toISOString(),
-              },
-            ],
-          })),
+          set((state) => {
+            const now = new Date().toISOString();
+            const newPerson: Person = {
+              ...person,
+              id: nanoid(),
+              tags: person.tags ?? [],
+              narrative: person.narrative ?? DEFAULT_PERSON_NARRATIVE,
+              colorOverride: person.colorOverride ?? null,
+              createdAt: now,
+              updatedAt: person.updatedAt ?? now,
+            };
+            return { persons: [...state.persons, newPerson] };
+          }),
 
         updatePerson: (personId, updates) =>
           set((state) => ({
             persons: state.persons.map((person) =>
-              person.id === personId ? { ...person, ...updates } : person
+              person.id === personId
+                ? { ...person, ...updates, updatedAt: new Date().toISOString() }
+                : person
             ),
           })),
 
@@ -1261,13 +1285,16 @@ export const useGraphStore = create<GraphStore>()(
           // タイムラインモード中はスナップショット保存を禁止
           if (state.timelineMode) return;
 
-          // SnapshotPerson: imageDataUrlを除いた軽量表現（personIdで画像を参照）
+          // SnapshotPerson: imageDataUrl / updatedAt を除いた軽量表現（personIdで画像を参照）
           // 配列・オブジェクトは後続の編集で過去スナップショットが変化しないようディープクローンする
           const snapshotPersons: SnapshotPerson[] = state.persons.map((p) => ({
             personId: p.id,
             name: p.name,
             labels: [...p.labels],
             position: p.position ? { ...p.position } : undefined,
+            tags: [...p.tags],
+            narrative: { ...p.narrative },
+            colorOverride: p.colorOverride,
             properties: { ...p.properties },
           }));
 
@@ -1469,9 +1496,14 @@ export const useGraphStore = create<GraphStore>()(
               name: sp.name,
               labels: [...sp.labels],
               position: sp.position ? { ...sp.position } : undefined,
+              // v15以前のスナップショットには tags/narrative/colorOverride がない場合があるためデフォルト補完
+              tags: sp.tags ?? [],
+              narrative: sp.narrative ?? { summary: null, notes: null },
+              colorOverride: sp.colorOverride ?? null,
               properties: { ...sp.properties },
               imageDataUrl: livePerson?.imageDataUrl,
               createdAt: livePerson?.createdAt ?? snapshot.createdAt,
+              updatedAt: snapshot.createdAt,
             };
           });
 
