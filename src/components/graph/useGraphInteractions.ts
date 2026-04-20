@@ -60,6 +60,7 @@ export function useGraphInteractions({
 }: UseGraphInteractionsParams) {
   // Zustandストアから状態とアクションを取得
   const persons = useGraphStore((state) => state.persons);
+  const episodes = useGraphStore((state) => state.episodes);
   const relationships = useGraphStore((state) => state.relationships);
   const timelineMode = useGraphStore((state) => state.timelineMode);
   const addPerson = useGraphStore((state) => state.addPerson);
@@ -68,9 +69,12 @@ export function useGraphInteractions({
   const removePerson = useGraphStore((state) => state.removePerson);
   const removeRelationship = useGraphStore((state) => state.removeRelationship);
   const removeParticipation = useGraphStore((state) => state.removeParticipation);
+  const addParticipation = useGraphStore((state) => state.addParticipation);
   const setSelectedPersonIds = useGraphStore((state) => state.setSelectedPersonIds);
   const clearSelection = useGraphStore((state) => state.clearSelection);
   const selectPersonPairForEdit = useGraphStore((state) => state.selectPersonPairForEdit);
+  const selectEpisode = useGraphStore((state) => state.selectEpisode);
+  const toggleEpisodeSelection = useGraphStore((state) => state.toggleEpisodeSelection);
 
   // タイムラインモードの状態をrefで保持（useEffect内で最新値を参照するため）
   const timelineModeRef = useRef(timelineMode);
@@ -106,10 +110,34 @@ export function useGraphInteractions({
       // 自己接続を防止
       if (sourceId === targetId) return;
 
-      // 両方のノードが実際に存在することを確認
-      const sourceNode = persons.find((p) => p.id === sourceId);
-      const targetNode = persons.find((p) => p.id === targetId);
-      if (!sourceNode || !targetNode) return;
+      // ノード種別を判定（Person or Episode）
+      const sourcePerson = persons.find((p) => p.id === sourceId);
+      const targetPerson = persons.find((p) => p.id === targetId);
+      const sourceEpisode = episodes.find((e) => e.id === sourceId);
+      const targetEpisode = episodes.find((e) => e.id === targetId);
+
+      // Episode↔Episode の接続は非対応
+      if (sourceEpisode && targetEpisode) return;
+
+      // Person↔Episode の接続: 即座に EpisodeParticipation を作成（モーダル不要）
+      if (sourceEpisode || targetEpisode) {
+        const episodeId = (sourceEpisode ?? targetEpisode)!.id;
+        const personId = (sourcePerson ?? targetPerson)?.id;
+        if (!personId) return;
+        // 既に参加エッジが存在する場合は重複作成しない
+        const alreadyExists = useGraphStore
+          .getState()
+          .episodeParticipations.some(
+            (p) => p.episodeId === episodeId && p.personId === personId
+          );
+        if (!alreadyExists) {
+          addParticipation({ episodeId, personId });
+        }
+        return;
+      }
+
+      // Person↔Person の接続
+      if (!sourcePerson || !targetPerson) return;
 
       // 同じペアの関係が既に存在するかチェック（方向問わず、最初の1件を返す）
       const existingRelationship = relationships.find(
@@ -125,7 +153,7 @@ export function useGraphInteractions({
         ...(existingRelationship ? { existingRelationshipId: existingRelationship.id } : {}),
       });
     },
-    [persons, relationships, timelineMode]
+    [persons, episodes, relationships, addParticipation, timelineMode]
   );
 
   // キャンバスへの画像ドロップハンドラ
@@ -275,23 +303,31 @@ export function useGraphInteractions({
         closeContextMenu();
       }
 
-      // Shiftキーが押されている場合は複数選択（トグル）
-      if (event.shiftKey) {
-        const currentSelectedIds = useGraphStore.getState().selectedPersonIds;
-        const isSelected = currentSelectedIds.includes(node.id);
-        if (isSelected) {
-          // 選択解除
-          setSelectedPersonIds(currentSelectedIds.filter((id) => id !== node.id));
+      // EpisodeノードとPersonノードで選択ロジックを分岐
+      if (node.type === 'episode') {
+        // Episodeはシンプルなトグル選択（Shiftキー非対応）
+        if (event.shiftKey) {
+          toggleEpisodeSelection(node.id);
         } else {
-          // 選択追加
-          setSelectedPersonIds([...currentSelectedIds, node.id]);
+          selectEpisode(node.id);
         }
       } else {
-        // 通常クリック：単一選択
-        setSelectedPersonIds([node.id]);
+        // Personノード: Shiftキーで複数選択トグル
+        if (event.shiftKey) {
+          const currentSelectedIds = useGraphStore.getState().selectedPersonIds;
+          const isSelected = currentSelectedIds.includes(node.id);
+          if (isSelected) {
+            setSelectedPersonIds(currentSelectedIds.filter((id) => id !== node.id));
+          } else {
+            setSelectedPersonIds([...currentSelectedIds, node.id]);
+          }
+        } else {
+          // 通常クリック：単一選択
+          setSelectedPersonIds([node.id]);
+        }
       }
     },
-    [contextMenu, closeContextMenu, setSelectedPersonIds]
+    [contextMenu, closeContextMenu, setSelectedPersonIds, selectEpisode, toggleEpisodeSelection]
   );
 
   // 背景クリックハンドラ

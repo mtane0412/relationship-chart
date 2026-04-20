@@ -30,6 +30,7 @@ export function useGraphDataSync() {
   const episodeParticipations = useGraphStore((state) => state.episodeParticipations);
   const forceEnabled = useGraphStore((state) => state.forceEnabled);
   const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
+  const selectedEpisodeIds = useGraphStore((state) => state.selectedEpisodeIds);
   const updatePersonPositions = useGraphStore((state) => state.updatePersonPositions);
   const updateEpisodePositions = useGraphStore((state) => state.updateEpisodePositions);
   const edgeFilter = useGraphStore((state) => state.edgeFilter);
@@ -213,7 +214,11 @@ export function useGraphDataSync() {
     setNodes((prevNodes) => {
       let hasChanged = false;
       const updatedNodes = prevNodes.map((node) => {
-        const shouldBeSelected = selectedPersonIds.includes(node.id);
+        // EpisodeノードはselectedEpisodeIds、PersonノードはselectedPersonIdsで判定
+        const shouldBeSelected =
+          node.type === 'episode'
+            ? selectedEpisodeIds.includes(node.id)
+            : selectedPersonIds.includes(node.id);
         if (node.selected !== shouldBeSelected) {
           hasChanged = true;
           return { ...node, selected: shouldBeSelected };
@@ -239,7 +244,7 @@ export function useGraphDataSync() {
       });
       return hasChanged ? updatedEdges : prevEdges;
     });
-  }, [selectedPersonIds, setNodes, setEdges]);
+  }, [selectedPersonIds, selectedEpisodeIds, setNodes, setEdges]);
 
   return {
     nodes,

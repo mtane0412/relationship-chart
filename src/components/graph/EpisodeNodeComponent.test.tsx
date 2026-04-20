@@ -7,7 +7,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { EpisodeNodeComponent } from './EpisodeNodeComponent';
 
-// React FlowのHandleはzustandプロバイダを必要とするためモック
+// React FlowのHandleとuseConnectionはReactFlowコンテキストを必要とするためモック
 vi.mock('@xyflow/react', async () => {
   const actual = await vi.importActual('@xyflow/react');
   return {
@@ -17,6 +17,11 @@ vi.mock('@xyflow/react', async () => {
         {children}
       </div>
     ),
+    useConnection: () => ({
+      inProgress: false,
+      fromNode: null,
+      toNode: null,
+    }),
   };
 });
 

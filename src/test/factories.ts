@@ -1,10 +1,11 @@
 /**
  * テスト用ファクトリ関数
- * テスト全体で使用する Person / SnapshotPerson オブジェクトの生成ヘルパー
+ * テスト全体で使用する Person / SnapshotPerson / Episode オブジェクトの生成ヘルパー
  */
 
 import type { Person } from '@/types/person';
 import type { SnapshotPerson } from '@/types/snapshot';
+import type { Episode } from '@/types/episode';
 
 /**
  * Person オブジェクトを生成するファクトリ
@@ -19,6 +20,21 @@ export function makePerson(overrides: Partial<Person> & { id: string; name: stri
     tags: [],
     narrative: { summary: null, notes: null },
     colorOverride: null,
+    createdAt: '2024-01-01T00:00:00.000Z',
+    updatedAt: '2024-01-01T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+/**
+ * Episode オブジェクトを生成するファクトリ
+ *
+ * @param overrides - 上書きしたいフィールド（id と title は必須）
+ */
+export function makeEpisode(overrides: Partial<Episode> & { id: string; title: string }): Episode {
+  return {
+    relatedRelationshipIds: [],
+    properties: {},
     createdAt: '2024-01-01T00:00:00.000Z',
     updatedAt: '2024-01-01T00:00:00.000Z',
     ...overrides,

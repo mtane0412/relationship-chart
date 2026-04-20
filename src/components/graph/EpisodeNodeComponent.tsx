@@ -2,19 +2,30 @@
  * EpisodeNodeComponentコンポーネント
  * エピソードをグラフ上の付箋風カードノードとして表示する
  * Person ノードと並んでキャンバスに配置され、EpisodeParticipation エッジで人物と繋がる
+ *
+ * ハンドルはカード中央1点に集約し、node-intersection.ts の境界交点計算と連携する
  */
 
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { BookOpen } from 'lucide-react';
 import type { EpisodeNodeData } from '@/types/graph';
+import { useHandleHover } from './useHandleHover';
+
+/** エピソードカードの高さ（px）: node-intersection.ts の fallback と一致させる */
+const EPISODE_CARD_HEIGHT = 72;
+/** ハンドル中心の Y 座標（カード高さの中央）*/
+const EPISODE_HANDLE_CENTER_Y = EPISODE_CARD_HEIGHT / 2;
 
 /**
  * エピソードノードコンポーネント
  * @param props - React Flowから渡されるノードプロパティ
  */
-export const EpisodeNodeComponent = memo(({ data, selected }: NodeProps) => {
+export const EpisodeNodeComponent = memo(({ data, selected, id }: NodeProps) => {
   const nodeData = data as EpisodeNodeData;
+
+  const { handleMouseEnter, handleMouseLeave, showSourceHandle, showTargetHandle, isConnectingToThisNode } =
+    useHandleHover(id, selected ?? false);
 
   return (
     <div
@@ -23,24 +34,48 @@ export const EpisodeNodeComponent = memo(({ data, selected }: NodeProps) => {
           ? 'border-blue-500 shadow-blue-200 shadow-xl'
           : 'border-amber-200 hover:border-amber-400'
       }`}
-      style={{ width: 180, minHeight: 72, padding: '10px 12px' }}
+      style={{ width: 180, minHeight: EPISODE_CARD_HEIGHT, padding: '10px 12px' }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
-      {/* 参加エッジ用ハンドル（source） */}
+      {/* 参加エッジ用ハンドル（source）: カード中央に配置 */}
       <Handle
         type="source"
         id="participation-source"
         position={Position.Top}
-        className="!w-3 !h-3 !bg-amber-400 !border-2 !border-white !rounded-full"
-        style={{ top: -6 }}
+        className="!absolute !rounded-xl !border-transparent !bg-transparent transition-opacity duration-200"
+        style={{
+          left: '50%',
+          top: `${EPISODE_HANDLE_CENTER_Y}px`,
+          transform: 'translate(-50%, -50%)',
+          width: '100%',
+          height: `${EPISODE_CARD_HEIGHT}px`,
+          opacity: showSourceHandle ? 1 : 0,
+          pointerEvents: showSourceHandle ? 'auto' : 'none',
+          zIndex: 2,
+        }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       />
 
-      {/* 参加エッジ用ハンドル（target） */}
+      {/* 参加エッジ用ハンドル（target）: カード中央に配置 */}
       <Handle
         type="target"
         id="participation-target"
-        position={Position.Bottom}
-        className="!w-3 !h-3 !bg-amber-400 !border-2 !border-white !rounded-full"
-        style={{ bottom: -6 }}
+        position={Position.Top}
+        className="!absolute !rounded-xl !border-transparent !bg-transparent transition-opacity duration-200"
+        style={{
+          left: '50%',
+          top: `${EPISODE_HANDLE_CENTER_Y}px`,
+          transform: 'translate(-50%, -50%)',
+          width: '100%',
+          height: `${EPISODE_CARD_HEIGHT}px`,
+          opacity: 0,
+          pointerEvents: showTargetHandle || isConnectingToThisNode ? 'auto' : 'none',
+          zIndex: isConnectingToThisNode ? 15 : 2,
+        }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       />
 
       {/* ヘッダー: アイコン + タイトル */}

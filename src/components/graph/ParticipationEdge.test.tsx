@@ -8,7 +8,7 @@ import { render } from '@testing-library/react';
 import { ParticipationEdge } from './ParticipationEdge';
 import type { EdgeProps } from '@xyflow/react';
 
-// React FlowのBaseEdgeはzustandプロバイダを必要とするためモック
+// React FlowのBaseEdge・useReactFlow・getStraightPathはコンテキストを必要とするためモック
 vi.mock('@xyflow/react', async () => {
   const actual = await vi.importActual('@xyflow/react');
   return {
@@ -17,6 +17,18 @@ vi.mock('@xyflow/react', async () => {
       <path data-testid="base-edge" style={style} {...props} />
     ),
     getStraightPath: () => ['M 0 0 L 100 100', 50, 50],
+    useReactFlow: () => ({
+      getNode: (id: string) => ({
+        id,
+        type: id.startsWith('ep') ? 'episode' : undefined,
+        position: { x: 0, y: 0 },
+        measured: {
+          width: id.startsWith('ep') ? 180 : 80,
+          height: id.startsWith('ep') ? 72 : 80,
+        },
+        data: {},
+      }),
+    }),
   };
 });
 

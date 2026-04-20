@@ -435,3 +435,94 @@ describe('getRectIntersection', () => {
     expect(intersection.y).toBeCloseTo(60, 1);
   });
 });
+
+describe('getEdgeIntersectionPoints（Episodeノード対応）', () => {
+  it('Episodeノード（180x72）の右方向の境界交点を計算する', () => {
+    // Episodeノード中心は (90, 36)、ターゲット中心が同じ高さ(y=36)にある場合
+    // → 右辺中点: x=180、y=36
+    const episodeNode = {
+      id: 'ep-1',
+      type: 'episode' as const,
+      position: { x: 0, y: 0 },
+      measured: { width: 180, height: 72 },
+    };
+    // ターゲットの中心y = position.y + PERSON_IMAGE_RADIUS(40) = 0 → Episodeと高さが同じになるように
+    // position.y = 36 - 40 = -4 にする
+    const targetNode = {
+      id: 'person-1',
+      position: { x: 400, y: -4 },
+      measured: { width: 80, height: 80 },
+    };
+
+    const { sourcePoint } = getEdgeIntersectionPoints(episodeNode, targetNode);
+
+    // Episodeノードは矩形。右方向なので右辺の中点: (90 + 90, 36) = (180, 36)
+    expect(sourcePoint.x).toBeCloseTo(180, 1);
+    expect(sourcePoint.y).toBeCloseTo(36, 1);
+  });
+
+  it('Episodeノード（180x72）の左方向の境界交点を計算する', () => {
+    // Episodeノード中心は (490, 36)、ターゲット中心が同じ高さにある場合
+    const episodeNode = {
+      id: 'ep-1',
+      type: 'episode' as const,
+      position: { x: 400, y: 0 },
+      measured: { width: 180, height: 72 },
+    };
+    const targetNode = {
+      id: 'person-1',
+      position: { x: 0, y: -4 },
+      measured: { width: 80, height: 80 },
+    };
+
+    const { sourcePoint } = getEdgeIntersectionPoints(episodeNode, targetNode);
+
+    // Episodeノード中心は (490, 36)、左方向なので左辺: (400, 36)
+    expect(sourcePoint.x).toBeCloseTo(400, 1);
+    expect(sourcePoint.y).toBeCloseTo(36, 1);
+  });
+
+  it('Person↔Episode の混在ペアで双方の境界上に交点が出る', () => {
+    // Personノードは円形、Episodeノードは矩形
+    const personNode = {
+      id: 'person-1',
+      position: { x: 0, y: 0 },
+      measured: { width: 80, height: 80 },
+    };
+    const episodeNode = {
+      id: 'ep-1',
+      type: 'episode' as const,
+      position: { x: 300, y: 0 },
+      measured: { width: 180, height: 72 },
+    };
+
+    const { sourcePoint, targetPoint } = getEdgeIntersectionPoints(personNode, episodeNode);
+
+    // Personノード（円形・半径40）の中心は(40, 40)→右方向の境界点はx >= 40
+    expect(sourcePoint.x).toBeGreaterThan(40);
+
+    // Episodeノード（矩形180x72）の左辺は x=300 → 左辺の交点はx ≤ 480
+    expect(targetPoint.x).toBeCloseTo(300, 1);
+  });
+
+  it('Episodeノードの measured が未定義のとき fallback サイズ（180x72）を使用する', () => {
+    const episodeNode = {
+      id: 'ep-1',
+      type: 'episode' as const,
+      position: { x: 0, y: 0 },
+      measured: undefined,
+    };
+    // ターゲット中心y=36 になるよう position.y=-4
+    const targetNode = {
+      id: 'person-1',
+      position: { x: 400, y: -4 },
+      measured: { width: 80, height: 80 },
+    };
+
+    const { sourcePoint } = getEdgeIntersectionPoints(episodeNode, targetNode);
+
+    // fallback: 180x72 → 中心(90, 36) → 右辺: x=180
+    expect(sourcePoint.x).toBeCloseTo(180, 1);
+    expect(sourcePoint.y).toBeCloseTo(36, 1);
+  });
+});
