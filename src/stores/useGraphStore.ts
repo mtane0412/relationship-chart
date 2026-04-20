@@ -1176,6 +1176,8 @@ export const useGraphStore = create<GraphStore>()(
                 // タイムラインモード中は退避したライブデータを使用
                 persons: state._livePersons ?? state.persons,
                 relationships: state._liveRelationships ?? state.relationships,
+                episodes: state._liveEpisodes ?? state.episodes,
+                episodeParticipations: state._liveEpisodeParticipations ?? state.episodeParticipations,
                 forceEnabled: state.forceEnabled,
                 forceParams: state.forceParams,
                 egoLayoutParams: state.egoLayoutParams,

@@ -884,7 +884,9 @@ export function normalizeChart(chart: Chart): Chart {
   const v14Snapshots = v13Snapshots.map((snapshot) => ({
     ...snapshot,
     relationships: snapshot.relationships.map((sr) => {
-      const { turningPoints: _tp, ...narrativeWithoutTurningPoints } = sr.narrative as (typeof sr.narrative & { turningPoints?: unknown });
+      // sr.narrative が null/undefined の場合はデフォルト値を補完してから turningPoints を除去
+      const narrative = (sr.narrative ?? { summary: null, notes: null }) as (NonNullable<typeof sr.narrative> & { turningPoints?: unknown });
+      const { turningPoints: _tp, ...narrativeWithoutTurningPoints } = narrative;
       void _tp;
       return { ...sr, narrative: narrativeWithoutTurningPoints };
     }),

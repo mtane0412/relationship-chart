@@ -15,6 +15,7 @@ import {
   validateChartData,
   prepareChartForImport,
 } from './chart-io';
+import { CURRENT_SCHEMA_VERSION } from './migration';
 import type { Chart } from '@/types/chart';
 import type { Snapshot } from '@/types/snapshot';
 
@@ -516,7 +517,7 @@ describe('prepareChartForImport', () => {
     const chart = makeTestChart({ schemaVersion: undefined });
     const prepared = prepareChartForImport(chart);
 
-    expect(prepared.schemaVersion).toBe(14);
+    expect(prepared.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
   });
 
   it('スナップショットなしのChartも正常にインポートできる', () => {

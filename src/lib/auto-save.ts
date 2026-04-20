@@ -64,12 +64,18 @@ function buildChartFromState(): Chart | null {
   // タイムラインモード中は退避済みのライブデータを使用（スナップショット状態を永続化しない）
   const persons = state.timelineMode ? (state._livePersons ?? state.persons) : state.persons;
   const relationships = state.timelineMode ? (state._liveRelationships ?? state.relationships) : state.relationships;
+  const episodes = state.timelineMode ? (state._liveEpisodes ?? state.episodes) : state.episodes;
+  const episodeParticipations = state.timelineMode
+    ? (state._liveEpisodeParticipations ?? state.episodeParticipations)
+    : state.episodeParticipations;
 
   return {
     id: state.activeChartId,
     name: meta.name,
     persons,
     relationships,
+    episodes,
+    episodeParticipations,
     forceEnabled: state.forceEnabled,
     forceParams: state.forceParams,
     egoLayoutParams: state.egoLayoutParams,
