@@ -7,6 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useGraphInteractions } from './useGraphInteractions';
 import { useGraphStore } from '@/stores/useGraphStore';
 import type { Connection } from '@xyflow/react';
+import { makePerson } from '@/test/factories';
 
 // React Flowのモック
 vi.mock('@xyflow/react', () => ({
@@ -30,20 +31,8 @@ describe('useGraphInteractions', () => {
   describe('handleConnect', () => {
     it('connectingFromNodeIdRefをsourceとして使用し、source/targetの入れ替わりに対応する', () => {
       // 事前条件: 2人の人物を登録
-      const personA = {
-        id: 'person-a',
-        name: '山田太郎',
-        labels: ['人物'],
-        properties: {},
-        createdAt: new Date().toISOString(),
-      };
-      const personB = {
-        id: 'person-b',
-        name: '佐藤花子',
-        labels: ['人物'],
-        properties: {},
-        createdAt: new Date().toISOString(),
-      };
+      const personA = makePerson({ id: 'person-a', name: '山田太郎' });
+      const personB = makePerson({ id: 'person-b', name: '佐藤花子' });
       useGraphStore.setState({
         persons: [personA, personB],
       });
@@ -85,20 +74,8 @@ describe('useGraphInteractions', () => {
 
     it('connectingFromNodeIdRefがnullの場合はconnection.source/targetをそのまま使用する', () => {
       // 事前条件: 2人の人物を登録
-      const personA = {
-        id: 'person-a',
-        name: '山田太郎',
-        labels: ['人物'],
-        properties: {},
-        createdAt: new Date().toISOString(),
-      };
-      const personB = {
-        id: 'person-b',
-        name: '佐藤花子',
-        labels: ['人物'],
-        properties: {},
-        createdAt: new Date().toISOString(),
-      };
+      const personA = makePerson({ id: 'person-a', name: '山田太郎' });
+      const personB = makePerson({ id: 'person-b', name: '佐藤花子' });
       useGraphStore.setState({
         persons: [personA, personB],
       });

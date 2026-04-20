@@ -5,6 +5,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import 'fake-indexeddb/auto';
+import { makePerson } from '@/test/factories';
 import {
   initDB,
   getAllChartMetas,
@@ -120,13 +121,7 @@ describe('chart-db', () => {
     it('すべての相関図のメタデータを取得できる', async () => {
       const chart1 = createTestChart({
         persons: [
-          {
-            id: 'person-1',
-            name: '田中太郎',
-            labels: ['人物'],
-            properties: {},
-            createdAt: '2024-01-01T00:00:00.000Z',
-          },
+          makePerson({ id: 'person-1', name: '田中太郎' }),
         ],
       });
 
@@ -134,20 +129,8 @@ describe('chart-db', () => {
         id: 'chart-2',
         name: '相関図 2',
         persons: [
-          {
-            id: 'person-2',
-            name: '鈴木花子',
-            labels: ['人物'],
-            properties: {},
-            createdAt: '2024-01-02T00:00:00.000Z',
-          },
-          {
-            id: 'person-3',
-            name: '佐藤次郎',
-            labels: ['人物'],
-            properties: {},
-            createdAt: '2024-01-02T00:00:00.000Z',
-          },
+          makePerson({ id: 'person-2', name: '鈴木花子', createdAt: '2024-01-02T00:00:00.000Z', updatedAt: '2024-01-02T00:00:00.000Z' }),
+          makePerson({ id: 'person-3', name: '佐藤次郎', createdAt: '2024-01-02T00:00:00.000Z', updatedAt: '2024-01-02T00:00:00.000Z' }),
         ],
         relationships: [
           {

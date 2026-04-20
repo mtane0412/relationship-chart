@@ -11,6 +11,7 @@ import SearchBar from './SearchBar';
 import { useGraphStore } from '@/stores/useGraphStore';
 import type { Person } from '@/types/person';
 import type { Relationship } from '@/types/relationship';
+import { makePerson } from '@/test/factories';
 import {
   VIEWPORT_ANIMATION_DURATION,
   VIEWPORT_FIT_PADDING,
@@ -41,20 +42,8 @@ import { useReactFlow } from '@xyflow/react';
 describe('SearchBar', () => {
   // テスト用データ
   const testPersons: Person[] = [
-    {
-      id: 'person1',
-      name: '山田太郎',
-      labels: ['人物'],
-      properties: {},
-      createdAt: '2024-01-01T00:00:00Z',
-    },
-    {
-      id: 'person2',
-      name: '田中花子',
-      labels: ['人物'],
-      properties: {},
-      createdAt: '2024-01-02T00:00:00Z',
-    },
+    makePerson({ id: 'person1', name: '山田太郎' }),
+    makePerson({ id: 'person2', name: '田中花子' }),
   ];
 
   const testRelationships: Relationship[] = [
@@ -261,14 +250,11 @@ describe('SearchBar', () => {
       const user = userEvent.setup();
 
       // 画像付き人物を追加
-      const personWithImage: Person = {
+      const personWithImage: Person = makePerson({
         id: 'person-with-image',
         name: '画像付き太郎',
         imageDataUrl: 'data:image/png;base64,iVBORw0KGgo=',
-        labels: ['人物'],
-        properties: {},
-        createdAt: '2024-01-03T00:00:00Z',
-      };
+      });
 
       useGraphStore.setState({
         persons: [personWithImage],
@@ -299,13 +285,11 @@ describe('SearchBar', () => {
       const user = userEvent.setup();
 
       // 物ノードを追加
-      const itemPerson: Person = {
+      const itemPerson: Person = makePerson({
         id: 'item1',
         name: 'テストアイテム',
         labels: ['物'],
-        properties: {},
-        createdAt: '2024-01-03T00:00:00Z',
-      };
+      });
 
       useGraphStore.setState({
         persons: [itemPerson],

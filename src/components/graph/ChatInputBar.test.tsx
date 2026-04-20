@@ -122,8 +122,8 @@ describe('ChatInputBar', () => {
       error: null,
       extractionResult: {
         persons: [
-          { name: '田中太郎', labels: ['人物'] },
-          { name: '山田花子', labels: ['人物'] },
+          { name: '田中太郎', labels: ['人物'], tags: null, narrative: null, properties: {} },
+          { name: '山田花子', labels: ['人物'], tags: null, narrative: null, properties: {} },
         ],
         relationships: [
           {
@@ -169,8 +169,8 @@ describe('ChatInputBar', () => {
       error: null,
       extractionResult: {
         persons: [
-          { name: '新キャラA', labels: ['人物'] },
-          { name: '新キャラB', labels: ['人物'] },
+          { name: '新キャラA', labels: ['人物'], tags: null, narrative: null, properties: {} },
+          { name: '新キャラB', labels: ['人物'], tags: null, narrative: null, properties: {} },
         ],
         relationships: [
           {
@@ -221,8 +221,8 @@ describe('ChatInputBar', () => {
       error: null,
       extractionResult: {
         persons: [
-          { name: '田中太郎', labels: ['人物'] },
-          { name: '山田花子', labels: ['人物'] },
+          { name: '田中太郎', labels: ['人物'], tags: null, narrative: null, properties: {} },
+          { name: '山田花子', labels: ['人物'], tags: null, narrative: null, properties: {} },
         ],
         relationships: [],
         episodes: [

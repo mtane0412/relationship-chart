@@ -10,6 +10,7 @@
  * - Chart.persons[] が参照元。削除済み Person はプレースホルダー表示する
  */
 
+import type { PersonNarrative } from './person';
 import type { RelationshipNarrative, RelationshipProperties } from './relationship';
 
 /**
@@ -19,6 +20,9 @@ import type { RelationshipNarrative, RelationshipProperties } from './relationsh
  * @property name - スナップショット時点の名前（名前変更の変遷を追跡可能）
  * @property labels - スナップショット時点のラベル配列
  * @property position - スナップショット時点のキャンバス座標
+ * @property tags - スナップショット時点の分類タグ配列
+ * @property narrative - スナップショット時点の物語的自由記述
+ * @property colorOverride - スナップショット時点のノード色上書き
  * @property properties - スナップショット時点のカスタムプロパティ
  */
 export type SnapshotPerson = {
@@ -26,6 +30,9 @@ export type SnapshotPerson = {
   name: string;
   labels: string[];
   position?: { x: number; y: number };
+  tags: string[];
+  narrative: PersonNarrative;
+  colorOverride: string | null;
   properties: Record<string, unknown>;
 };
 

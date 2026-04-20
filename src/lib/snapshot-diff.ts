@@ -86,13 +86,17 @@ function isSamePosition(
 }
 
 /**
- * 人物の属性（name/labels/properties）が変化しているかどうかをJSON文字列比較で判定する
+ * 人物の属性が変化しているかどうかをJSON文字列比較で判定する
+ * - 比較対象: name / labels / tags / narrative / colorOverride / properties
  * - position は別途 isSamePosition で比較するため、ここでは比較しない
  */
 function isPersonAttributeChanged(a: SnapshotPerson, b: SnapshotPerson): boolean {
   const pickComparableFields = (p: SnapshotPerson) => ({
     name: p.name,
     labels: p.labels,
+    tags: p.tags,
+    narrative: p.narrative,
+    colorOverride: p.colorOverride,
     properties: p.properties,
   });
   return JSON.stringify(pickComparableFields(a)) !== JSON.stringify(pickComparableFields(b));

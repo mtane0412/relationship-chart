@@ -43,6 +43,50 @@ describe('LlmPersonSchema', () => {
     const result = LlmPersonSchema.safeParse(invalid);
     expect(result.success).toBe(false);
   });
+
+  it('tags フィールドを含む人物データをパースできること', () => {
+    const valid = { name: '光源氏', labels: ['人物'], tags: ['主人公', '貴族'] };
+    const result = LlmPersonSchema.safeParse(valid);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.tags).toEqual(['主人公', '貴族']);
+    }
+  });
+
+  it('narrative フィールドを含む人物データをパースできること', () => {
+    const valid = {
+      name: '光源氏',
+      labels: ['人物'],
+      narrative: { summary: '平安時代の貴公子', notes: null },
+    };
+    const result = LlmPersonSchema.safeParse(valid);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.narrative?.summary).toBe('平安時代の貴公子');
+    }
+  });
+
+  it('properties フィールドを含む人物データをパースできること', () => {
+    const valid = {
+      name: '光源氏',
+      labels: ['人物'],
+      properties: { 身分: '左大臣', 年齢: 20 },
+    };
+    const result = LlmPersonSchema.safeParse(valid);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.properties).toEqual({ 身分: '左大臣', 年齢: 20 });
+    }
+  });
+
+  it('tags が省略された場合は null になること', () => {
+    const valid = { name: '光源氏', labels: ['人物'] };
+    const result = LlmPersonSchema.safeParse(valid);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.tags).toBeNull();
+    }
+  });
 });
 
 describe('LlmRelationshipSchema', () => {
@@ -236,8 +280,8 @@ describe('LlmExtractionResultSchema', () => {
   it('有効な抽出結果（episodes含む）をパースできること', () => {
     const valid: LlmExtractionResult = {
       persons: [
-        { name: '田中太郎', labels: ['人物'] },
-        { name: '山田花子', labels: ['人物'] },
+        { name: '田中太郎', labels: ['人物'], tags: null, narrative: null, properties: {} },
+        { name: '山田花子', labels: ['人物'], tags: null, narrative: null, properties: {} },
       ],
       relationships: [
         {

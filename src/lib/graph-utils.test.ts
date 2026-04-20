@@ -7,6 +7,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { personsToNodes, relationshipsToEdges, matchesEdgeFilter, syncNodePositionsToStore, calculateParallelEdgeOffset, episodesToNodes, participationsToEdges } from './graph-utils';
 import type { Person } from '@/types/person';
 import type { Relationship, EdgeFilter } from '@/types/relationship';
+import { makePerson } from '@/test/factories';
 import type { GraphNode } from '@/types/graph';
 import type { Episode, EpisodeParticipation } from '@/types/episode';
 
@@ -44,14 +45,7 @@ describe('graph-utils', () => {
 
     it('単一のPersonをGraphNodeに変換できる', () => {
       const persons: Person[] = [
-        {
-          id: 'person-1',
-          name: '山田太郎',
-          imageDataUrl: 'data:image/jpeg;base64,/9j/4AAQSkZJRg...',
-          labels: ['人物'],
-          properties: {},
-          createdAt: '2026-02-05T00:00:00.000Z',
-        },
+        makePerson({ id: 'person-1', name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,/9j/4AAQSkZJRg...' }),
       ];
 
       const nodes = personsToNodes(persons);
@@ -71,22 +65,8 @@ describe('graph-utils', () => {
 
     it('複数のPersonをPersonNode配列に変換できる', () => {
       const persons: Person[] = [
-        {
-          id: 'person-1',
-          name: '山田太郎',
-          imageDataUrl: 'data:image/jpeg;base64,abc',
-          labels: ['人物'],
-          properties: {},
-          createdAt: '2026-02-05T00:00:00.000Z',
-        },
-        {
-          id: 'person-2',
-          name: '佐藤花子',
-          imageDataUrl: 'data:image/jpeg;base64,def',
-          labels: ['人物'],
-          properties: {},
-          createdAt: '2026-02-05T00:01:00.000Z',
-        },
+        makePerson({ id: 'person-1', name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,abc' }),
+        makePerson({ id: 'person-2', name: '佐藤花子', imageDataUrl: 'data:image/jpeg;base64,def' }),
       ];
 
       const nodes = personsToNodes(persons);
@@ -100,13 +80,7 @@ describe('graph-utils', () => {
 
     it('imageDataUrlが未設定のPersonをGraphNodeに変換できる', () => {
       const persons: Person[] = [
-        {
-          id: 'person-1',
-          name: '山田太郎',
-          labels: ['人物'],
-          properties: {},
-          createdAt: '2026-02-05T00:00:00.000Z',
-        },
+        makePerson({ id: 'person-1', name: '山田太郎' }),
       ];
 
       const nodes = personsToNodes(persons);
@@ -126,14 +100,7 @@ describe('graph-utils', () => {
 
     it('labels: ["人物"]を持つPersonをGraphNodeに変換できる', () => {
       const persons: Person[] = [
-        {
-          id: 'person-1',
-          name: '山田太郎',
-          imageDataUrl: 'data:image/jpeg;base64,abc',
-          labels: ['人物'],
-          properties: {},
-          createdAt: '2026-02-05T00:00:00.000Z',
-        },
+        makePerson({ id: 'person-1', name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,abc' }),
       ];
 
       const nodes = personsToNodes(persons);
@@ -153,14 +120,7 @@ describe('graph-utils', () => {
 
     it('labels: ["物"]を持つPersonをGraphNodeに変換できる', () => {
       const persons: Person[] = [
-        {
-          id: 'item-1',
-          name: '伝説の剣',
-          imageDataUrl: 'data:image/jpeg;base64,sword',
-          labels: ['物'],
-          properties: {},
-          createdAt: '2026-02-05T00:00:00.000Z',
-        },
+        makePerson({ id: 'item-1', name: '伝説の剣', imageDataUrl: 'data:image/jpeg;base64,sword', labels: ['物'] }),
       ];
 
       const nodes = personsToNodes(persons);
@@ -179,16 +139,13 @@ describe('graph-utils', () => {
     });
 
     it('labelsが未設定のPersonはデフォルト["人物"]で変換される', () => {
-      const persons: Person[] = [
-        {
-          id: 'person-1',
-          name: '山田太郎',
-          imageDataUrl: 'data:image/jpeg;base64,abc',
-          labels: ['人物'],
-          properties: {},
-          createdAt: '2026-02-05T00:00:00.000Z',
-        },
-      ];
+      // labels フィールドを意図的に欠落させて personsToNodes のフォールバックを検証する
+      const { labels: _labels, ...personWithoutLabels } = makePerson({
+        id: 'person-1',
+        name: '山田太郎',
+        imageDataUrl: 'data:image/jpeg;base64,abc',
+      });
+      const persons: Person[] = [personWithoutLabels as Person];
 
       const nodes = personsToNodes(persons);
 
@@ -207,22 +164,8 @@ describe('graph-utils', () => {
 
     it('人物と物を混在させてノード配列に変換できる', () => {
       const persons: Person[] = [
-        {
-          id: 'person-1',
-          name: '山田太郎',
-          imageDataUrl: 'data:image/jpeg;base64,abc',
-          labels: ['人物'],
-          properties: {},
-          createdAt: '2026-02-05T00:00:00.000Z',
-        },
-        {
-          id: 'item-1',
-          name: '魔法の杖',
-          imageDataUrl: 'data:image/jpeg;base64,wand',
-          labels: ['物'],
-          properties: {},
-          createdAt: '2026-02-05T00:01:00.000Z',
-        },
+        makePerson({ id: 'person-1', name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,abc' }),
+        makePerson({ id: 'item-1', name: '魔法の杖', imageDataUrl: 'data:image/jpeg;base64,wand', labels: ['物'] }),
       ];
 
       const nodes = personsToNodes(persons);
@@ -236,15 +179,7 @@ describe('graph-utils', () => {
 
     it('position指定がある場合にその座標がNodeに反映される', () => {
       const persons: Person[] = [
-        {
-          id: 'person-1',
-          name: '山田太郎',
-          imageDataUrl: 'data:image/jpeg;base64,abc',
-          labels: ['人物'],
-          properties: {},
-          position: { x: 100, y: 200 },
-          createdAt: '2026-02-05T00:00:00.000Z',
-        },
+        makePerson({ id: 'person-1', name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,abc', position: { x: 100, y: 200 } }),
       ];
 
       const nodes = personsToNodes(persons);
@@ -255,14 +190,7 @@ describe('graph-utils', () => {
 
     it('position指定がない場合は(0, 0)がNodeに設定される', () => {
       const persons: Person[] = [
-        {
-          id: 'person-1',
-          name: '山田太郎',
-          imageDataUrl: 'data:image/jpeg;base64,abc',
-          labels: ['人物'],
-          properties: {},
-          createdAt: '2026-02-05T00:00:00.000Z',
-        },
+        makePerson({ id: 'person-1', name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,abc' }),
       ];
 
       const nodes = personsToNodes(persons);
@@ -273,15 +201,7 @@ describe('graph-utils', () => {
 
     it('position指定が(0, 0)の場合もそのままNodeに反映される', () => {
       const persons: Person[] = [
-        {
-          id: 'person-1',
-          name: '山田太郎',
-          imageDataUrl: 'data:image/jpeg;base64,abc',
-          labels: ['人物'],
-          properties: {},
-          position: { x: 0, y: 0 },
-          createdAt: '2026-02-05T00:00:00.000Z',
-        },
+        makePerson({ id: 'person-1', name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,abc', position: { x: 0, y: 0 } }),
       ];
 
       const nodes = personsToNodes(persons);

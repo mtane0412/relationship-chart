@@ -16,6 +16,16 @@ import { z } from 'zod';
 import { AwarenessKindSchema } from './relationship-schema';
 
 /**
+ * LLM が出力する人物の narrative スキーマ
+ */
+const LlmPersonNarrativeSchema = z.object({
+  /** 人物の物語的記述 */
+  summary: z.string().nullable(),
+  /** メモ・補足 */
+  notes: z.string().nullable(),
+});
+
+/**
  * LLM が出力する人物スキーマ
  */
 export const LlmPersonSchema = z.object({
@@ -26,6 +36,29 @@ export const LlmPersonSchema = z.object({
    * プロパティグラフ方式: 固定の種別ではなくラベルでノードの特性を表現する
    */
   labels: z.array(z.string()).nullable(),
+  /**
+   * 補助的な分類タグ配列。省略・null の場合は null に正規化
+   * （z.preprocess で undefined/null を null に変換。z.transform は JSON Schema 非対応のため使用しない）
+   */
+  tags: z.preprocess(
+    (v) => v ?? null,
+    z.array(z.string()).nullable()
+  ),
+  /**
+   * 人物の物語的情報。省略・null の場合は null に正規化
+   */
+  narrative: z.preprocess(
+    (v) => v ?? null,
+    LlmPersonNarrativeSchema.nullable()
+  ),
+  /**
+   * 人物固有のドメイン属性。省略・null の場合は空オブジェクトに正規化
+   * 値の型は string / number / boolean / null に限定（JSON Schema 互換のため）
+   */
+  properties: z.preprocess(
+    (v) => (v == null ? {} : v),
+    z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()]))
+  ),
 });
 
 /**

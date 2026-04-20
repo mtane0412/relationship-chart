@@ -12,6 +12,7 @@ import { describe, it, expect } from 'vitest';
 import { searchGraph, type SearchResult } from './search-utils';
 import type { Person } from '@/types/person';
 import type { Relationship } from '@/types/relationship';
+import { makePerson } from '@/test/factories';
 
 /**
  * テスト用の最小 Relationship（v11形式）を生成するヘルパー
@@ -43,27 +44,9 @@ function makeSearchRel(overrides: {
 describe('searchGraph', () => {
   // テスト用データ
   const persons: Person[] = [
-    {
-      id: 'person1',
-      name: '山田太郎',
-      labels: ['人物'],
-      properties: {},
-      createdAt: '2024-01-01T00:00:00Z',
-    },
-    {
-      id: 'person2',
-      name: '田中花子',
-      labels: ['人物'],
-      properties: {},
-      createdAt: '2024-01-02T00:00:00Z',
-    },
-    {
-      id: 'person3',
-      name: 'Yamada Jiro',
-      labels: ['人物'],
-      properties: {},
-      createdAt: '2024-01-03T00:00:00Z',
-    },
+    makePerson({ id: 'person1', name: '山田太郎' }),
+    makePerson({ id: 'person2', name: '田中花子' }),
+    makePerson({ id: 'person3', name: 'Yamada Jiro' }),
   ];
 
   // v11 では 1 エッジ = 1 ラベル。dual-directed は 2 本の別エッジ。
@@ -151,13 +134,11 @@ describe('searchGraph', () => {
     });
 
     it('物ノードも検索できる', () => {
-      const itemPerson: Person = {
+      const itemPerson: Person = makePerson({
         id: 'item1',
         name: 'テストアイテム',
         labels: ['物'],
-        properties: {},
-        createdAt: '2024-01-04T00:00:00Z',
-      };
+      });
 
       const result = searchGraph('テストアイテム', [itemPerson], []);
       expect(result).toHaveLength(1);
@@ -171,14 +152,11 @@ describe('searchGraph', () => {
     });
 
     it('画像付き人物を検索すると画像URLが含まれる', () => {
-      const personWithImage: Person = {
+      const personWithImage: Person = makePerson({
         id: 'person-with-image',
         name: '画像付き太郎',
-        labels: ['人物'],
-        properties: {},
         imageDataUrl: 'data:image/png;base64,iVBORw0KGgo=',
-        createdAt: '2024-01-04T00:00:00Z',
-      };
+      });
 
       const result = searchGraph('画像付き', [personWithImage], []);
       expect(result).toHaveLength(1);
@@ -259,22 +237,8 @@ describe('searchGraph', () => {
 
     it('関係検索時に起点と終点の人物画像URLが含まれる', () => {
       const personsWithImages: Person[] = [
-        {
-          id: 'p1',
-          name: '太郎',
-          labels: ['人物'],
-          properties: {},
-          imageDataUrl: 'data:image/png;base64,image1',
-          createdAt: '2024-01-01T00:00:00Z',
-        },
-        {
-          id: 'p2',
-          name: '花子',
-          labels: ['人物'],
-          properties: {},
-          imageDataUrl: 'data:image/png;base64,image2',
-          createdAt: '2024-01-02T00:00:00Z',
-        },
+        makePerson({ id: 'p1', name: '太郎', imageDataUrl: 'data:image/png;base64,image1' }),
+        makePerson({ id: 'p2', name: '花子', imageDataUrl: 'data:image/png;base64,image2' }),
       ];
 
       const relWithImages = makeSearchRel({
@@ -330,13 +294,9 @@ describe('searchGraph', () => {
   describe('結果の件数制限', () => {
     it('最大20件で切り捨てる', () => {
       // 20件以上の人物を生成
-      const manyPersons: Person[] = Array.from({ length: 25 }, (_, i) => ({
-        id: `person${i}`,
-        name: `テスト太郎${i}`,
-        labels: ['人物'],
-        properties: {},
-        createdAt: '2024-01-01T00:00:00Z',
-      }));
+      const manyPersons: Person[] = Array.from({ length: 25 }, (_, i) =>
+        makePerson({ id: `person${i}`, name: `テスト太郎${i}` })
+      );
 
       const result = searchGraph('テスト', manyPersons, []);
       expect(result).toHaveLength(20);
@@ -346,20 +306,8 @@ describe('searchGraph', () => {
   describe('人物と関係の両方にマッチする場合', () => {
     it('人物結果が先、関係結果が後の順序で返す', () => {
       const testPersons: Person[] = [
-        {
-          id: 'p1',
-          name: '友人A',
-          labels: ['人物'],
-          properties: {},
-          createdAt: '2024-01-01T00:00:00Z',
-        },
-        {
-          id: 'p2',
-          name: '友人B',
-          labels: ['人物'],
-          properties: {},
-          createdAt: '2024-01-01T00:00:00Z',
-        },
+        makePerson({ id: 'p1', name: '友人A' }),
+        makePerson({ id: 'p2', name: '友人B' }),
       ];
 
       const testRel = makeSearchRel({

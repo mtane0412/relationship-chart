@@ -15,8 +15,12 @@ const makePerson = (name: string, id: string): Person => ({
   id,
   name,
   labels: ['人物'],
+  tags: [],
+  narrative: { summary: null, notes: null },
+  colorOverride: null,
   properties: {},
   createdAt: '2024-01-01T00:00:00.000Z',
+  updatedAt: '2024-01-01T00:00:00.000Z',
 });
 
 const existingPersons: Person[] = [
@@ -62,10 +66,11 @@ describe('matchPersonByName', () => {
 
 describe('resolveExtractionResult', () => {
   // v11 形式の抽出結果（type, label, symmetric: boolean, properties）
+  const llmPersonDefaults = { tags: null, narrative: null, properties: {} };
   const extractionResult: LlmExtractionResult = {
     persons: [
-      { name: '田中太郎', labels: ['人物'] },
-      { name: '新キャラ', labels: ['人物'] },
+      { name: '田中太郎', labels: ['人物'], ...llmPersonDefaults },
+      { name: '新キャラ', labels: ['人物'], ...llmPersonDefaults },
     ],
     relationships: [
       {
@@ -115,7 +120,7 @@ describe('resolveExtractionResult', () => {
 
   it('解決できない人物名を含む関係はスキップされること', () => {
     const badResult: LlmExtractionResult = {
-      persons: [{ name: '田中太郎', labels: ['人物'] }],
+      persons: [{ name: '田中太郎', labels: ['人物'], ...llmPersonDefaults }],
       relationships: [
         {
           sourcePersonName: '田中太郎',
@@ -144,8 +149,8 @@ describe('resolveExtractionResult', () => {
       // 田中太郎（既存）と新キャラ（新規）が参加するエピソード
       const resultWithEpisode: LlmExtractionResult = {
         persons: [
-          { name: '田中太郎', labels: ['人物'] },
-          { name: '新キャラ', labels: ['人物'] },
+          { name: '田中太郎', labels: ['人物'], ...llmPersonDefaults },
+          { name: '新キャラ', labels: ['人物'], ...llmPersonDefaults },
         ],
         relationships: [],
         episodes: [
@@ -172,7 +177,7 @@ describe('resolveExtractionResult', () => {
 
     it('解決できない参加者は除外され、Episode 自体は保持されること', () => {
       const resultWithUnknownParticipant: LlmExtractionResult = {
-        persons: [{ name: '田中太郎', labels: ['人物'] }],
+        persons: [{ name: '田中太郎', labels: ['人物'], ...llmPersonDefaults }],
         relationships: [],
         episodes: [
           {
@@ -211,7 +216,7 @@ describe('resolveExtractionResult', () => {
 
     it('title が空文字の Episode はスキップされること', () => {
       const resultWithEmptyTitle: LlmExtractionResult = {
-        persons: [{ name: '田中太郎', labels: ['人物'] }],
+        persons: [{ name: '田中太郎', labels: ['人物'], ...llmPersonDefaults }],
         relationships: [],
         episodes: [
           {
@@ -229,7 +234,10 @@ describe('resolveExtractionResult', () => {
     it('participantNames に重複がある場合 participantPersonIds が重複排除されること', () => {
       const resultWithDuplicates: LlmExtractionResult = {
         // 田中太郎・山田花子は existingPersons に存在するため LLM の persons に含めなくてもよい
-        persons: [{ name: '田中太郎', labels: ['人物'] }, { name: '山田花子', labels: ['人物'] }],
+        persons: [
+          { name: '田中太郎', labels: ['人物'], ...llmPersonDefaults },
+          { name: '山田花子', labels: ['人物'], ...llmPersonDefaults },
+        ],
         relationships: [],
         episodes: [
           {
@@ -249,7 +257,7 @@ describe('resolveExtractionResult', () => {
 
     it('title が前後の空白を持つ場合 trim されること', () => {
       const resultWithPaddedTitle: LlmExtractionResult = {
-        persons: [{ name: '田中太郎', labels: ['人物'] }],
+        persons: [{ name: '田中太郎', labels: ['人物'], ...llmPersonDefaults }],
         relationships: [],
         episodes: [
           {
@@ -267,7 +275,7 @@ describe('resolveExtractionResult', () => {
 
     it('description と occurredAt が null の Episode が正しく解決されること', () => {
       const resultWithNulls: LlmExtractionResult = {
-        persons: [{ name: '山田花子', labels: ['人物'] }],
+        persons: [{ name: '山田花子', labels: ['人物'], ...llmPersonDefaults }],
         relationships: [],
         episodes: [
           {
@@ -283,6 +291,70 @@ describe('resolveExtractionResult', () => {
       const ep = result.episodes[0];
       expect(ep.description).toBeUndefined();
       expect(ep.occurredAt).toBeUndefined();
+    });
+  });
+
+  describe('LLM 抽出人物の v15 フィールドフロースルー', () => {
+    it('LLM が tags を出力した場合、新規人物に反映されること', () => {
+      const extractionResult: LlmExtractionResult = {
+        persons: [{ name: '紫式部', labels: ['人物'], tags: ['作家', '貴族'], narrative: null, properties: {} }],
+        relationships: [],
+        episodes: [],
+      };
+      const result = resolveExtractionResult(extractionResult, [], new Map());
+      const newPerson = result.newPersons.find((p) => p.name === '紫式部');
+      expect(newPerson?.tags).toEqual(['作家', '貴族']);
+    });
+
+    it('LLM が narrative を出力した場合、新規人物に反映されること', () => {
+      const extractionResult: LlmExtractionResult = {
+        persons: [
+          {
+            name: '清少納言',
+            labels: ['人物'],
+            tags: null,
+            narrative: { summary: '平安時代の女流作家', notes: '枕草子の著者' },
+            properties: {},
+          },
+        ],
+        relationships: [],
+        episodes: [],
+      };
+      const result = resolveExtractionResult(extractionResult, [], new Map());
+      const newPerson = result.newPersons.find((p) => p.name === '清少納言');
+      expect(newPerson?.narrative).toEqual({ summary: '平安時代の女流作家', notes: '枕草子の著者' });
+    });
+
+    it('LLM が properties を出力した場合、新規人物に反映されること', () => {
+      const extractionResult: LlmExtractionResult = {
+        persons: [
+          {
+            name: '光源氏',
+            labels: ['人物'],
+            tags: null,
+            narrative: null,
+            properties: { 身分: '左大臣', 年齢: 20, 主人公: true },
+          },
+        ],
+        relationships: [],
+        episodes: [],
+      };
+      const result = resolveExtractionResult(extractionResult, [], new Map());
+      const newPerson = result.newPersons.find((p) => p.name === '光源氏');
+      expect(newPerson?.properties).toEqual({ 身分: '左大臣', 年齢: 20, 主人公: true });
+    });
+
+    it('LLM が tags・narrative・properties を省略（null）した場合はデフォルト値が使われること', () => {
+      const extractionResult: LlmExtractionResult = {
+        persons: [{ name: '夕霧', labels: ['人物'], tags: null, narrative: null, properties: {} }],
+        relationships: [],
+        episodes: [],
+      };
+      const result = resolveExtractionResult(extractionResult, [], new Map());
+      const newPerson = result.newPersons.find((p) => p.name === '夕霧');
+      expect(newPerson?.tags).toEqual([]);
+      expect(newPerson?.narrative).toEqual({ summary: null, notes: null });
+      expect(newPerson?.properties).toEqual({});
     });
   });
 });

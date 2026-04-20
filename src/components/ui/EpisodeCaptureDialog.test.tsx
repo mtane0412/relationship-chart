@@ -8,6 +8,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EpisodeCaptureDialog } from './EpisodeCaptureDialog';
 import type { Person } from '@/types/person';
+import { makePerson } from '@/test/factories';
 
 // useGraphStoreをモック（persons一覧の取得に使用）
 vi.mock('@/stores/useGraphStore', () => ({
@@ -17,20 +18,8 @@ vi.mock('@/stores/useGraphStore', () => ({
 }));
 
 const mockPersons: Person[] = [
-  {
-    id: 'p-001',
-    name: '佐藤 花子',
-    labels: [],
-    properties: {},
-    createdAt: '2024-01-01T00:00:00.000Z',
-  },
-  {
-    id: 'p-002',
-    name: '田中 一郎',
-    labels: [],
-    properties: {},
-    createdAt: '2024-01-01T00:00:00.000Z',
-  },
+  makePerson({ id: 'p-001', name: '佐藤 花子', labels: [] }),
+  makePerson({ id: 'p-002', name: '田中 一郎', labels: [] }),
 ];
 
 function makeProps(overrides: Partial<Parameters<typeof EpisodeCaptureDialog>[0]> = {}) {

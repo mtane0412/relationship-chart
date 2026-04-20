@@ -5,10 +5,10 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useGraphStore } from './useGraphStore';
-import type { Person } from '@/types/person';
+import { useGraphStore, type NewPersonInput } from './useGraphStore';
 import type { Relationship } from '@/types/relationship';
 import { initDB, closeDB } from '@/lib/chart-db';
+import { makePerson } from '@/test/factories';
 
 /**
  * テスト用のv11形式の関係オブジェクトを生成するヘルパー関数
@@ -77,7 +77,7 @@ describe('useGraphStore', () => {
     it('新しい人物を追加できる', () => {
       const { result } = renderHook(() => useGraphStore());
 
-      const newPerson: Omit<Person, 'id' | 'createdAt'> = {
+      const newPerson: NewPersonInput = {
         name: '山田太郎',
         imageDataUrl: 'data:image/jpeg;base64,abc',
         labels: ['人物'],
@@ -279,7 +279,7 @@ describe('useGraphStore', () => {
     it('imageDataUrlなしで人物を追加できる', () => {
       const { result } = renderHook(() => useGraphStore());
 
-      const newPerson: Omit<Person, 'id' | 'createdAt'> = {
+      const newPerson: NewPersonInput = {
         name: '山田太郎',
         labels: ['人物'],
         properties: {},
@@ -303,7 +303,7 @@ describe('useGraphStore', () => {
     it('labels: ["人物"]を指定して人物を追加できる', () => {
       const { result } = renderHook(() => useGraphStore());
 
-      const newPerson: Omit<Person, 'id' | 'createdAt'> = {
+      const newPerson: NewPersonInput = {
         name: '山田太郎',
         imageDataUrl: 'data:image/jpeg;base64,abc',
         labels: ['人物'],
@@ -327,7 +327,7 @@ describe('useGraphStore', () => {
     it('labels: ["物"]を指定して物を追加できる', () => {
       const { result } = renderHook(() => useGraphStore());
 
-      const newItem: Omit<Person, 'id' | 'createdAt'> = {
+      const newItem: NewPersonInput = {
         name: '伝説の剣',
         imageDataUrl: 'data:image/jpeg;base64,sword',
         labels: ['物'],
@@ -351,7 +351,7 @@ describe('useGraphStore', () => {
     it('labels: []（空配列）を指定した場合は空配列のまま保存される', () => {
       const { result } = renderHook(() => useGraphStore());
 
-      const newPerson: Omit<Person, 'id' | 'createdAt'> = {
+      const newPerson: NewPersonInput = {
         name: '山田太郎',
         imageDataUrl: 'data:image/jpeg;base64,abc',
         labels: [],
@@ -467,6 +467,42 @@ describe('useGraphStore', () => {
     });
   });
 
+  describe('addPerson v15フィールドのデフォルト補完', () => {
+    it('tags/narrative/colorOverride/updatedAt を省略した場合にデフォルト値が補完される', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      act(() => {
+        result.current.addPerson({ name: '田中花子', labels: ['人物'], properties: {} });
+      });
+
+      const person = result.current.persons[0];
+      expect(person.tags).toEqual([]);
+      expect(person.narrative).toEqual({ summary: null, notes: null });
+      expect(person.colorOverride).toBeNull();
+      expect(person.updatedAt).toBeTruthy();
+    });
+
+    it('tags/narrative/colorOverride を明示指定した場合はその値が使われる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          labels: ['人物'],
+          properties: {},
+          tags: ['主人公', 'ヒーロー'],
+          narrative: { summary: '主人公', notes: '詳細メモ' },
+          colorOverride: '#ff0000',
+        });
+      });
+
+      const person = result.current.persons[0];
+      expect(person.tags).toEqual(['主人公', 'ヒーロー']);
+      expect(person.narrative).toEqual({ summary: '主人公', notes: '詳細メモ' });
+      expect(person.colorOverride).toBe('#ff0000');
+    });
+  });
+
   describe('updatePerson', () => {
     it('人物の名前を更新できる', () => {
       const { result } = renderHook(() => useGraphStore());
@@ -560,6 +596,28 @@ describe('useGraphStore', () => {
 
       // 既存の人物は変更されていない
       expect(result.current.persons[0].name).toBe('山田太郎');
+    });
+
+    it('updatePersonを呼ぶとupdatedAtが自動更新される', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      vi.useFakeTimers();
+      act(() => {
+        result.current.addPerson({ name: '山田太郎', labels: ['人物'], properties: {} });
+      });
+
+      const originalUpdatedAt = result.current.persons[0].updatedAt;
+
+      // 1秒進めてから更新
+      vi.advanceTimersByTime(1000);
+
+      act(() => {
+        result.current.updatePerson(result.current.persons[0].id, { name: '山田次郎' });
+      });
+
+      vi.useRealTimers();
+
+      expect(result.current.persons[0].updatedAt).not.toBe(originalUpdatedAt);
     });
   });
 
@@ -681,6 +739,26 @@ describe('useGraphStore', () => {
 
       // 位置が更新されている
       expect(result.current.persons[0].position).toEqual({ x: 200, y: 300 });
+    });
+
+    it('updatePersonPositionsはupdatedAtを更新しない（ドラッグ操作で履歴が汚れないように）', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      act(() => {
+        result.current.addPerson({ name: '山田太郎', labels: ['人物'], properties: {} });
+      });
+
+      const originalUpdatedAt = result.current.persons[0].updatedAt;
+      const personId = result.current.persons[0].id;
+
+      act(() => {
+        result.current.updatePersonPositions(new Map([[personId, { x: 999, y: 999 }]]));
+      });
+
+      // 位置は変更されている
+      expect(result.current.persons[0].position).toEqual({ x: 999, y: 999 });
+      // updatedAt は変わっていない
+      expect(result.current.persons[0].updatedAt).toBe(originalUpdatedAt);
     });
   });
 
@@ -2695,7 +2773,7 @@ describe('useGraphStore', () => {
         await saveChart({
           id: 'chart-1',
           name: 'テストチャート',
-          persons: [{ id: '1', name: '田中太郎', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00Z' }],
+          persons: [makePerson({ id: '1', name: '田中太郎' })],
           relationships: [],
           forceEnabled: false,
           forceParams: {
@@ -2748,7 +2826,7 @@ describe('useGraphStore', () => {
         await saveChart({
           id: 'chart-2',
           name: 'チャート2',
-          persons: [{ id: '1', name: '鈴木次郎', labels: ['人物'], properties: {}, createdAt: '2024-01-02T00:00:00Z' }],
+          persons: [makePerson({ id: '1', name: '鈴木次郎', createdAt: '2024-01-02T00:00:00Z', updatedAt: '2024-01-02T00:00:00Z' })],
           relationships: [],
           forceEnabled: false,
           forceParams: {
@@ -3558,6 +3636,30 @@ describe('useGraphStore', () => {
         expect(result.current.snapshots[0].label).toBe('第1話');
         expect(result.current.snapshots[1].label).toBe('第2話');
       });
+
+      it('captureSnapshotでtags/narrative/colorOverrideがSnapshotPersonに保存される', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        act(() => {
+          result.current.addPerson({
+            labels: ['人物'],
+            name: '豊臣秀吉',
+            properties: {},
+            tags: ['武将'],
+            narrative: { summary: '天下統一を目指した', notes: 'メモ' },
+            colorOverride: '#ff0000',
+          });
+        });
+
+        act(() => {
+          result.current.captureSnapshot('第5話');
+        });
+
+        const sp = result.current.snapshots[0].persons[0];
+        expect(sp.tags).toEqual(['武将']);
+        expect(sp.narrative).toEqual({ summary: '天下統一を目指した', notes: 'メモ' });
+        expect(sp.colorOverride).toBe('#ff0000');
+      });
     });
 
     describe('deleteSnapshot', () => {
@@ -3792,6 +3894,43 @@ describe('useGraphStore', () => {
         // 第1話時点では人物1人
         expect(result.current.persons).toHaveLength(1);
         expect(result.current.persons[0].name).toBe('上杉謙信');
+      });
+
+      it('goToSnapshotでtags/narrative/colorOverrideがPersonに復元される', () => {
+        const { result } = renderHook(() => useGraphStore());
+
+        act(() => {
+          result.current.addPerson({
+            labels: ['人物'],
+            name: '上杉謙信',
+            properties: {},
+            tags: ['武将'],
+            narrative: { summary: '越後の龍', notes: '軍神' },
+            colorOverride: '#0000ff',
+          });
+          result.current.captureSnapshot('第1話');
+        });
+
+        // スナップショット後に属性を変更
+        act(() => {
+          const id = result.current.persons[0].id;
+          result.current.updatePerson(id, {
+            tags: [],
+            narrative: { summary: null, notes: null },
+            colorOverride: null,
+          });
+        });
+
+        act(() => {
+          result.current.setTimelineMode(true);
+          result.current.goToSnapshot(0);
+        });
+
+        // スナップショット時点の属性に戻っている
+        const person = result.current.persons[0];
+        expect(person.tags).toEqual(['武将']);
+        expect(person.narrative).toEqual({ summary: '越後の龍', notes: '軍神' });
+        expect(person.colorOverride).toBe('#0000ff');
       });
 
       it('goToLiveでライブ状態に戻る', () => {
