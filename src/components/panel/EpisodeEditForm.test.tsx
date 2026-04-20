@@ -9,6 +9,12 @@ import userEvent from '@testing-library/user-event';
 import { EpisodeEditForm } from './EpisodeEditForm';
 import type { Episode } from '@/types/episode';
 
+// モック関数を vi.hoisted でホイストし、vi.mock より前に初期化する
+const { mockUpdateEpisode, mockDeleteEpisode } = vi.hoisted(() => ({
+  mockUpdateEpisode: vi.fn(),
+  mockDeleteEpisode: vi.fn(),
+}));
+
 // useGraphStore をモック
 vi.mock('@/stores/useGraphStore', () => ({
   useGraphStore: vi.fn((selector: (state: unknown) => unknown) => {
@@ -20,9 +26,6 @@ vi.mock('@/stores/useGraphStore', () => ({
     return selector(state);
   }),
 }));
-
-const mockUpdateEpisode = vi.fn();
-const mockDeleteEpisode = vi.fn();
 
 const baseEpisode: Episode = {
   id: 'ep-001',
@@ -39,6 +42,8 @@ describe('EpisodeEditForm', () => {
   beforeEach(() => {
     mockUpdateEpisode.mockClear();
     mockDeleteEpisode.mockClear();
+    // window.confirm をモック（デフォルトは確認OK）
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
   });
 
   describe('初期表示', () => {
@@ -107,6 +112,19 @@ describe('EpisodeEditForm', () => {
         title: '波乱の展開',
       }));
     });
+
+    it('空のタイトルでblurしても保存されず元の値に戻る', async () => {
+      render(<EpisodeEditForm episode={baseEpisode} onClose={vi.fn()} />);
+
+      const titleInput = screen.getByRole('textbox', { name: /タイトル/i });
+      await userEvent.clear(titleInput);
+      fireEvent.blur(titleInput);
+
+      // 保存されない
+      expect(mockUpdateEpisode).not.toHaveBeenCalled();
+      // フィールドが元の値に戻る
+      expect(titleInput).toHaveValue('初めての出会い');
+    });
   });
 
   describe('説明・日時保存', () => {
@@ -138,7 +156,16 @@ describe('EpisodeEditForm', () => {
   });
 
   describe('削除', () => {
-    it('削除ボタンをクリックするとdeleteEpisodeが呼ばれる', () => {
+    it('削除ボタンをクリックすると確認ダイアログが表示される', () => {
+      render(<EpisodeEditForm episode={baseEpisode} onClose={vi.fn()} />);
+
+      const deleteButton = screen.getByRole('button', { name: /削除/i });
+      fireEvent.click(deleteButton);
+
+      expect(window.confirm).toHaveBeenCalled();
+    });
+
+    it('確認OKでdeleteEpisodeが呼ばれる', () => {
       render(<EpisodeEditForm episode={baseEpisode} onClose={vi.fn()} />);
 
       const deleteButton = screen.getByRole('button', { name: /削除/i });
@@ -147,7 +174,17 @@ describe('EpisodeEditForm', () => {
       expect(mockDeleteEpisode).toHaveBeenCalledWith('ep-001');
     });
 
-    it('削除後にonCloseが呼ばれる', () => {
+    it('確認キャンセルでdeleteEpisodeが呼ばれない', () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(false);
+      render(<EpisodeEditForm episode={baseEpisode} onClose={vi.fn()} />);
+
+      const deleteButton = screen.getByRole('button', { name: /削除/i });
+      fireEvent.click(deleteButton);
+
+      expect(mockDeleteEpisode).not.toHaveBeenCalled();
+    });
+
+    it('削除後にonCloseが呼ばれ、deleteEpisodeの後に呼ばれる', () => {
       const onClose = vi.fn();
       render(<EpisodeEditForm episode={baseEpisode} onClose={onClose} />);
 
@@ -155,6 +192,9 @@ describe('EpisodeEditForm', () => {
       fireEvent.click(deleteButton);
 
       expect(onClose).toHaveBeenCalled();
+      // deleteEpisode が onClose より先に呼ばれていること
+      expect(mockDeleteEpisode.mock.invocationCallOrder[0])
+        .toBeLessThan(onClose.mock.invocationCallOrder[0]);
     });
   });
 });

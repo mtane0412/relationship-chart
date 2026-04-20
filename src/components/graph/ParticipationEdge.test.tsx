@@ -18,16 +18,21 @@ vi.mock('@xyflow/react', async () => {
     ),
     getStraightPath: () => ['M 0 0 L 100 100', 50, 50],
     useReactFlow: () => ({
-      getNode: (id: string) => ({
-        id,
-        type: id.startsWith('ep') ? 'episode' : undefined,
-        position: { x: 0, y: 0 },
-        measured: {
-          width: id.startsWith('ep') ? 180 : 80,
-          height: id.startsWith('ep') ? 72 : 80,
-        },
-        data: {},
-      }),
+      getNode: (id: string) => {
+        // テストに存在するノードIDのみ返す。不明なIDは undefined（実際のuseReactFlowの挙動を再現）
+        const knownIds = ['ep-001', 'person-001'];
+        if (!knownIds.includes(id)) return undefined;
+        return {
+          id,
+          type: id.startsWith('ep') ? 'episode' : undefined,
+          position: { x: 0, y: 0 },
+          measured: {
+            width: id.startsWith('ep') ? 180 : 80,
+            height: id.startsWith('ep') ? 72 : 80,
+          },
+          data: {},
+        };
+      },
     }),
   };
 });

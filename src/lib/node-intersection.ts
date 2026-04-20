@@ -195,11 +195,11 @@ function getNodeBounds(node: NodeInfo): NodeBounds {
     };
   }
 
-  // Personノード: measured.widthが画像サイズ相当、centerYは固定PERSON_IMAGE_RADIUS
-  const width = node.measured?.width ?? PERSON_IMAGE_SIZE;
+  // Personノード: 視覚的なバウンディングボックスはPERSON_IMAGE_SIZE固定
+  // centerX/centerY はノード内の円形アバター中心に合わせる
   const isRoundedRect = deriveNodeVisual(node.data?.labels ?? ['人物']).shape === 'rounded-rect';
   return {
-    centerX: node.position.x + width / 2,
+    centerX: node.position.x + PERSON_IMAGE_SIZE / 2,
     centerY: node.position.y + PERSON_IMAGE_RADIUS,
     width: PERSON_IMAGE_SIZE,
     height: PERSON_IMAGE_SIZE,
@@ -235,7 +235,7 @@ export function getEdgeIntersectionPoints(
         )
       : getCircleIntersection(
           { x: src.centerX, y: src.centerY },
-          PERSON_IMAGE_RADIUS,
+          src.width / 2,
           tgt.centerX,
           tgt.centerY
         );
@@ -252,7 +252,7 @@ export function getEdgeIntersectionPoints(
         )
       : getCircleIntersection(
           { x: tgt.centerX, y: tgt.centerY },
-          PERSON_IMAGE_RADIUS,
+          tgt.width / 2,
           src.centerX,
           src.centerY
         );

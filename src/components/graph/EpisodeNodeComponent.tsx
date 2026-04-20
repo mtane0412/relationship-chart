@@ -38,7 +38,7 @@ export const EpisodeNodeComponent = memo(({ data, selected, id }: NodeProps) => 
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {/* 参加エッジ用ハンドル（source）: カード中央に配置 */}
+      {/* 参加エッジ用ハンドル（source）: カード全体を透明ヒット領域として覆う。ホバー時のみ visible */}
       <Handle
         type="source"
         id="participation-source"

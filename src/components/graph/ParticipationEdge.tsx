@@ -32,16 +32,7 @@ export const ParticipationEdge = memo((props: EdgeProps) => {
       return { sourcePoint: { x: 0, y: 0 }, targetPoint: { x: 0, y: 0 } };
     }
     return getEdgeIntersectionPoints(sourceNode, targetNode);
-  }, [
-    sourceNode?.position.x,
-    sourceNode?.position.y,
-    sourceNode?.measured?.width,
-    sourceNode?.measured?.height,
-    targetNode?.position.x,
-    targetNode?.position.y,
-    targetNode?.measured?.width,
-    targetNode?.measured?.height,
-  ]);
+  }, [sourceNode, targetNode]);
 
   if (!sourceNode || !targetNode) return null;
 

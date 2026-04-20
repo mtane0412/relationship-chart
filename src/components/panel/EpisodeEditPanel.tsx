@@ -5,6 +5,7 @@
 
 'use client';
 
+import { useShallow } from 'zustand/react/shallow';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { EpisodeEditForm } from './EpisodeEditForm';
 
@@ -13,9 +14,13 @@ import { EpisodeEditForm } from './EpisodeEditForm';
  * selectedEpisodeIds[0] に対応するEpisodeをストアから取得して編集フォームを表示する
  */
 export function EpisodeEditPanel() {
-  const selectedEpisodeIds = useGraphStore((state) => state.selectedEpisodeIds);
-  const episodes = useGraphStore((state) => state.episodes);
-  const clearSelection = useGraphStore((state) => state.clearSelection);
+  const { selectedEpisodeIds, episodes, clearSelection } = useGraphStore(
+    useShallow((state) => ({
+      selectedEpisodeIds: state.selectedEpisodeIds,
+      episodes: state.episodes,
+      clearSelection: state.clearSelection,
+    }))
+  );
 
   const episodeId = selectedEpisodeIds[0];
   const episode = episodes.find((e) => e.id === episodeId);

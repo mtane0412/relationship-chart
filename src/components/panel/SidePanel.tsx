@@ -51,7 +51,7 @@ export function SidePanel() {
   if (selectedEpisodeIds.length === 1 && selectedPersonIds.length === 0) {
     // エピソード単体選択時: エピソード編集パネル
     content = <EpisodeEditPanel />;
-  } else if (selectedPersons.length === 0) {
+  } else if (selectedPersonIds.length === 0) {
     // 未選択時: デフォルトパネル
     content = <DefaultPanel />;
   } else if (selectedPersons.length === 1) {

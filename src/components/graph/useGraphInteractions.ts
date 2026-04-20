@@ -305,7 +305,7 @@ export function useGraphInteractions({
 
       // EpisodeノードとPersonノードで選択ロジックを分岐
       if (node.type === 'episode') {
-        // Episodeはシンプルなトグル選択（Shiftキー非対応）
+        // Episodeの選択: Shiftキーで toggleEpisodeSelection、通常は selectEpisode
         if (event.shiftKey) {
           toggleEpisodeSelection(node.id);
         } else {

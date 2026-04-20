@@ -120,15 +120,15 @@ describe('getEdgeIntersectionPoints', () => {
       targetNode
     );
 
-    // 新しい計算式:
+    // centerXはPERSON_IMAGE_SIZE/2（40px固定）で計算する
     // - centerY = position.y + PERSON_IMAGE_RADIUS (40px固定)
-    // - centerX = position.x + measured.width / 2
-    // - radius = PERSON_IMAGE_RADIUS (40px固定)
-    // ソースノードの中心(50, 40)、右方向に半径40 → (90, 40)
-    expect(sourcePoint.x).toBeCloseTo(90, 1);
+    // - centerX = position.x + PERSON_IMAGE_SIZE/2 = 0 + 40 = 40
+    // - radius = PERSON_IMAGE_SIZE/2 = 40
+    // ソースノードの中心(40, 40)、右方向に半径40 → (80, 40)
+    expect(sourcePoint.x).toBeCloseTo(80, 1);
     expect(sourcePoint.y).toBeCloseTo(40, 1);
-    // ターゲットノードの中心(250, 40)、左方向に半径40 → (210, 40)
-    expect(targetPoint.x).toBeCloseTo(210, 1);
+    // ターゲットノードの中心(240, 40)、左方向に半径40 → (200, 40)
+    expect(targetPoint.x).toBeCloseTo(200, 1);
     expect(targetPoint.y).toBeCloseTo(40, 1);
   });
 
@@ -498,10 +498,10 @@ describe('getEdgeIntersectionPoints（Episodeノード対応）', () => {
 
     const { sourcePoint, targetPoint } = getEdgeIntersectionPoints(personNode, episodeNode);
 
-    // Personノード（円形・半径40）の中心は(40, 40)→右方向の境界点はx >= 40
-    expect(sourcePoint.x).toBeGreaterThan(40);
+    // Personノード（円形・半径40）の中心は(40, 40)→右方向の境界点はx ≈ 80（中心40 + 半径40）
+    expect(sourcePoint.x).toBeCloseTo(80, 1);
 
-    // Episodeノード（矩形180x72）の左辺は x=300 → 左辺の交点はx ≤ 480
+    // Episodeノード（矩形180x72）の左辺は x=300 → 左辺の交点はx ≈ 300
     expect(targetPoint.x).toBeCloseTo(300, 1);
   });
 

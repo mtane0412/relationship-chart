@@ -48,11 +48,13 @@ export function EpisodeEditForm({ episode, onClose }: EpisodeEditFormProps) {
     }
   };
 
-  // タイトル blur 保存ハンドラ
+  // タイトル blur 保存ハンドラ（空の場合は元の値に戻す）
   const handleTitleBlur = () => {
     const trimmed = title.trim();
     if (trimmed) {
       updateEpisode(episode.id, { title: trimmed });
+    } else {
+      setTitle(episode.title);
     }
   };
 
@@ -81,8 +83,9 @@ export function EpisodeEditForm({ episode, onClose }: EpisodeEditFormProps) {
     updateEpisode(episode.id, { properties: next });
   };
 
-  // 削除ハンドラ
+  // 削除ハンドラ（確認ダイアログ付き）
   const handleDelete = () => {
+    if (!window.confirm('このエピソードを削除しますか？')) return;
     deleteEpisode(episode.id);
     onClose();
   };
@@ -190,7 +193,6 @@ export function EpisodeEditForm({ episode, onClose }: EpisodeEditFormProps) {
           type="button"
           onClick={handleDelete}
           className="flex items-center gap-1.5 text-sm text-red-600 hover:text-red-800 transition-colors"
-          aria-label="エピソードを削除"
         >
           <Trash2 className="w-4 h-4" />
           削除
