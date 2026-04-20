@@ -7,6 +7,7 @@
 import { useState, type ChangeEvent } from 'react';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import { useGraphStore } from '@/stores/useGraphStore';
+import { useDialogStore } from '@/stores/useDialogStore';
 import { PropertiesKvEditor } from '@/components/ui/PropertiesKvEditor';
 import type { Episode } from '@/types/episode';
 
@@ -27,6 +28,7 @@ export function EpisodeEditForm({ episode, onClose }: EpisodeEditFormProps) {
   const updateEpisode = useGraphStore((state) => state.updateEpisode);
   const deleteEpisode = useGraphStore((state) => state.deleteEpisode);
   const relationships = useGraphStore((state) => state.relationships);
+  const openConfirm = useDialogStore((state) => state.openConfirm);
 
   const [title, setTitle] = useState(episode.title);
   const [description, setDescription] = useState(episode.description ?? '');
@@ -43,6 +45,7 @@ export function EpisodeEditForm({ episode, onClose }: EpisodeEditFormProps) {
       e.preventDefault();
       const trimmed = title.trim();
       if (trimmed) {
+        setTitle(trimmed);
         updateEpisode(episode.id, { title: trimmed });
       }
     }
@@ -83,11 +86,17 @@ export function EpisodeEditForm({ episode, onClose }: EpisodeEditFormProps) {
     updateEpisode(episode.id, { properties: next });
   };
 
-  // 削除ハンドラ（確認ダイアログ付き）
-  const handleDelete = () => {
-    if (!window.confirm('このエピソードを削除しますか？')) return;
-    deleteEpisode(episode.id);
-    onClose();
+  // 削除ハンドラ（確認ダイアログ付き）: SingleSelectionPanel と同様に openConfirm を使用
+  const handleDelete = async () => {
+    const confirmed = await openConfirm({
+      message: `「${episode.title}」を削除してもよろしいですか？`,
+      confirmLabel: '削除',
+      isDanger: true,
+    });
+    if (confirmed) {
+      deleteEpisode(episode.id);
+      onClose();
+    }
   };
 
   return (

@@ -51,6 +51,9 @@ export function SidePanel() {
   if (selectedEpisodeIds.length === 1 && selectedPersonIds.length === 0) {
     // エピソード単体選択時: エピソード編集パネル
     content = <EpisodeEditPanel />;
+  } else if (selectedEpisodeIds.length > 1 && selectedPersonIds.length === 0) {
+    // エピソード複数選択時: デフォルトパネルにフォールバック（単一選択モデル外）
+    content = <DefaultPanel />;
   } else if (selectedPersonIds.length === 0) {
     // 未選択時: デフォルトパネル
     content = <DefaultPanel />;

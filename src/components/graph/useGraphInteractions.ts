@@ -71,6 +71,8 @@ export function useGraphInteractions({
   const removeParticipation = useGraphStore((state) => state.removeParticipation);
   const addParticipation = useGraphStore((state) => state.addParticipation);
   const setSelectedPersonIds = useGraphStore((state) => state.setSelectedPersonIds);
+  const selectPerson = useGraphStore((state) => state.selectPerson);
+  const togglePersonSelection = useGraphStore((state) => state.togglePersonSelection);
   const clearSelection = useGraphStore((state) => state.clearSelection);
   const selectPersonPairForEdit = useGraphStore((state) => state.selectPersonPairForEdit);
   const selectEpisode = useGraphStore((state) => state.selectEpisode);
@@ -312,22 +314,16 @@ export function useGraphInteractions({
           selectEpisode(node.id);
         }
       } else {
-        // Personノード: Shiftキーで複数選択トグル
+        // Personノード: Shiftキーで複数選択トグル（selectPerson/togglePersonSelectionがEpisode排他制御を担う）
         if (event.shiftKey) {
-          const currentSelectedIds = useGraphStore.getState().selectedPersonIds;
-          const isSelected = currentSelectedIds.includes(node.id);
-          if (isSelected) {
-            setSelectedPersonIds(currentSelectedIds.filter((id) => id !== node.id));
-          } else {
-            setSelectedPersonIds([...currentSelectedIds, node.id]);
-          }
+          togglePersonSelection(node.id);
         } else {
-          // 通常クリック：単一選択
-          setSelectedPersonIds([node.id]);
+          // 通常クリック：単一選択（selectedEpisodeIds もクリアされる）
+          selectPerson(node.id);
         }
       }
     },
-    [contextMenu, closeContextMenu, setSelectedPersonIds, selectEpisode, toggleEpisodeSelection]
+    [contextMenu, closeContextMenu, setSelectedPersonIds, selectPerson, togglePersonSelection, selectEpisode, toggleEpisodeSelection]
   );
 
   // 背景クリックハンドラ

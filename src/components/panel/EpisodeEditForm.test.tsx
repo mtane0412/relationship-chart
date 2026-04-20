@@ -3,16 +3,17 @@
  * エピソードノードの編集フォームの振る舞いを検証する
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EpisodeEditForm } from './EpisodeEditForm';
 import type { Episode } from '@/types/episode';
 
 // モック関数を vi.hoisted でホイストし、vi.mock より前に初期化する
-const { mockUpdateEpisode, mockDeleteEpisode } = vi.hoisted(() => ({
+const { mockUpdateEpisode, mockDeleteEpisode, mockOpenConfirm } = vi.hoisted(() => ({
   mockUpdateEpisode: vi.fn(),
   mockDeleteEpisode: vi.fn(),
+  mockOpenConfirm: vi.fn().mockResolvedValue(true),
 }));
 
 // useGraphStore をモック
@@ -25,6 +26,14 @@ vi.mock('@/stores/useGraphStore', () => ({
     };
     return selector(state);
   }),
+}));
+
+// useDialogStore をモック
+vi.mock('@/stores/useDialogStore', () => ({
+  useDialogStore: vi.fn(
+    (selector: (state: { openConfirm: typeof mockOpenConfirm }) => unknown) =>
+      selector({ openConfirm: mockOpenConfirm })
+  ),
 }));
 
 const baseEpisode: Episode = {
@@ -42,8 +51,12 @@ describe('EpisodeEditForm', () => {
   beforeEach(() => {
     mockUpdateEpisode.mockClear();
     mockDeleteEpisode.mockClear();
-    // window.confirm をモック（デフォルトは確認OK）
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    mockOpenConfirm.mockClear();
+    mockOpenConfirm.mockResolvedValue(true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe('初期表示', () => {
@@ -162,36 +175,41 @@ describe('EpisodeEditForm', () => {
       const deleteButton = screen.getByRole('button', { name: /削除/i });
       fireEvent.click(deleteButton);
 
-      expect(window.confirm).toHaveBeenCalled();
+      expect(mockOpenConfirm).toHaveBeenCalledWith(
+        expect.objectContaining({ isDanger: true })
+      );
     });
 
-    it('確認OKでdeleteEpisodeが呼ばれる', () => {
+    it('確認OKでdeleteEpisodeが呼ばれる', async () => {
       render(<EpisodeEditForm episode={baseEpisode} onClose={vi.fn()} />);
 
       const deleteButton = screen.getByRole('button', { name: /削除/i });
       fireEvent.click(deleteButton);
+      // openConfirmのPromise解決を待つ
+      await vi.waitFor(() => expect(mockDeleteEpisode).toHaveBeenCalled());
 
       expect(mockDeleteEpisode).toHaveBeenCalledWith('ep-001');
     });
 
-    it('確認キャンセルでdeleteEpisodeが呼ばれない', () => {
-      vi.spyOn(window, 'confirm').mockReturnValue(false);
+    it('確認キャンセルでdeleteEpisodeが呼ばれない', async () => {
+      mockOpenConfirm.mockResolvedValue(false);
       render(<EpisodeEditForm episode={baseEpisode} onClose={vi.fn()} />);
 
       const deleteButton = screen.getByRole('button', { name: /削除/i });
       fireEvent.click(deleteButton);
+      await vi.waitFor(() => expect(mockOpenConfirm).toHaveBeenCalled());
 
       expect(mockDeleteEpisode).not.toHaveBeenCalled();
     });
 
-    it('削除後にonCloseが呼ばれ、deleteEpisodeの後に呼ばれる', () => {
+    it('削除後にonCloseが呼ばれ、deleteEpisodeの後に呼ばれる', async () => {
       const onClose = vi.fn();
       render(<EpisodeEditForm episode={baseEpisode} onClose={onClose} />);
 
       const deleteButton = screen.getByRole('button', { name: /削除/i });
       fireEvent.click(deleteButton);
+      await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
 
-      expect(onClose).toHaveBeenCalled();
       // deleteEpisode が onClose より先に呼ばれていること
       expect(mockDeleteEpisode.mock.invocationCallOrder[0])
         .toBeLessThan(onClose.mock.invocationCallOrder[0]);
