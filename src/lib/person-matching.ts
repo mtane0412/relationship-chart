@@ -135,7 +135,7 @@ export function resolveExtractionResult(
       tags: llmPerson.tags ?? [],
       narrative: llmPerson.narrative ?? { summary: null, notes: null },
       colorOverride: null,
-      properties: llmPerson.properties ?? {},
+      properties: {},
       updatedAt: new Date().toISOString(),
     });
   }

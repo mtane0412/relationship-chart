@@ -51,15 +51,9 @@ export const LlmPersonSchema = z.object({
     (v) => v ?? null,
     LlmPersonNarrativeSchema.nullable()
   ),
-  /**
-   * 人物固有のドメイン属性。省略・null の場合は空オブジェクトに正規化
-   * 値の型は string / number / boolean / null に限定（JSON Schema 互換のため）
-   */
-  properties: z.preprocess(
-    (v) => (v == null ? {} : v),
-    z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()]))
-  ),
 });
+// NOTE: properties フィールド（z.record）は Azure / OpenAI strict mode と非互換のためスキーマから除外。
+//       LLM 抽出結果の Person.properties は常に {} として扱い、UI からの手動入力のみを受け付ける。
 
 /**
  * LLM が出力する関係の narrative スキーマ

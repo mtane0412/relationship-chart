@@ -20,7 +20,7 @@ function resetStore() {
 
 /** テスト用の最小限の抽出結果 */
 const mockExtractionResult: LlmExtractionResult = {
-  persons: [{ name: '山田太郎', labels: ['人物'], tags: null, narrative: null, properties: {} }],
+  persons: [{ name: '山田太郎', labels: ['人物'], tags: null, narrative: null }],
   relationships: [],
   episodes: [],
 };
