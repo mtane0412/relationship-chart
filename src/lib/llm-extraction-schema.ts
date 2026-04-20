@@ -5,8 +5,8 @@
  * 主な特徴:
  *   - sourceId / targetId の代わりに sourcePersonName / targetPersonName（名前ベース）
  *   - id / createdAt / updatedAt / colorOverride は除外（ストア側で自動生成）
- *   - properties フィールドは z.preprocess で null/undefined を {} に正規化する
- *     （LLM が properties を省略・null 出力した場合の安全策）
+ *   - Person.properties は LlmPersonSchema に含まない（z.record が Azure strict mode 非互換のため）
+ *     LLM 抽出後の Person.properties は常に {} として扱い、UI からの手動入力のみを受け付ける
  *   - 時系列上の出来事は Relationship.narrative ではなく episodes に抽出する
  *
  * z.toJSONSchema() による JSON Schema 変換に対応している。
