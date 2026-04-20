@@ -157,7 +157,6 @@ export function resolveExtractionResult(
       narrative: {
         summary: llmRel.narrative.summary,
         notes: llmRel.narrative.notes,
-        turningPoints: llmRel.narrative.turningPoints,
       },
       colorOverride: null,
       properties: llmRel.properties,

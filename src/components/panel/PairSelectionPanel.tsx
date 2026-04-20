@@ -6,7 +6,8 @@
  * - ペア間の全エッジをリスト表示（マルチグラフ対応）
  * - 選択したエッジを編集: type（文字列）、label（任意）、symmetric（無向フラグ）
  * - エッジのプロパティ（closeness/trust/tension/secrecy/affection/awareness/role）をフォーム編集
- * - 物語的情報（summary/notes/turningPoints）をアコーディオンで編集
+ * - 物語的情報（summary/notes）をアコーディオンで編集
+ * - 関連エピソードの読み取り専用リスト表示（occurredAt からスナップショットジャンプ可）
  * - colorOverride: カラーピッカー
  * - 新規エッジの追加
  */
@@ -14,13 +15,10 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { nanoid } from 'nanoid';
 import { useReactFlow } from '@xyflow/react';
-import { ArrowRight, Minus, Plus } from 'lucide-react';
+import { ArrowRight, CalendarClock, ChevronRight, Minus, Plus } from 'lucide-react';
 import { NullableSlider } from '@/components/ui/NullableSlider';
 import { TagChipInput } from '@/components/ui/TagChipInput';
-import { TurningPointsEditor } from '@/components/panel/TurningPointsEditor';
-import type { TurningPointRow } from '@/components/panel/TurningPointsEditor';
 import { PersonMiniIcon } from '@/components/panel/PersonMiniIcon';
 import { AWARENESS_OPTIONS } from '@/components/panel/pairSelectionHelpers';
 import { useGraphStore } from '@/stores/useGraphStore';
@@ -55,6 +53,7 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
   const clearSelection = useGraphStore((state) => state.clearSelection);
   const selectPerson = useGraphStore((state) => state.selectPerson);
   const snapshots = useGraphStore((state) => state.snapshots);
+  const episodes = useGraphStore((state) => state.episodes);
   const setTimelineMode = useGraphStore((state) => state.setTimelineMode);
   const goToSnapshot = useGraphStore((state) => state.goToSnapshot);
 
@@ -85,6 +84,13 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
     [edgesForPair, selectedRelId]
   );
 
+  // ペアに関連するエピソード（いずれかのエッジに relatedRelationshipIds が含まれるもの）
+  const edgeIdSet = useMemo(() => new Set(edgesForPair.map((e) => e.id)), [edgesForPair]);
+  const pairEpisodes = useMemo(
+    () => episodes.filter((ep) => ep.relatedRelationshipIds.some((rid) => edgeIdSet.has(rid))),
+    [episodes, edgeIdSet]
+  );
+
   // ────── フォーム状態 ──────
 
   const [edgeType, setEdgeType] = useState<string>(() => selectedEdge?.type ?? '');
@@ -100,9 +106,6 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
   const [role, setRole] = useState<string>(() => (selectedEdge?.properties.role as string) ?? '');
   const [narrativeSummary, setNarrativeSummary] = useState<string>(() => selectedEdge?.narrative.summary ?? '');
   const [narrativeNotes, setNarrativeNotes] = useState<string>(() => selectedEdge?.narrative.notes ?? '');
-  const [turningPoints, setTurningPoints] = useState<TurningPointRow[]>(() =>
-    (selectedEdge?.narrative.turningPoints ?? []).map((tp) => ({ id: nanoid(), ...tp }))
-  );
   const [colorOverride, setColorOverride] = useState<string | null>(() => selectedEdge?.colorOverride ?? null);
   const [colorPickerEnabled, setColorPickerEnabled] = useState<boolean>(
     () => selectedEdge?.colorOverride !== null && selectedEdge?.colorOverride !== undefined
@@ -125,9 +128,6 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
       setRole((selectedEdge.properties.role as string) ?? '');
       setNarrativeSummary(selectedEdge.narrative.summary ?? '');
       setNarrativeNotes(selectedEdge.narrative.notes ?? '');
-      setTurningPoints(
-        selectedEdge.narrative.turningPoints.map((tp) => ({ id: nanoid(), ...tp }))
-      );
       setColorOverride(selectedEdge.colorOverride);
       setColorPickerEnabled(selectedEdge.colorOverride !== null);
     } else {
@@ -145,7 +145,6 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
       setRole('');
       setNarrativeSummary('');
       setNarrativeNotes('');
-      setTurningPoints([]);
       setColorOverride(null);
       setColorPickerEnabled(false);
     }
@@ -210,9 +209,6 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
     const narrativePayload = {
       summary: narrativeSummary.trim() || null,
       notes: narrativeNotes.trim() || null,
-      turningPoints: turningPoints
-        .filter((row) => row.at.trim() || row.note.trim())
-        .map(({ at, note }) => ({ at, note })),
     };
 
     const propertiesPayload = {
@@ -599,12 +595,47 @@ export function PairSelectionPanel({ persons }: PairSelectionPanelProps) {
                 className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
-            <TurningPointsEditor
-              value={turningPoints}
-              onChange={setTurningPoints}
-              findSnapshotIndexByAt={findSnapshotIndexByAt}
-              onJumpToSnapshot={handleJumpToSnapshot}
-            />
+            {/* 関連エピソード（読み取り専用）*/}
+            <div className="space-y-1">
+              <div className="flex items-center gap-1 text-xs font-medium text-amber-600">
+                <CalendarClock className="w-3.5 h-3.5" />
+                <span>関連するエピソード ({pairEpisodes.length} 件)</span>
+              </div>
+              {pairEpisodes.length === 0 ? (
+                <p className="text-xs text-gray-400 pl-1">関連するエピソードはありません</p>
+              ) : (
+                <ul className="space-y-1">
+                  {pairEpisodes.map((ep) => {
+                    const snapshotIndex = ep.occurredAt
+                      ? findSnapshotIndexByAt(ep.occurredAt)
+                      : null;
+                    return (
+                      <li
+                        key={ep.id}
+                        className="flex items-center justify-between gap-1 px-2 py-1.5 rounded bg-amber-50 border border-amber-100"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-gray-700 truncate">{ep.title}</p>
+                          {ep.occurredAt && (
+                            <p className="text-xs text-gray-400">{ep.occurredAt}</p>
+                          )}
+                        </div>
+                        {snapshotIndex !== null && (
+                          <button
+                            type="button"
+                            onClick={() => handleJumpToSnapshot(snapshotIndex)}
+                            aria-label={`スナップショット「${ep.occurredAt}」へジャンプ`}
+                            className="shrink-0 p-0.5 text-amber-600 hover:text-amber-800 hover:bg-amber-100 rounded"
+                          >
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
           </div>
         </details>
 

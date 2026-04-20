@@ -5,9 +5,9 @@
  * 主な特徴:
  *   - sourceId / targetId の代わりに sourcePersonName / targetPersonName（名前ベース）
  *   - id / createdAt / updatedAt / colorOverride は除外（ストア側で自動生成）
- *   - narrative.turningPoints は z.preprocess を使用しない（LLM は空配列を出力する）
  *   - properties フィールドは z.preprocess で null/undefined を {} に正規化する
  *     （LLM が properties を省略・null 出力した場合の安全策）
+ *   - 時系列上の出来事は Relationship.narrative ではなく episodes に抽出する
  *
  * z.toJSONSchema() による JSON Schema 変換に対応している。
  */
@@ -37,18 +37,6 @@ const LlmNarrativeSchema = z.object({
   summary: z.string().nullable(),
   /** メモ・補足 */
   notes: z.string().nullable(),
-  /**
-   * ターニングポイントのリスト
-   * LLM には空配列を出力してもらう（null は受け付けない）
-   */
-  turningPoints: z.array(
-    z.object({
-      /** 発生時刻・場面の説明 */
-      at: z.string(),
-      /** 出来事の説明 */
-      note: z.string(),
-    })
-  ),
 });
 
 /**

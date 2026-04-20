@@ -43,7 +43,7 @@ const validExtractionResult = {
       label: null,
       symmetric: false,
       tags: ['片想い'],
-      narrative: { summary: null, notes: null, turningPoints: [] },
+      narrative: { summary: null, notes: null },
       properties: { closeness: 0.8, affection: 0.9, awareness: 'known' },
     },
   ],

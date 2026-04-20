@@ -539,7 +539,7 @@ export function useGraphInteractions({
           label,
           symmetric,
           tags: [],
-          narrative: { summary: null, notes: null, turningPoints: [] },
+          narrative: { summary: null, notes: null },
           colorOverride: null,
           properties: {},
         });

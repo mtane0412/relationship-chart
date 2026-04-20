@@ -56,7 +56,6 @@ describe('LlmRelationshipSchema', () => {
     narrative: {
       summary: '幼なじみで片想い中',
       notes: null,
-      turningPoints: [{ at: '中学入学時', note: '再会して恋に落ちる' }],
     },
     properties: {
       closeness: 0.8,
@@ -100,11 +99,27 @@ describe('LlmRelationshipSchema', () => {
       label: null,
       symmetric: false,
       tags: [],
-      narrative: { summary: null, notes: null, turningPoints: [] },
+      narrative: { summary: null, notes: null },
       properties: {},
     };
     const result = LlmRelationshipSchema.safeParse(minimal);
     expect(result.success).toBe(true);
+  });
+
+  it('narrative に turningPoints を含む入力でも parse 結果には turningPoints が存在しないこと', () => {
+    // zod の strip モードにより未知フィールドは除去される（実行時の安全確認）
+    const dataWithTurningPoints = {
+      ...validRelationship,
+      narrative: {
+        ...validRelationship.narrative,
+        turningPoints: [{ at: '中学入学時', note: '再会して恋に落ちる' }],
+      },
+    };
+    const result = LlmRelationshipSchema.safeParse(dataWithTurningPoints);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect('turningPoints' in result.data.narrative).toBe(false);
+    }
   });
 
   it('symmetric: true でも有効であること', () => {
@@ -232,7 +247,7 @@ describe('LlmExtractionResultSchema', () => {
           label: '好き',
           symmetric: false,
           tags: ['片想い'],
-          narrative: { summary: null, notes: null, turningPoints: [] },
+          narrative: { summary: null, notes: null },
           properties: { affection: 0.9, awareness: 'known', role: null },
         },
       ],

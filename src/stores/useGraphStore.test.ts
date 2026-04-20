@@ -30,7 +30,6 @@ function makeRel(
     narrative: overrides.narrative ?? {
       summary: null,
       notes: null,
-      turningPoints: [],
     },
     colorOverride: overrides.colorOverride ?? null,
     properties: overrides.properties ?? {},
@@ -3301,7 +3300,7 @@ describe('useGraphStore', () => {
               label: null,
               symmetric: false,
               tags: [],
-              narrative: { summary: null, notes: null, turningPoints: [] },
+              narrative: { summary: null, notes: null },
               colorOverride: null,
               properties: {},
               createdAt: '2024-01-01T00:00:00.000Z',

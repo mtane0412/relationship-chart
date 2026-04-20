@@ -25,7 +25,7 @@ function makeRel(overrides: Partial<Relationship> = {}): Relationship {
     label: null,
     symmetric: false,
     tags: [],
-    narrative: { summary: null, notes: null, turningPoints: [] },
+    narrative: { summary: null, notes: null },
     colorOverride: null,
     properties: {},
     createdAt: '2026-02-05T00:00:00.000Z',

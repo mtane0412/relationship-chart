@@ -11,9 +11,11 @@ import {
   migrateV10ToV11,
   migratePersonsV10ToV11,
   normalizeChart,
+  migrateTurningPointsToEpisodes,
+  CURRENT_SCHEMA_VERSION,
 } from './migration';
 import type { Person } from '@/types/person';
-import type { LegacyRelationshipV8, LegacyRelationshipV9, LegacyPersonV10 } from './migration';
+import type { LegacyRelationshipV8, LegacyRelationshipV9, LegacyPersonV10, LegacyRelationshipV13 } from './migration';
 import { DEFAULT_FORCE_PARAMS } from '@/stores/useGraphStore';
 import { DEFAULT_EGO_LAYOUT_PARAMS } from './ego-layout';
 
@@ -1562,7 +1564,7 @@ describe('normalizeChart', () => {
     it('schemaVersion: 11 のチャートに snapshots/episodes/episodeParticipations を補完する', () => {
       const result = normalizeChart({ ...baseV11Chart });
 
-      expect(result.schemaVersion).toBe(13);
+      expect(result.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
       expect(result.snapshots).toEqual([]);
       expect(result.episodes).toEqual([]);
       expect(result.episodeParticipations).toEqual([]);
@@ -1584,7 +1586,7 @@ describe('normalizeChart', () => {
 
       const result = normalizeChart(chartWithSnapshots);
 
-      expect(result.schemaVersion).toBe(13);
+      expect(result.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
       expect(result.snapshots).toHaveLength(1);
       expect(result.snapshots?.[0].label).toBe('第1話');
     });
@@ -1601,7 +1603,7 @@ describe('normalizeChart', () => {
 
       const result = normalizeChart(v12Chart as Parameters<typeof normalizeChart>[0]);
 
-      expect(result.schemaVersion).toBe(13);
+      expect(result.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
       expect(result.episodes).toEqual([]);
       expect(result.episodeParticipations).toEqual([]);
     });
@@ -1626,7 +1628,7 @@ describe('normalizeChart', () => {
 
       const result = normalizeChart(v12ChartWithEpisodes as Parameters<typeof normalizeChart>[0]);
 
-      expect(result.schemaVersion).toBe(13);
+      expect(result.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
       expect(result.episodes).toHaveLength(1);
       expect(result.episodes?.[0].title).toBe('運命の出会い');
     });
@@ -1649,7 +1651,7 @@ describe('normalizeChart', () => {
 
       const result = normalizeChart(v12ChartWithSnapshot as Parameters<typeof normalizeChart>[0]);
 
-      expect(result.schemaVersion).toBe(13);
+      expect(result.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
       expect(result.snapshots?.[0].episodes).toEqual([]);
       expect(result.snapshots?.[0].episodeParticipations).toEqual([]);
     });
@@ -1678,19 +1680,361 @@ describe('normalizeChart', () => {
     });
   });
 
-  describe('v13チャートはそのまま返す', () => {
-    it('schemaVersion: 13 のチャートはデータ変更なしで返す', () => {
-      const v13Chart = {
+  describe('v14（最新）チャートはそのまま返す', () => {
+    it('schemaVersion が CURRENT_SCHEMA_VERSION のチャートはデータ変更なしで返す', () => {
+      const latestChart = {
         ...baseV11Chart,
+        snapshots: [],
+        episodes: [],
+        episodeParticipations: [],
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+      };
+
+      const result = normalizeChart(latestChart as Parameters<typeof normalizeChart>[0]);
+
+      expect(result).toBe(latestChart);
+    });
+  });
+
+  describe('v13チャートのv14への正規化 (turningPoints → Episode)', () => {
+    // ターニングポイントを持つ v13 形式の関係
+    const v13RelWithTurningPoints = {
+      id: 'rel-001',
+      type: '友人',
+      sourceId: 'person-001',
+      targetId: 'person-002',
+      label: null,
+      symmetric: false,
+      tags: [],
+      narrative: {
+        summary: '幼なじみ',
+        notes: null,
+        turningPoints: [
+          { at: '第1話', note: '初めて出会った' },
+          { at: '第5話', note: '再会を誓った' },
+        ],
+      },
+      colorOverride: null,
+      properties: {},
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+    };
+
+    const baseV13Chart = {
+      ...baseV11Chart,
+      persons: [
+        { id: 'person-001', name: '山田太郎', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
+        { id: 'person-002', name: '田中花子', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
+      ],
+      relationships: [v13RelWithTurningPoints],
+      snapshots: [],
+      episodes: [],
+      episodeParticipations: [],
+      schemaVersion: 13,
+    };
+
+    it('ライブ turningPoints が Episode と EpisodeParticipation に変換される', () => {
+      const result = normalizeChart(baseV13Chart as Parameters<typeof normalizeChart>[0]);
+
+      expect(result.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+      // turningPoints が 2 件 → Episodes が 2 件
+      expect(result.episodes).toHaveLength(2);
+      expect(result.episodes?.[0].title).toBe('初めて出会った');
+      expect(result.episodes?.[0].occurredAt).toBe('第1話');
+      expect(result.episodes?.[0].relatedRelationshipIds).toEqual(['rel-001']);
+      expect(result.episodes?.[1].title).toBe('再会を誓った');
+      // 各 Episode に source/target 両方の参加者が付く → 2 Episode × 2 人 = 4 件
+      expect(result.episodeParticipations).toHaveLength(4);
+    });
+
+    it('変換後の Relationship の narrative に turningPoints フィールドが存在しないこと', () => {
+      const result = normalizeChart(baseV13Chart as Parameters<typeof normalizeChart>[0]);
+
+      const narrative = result.relationships[0].narrative as Record<string, unknown>;
+      expect(narrative.turningPoints).toBeUndefined();
+      // summary/notes は保持されること
+      expect(narrative.summary).toBe('幼なじみ');
+    });
+
+    it('Snapshot 内の SnapshotRelationship.narrative から turningPoints フィールドが削除される', () => {
+      const v13ChartWithSnapshot = {
+        ...baseV13Chart,
+        snapshots: [
+          {
+            id: 'snap-001',
+            label: '第1話',
+            persons: [],
+            relationships: [
+              {
+                relationshipId: 'rel-001',
+                type: '友人',
+                sourceId: 'person-001',
+                targetId: 'person-002',
+                label: null,
+                symmetric: false,
+                tags: [],
+                colorOverride: null,
+                properties: {},
+                narrative: {
+                  summary: null,
+                  notes: null,
+                  turningPoints: [{ at: '第1話', note: '出会い' }],
+                },
+              },
+            ],
+            episodes: [],
+            episodeParticipations: [],
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+        ],
+      };
+
+      const result = normalizeChart(v13ChartWithSnapshot as Parameters<typeof normalizeChart>[0]);
+
+      const snapshotNarrative = result.snapshots?.[0].relationships[0].narrative as Record<string, unknown>;
+      expect(snapshotNarrative.turningPoints).toBeUndefined();
+    });
+
+    it('turningPoints が空の Relationship は Episode を生成しない', () => {
+      const v13ChartEmpty = {
+        ...baseV11Chart,
+        persons: [
+          { id: 'person-001', name: '山田太郎', labels: ['人物'], properties: {}, createdAt: '2024-01-01T00:00:00.000Z' },
+        ],
+        relationships: [
+          {
+            id: 'rel-002',
+            type: '知人',
+            sourceId: 'person-001',
+            targetId: 'person-001',
+            label: null,
+            symmetric: false,
+            tags: [],
+            narrative: { summary: null, notes: null, turningPoints: [] },
+            colorOverride: null,
+            properties: {},
+            createdAt: '2024-01-01T00:00:00.000Z',
+            updatedAt: '2024-01-01T00:00:00.000Z',
+          },
+        ],
         snapshots: [],
         episodes: [],
         episodeParticipations: [],
         schemaVersion: 13,
       };
 
-      const result = normalizeChart(v13Chart as Parameters<typeof normalizeChart>[0]);
+      const result = normalizeChart(v13ChartEmpty as Parameters<typeof normalizeChart>[0]);
 
-      expect(result).toBe(v13Chart);
+      expect(result.episodes).toHaveLength(0);
+      expect(result.episodeParticipations).toHaveLength(0);
     });
+
+    it('既に v14 以上のチャートは no-op で返す', () => {
+      const v14Chart = {
+        ...baseV11Chart,
+        snapshots: [],
+        episodes: [],
+        episodeParticipations: [],
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+      };
+
+      const result = normalizeChart(v14Chart as Parameters<typeof normalizeChart>[0]);
+
+      // 同一オブジェクト参照が返ること（no-op）
+      expect(result).toBe(v14Chart);
+    });
+  });
+});
+
+describe('migrateTurningPointsToEpisodes', () => {
+  /** テスト用の LegacyRelationshipV13 ヘルパー */
+  const makeLegacyRel = (overrides: Partial<LegacyRelationshipV13> = {}): LegacyRelationshipV13 => ({
+    id: 'rel-001',
+    type: '友人',
+    sourceId: 'person-001',
+    targetId: 'person-002',
+    label: null,
+    symmetric: false,
+    tags: [],
+    narrative: {
+      summary: null,
+      notes: null,
+      turningPoints: [],
+    },
+    colorOverride: null,
+    properties: {},
+    createdAt: '2024-01-01T00:00:00.000Z',
+    updatedAt: '2024-01-01T00:00:00.000Z',
+    ...overrides,
+  });
+
+  /** テスト用の Person ヘルパー */
+  const makePerson = (id: string, name: string, labels: string[] = ['人物']): Person => ({
+    id,
+    name,
+    labels,
+    properties: {},
+    createdAt: '2024-01-01T00:00:00.000Z',
+  });
+
+  const persons = [
+    makePerson('person-001', '山田太郎'),
+    makePerson('person-002', '田中花子'),
+  ];
+
+  it('turningPoints が Episode に変換されること', () => {
+    const rel = makeLegacyRel({
+      narrative: {
+        summary: 'テスト',
+        notes: null,
+        turningPoints: [{ at: '第1話', note: '初めて出会った' }],
+      },
+    });
+
+    const result = migrateTurningPointsToEpisodes([rel], persons);
+
+    expect(result.episodes).toHaveLength(1);
+    expect(result.episodes[0].title).toBe('初めて出会った');
+    expect(result.episodes[0].occurredAt).toBe('第1話');
+    expect(result.episodes[0].relatedRelationshipIds).toEqual(['rel-001']);
+    // source と target 両方が参加者になること
+    const participantIds = result.episodeParticipations.map((p) => p.personId);
+    expect(participantIds).toContain('person-001');
+    expect(participantIds).toContain('person-002');
+    // 変換後の Relationship に turningPoints が存在しないこと
+    const narrative = result.relationships[0].narrative as Record<string, unknown>;
+    expect(narrative.turningPoints).toBeUndefined();
+  });
+
+  it('note と at がどちらも空のエントリはスキップされること', () => {
+    const rel = makeLegacyRel({
+      narrative: {
+        summary: null,
+        notes: null,
+        turningPoints: [
+          { at: '', note: '' },       // 両方空 → スキップ
+          { at: '第2話', note: '再会した' }, // 正常 → 変換
+        ],
+      },
+    });
+
+    const result = migrateTurningPointsToEpisodes([rel], persons);
+
+    expect(result.episodes).toHaveLength(1);
+    expect(result.episodes[0].title).toBe('再会した');
+  });
+
+  it('note が空で at がある場合は at が title になること', () => {
+    const rel = makeLegacyRel({
+      narrative: {
+        summary: null,
+        notes: null,
+        turningPoints: [{ at: '第3話', note: '' }],
+      },
+    });
+
+    const result = migrateTurningPointsToEpisodes([rel], persons);
+
+    expect(result.episodes).toHaveLength(1);
+    expect(result.episodes[0].title).toBe('第3話');
+    // at は occurredAt にもセットされること
+    expect(result.episodes[0].occurredAt).toBe('第3話');
+  });
+
+  it("labels に '人物' を含まない Person は Participation に含まれないこと", () => {
+    const personsWithObject = [
+      makePerson('person-001', '山田太郎', ['人物']),
+      makePerson('person-002', '謎の武器', ['物']), // '人物' ではない
+    ];
+
+    const rel = makeLegacyRel({
+      narrative: {
+        summary: null,
+        notes: null,
+        turningPoints: [{ at: '第1話', note: '武器を手に入れた' }],
+      },
+    });
+
+    const result = migrateTurningPointsToEpisodes([rel], personsWithObject);
+
+    expect(result.episodes).toHaveLength(1);
+    // '人物' の person-001 のみ参加者になること
+    expect(result.episodeParticipations).toHaveLength(1);
+    expect(result.episodeParticipations[0].personId).toBe('person-001');
+  });
+
+  it('turningPoints が空の Relationship は Episode を生成しないこと', () => {
+    const rel = makeLegacyRel({
+      narrative: {
+        summary: 'サマリー',
+        notes: null,
+        turningPoints: [],
+      },
+    });
+
+    const result = migrateTurningPointsToEpisodes([rel], persons);
+
+    expect(result.episodes).toHaveLength(0);
+    expect(result.episodeParticipations).toHaveLength(0);
+    expect(result.relationships).toHaveLength(1);
+  });
+
+  it('source と target が同一 Person の場合に Participation が重複しないこと', () => {
+    const selfLoopRel = makeLegacyRel({
+      sourceId: 'person-001',
+      targetId: 'person-001', // 自己ループ
+      narrative: {
+        summary: null,
+        notes: null,
+        turningPoints: [{ at: '第4話', note: '独白' }],
+      },
+    });
+
+    const result = migrateTurningPointsToEpisodes([selfLoopRel], persons);
+
+    expect(result.episodes).toHaveLength(1);
+    // 重複排除で 1 件のみ
+    expect(result.episodeParticipations).toHaveLength(1);
+    expect(result.episodeParticipations[0].personId).toBe('person-001');
+  });
+
+  it('複数 turningPoints から複数の Episode が生成されること', () => {
+    const rel = makeLegacyRel({
+      narrative: {
+        summary: null,
+        notes: null,
+        turningPoints: [
+          { at: '第1話', note: '出会い' },
+          { at: '第5話', note: '別れ' },
+        ],
+      },
+    });
+
+    const result = migrateTurningPointsToEpisodes([rel], persons);
+
+    expect(result.episodes).toHaveLength(2);
+    expect(result.episodes[0].title).toBe('出会い');
+    expect(result.episodes[1].title).toBe('別れ');
+    // 各 Episode に source/target 2 人ずつ → 4 件
+    expect(result.episodeParticipations).toHaveLength(4);
+  });
+
+  it('narrative の summary と notes が変換後も保持されること', () => {
+    const rel = makeLegacyRel({
+      narrative: {
+        summary: '幼なじみの二人',
+        notes: 'メモ',
+        turningPoints: [],
+      },
+    });
+
+    const result = migrateTurningPointsToEpisodes([rel], persons);
+
+    expect(result.relationships[0].narrative.summary).toBe('幼なじみの二人');
+    expect(result.relationships[0].narrative.notes).toBe('メモ');
+  });
+
+  it('CURRENT_SCHEMA_VERSION が 14 であること', () => {
+    expect(CURRENT_SCHEMA_VERSION).toBe(14);
   });
 });

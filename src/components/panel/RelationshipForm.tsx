@@ -55,7 +55,7 @@ export function RelationshipForm() {
       symmetric,
       tags: [],
       properties: {},
-      narrative: { summary: null, notes: null, turningPoints: [] },
+      narrative: { summary: null, notes: null },
       colorOverride: null,
     });
 

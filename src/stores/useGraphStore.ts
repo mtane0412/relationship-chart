@@ -35,7 +35,7 @@ import {
   getChartOrder,
   setChartOrder,
 } from '@/lib/chart-db';
-import { migrateGraphState, normalizeChart } from '@/lib/migration';
+import { migrateGraphState, normalizeChart, CURRENT_SCHEMA_VERSION } from '@/lib/migration';
 import {
   serializeChartForExport,
   sanitizeFilename,
@@ -191,8 +191,7 @@ function buildChartFromState(state: GraphState): Chart | null {
     forceParams: state.forceParams,
     egoLayoutParams: state.egoLayoutParams,
     snapshots: state.snapshots,
-    // v13 形式であることを明示する（ロード時の再マイグレーションを防ぐ）
-    schemaVersion: 13,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
     createdAt: meta.createdAt,
     updatedAt: new Date().toISOString(),
   };
@@ -1177,11 +1176,13 @@ export const useGraphStore = create<GraphStore>()(
                 // タイムラインモード中は退避したライブデータを使用
                 persons: state._livePersons ?? state.persons,
                 relationships: state._liveRelationships ?? state.relationships,
+                episodes: state._liveEpisodes ?? state.episodes,
+                episodeParticipations: state._liveEpisodeParticipations ?? state.episodeParticipations,
                 forceEnabled: state.forceEnabled,
                 forceParams: state.forceParams,
                 egoLayoutParams: state.egoLayoutParams,
                 snapshots: state.snapshots,
-                schemaVersion: 12,
+                schemaVersion: CURRENT_SCHEMA_VERSION,
                 createdAt: meta.createdAt,
                 updatedAt: new Date().toISOString(),
               };
@@ -1285,7 +1286,6 @@ export const useGraphStore = create<GraphStore>()(
             narrative: {
               summary: r.narrative.summary,
               notes: r.narrative.notes,
-              turningPoints: r.narrative.turningPoints.map((tp) => ({ ...tp })),
             },
           }));
 
@@ -1491,9 +1491,8 @@ export const useGraphStore = create<GraphStore>()(
               ? {
                   summary: sr.narrative.summary,
                   notes: sr.narrative.notes,
-                  turningPoints: sr.narrative.turningPoints.map((tp) => ({ ...tp })),
                 }
-              : { summary: null, notes: null, turningPoints: [] },
+              : { summary: null, notes: null },
             createdAt: snapshot.createdAt,
             updatedAt: snapshot.createdAt,
           }));
