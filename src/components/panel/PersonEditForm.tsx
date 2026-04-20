@@ -10,6 +10,8 @@ import { readFileAsDataUrl } from '@/lib/image-utils';
 import { MAX_PERSON_NAME_LENGTH } from '@/lib/validation-constants';
 import ImageCropper from '@/components/ui/ImageCropper';
 import { deriveNodeVisual } from '@/lib/node-visual';
+import { TagChipInput } from '@/components/ui/TagChipInput';
+import { PropertiesKvEditor } from '@/components/ui/PropertiesKvEditor';
 import type { Person } from '@/types/person';
 
 /**
@@ -35,6 +37,12 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
 
   const [name, setName] = useState(person.name);
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>(person.imageDataUrl);
+  const [labels, setLabels] = useState<string[]>(person.labels ?? ['人物']);
+  const [tags, setTags] = useState<string[]>(person.tags ?? []);
+  const [narrativeSummary, setNarrativeSummary] = useState(person.narrative?.summary ?? '');
+  const [narrativeNotes, setNarrativeNotes] = useState(person.narrative?.notes ?? '');
+  const [colorOverride, setColorOverride] = useState<string | null>(person.colorOverride ?? null);
+  const [properties, setProperties] = useState<Record<string, unknown>>(person.properties ?? {});
   const [isDragging, setIsDragging] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [error, setError] = useState('');
@@ -306,6 +314,50 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
     }
   }, [showMenu]);
 
+  // ラベル変更ハンドラ
+  const handleLabelsChange = (newLabels: string[]) => {
+    setLabels(newLabels);
+    updatePerson(person.id, { labels: newLabels });
+  };
+
+  // タグ変更ハンドラ
+  const handleTagsChange = (newTags: string[]) => {
+    setTags(newTags);
+    updatePerson(person.id, { tags: newTags });
+  };
+
+  // サマリー blur ハンドラ
+  const handleSummaryBlur = () => {
+    updatePerson(person.id, {
+      narrative: { summary: narrativeSummary || null, notes: narrativeNotes || null },
+    });
+  };
+
+  // ノート blur ハンドラ
+  const handleNotesBlur = () => {
+    updatePerson(person.id, {
+      narrative: { summary: narrativeSummary || null, notes: narrativeNotes || null },
+    });
+  };
+
+  // 色変更ハンドラ
+  const handleColorChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setColorOverride(e.target.value);
+    updatePerson(person.id, { colorOverride: e.target.value });
+  };
+
+  // 色クリアハンドラ
+  const handleColorClear = () => {
+    setColorOverride(null);
+    updatePerson(person.id, { colorOverride: null });
+  };
+
+  // プロパティ変更ハンドラ
+  const handlePropertiesChange = (next: Record<string, unknown>) => {
+    setProperties(next);
+    updatePerson(person.id, { properties: next });
+  };
+
   return (
     <div className="p-4 bg-white border-b border-gray-200">
       <div className="flex justify-between items-center mb-4">
@@ -440,6 +492,95 @@ export function PersonEditForm({ person, onClose }: PersonEditFormProps) {
           onCancel={handleCropCancel}
         />
       )}
+
+      {/* v15 拡張フィールド */}
+      <details className="mt-4 border-t border-gray-200 pt-4">
+        <summary className="text-sm font-medium text-gray-700 cursor-pointer select-none">
+          詳細情報
+        </summary>
+        <div className="mt-3 space-y-4">
+          {/* ラベル */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">ラベル</label>
+            <TagChipInput
+              value={labels}
+              onChange={handleLabelsChange}
+              suggestions={['人物', '物']}
+            />
+          </div>
+
+          {/* タグ */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">タグ</label>
+            <TagChipInput value={tags} onChange={handleTagsChange} suggestions={[]} />
+          </div>
+
+          {/* 物語的情報 */}
+          <div>
+            <span className="block text-xs font-medium text-gray-600 mb-1">物語的情報</span>
+            <div className="space-y-2">
+              <div>
+                <label htmlFor="narrative-summary" className="block text-xs text-gray-500 mb-0.5">
+                  サマリー
+                </label>
+                <textarea
+                  id="narrative-summary"
+                  value={narrativeSummary}
+                  onChange={(e) => setNarrativeSummary(e.target.value)}
+                  onBlur={handleSummaryBlur}
+                  rows={2}
+                  className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+                  placeholder="概要・説明"
+                />
+              </div>
+              <div>
+                <label htmlFor="narrative-notes" className="block text-xs text-gray-500 mb-0.5">
+                  ノート
+                </label>
+                <textarea
+                  id="narrative-notes"
+                  value={narrativeNotes}
+                  onChange={(e) => setNarrativeNotes(e.target.value)}
+                  onBlur={handleNotesBlur}
+                  rows={2}
+                  className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+                  placeholder="メモ・補足"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 色上書き */}
+          <div>
+            <span className="block text-xs font-medium text-gray-600 mb-1">色上書き</span>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={colorOverride ?? '#6b7280'}
+                onChange={handleColorChange}
+                className="w-8 h-8 rounded border border-gray-300 cursor-pointer"
+                aria-label="ノードの色を選択"
+              />
+              {colorOverride && (
+                <button
+                  type="button"
+                  onClick={handleColorClear}
+                  className="text-xs text-gray-500 hover:text-red-500"
+                  aria-label="色をクリア"
+                >
+                  クリア
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* プロパティ */}
+          <div>
+            <span className="block text-xs font-medium text-gray-600 mb-1">プロパティ</span>
+            <PropertiesKvEditor value={properties} onChange={handlePropertiesChange} />
+          </div>
+        </div>
+      </details>
     </div>
   );
 }

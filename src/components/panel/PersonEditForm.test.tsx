@@ -4,6 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { PersonEditForm } from './PersonEditForm';
 import { useGraphStore } from '@/stores/useGraphStore';
 import { readFileAsDataUrl } from '@/lib/image-utils';
@@ -513,6 +514,77 @@ describe('PersonEditForm', () => {
       // ArrowUpキーを押す（アップロード → 削除）
       fireEvent.keyDown(uploadButton, { key: 'ArrowUp' });
       expect(document.activeElement).toBe(deleteButton);
+    });
+  });
+
+  describe('v15 フィールド編集（labels/tags/narrative/colorOverride/properties）', () => {
+    it('ラベル編集セクションが表示される', () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+      expect(screen.getByText('ラベル')).toBeInTheDocument();
+    });
+
+    it('タグ編集セクションが表示される', () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+      expect(screen.getByText('タグ')).toBeInTheDocument();
+    });
+
+    it('物語的情報セクションが表示される', () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+      expect(screen.getByText('物語的情報')).toBeInTheDocument();
+    });
+
+    it('色上書きセクションが表示される', () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+      expect(screen.getByText('色上書き')).toBeInTheDocument();
+    });
+
+    it('プロパティセクションが表示される', () => {
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+      expect(screen.getByText('プロパティ')).toBeInTheDocument();
+    });
+
+    it('タグを追加するとupdatePersonが呼ばれる', async () => {
+      const user = userEvent.setup();
+      const personWithTags = makePerson({ id: 'p-tags', name: '山田太郎', tags: ['主人公'] });
+      render(<PersonEditForm person={personWithTags} onClose={mockOnClose} />);
+
+      // ラベル入力とタグ入力の2つあるため、2番目（タグ）を取得する
+      const tagInputs = screen.getAllByLabelText('タグを追加');
+      const tagInput = tagInputs[1];
+      await user.type(tagInput, 'ヒーロー{Enter}');
+
+      expect(mockUpdatePerson).toHaveBeenCalledWith(
+        'p-tags',
+        expect.objectContaining({ tags: ['主人公', 'ヒーロー'] })
+      );
+    });
+
+    it('サマリーを入力してblurするとupdatePersonが呼ばれる', async () => {
+      const user = userEvent.setup();
+      render(<PersonEditForm person={mockPerson} onClose={mockOnClose} />);
+
+      const summaryTextarea = screen.getByLabelText('サマリー');
+      await user.type(summaryTextarea, '光源氏の幼馴染');
+      await user.tab();
+
+      expect(mockUpdatePerson).toHaveBeenCalledWith(
+        mockPerson.id,
+        expect.objectContaining({ narrative: expect.objectContaining({ summary: '光源氏の幼馴染' }) })
+      );
+    });
+
+    it('色上書きをクリアするとupdatePersonが呼ばれる', async () => {
+      const user = userEvent.setup();
+      const personWithColor = makePerson({ id: 'p-color', name: '山田太郎', colorOverride: '#ff0000' });
+      render(<PersonEditForm person={personWithColor} onClose={mockOnClose} />);
+
+      const clearButton = screen.getByRole('button', { name: /色をクリア/ });
+      await user.click(clearButton);
+
+      expect(mockUpdatePerson).toHaveBeenCalledWith(
+        'p-color',
+        expect.objectContaining({ colorOverride: null })
+      );
     });
   });
 
