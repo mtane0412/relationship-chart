@@ -173,9 +173,10 @@ export type LlmEpisode = z.infer<typeof LlmEpisodeSchema>;
  * strict mode の要件:
  * - 全オブジェクトに required（全プロパティキーの配列）が必要
  * - additionalProperties: false が必要
+ * - propertyNames キーは禁止（Azure はサポートしない）
  *
- * zod v4 の z.toJSONSchema() は optional フィールドを required に含めないため、
- * この関数で後処理として補完する。
+ * zod v4 の z.toJSONSchema() は optional フィールドを required に含めず、
+ * z.record() は propertyNames キーを生成するため、この関数で後処理として補完・除去する。
  */
 function makeStrictJsonSchema(schema: unknown): unknown {
   if (typeof schema !== 'object' || schema === null) return schema;
@@ -200,6 +201,12 @@ function makeStrictJsonSchema(schema: unknown): unknown {
     // 全プロパティキーを required に設定（既存の required は上書き）
     result.required = Object.keys(props);
     result.additionalProperties = false;
+  }
+
+  // z.record() は properties を持たず propertyNames を生成する。
+  // Azure / OpenAI strict mode は propertyNames をサポートしないため、type: object のすべてから除去する。
+  if (result.type === 'object' && 'propertyNames' in result) {
+    delete result.propertyNames;
   }
 
   return result;

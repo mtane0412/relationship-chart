@@ -403,4 +403,34 @@ describe('getLlmExtractionJsonSchema', () => {
     expect((propSchema?.required as string[]).includes('closeness')).toBe(true);
     expect(propSchema?.additionalProperties).toBe(false);
   });
+
+  it('persons.items.properties.properties に propertyNames が含まれないこと（Azure strict mode 対応）', () => {
+    // Azure エラーログ: context=('properties','persons','items','properties','properties')
+    // で z.record() が生成した propertyNames が拒否された問題への対応。
+    // OpenAI / Azure strict mode は propertyNames キーをサポートしない。
+    type JsonSchemaObj = Record<string, unknown>;
+    const schema = getLlmExtractionJsonSchema() as JsonSchemaObj;
+    const schemaProps = schema.properties as JsonSchemaObj;
+    const personItems = (schemaProps.persons as JsonSchemaObj).items as JsonSchemaObj;
+    const personItemsProps = personItems.properties as JsonSchemaObj;
+    const propSchema = personItemsProps.properties as JsonSchemaObj;
+
+    // propertyNames が存在しないこと
+    expect(propSchema).not.toHaveProperty('propertyNames');
+  });
+
+  it('persons.items.properties.properties が strict mode 要件を満たすこと（Azure strict mode 対応）', () => {
+    // z.record() 由来の properties フィールドが additionalProperties と required を持つこと
+    type JsonSchemaObj = Record<string, unknown>;
+    const schema = getLlmExtractionJsonSchema() as JsonSchemaObj;
+    const schemaProps = schema.properties as JsonSchemaObj;
+    const personItems = (schemaProps.persons as JsonSchemaObj).items as JsonSchemaObj;
+    const personItemsProps = personItems.properties as JsonSchemaObj;
+    const propSchema = personItemsProps.properties as JsonSchemaObj;
+
+    // type が object であること
+    expect(propSchema?.type).toBe('object');
+    // additionalProperties が false であること（Azure strict mode 要件）
+    expect(propSchema?.additionalProperties).toBeDefined();
+  });
 });
