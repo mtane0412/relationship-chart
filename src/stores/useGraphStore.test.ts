@@ -49,7 +49,7 @@ describe('useGraphStore', () => {
     store.relationships.forEach((relationship) => {
       store.removeRelationship(relationship.id);
     });
-    // 選択状態もクリア
+    // 選択状態もクリア（Person・Episode両方）
     store.clearSelection();
     // forceParamsもリセット
     store.resetForceParams();
@@ -1000,6 +1000,30 @@ describe('useGraphStore', () => {
       });
 
       expect(result.current.selectedPersonIds).toEqual([]);
+    });
+
+    it('clearSelection は selectedEpisodeIds もクリアする', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // エピソードを追加して選択
+      act(() => {
+        result.current.createEpisode({ title: '雨の日の記憶' });
+      });
+
+      const episodeId = result.current.episodes[0].id;
+
+      act(() => {
+        result.current.selectEpisode(episodeId);
+      });
+
+      expect(result.current.selectedEpisodeIds).toHaveLength(1);
+
+      // clearSelection でエピソード選択もクリアされる
+      act(() => {
+        result.current.clearSelection();
+      });
+
+      expect(result.current.selectedEpisodeIds).toEqual([]);
     });
   });
 
@@ -4459,6 +4483,188 @@ describe('useGraphStore', () => {
         expect(result.current.episodes[0].title).toBe('雨の日の記憶');
         expect(result.current.episodeParticipations).toHaveLength(1);
       });
+    });
+  });
+
+  describe('selectEpisode', () => {
+    it('エピソードを選択するとselectedEpisodeIdsに追加される', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      act(() => {
+        result.current.createEpisode({ title: '初めての出会い' });
+      });
+
+      const episodeId = result.current.episodes[0].id;
+
+      act(() => {
+        result.current.selectEpisode(episodeId);
+      });
+
+      expect(result.current.selectedEpisodeIds).toEqual([episodeId]);
+    });
+
+    it('エピソードを選択するとPersonの選択がクリアされる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      // 人物を追加して先に選択
+      act(() => {
+        result.current.addPerson({
+          name: '山田太郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
+        });
+      });
+
+      const personId = result.current.persons[0].id;
+
+      act(() => {
+        result.current.selectPerson(personId);
+      });
+
+      expect(result.current.selectedPersonIds).toEqual([personId]);
+
+      // エピソードを選択するとPersonの選択がクリアされる
+      act(() => {
+        result.current.createEpisode({ title: '波乱の展開' });
+      });
+
+      const episodeId = result.current.episodes[0].id;
+
+      act(() => {
+        result.current.selectEpisode(episodeId);
+      });
+
+      expect(result.current.selectedPersonIds).toEqual([]);
+      expect(result.current.selectedEpisodeIds).toEqual([episodeId]);
+    });
+
+    it('null を渡すと選択が解除される', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      act(() => {
+        result.current.createEpisode({ title: '別れの季節' });
+      });
+
+      const episodeId = result.current.episodes[0].id;
+
+      act(() => {
+        result.current.selectEpisode(episodeId);
+      });
+
+      expect(result.current.selectedEpisodeIds).toEqual([episodeId]);
+
+      act(() => {
+        result.current.selectEpisode(null);
+      });
+
+      expect(result.current.selectedEpisodeIds).toEqual([]);
+    });
+  });
+
+  describe('toggleEpisodeSelection', () => {
+    it('未選択のエピソードを選択できる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      act(() => {
+        result.current.createEpisode({ title: '旅立ちの朝' });
+      });
+
+      const episodeId = result.current.episodes[0].id;
+
+      act(() => {
+        result.current.toggleEpisodeSelection(episodeId);
+      });
+
+      expect(result.current.selectedEpisodeIds).toEqual([episodeId]);
+    });
+
+    it('選択中のエピソードを再度トグルすると選択解除される', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      act(() => {
+        result.current.createEpisode({ title: '再会の喜び' });
+      });
+
+      const episodeId = result.current.episodes[0].id;
+
+      act(() => {
+        result.current.toggleEpisodeSelection(episodeId);
+      });
+
+      expect(result.current.selectedEpisodeIds).toEqual([episodeId]);
+
+      act(() => {
+        result.current.toggleEpisodeSelection(episodeId);
+      });
+
+      expect(result.current.selectedEpisodeIds).toEqual([]);
+    });
+
+    it('トグル選択するとPersonの選択がクリアされる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      act(() => {
+        result.current.addPerson({
+          name: '佐藤花子',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
+        });
+        result.current.createEpisode({ title: '花火大会' });
+      });
+
+      const personId = result.current.persons[0].id;
+      const episodeId = result.current.episodes[0].id;
+
+      // まずPersonを選択
+      act(() => {
+        result.current.selectPerson(personId);
+      });
+
+      expect(result.current.selectedPersonIds).toEqual([personId]);
+
+      // Episodeをトグル選択するとPersonの選択がクリアされる
+      act(() => {
+        result.current.toggleEpisodeSelection(episodeId);
+      });
+
+      expect(result.current.selectedPersonIds).toEqual([]);
+      expect(result.current.selectedEpisodeIds).toEqual([episodeId]);
+    });
+  });
+
+  describe('selectPerson', () => {
+    it('Personを選択するとselectedEpisodeIdsがクリアされる', () => {
+      const { result } = renderHook(() => useGraphStore());
+
+      act(() => {
+        result.current.createEpisode({ title: '試練の冬' });
+        result.current.addPerson({
+          name: '鈴木一郎',
+          imageDataUrl: 'data:image/jpeg;base64,abc',
+          labels: ['人物'],
+          properties: {},
+        });
+      });
+
+      const episodeId = result.current.episodes[0].id;
+      const personId = result.current.persons[0].id;
+
+      // まずEpisodeを選択
+      act(() => {
+        result.current.selectEpisode(episodeId);
+      });
+
+      expect(result.current.selectedEpisodeIds).toEqual([episodeId]);
+
+      // Personを選択するとEpisode選択がクリアされる
+      act(() => {
+        result.current.selectPerson(personId);
+      });
+
+      expect(result.current.selectedEpisodeIds).toEqual([]);
+      expect(result.current.selectedPersonIds).toEqual([personId]);
     });
   });
 });

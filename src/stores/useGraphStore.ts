@@ -77,6 +77,8 @@ type GraphState = {
   forceEnabled: boolean;
   /** 選択中の人物のIDリスト（複数選択対応） */
   selectedPersonIds: string[];
+  /** 選択中のエピソードのIDリスト */
+  selectedEpisodeIds: string[];
   /** force-directedレイアウトのパラメータ */
   forceParams: ForceParams;
   /** EGO Layoutのパラメータ */
@@ -134,6 +136,7 @@ const INITIAL_STATE: GraphState = {
   relationships: [],
   forceEnabled: false,
   selectedPersonIds: [],
+  selectedEpisodeIds: [],
   forceParams: DEFAULT_FORCE_PARAMS,
   egoLayoutParams: DEFAULT_EGO_LAYOUT_PARAMS,
   sidePanelOpen: true,
@@ -302,6 +305,20 @@ type GraphActions = {
    * @param personIds - 選択する人物のIDリスト
    */
   setSelectedPersonIds: (personIds: string[]) => void;
+
+  /**
+   * エピソードを選択または選択解除する（単一選択モード）
+   * Person選択と排他制御されるため、呼び出し時にselectedPersonIdsはクリアされる
+   * @param episodeId - 選択するエピソードのID（nullで選択解除）
+   */
+  selectEpisode: (episodeId: string | null) => void;
+
+  /**
+   * エピソードの選択をトグルする
+   * Person選択と排他制御されるため、呼び出し時にselectedPersonIdsはクリアされる
+   * @param episodeId - トグルするエピソードのID
+   */
+  toggleEpisodeSelection: (episodeId: string) => void;
 
   /**
    * ペア編集のために2人を選択し、特定の関係を編集対象として記録する
@@ -621,6 +638,8 @@ export const useGraphStore = create<GraphStore>()(
         selectPerson: (personId) =>
           set(() => ({
             selectedPersonIds: personId ? [personId] : [],
+            // Episodeとの排他制御
+            selectedEpisodeIds: [],
           })),
 
         togglePersonSelection: (personId) =>
@@ -632,9 +651,10 @@ export const useGraphStore = create<GraphStore>()(
                 selectedPersonIds: state.selectedPersonIds.filter((id) => id !== personId),
               };
             } else {
-              // 選択追加
+              // 選択追加（Episodeとの排他制御）
               return {
                 selectedPersonIds: [...state.selectedPersonIds, personId],
+                selectedEpisodeIds: [],
               };
             }
           }),
@@ -642,6 +662,7 @@ export const useGraphStore = create<GraphStore>()(
         clearSelection: () =>
           set(() => ({
             selectedPersonIds: [],
+            selectedEpisodeIds: [],
             editingRelationshipId: null,
           })),
 
@@ -655,7 +676,33 @@ export const useGraphStore = create<GraphStore>()(
           set(() => ({
             selectedPersonIds: [id1, id2],
             editingRelationshipId: relationshipId,
+            selectedEpisodeIds: [],
           })),
+
+        selectEpisode: (episodeId) =>
+          set(() => ({
+            selectedEpisodeIds: episodeId ? [episodeId] : [],
+            // Personとの排他制御
+            selectedPersonIds: [],
+            editingRelationshipId: null,
+          })),
+
+        toggleEpisodeSelection: (episodeId) =>
+          set((state) => {
+            const isSelected = state.selectedEpisodeIds.includes(episodeId);
+            if (isSelected) {
+              return {
+                selectedEpisodeIds: state.selectedEpisodeIds.filter((id) => id !== episodeId),
+              };
+            } else {
+              // Personとの排他制御
+              return {
+                selectedEpisodeIds: [...state.selectedEpisodeIds, episodeId],
+                selectedPersonIds: [],
+                editingRelationshipId: null,
+              };
+            }
+          }),
 
         addRelationship: (relationship) =>
           set((state) => {

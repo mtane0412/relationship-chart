@@ -6,25 +6,41 @@
  * - 破線（strokeDasharray）でRelationshipエッジと視覚的に区別
  * - グレー系の色で主張を抑える
  * - マーカーなし（向きを持たないエッジ）
+ * - ノード境界との交点計算で正確な端点を算出（PersonNode/EpisodeNode両対応）
  */
 
 'use client';
 
-import { memo } from 'react';
-import { BaseEdge, EdgeProps, getStraightPath } from '@xyflow/react';
+import { memo, useMemo } from 'react';
+import { BaseEdge, EdgeProps, getStraightPath, useReactFlow } from '@xyflow/react';
+import { getEdgeIntersectionPoints } from '@/lib/node-intersection';
 
 /**
  * エピソード参加エッジコンポーネント
  * @param props - React Flowから渡されるエッジプロパティ
  */
 export const ParticipationEdge = memo((props: EdgeProps) => {
-  const { sourceX, sourceY, targetX, targetY } = props;
+  const { source, target } = props;
+  const { getNode } = useReactFlow();
+
+  const sourceNode = getNode(source);
+  const targetNode = getNode(target);
+
+  // ノードの境界との交点を計算（キャッシュして再計算を最小化）
+  const { sourcePoint, targetPoint } = useMemo(() => {
+    if (!sourceNode || !targetNode) {
+      return { sourcePoint: { x: 0, y: 0 }, targetPoint: { x: 0, y: 0 } };
+    }
+    return getEdgeIntersectionPoints(sourceNode, targetNode);
+  }, [sourceNode, targetNode]);
+
+  if (!sourceNode || !targetNode) return null;
 
   const [edgePath] = getStraightPath({
-    sourceX,
-    sourceY,
-    targetX,
-    targetY,
+    sourceX: sourcePoint.x,
+    sourceY: sourcePoint.y,
+    targetX: targetPoint.x,
+    targetY: targetPoint.y,
   });
 
   return (

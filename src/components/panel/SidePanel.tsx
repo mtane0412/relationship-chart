@@ -11,6 +11,7 @@ import { DefaultPanel } from './DefaultPanel';
 import { SingleSelectionPanel } from './SingleSelectionPanel';
 import { PairSelectionPanel } from './PairSelectionPanel';
 import { MultipleSelectionInfo } from './MultipleSelectionInfo';
+import { EpisodeEditPanel } from './EpisodeEditPanel';
 import { AuthorAttribution } from '@/components/graph/AuthorAttribution';
 import Footer from '@/components/layout/Footer';
 import { SettingsModal } from '@/components/ui/SettingsModal';
@@ -21,6 +22,7 @@ import { useGraphStore } from '@/stores/useGraphStore';
  */
 export function SidePanel() {
   const selectedPersonIds = useGraphStore((state) => state.selectedPersonIds);
+  const selectedEpisodeIds = useGraphStore((state) => state.selectedEpisodeIds);
   const persons = useGraphStore((state) => state.persons);
   const relationships = useGraphStore((state) => state.relationships);
   const editingRelationshipId = useGraphStore((state) => state.editingRelationshipId);
@@ -44,9 +46,15 @@ export function SidePanel() {
     );
   }, [editingRelationshipId, relationships, selectedPersonIds]);
 
-  // 選択数によってコンテンツを切り替え（selectedPersons.lengthを使用）
+  // 選択数によってコンテンツを切り替え
   let content;
-  if (selectedPersons.length === 0) {
+  if (selectedEpisodeIds.length === 1 && selectedPersonIds.length === 0) {
+    // エピソード単体選択時: エピソード編集パネル
+    content = <EpisodeEditPanel />;
+  } else if (selectedEpisodeIds.length > 1 && selectedPersonIds.length === 0) {
+    // エピソード複数選択時: デフォルトパネルにフォールバック（単一選択モデル外）
+    content = <DefaultPanel />;
+  } else if (selectedPersonIds.length === 0) {
     // 未選択時: デフォルトパネル
     content = <DefaultPanel />;
   } else if (selectedPersons.length === 1) {

@@ -146,8 +146,15 @@ export function getRectIntersection(
 }
 
 /**
+ * Episodeノードのデフォルトサイズ（フォールバック用）
+ * EpisodeNodeComponentのカードサイズに対応
+ */
+export const EPISODE_DEFAULT_WIDTH = 180;
+export const EPISODE_DEFAULT_HEIGHT = 72;
+
+/**
  * ノードの情報（位置とサイズ）
- * data.labels から形状（円形/角丸四角形）を導出する
+ * type が 'episode' の場合は矩形として扱い、それ以外は labels から形状を導出する
  */
 interface NodeInfo {
   id: string;
@@ -156,6 +163,48 @@ interface NodeInfo {
   measured?: { width?: number; height?: number };
   /** ノードデータ（labels から形状を導出する） */
   data?: { labels?: string[] };
+}
+
+/**
+ * ノードのバウンディングボックス情報（中心座標・幅・高さ・形状）
+ */
+interface NodeBounds {
+  centerX: number;
+  centerY: number;
+  width: number;
+  height: number;
+  /** 'circle' = 円形（Personノード）、'rect' = 矩形（Episodeノード・物アイコン） */
+  shape: 'circle' | 'rect';
+}
+
+/**
+ * ノードのバウンディングボックスを計算する
+ * - Episodeノード（type='episode'）: 矩形 180x72、中心は左上 + (w/2, h/2)
+ * - Personノード（デフォルト）: labelsから形状を導出し、中心は position + (w/2, PERSON_IMAGE_RADIUS)
+ */
+function getNodeBounds(node: NodeInfo): NodeBounds {
+  if (node.type === 'episode') {
+    const width = node.measured?.width ?? EPISODE_DEFAULT_WIDTH;
+    const height = node.measured?.height ?? EPISODE_DEFAULT_HEIGHT;
+    return {
+      centerX: node.position.x + width / 2,
+      centerY: node.position.y + height / 2,
+      width,
+      height,
+      shape: 'rect',
+    };
+  }
+
+  // Personノード: 視覚的なバウンディングボックスはPERSON_IMAGE_SIZE固定
+  // centerX/centerY はノード内の円形アバター中心に合わせる
+  const isRoundedRect = deriveNodeVisual(node.data?.labels ?? ['人物']).shape === 'rounded-rect';
+  return {
+    centerX: node.position.x + PERSON_IMAGE_SIZE / 2,
+    centerY: node.position.y + PERSON_IMAGE_RADIUS,
+    width: PERSON_IMAGE_SIZE,
+    height: PERSON_IMAGE_SIZE,
+    shape: isRoundedRect ? 'rect' : 'circle',
+  };
 }
 
 /**
@@ -171,58 +220,42 @@ export function getEdgeIntersectionPoints(
   sourcePoint: { x: number; y: number };
   targetPoint: { x: number; y: number };
 } {
-  // ノードの幅と高さを取得（名前ラベルはabsolute配置のため、measured.widthは画像サイズ相当）
-  // 注: sourceHeight/targetHeightは現在未使用（画像領域のPERSON_IMAGE_SIZEを使用）
-  const sourceWidth = sourceNode.measured?.width || PERSON_IMAGE_SIZE;
-  const _sourceHeight = sourceNode.measured?.height || PERSON_IMAGE_SIZE;
-  const targetWidth = targetNode.measured?.width || PERSON_IMAGE_SIZE;
-  const _targetHeight = targetNode.measured?.height || PERSON_IMAGE_SIZE;
-
-  // ノードの中心座標を計算
-  // centerX: 画像の中心X座標（position.x + sourceWidth / 2）
-  // centerY: 画像の中心Y座標（position.y + PERSON_IMAGE_RADIUS）
-  // 注: 名前ラベルはabsolute配置のため、positionは画像の左上を指す
-  const sourceCenterX = sourceNode.position.x + sourceWidth / 2;
-  const sourceCenterY = sourceNode.position.y + PERSON_IMAGE_RADIUS;
-  const targetCenterX = targetNode.position.x + targetWidth / 2;
-  const targetCenterY = targetNode.position.y + PERSON_IMAGE_RADIUS;
-
-  // ノードの形状に応じて交点を計算
-  // labels 配列から形状を導出する（data が未設定の場合はデフォルト: 円形）
-  const sourceIsRoundedRect = deriveNodeVisual(sourceNode.data?.labels ?? ['人物']).shape === 'rounded-rect';
-  const targetIsRoundedRect = deriveNodeVisual(targetNode.data?.labels ?? ['人物']).shape === 'rounded-rect';
+  const src = getNodeBounds(sourceNode);
+  const tgt = getNodeBounds(targetNode);
 
   // ソースノードの境界との交点を計算
-  const sourcePoint = sourceIsRoundedRect
-    ? getRectIntersection(
-        { x: sourceCenterX, y: sourceCenterY },
-        PERSON_IMAGE_SIZE,
-        PERSON_IMAGE_SIZE,
-        targetCenterX,
-        targetCenterY
-      )
-    : getCircleIntersection(
-        { x: sourceCenterX, y: sourceCenterY },
-        PERSON_IMAGE_RADIUS,
-        targetCenterX,
-        targetCenterY
-      );
+  const sourcePoint =
+    src.shape === 'rect'
+      ? getRectIntersection(
+          { x: src.centerX, y: src.centerY },
+          src.width,
+          src.height,
+          tgt.centerX,
+          tgt.centerY
+        )
+      : getCircleIntersection(
+          { x: src.centerX, y: src.centerY },
+          src.width / 2,
+          tgt.centerX,
+          tgt.centerY
+        );
 
   // ターゲットノードの境界との交点を計算
-  const targetPoint = targetIsRoundedRect
-    ? getRectIntersection(
-        { x: targetCenterX, y: targetCenterY },
-        PERSON_IMAGE_SIZE,
-        PERSON_IMAGE_SIZE,
-        sourceCenterX,
-        sourceCenterY
-      )
-    : getCircleIntersection(
-        { x: targetCenterX, y: targetCenterY },
-        PERSON_IMAGE_RADIUS,
-        sourceCenterX,
-        sourceCenterY
-      );
+  const targetPoint =
+    tgt.shape === 'rect'
+      ? getRectIntersection(
+          { x: tgt.centerX, y: tgt.centerY },
+          tgt.width,
+          tgt.height,
+          src.centerX,
+          src.centerY
+        )
+      : getCircleIntersection(
+          { x: tgt.centerX, y: tgt.centerY },
+          tgt.width / 2,
+          src.centerX,
+          src.centerY
+        );
 
   return {
     sourcePoint,
