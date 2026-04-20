@@ -3,7 +3,7 @@
  * KV プロパティエディタの型変換ロジックを検証する
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, expectTypeOf } from 'vitest';
 import { coerceKvValue, type KvValueType } from './kv-value-coerce';
 
 describe('coerceKvValue', () => {
@@ -99,8 +99,8 @@ describe('coerceKvValue', () => {
 });
 
 describe('KvValueType', () => {
-  it('string/number/boolean の3種類が定義されている', () => {
-    const types: KvValueType[] = ['string', 'number', 'boolean'];
-    expect(types).toHaveLength(3);
+  it('string/number/boolean の3種類が型レベルで定義されている', () => {
+    // 型レベルで完全一致を検証する（新たなリテラル型追加時に検出できる）
+    expectTypeOf<KvValueType>().toEqualTypeOf<'string' | 'number' | 'boolean'>();
   });
 });

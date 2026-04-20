@@ -22,7 +22,7 @@ export function personsToNodes(persons: Person[]): GraphNode[] {
       data: {
         name: person.name,
         imageDataUrl: person.imageDataUrl,
-        labels: person.labels,
+        labels: person.labels ?? ['人物'],
       },
       position: person.position ?? { x: 0, y: 0 },
     };

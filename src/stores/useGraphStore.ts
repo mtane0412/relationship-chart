@@ -582,7 +582,7 @@ export const useGraphStore = create<GraphStore>()(
               ...person,
               id: nanoid(),
               tags: person.tags ?? [],
-              narrative: person.narrative ?? DEFAULT_PERSON_NARRATIVE,
+              narrative: { ...DEFAULT_PERSON_NARRATIVE, ...person.narrative },
               colorOverride: person.colorOverride ?? null,
               createdAt: now,
               updatedAt: person.updatedAt ?? now,
@@ -1497,8 +1497,12 @@ export const useGraphStore = create<GraphStore>()(
               labels: [...sp.labels],
               position: sp.position ? { ...sp.position } : undefined,
               // v15以前のスナップショットには tags/narrative/colorOverride がない場合があるためデフォルト補完
-              tags: sp.tags ?? [],
-              narrative: sp.narrative ?? { summary: null, notes: null },
+              // 参照共有を避けるために配列/オブジェクトをクローンする
+              tags: [...(sp.tags ?? [])],
+              narrative: {
+                summary: sp.narrative?.summary ?? null,
+                notes: sp.narrative?.notes ?? null,
+              },
               colorOverride: sp.colorOverride ?? null,
               properties: { ...sp.properties },
               imageDataUrl: livePerson?.imageDataUrl,

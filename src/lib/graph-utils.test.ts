@@ -139,9 +139,13 @@ describe('graph-utils', () => {
     });
 
     it('labelsが未設定のPersonはデフォルト["人物"]で変換される', () => {
-      const persons: Person[] = [
-        makePerson({ id: 'person-1', name: '山田太郎', imageDataUrl: 'data:image/jpeg;base64,abc' }),
-      ];
+      // labels フィールドを意図的に欠落させて personsToNodes のフォールバックを検証する
+      const { labels: _labels, ...personWithoutLabels } = makePerson({
+        id: 'person-1',
+        name: '山田太郎',
+        imageDataUrl: 'data:image/jpeg;base64,abc',
+      });
+      const persons: Person[] = [personWithoutLabels as Person];
 
       const nodes = personsToNodes(persons);
 

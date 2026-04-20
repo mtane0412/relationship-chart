@@ -519,7 +519,7 @@ export function migratePersonsV14ToV15(persons: LegacyPersonV14[]): Person[] {
   return persons.map((p) => ({
     ...p,
     tags: (p as Partial<Person>).tags ?? [],
-    narrative: (p as Partial<Person>).narrative ?? DEFAULT_PERSON_NARRATIVE,
+    narrative: { ...DEFAULT_PERSON_NARRATIVE, ...(p as Partial<Person>).narrative },
     colorOverride: (p as Partial<Person>).colorOverride ?? null,
     updatedAt: (p as Partial<Person>).updatedAt ?? p.createdAt,
   }));

@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { coerceKvValue, type KvValueType } from '@/lib/kv-value-coerce';
 
 /**
@@ -21,6 +21,8 @@ export type PropertiesKvEditorProps = {
 
 /** 編集中の行データ */
 type KvRow = {
+  /** 行を安定して識別するためのユニーク ID（index を使わない） */
+  id: string;
   key: string;
   type: KvValueType;
   value: string | number | boolean;
@@ -28,11 +30,28 @@ type KvRow = {
   isPending: boolean;
 };
 
+let rowIdCounter = 0;
+/** 行ごとに安定した ID を採番する */
+function nextRowId(): string {
+  return `kv-row-${++rowIdCounter}`;
+}
+
 /** unknown 値から KvValueType を推定する */
 function inferType(v: unknown): KvValueType {
   if (typeof v === 'number') return 'number';
   if (typeof v === 'boolean') return 'boolean';
   return 'string';
+}
+
+/**
+ * unknown 値をエディタが扱える string | number | boolean に正規化する
+ * null / undefined / object はすべて空文字列に変換する
+ */
+function normalizeKvValue(v: unknown): string | number | boolean {
+  if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'string') {
+    return v;
+  }
+  return v == null ? '' : String(v);
 }
 
 /** 型ラベルの日本語表示 */
@@ -45,8 +64,9 @@ const TYPE_LABELS: Record<KvValueType, string> = {
 /** Record → KvRow[] 変換 */
 function toRows(record: Record<string, unknown>): KvRow[] {
   return Object.entries(record).map(([key, val]) => {
-    const type = inferType(val);
-    return { key, type, value: (val as string | number | boolean), isPending: false };
+    const normalizedValue = normalizeKvValue(val);
+    const type = inferType(normalizedValue);
+    return { id: nextRowId(), key, type, value: normalizedValue, isPending: false };
   });
 }
 
@@ -61,6 +81,15 @@ function toRecord(rows: KvRow[]): Record<string, unknown> {
   return result;
 }
 
+/** コミット済み行の中に重複キーがあるか判定する */
+function hasDuplicateCommittedKeys(rows: KvRow[]): boolean {
+  const keys = rows
+    .filter((row) => !row.isPending)
+    .map((row) => row.key.trim())
+    .filter(Boolean);
+  return new Set(keys).size !== keys.length;
+}
+
 /**
  * KV プロパティエディタコンポーネント
  * string / number / boolean の各型に対応した行エディタを提供する
@@ -68,14 +97,20 @@ function toRecord(rows: KvRow[]): Record<string, unknown> {
 export function PropertiesKvEditor({ value, onChange }: PropertiesKvEditorProps) {
   const [rows, setRows] = useState<KvRow[]>(() => toRows(value));
 
+  // value prop が外部から更新された場合（Person 切替・snapshot 復元など）に rows を同期する
+  useEffect(() => {
+    setRows(toRows(value));
+  }, [value]);
+
   const emitChange = (nextRows: KvRow[]) => {
+    if (hasDuplicateCommittedKeys(nextRows)) return;
     onChange(toRecord(nextRows));
   };
 
   const handleAddRow = () => {
     setRows((prev) => [
       ...prev,
-      { key: '', type: 'string', value: '', isPending: true },
+      { id: nextRowId(), key: '', type: 'string', value: '', isPending: true },
     ]);
   };
 
@@ -142,6 +177,7 @@ export function PropertiesKvEditor({ value, onChange }: PropertiesKvEditorProps)
     if (row.isPending) {
       const next = [...rows];
       next[index] = { ...next[index], isPending: false };
+      if (hasDuplicateCommittedKeys(next)) return;
       setRows(next);
       emitChange(next);
     } else {
@@ -163,7 +199,7 @@ export function PropertiesKvEditor({ value, onChange }: PropertiesKvEditorProps)
         <p className="text-xs text-gray-400">プロパティなし</p>
       )}
       {rows.map((row, index) => (
-        <div key={index} className="flex items-center gap-1">
+        <div key={row.id} className="flex items-center gap-1">
           {/* キー入力 */}
           <input
             type="text"
