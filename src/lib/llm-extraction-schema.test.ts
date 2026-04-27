@@ -377,6 +377,14 @@ describe('getLlmExtractionJsonSchema', () => {
     expect(() => JSON.stringify(schema)).not.toThrow();
   });
 
+  it('スキーマのどこにも propertyNames が含まれないこと（Azure strict mode 対応 回帰テスト）', () => {
+    // z.record() 由来の propertyNames は Azure / OpenAI strict mode で 400 エラーを引き起こす。
+    // makeStrictJsonSchema が再帰的に propertyNames を除去していることを検証する。
+    const schema = getLlmExtractionJsonSchema();
+    const serialized = JSON.stringify(schema);
+    expect(serialized).not.toContain('"propertyNames"');
+  });
+
   it('全オブジェクトに required が設定されていること（Azure/OpenAI strict mode 対応）', () => {
     // Azure strict mode は全 object に required 配列が必要
     type JsonSchemaObj = Record<string, unknown>;
