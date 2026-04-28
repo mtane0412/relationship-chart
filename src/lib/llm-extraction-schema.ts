@@ -5,8 +5,8 @@
  * 主な特徴:
  *   - sourceId / targetId の代わりに sourcePersonName / targetPersonName（名前ベース）
  *   - id / createdAt / updatedAt / colorOverride は除外（ストア側で自動生成）
- *   - properties フィールドは z.preprocess で null/undefined を {} に正規化する
- *     （LLM が properties を省略・null 出力した場合の安全策）
+ *   - Person.properties は LlmPersonSchema に含まない（z.record が Azure strict mode 非互換のため）
+ *     LLM 抽出後の Person.properties は常に {} として扱い、UI からの手動入力のみを受け付ける
  *   - 時系列上の出来事は Relationship.narrative ではなく episodes に抽出する
  *
  * z.toJSONSchema() による JSON Schema 変換に対応している。
@@ -51,15 +51,9 @@ export const LlmPersonSchema = z.object({
     (v) => v ?? null,
     LlmPersonNarrativeSchema.nullable()
   ),
-  /**
-   * 人物固有のドメイン属性。省略・null の場合は空オブジェクトに正規化
-   * 値の型は string / number / boolean / null に限定（JSON Schema 互換のため）
-   */
-  properties: z.preprocess(
-    (v) => (v == null ? {} : v),
-    z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()]))
-  ),
 });
+// NOTE: properties フィールド（z.record）は Azure / OpenAI strict mode と非互換のためスキーマから除外。
+//       LLM 抽出結果の Person.properties は常に {} として扱い、UI からの手動入力のみを受け付ける。
 
 /**
  * LLM が出力する関係の narrative スキーマ
@@ -173,9 +167,10 @@ export type LlmEpisode = z.infer<typeof LlmEpisodeSchema>;
  * strict mode の要件:
  * - 全オブジェクトに required（全プロパティキーの配列）が必要
  * - additionalProperties: false が必要
+ * - propertyNames キーは禁止（Azure はサポートしない）
  *
- * zod v4 の z.toJSONSchema() は optional フィールドを required に含めないため、
- * この関数で後処理として補完する。
+ * zod v4 の z.toJSONSchema() は optional フィールドを required に含めず、
+ * z.record() は propertyNames キーを生成するため、この関数で後処理として補完・除去する。
  */
 function makeStrictJsonSchema(schema: unknown): unknown {
   if (typeof schema !== 'object' || schema === null) return schema;
@@ -200,6 +195,12 @@ function makeStrictJsonSchema(schema: unknown): unknown {
     // 全プロパティキーを required に設定（既存の required は上書き）
     result.required = Object.keys(props);
     result.additionalProperties = false;
+  }
+
+  // z.record() は properties を持たず propertyNames を生成する。
+  // Azure / OpenAI strict mode は propertyNames をサポートしないため、type: object のすべてから除去する。
+  if (result.type === 'object' && 'propertyNames' in result) {
+    delete result.propertyNames;
   }
 
   return result;

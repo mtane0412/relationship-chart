@@ -66,8 +66,10 @@ describe('LlmPersonSchema', () => {
     }
   });
 
-  it('properties フィールドを含む人物データをパースできること', () => {
-    const valid = {
+  it('properties フィールドを含む入力でもパースが成功すること（properties フィールドは無視）', () => {
+    // Azure strict mode では z.record() を表現できないため LlmPersonSchema から properties を除外した。
+    // LLM が properties を出力しても、パース時に無視される（additionalProperties 相当の挙動）
+    const valid: unknown = {
       name: '光源氏',
       labels: ['人物'],
       properties: { 身分: '左大臣', 年齢: 20 },
@@ -75,7 +77,8 @@ describe('LlmPersonSchema', () => {
     const result = LlmPersonSchema.safeParse(valid);
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.properties).toEqual({ 身分: '左大臣', 年齢: 20 });
+      // properties フィールドはスキーマに存在しないため、result.data に含まれない
+      expect(result.data).not.toHaveProperty('properties');
     }
   });
 
@@ -280,8 +283,8 @@ describe('LlmExtractionResultSchema', () => {
   it('有効な抽出結果（episodes含む）をパースできること', () => {
     const valid: LlmExtractionResult = {
       persons: [
-        { name: '田中太郎', labels: ['人物'], tags: null, narrative: null, properties: {} },
-        { name: '山田花子', labels: ['人物'], tags: null, narrative: null, properties: {} },
+        { name: '田中太郎', labels: ['人物'], tags: null, narrative: null },
+        { name: '山田花子', labels: ['人物'], tags: null, narrative: null },
       ],
       relationships: [
         {
@@ -374,6 +377,14 @@ describe('getLlmExtractionJsonSchema', () => {
     expect(() => JSON.stringify(schema)).not.toThrow();
   });
 
+  it('スキーマのどこにも propertyNames が含まれないこと（Azure strict mode 対応 回帰テスト）', () => {
+    // z.record() 由来の propertyNames は Azure / OpenAI strict mode で 400 エラーを引き起こす。
+    // makeStrictJsonSchema が再帰的に propertyNames を除去していることを検証する。
+    const schema = getLlmExtractionJsonSchema();
+    const serialized = JSON.stringify(schema);
+    expect(serialized).not.toContain('"propertyNames"');
+  });
+
   it('全オブジェクトに required が設定されていること（Azure/OpenAI strict mode 対応）', () => {
     // Azure strict mode は全 object に required 配列が必要
     type JsonSchemaObj = Record<string, unknown>;
@@ -402,5 +413,19 @@ describe('getLlmExtractionJsonSchema', () => {
     // closeness が required に含まれていること（Azure エラーメッセージで指摘されたキー）
     expect((propSchema?.required as string[]).includes('closeness')).toBe(true);
     expect(propSchema?.additionalProperties).toBe(false);
+  });
+
+  it('persons.items.properties に properties キーが含まれないこと（Azure strict mode 対応）', () => {
+    // Azure エラーログ: context=('properties','persons','items') で z.record() 由来の
+    // properties フィールドが strict mode に非互換のため LlmPersonSchema から除外した。
+    // JSON Schema 上でも persons.items.properties に properties キーが存在しないことを確認する。
+    type JsonSchemaObj = Record<string, unknown>;
+    const schema = getLlmExtractionJsonSchema() as JsonSchemaObj;
+    const schemaProps = schema.properties as JsonSchemaObj;
+    const personItems = (schemaProps.persons as JsonSchemaObj).items as JsonSchemaObj;
+    const personItemsProps = personItems.properties as JsonSchemaObj;
+
+    // z.record() フィールドを除外したため properties キーが存在しないこと
+    expect(personItemsProps).not.toHaveProperty('properties');
   });
 });

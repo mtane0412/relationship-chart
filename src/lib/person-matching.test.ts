@@ -66,7 +66,7 @@ describe('matchPersonByName', () => {
 
 describe('resolveExtractionResult', () => {
   // v11 形式の抽出結果（type, label, symmetric: boolean, properties）
-  const llmPersonDefaults = { tags: null, narrative: null, properties: {} };
+  const llmPersonDefaults = { tags: null, narrative: null };
   const extractionResult: LlmExtractionResult = {
     persons: [
       { name: '田中太郎', labels: ['人物'], ...llmPersonDefaults },
@@ -297,7 +297,7 @@ describe('resolveExtractionResult', () => {
   describe('LLM 抽出人物の v15 フィールドフロースルー', () => {
     it('LLM が tags を出力した場合、新規人物に反映されること', () => {
       const extractionResult: LlmExtractionResult = {
-        persons: [{ name: '紫式部', labels: ['人物'], tags: ['作家', '貴族'], narrative: null, properties: {} }],
+        persons: [{ name: '紫式部', labels: ['人物'], tags: ['作家', '貴族'], narrative: null }],
         relationships: [],
         episodes: [],
       };
@@ -314,7 +314,6 @@ describe('resolveExtractionResult', () => {
             labels: ['人物'],
             tags: null,
             narrative: { summary: '平安時代の女流作家', notes: '枕草子の著者' },
-            properties: {},
           },
         ],
         relationships: [],
@@ -325,7 +324,9 @@ describe('resolveExtractionResult', () => {
       expect(newPerson?.narrative).toEqual({ summary: '平安時代の女流作家', notes: '枕草子の著者' });
     });
 
-    it('LLM が properties を出力した場合、新規人物に反映されること', () => {
+    it('LLM 抽出結果の新規人物は properties が常に {} になること', () => {
+      // Azure strict mode 非互換のため LlmPersonSchema から properties フィールドを除外した。
+      // LLM が properties を出力しても無視され、Person.properties は常に {} になる。
       const extractionResult: LlmExtractionResult = {
         persons: [
           {
@@ -333,7 +334,6 @@ describe('resolveExtractionResult', () => {
             labels: ['人物'],
             tags: null,
             narrative: null,
-            properties: { 身分: '左大臣', 年齢: 20, 主人公: true },
           },
         ],
         relationships: [],
@@ -341,12 +341,12 @@ describe('resolveExtractionResult', () => {
       };
       const result = resolveExtractionResult(extractionResult, [], new Map());
       const newPerson = result.newPersons.find((p) => p.name === '光源氏');
-      expect(newPerson?.properties).toEqual({ 身分: '左大臣', 年齢: 20, 主人公: true });
+      expect(newPerson?.properties).toEqual({});
     });
 
     it('LLM が tags・narrative・properties を省略（null）した場合はデフォルト値が使われること', () => {
       const extractionResult: LlmExtractionResult = {
-        persons: [{ name: '夕霧', labels: ['人物'], tags: null, narrative: null, properties: {} }],
+        persons: [{ name: '夕霧', labels: ['人物'], tags: null, narrative: null }],
         relationships: [],
         episodes: [],
       };
